@@ -13,10 +13,6 @@ const AREAS: Record<string, string> = {
 /**
  * «Datos de Designaciones»: de qué áreas salen los datos de la respuesta
  * (asistente-respuestas-con-vinculos, D4).
- *
- * NUNCA CANTIDADES NI CONSULTA. En una respuesta truncada, «12 filas» podría leerse
- * como el total, que es el dato que el contrato no revela; y la consulta tiene su
- * propia disclosure con permiso aparte.
  */
 export function ProcedenciaDeLosDatos({ origenes }: ProcedenciaDeLosDatosProps) {
   const nombres = [

@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { resolverModoDebugAsistente } from "./modoDebug";
 
-// Resolver puro, sin `import.meta.env`: a diferencia de
-// `resolverDevelopmentAuthEnabled`, acá NO hay fallback a modo desarrollo — el
-// razonamiento crudo no debe verse por el solo hecho de correr `vite dev`.
+// Resolver puro, sin `import.meta.env`: a diferencia de `resolverDevelopmentAuthEnabled`, acá NO
+// hay fallback a modo desarrollo — el razonamiento crudo no debe verse por el solo hecho de correr `vite dev`.
 describe("resolverModoDebugAsistente", () => {
   it("se habilita sólo con el opt-in explícito", () => {
     expect(resolverModoDebugAsistente({ configuredValue: "true" })).toBe(true);

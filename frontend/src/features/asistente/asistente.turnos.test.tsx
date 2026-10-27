@@ -20,9 +20,8 @@ afterEach(() => {
 
 describe("Un turno a la vez", () => {
   it("Enter en vuelo no manda un segundo turno", async () => {
-    // Dos pedidos concurrentes son dos claves de idempotencia —dos cobros— y el
-    // segundo sale con el hilo viejo o nulo: abre otra conversación sin que nadie
-    // la haya pedido. Sólo el botón estaba deshabilitado; Enter no miraba nada.
+    // Dos pedidos concurrentes son dos claves de idempotencia —dos cobros— y el segundo sale con el
+    // hilo viejo o nulo: abre otra conversación sin que nadie la haya pedido.
     const user = userEvent.setup();
     let resolver: (valor: RespuestaDelAsistente) => void = () => {};
     const consultar = vi
@@ -57,9 +56,7 @@ describe("Un turno a la vez", () => {
 
 describe("Un hilo perdido", () => {
   it("un 404 reinicia el hilo: el turno siguiente arranca una conversación nueva", async () => {
-    // El backend expira el hilo por inactividad y responde 404. Si el cliente
-    // sigue mandando el mismo identificador, cada pregunta vuelve a fallar igual y
-    // el aviso «Volvé a hacer la pregunta» es una promesa que no se cumple.
+    // El backend expira el hilo por inactividad y responde 404.
     const user = userEvent.setup();
     const hiloA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const consultar = vi
@@ -91,9 +88,8 @@ describe("Un hilo perdido", () => {
 
 describe("Reintentar", () => {
   it("reusa la clave de idempotencia y el texto del intento que falló", async () => {
-    // La clave existe para esto: si el backend ya había terminado el turno cuando
-    // se cortó la red, devuelve lo que guardó en lugar de cobrarle otra vez al
-    // modelo. Con una clave nueva sería un turno más, y otro cobro.
+    // La clave existe para esto: si el backend ya había terminado el turno cuando se cortó la red,
+    // devuelve lo que guardó en lugar de cobrarle otra vez al modelo.
     const user = userEvent.setup();
     const consultar = vi
       .spyOn(api, "consultar")
@@ -116,10 +112,9 @@ describe("Reintentar", () => {
   });
 
   it("no se ofrece en vuelo ni sobre un turno que se dejó de esperar", async () => {
-    // La idempotencia del backend consulta la caché ANTES de ejecutar y guarda
-    // DESPUÉS, sin registrar el turno en curso: la misma clave mientras el original
-    // sigue corriendo ejecuta el turno entero otra vez. Por eso sólo hay
-    // «Reintentar» cuando el request terminó, y terminó mal.
+    // La idempotencia del backend consulta la caché ANTES de ejecutar y guarda DESPUÉS, sin
+    // registrar el turno en curso: la misma clave mientras el original sigue corriendo ejecuta el
+    // turno entero otra vez.
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockImplementation(
       (_consulta, _clave, opciones) =>

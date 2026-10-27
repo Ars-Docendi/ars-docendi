@@ -16,12 +16,7 @@ interface CampoDeClaveDeEmpresaProps {
   botonReemplazarRef: RefObject<HTMLButtonElement | null>;
 }
 
-/**
- * La clave de la empresa elegida (tareas 4.7 y 4.9). Con clave guardada muestra
- * sólo la pista —nunca la clave— y «Reemplazar»; sin clave pide una, que se
- * guarda cifrada al aplicar el cambio y sirve para todos los modelos de la
- * empresa.
- */
+/** La clave de la empresa elegida (tareas 4.7 y 4.9). */
 export function CampoDeClaveDeEmpresa({
   nombreDeLaEmpresa,
   credencial,

@@ -20,15 +20,8 @@ const CLAVE_HISTORIAL = ["asistente", "historial"] as const;
 export const ESPERA_DE_BUSQUEDA_MS = 300;
 
 /**
- * Cuánto se muestra el aviso de deshacer, en milisegundos
- * (asistente-superficie-frontend, design.md D4/D15 de asistente-rediseno-v3).
- *
- * SON 10 s ACÁ Y 15 EN EL SERVIDOR, A PROPÓSITO: el servidor da 5 s de
- * margen de red por encima de lo que la interfaz muestra, para que un clic a
- * los 9,9 s con una conexión lenta todavía llegue a tiempo. Los dos números
- * viven en archivos distintos porque describen cosas distintas — cuánto
- * dura el aviso en pantalla, y hasta cuándo el servidor lo acepta — y no
- * porque se hayan desincronizado.
+ * Cuánto se muestra el aviso de deshacer, en milisegundos (asistente-superficie-frontend,
+ * design.md D4/D15 de asistente-rediseno-v3).
  */
 export const DURACION_DEL_AVISO_MS = 10_000;
 
@@ -47,21 +40,13 @@ export interface HistorialAsistente {
   archivar: (id: string) => Promise<void>;
   /** Desarchiva una conversación propia. */
   desarchivar: (id: string) => Promise<void>;
-  /**
-   * Marca una conversación propia pendiente de borrado. SIN CONFIRMACIÓN
-   * (asistente-superficie-frontend): la fila desaparece de inmediato y el
-   * aviso de deshacer es la red de seguridad, no un diálogo previo.
-   */
+  /** Marca una conversación propia pendiente de borrado. */
   eliminar: (id: string) => Promise<void>;
   /** Marca TODAS las conversaciones propias (archivadas incluidas) pendientes de borrado. */
   eliminarTodo: () => Promise<void>;
   /** Reanuda una conversación propia. */
   abrirConversacion: (id: string) => Promise<void>;
-  /**
-   * El aviso de deshacer vigente, o `null` sin ninguno. Se vence solo a los
-   * `DURACION_DEL_AVISO_MS`; una acción nueva lo reemplaza (nunca conviven
-   * dos).
-   */
+  /** El aviso de deshacer vigente, o `null` sin ninguno. */
   aviso: AvisoDeDeshacer | null;
   /**
    * El último anuncio para la región viva EXISTENTE (`Conversacion.tsx`,
@@ -70,31 +55,15 @@ export interface HistorialAsistente {
    */
   anuncio: string | null;
   /**
-   * La conversación activa, para resaltarla en el rail (`aria-current`) y
-   * titular el encabezado (`asistente-superficie-frontend`, design.md D13).
-   * La fija reanudar una conversación propia Y también la primera respuesta
-   * persistida de una conversación en vivo —el rail la resalta apenas
-   * aparece, sin que el usuario tenga que abrir nada—. Se limpia sola cuando
-   * el hilo se vacía —«Nueva conversación» u otro reinicio—, porque ahí deja
-   * de haber una fila del rail a la que corresponda seguir marcando.
+   * La conversación activa, para resaltarla en el rail (`aria-current`) y titular el encabezado
+   * (`asistente-superficie-frontend`, design.md D13).
    */
   conversacionActivaId: string | null;
 }
 
 /**
- * El historial propio: listar (con búsqueda), renombrar, archivar/desarchivar,
- * borrar (uno o todos, diferido y deshacible) y reanudar. Lo invoca el mismo
- * dueño que crea `asistente`: el lanzador de la barra, único montaje real desde
- * ARS-151 (tasks.md §10). `PanelDePrueba` también lo invoca, pero sólo para
- * probar `PanelAsistente` en aislamiento — no es un segundo montaje de
- * producción.
- *
- * @param habilitado
- * Si hay que pedir la lista AHORA. El rail ya no es un cajón que se abre y
- * cierra —vive siempre montado mientras el asistente está a la vista—, así
- * que lo que decide si vale la pena pedirla es si el ASISTENTE está a la
- * vista, y eso lo sabe el dueño del montaje (el lanzador: si el modal está
- * abierto) — no este hook.
+ * El historial propio: listar (con búsqueda), renombrar, archivar/desarchivar, borrar (uno o
+ * todos, diferido y deshacible) y reanudar.
  */
 export function useHistorialAsistente(
   asistente: Asistente,
@@ -115,25 +84,18 @@ export function useHistorialAsistente(
     return () => window.clearTimeout(temporizador);
   }, [busqueda]);
 
-  // EL AVISO SE VENCE SOLO. Atado a la IDENTIDAD del objeto `aviso` y no a
-  // su texto: una acción nueva siempre crea un objeto nuevo —incluso con el
-  // mismo texto—, así que este efecto limpia el temporizador viejo y arranca
-  // uno propio, que es exactamente «una acción nueva reemplaza al aviso
-  // anterior» (asistente-superficie-frontend).
+  // EL AVISO SE VENCE SOLO. Atado a la IDENTIDAD del objeto `aviso` y no a su texto: una acción
+  // nueva siempre crea un objeto nuevo —incluso con el mismo texto—, así que este efecto limpia el
+  // temporizador viejo y arranca uno propio, que es exactamente «una acción nueva reemplaza al
+  // aviso anterior» (asistente-superficie-frontend).
   useEffect(() => {
     if (!aviso) return;
     const temporizador = window.setTimeout(() => setAviso(null), DURACION_DEL_AVISO_MS);
     return () => window.clearTimeout(temporizador);
   }, [aviso]);
 
-  // AJUSTE DE ESTADO EN RENDER, no un efecto — mismo patrón que
-  // `LanzadorAsistente` usa para cerrarse al navegar. La marca de «activa»
-  // no sobrevive a que el hilo se vacíe: «Nueva conversación» y cualquier
-  // otro reinicio dejan `turnos` en `[]`, y ahí ya no hay ninguna fila del
-  // rail a la que corresponda seguir resaltando. Un `useEffect` acá pintaría
-  // un frame de más con la marca vieja antes de corregirla en el siguiente
-  // commit; ajustar durante el render evita ese frame extra, que es lo que
-  // pide la regla `react-hooks/set-state-in-effect`.
+  // AJUSTE DE ESTADO EN RENDER, no un efecto — mismo patrón que `LanzadorAsistente` usa para
+  // cerrarse al navegar.
   const [turnosVistos, setTurnosVistos] = useState(asistente.turnos.length);
   if (asistente.turnos.length !== turnosVistos) {
     setTurnosVistos(asistente.turnos.length);
@@ -153,17 +115,7 @@ export function useHistorialAsistente(
     [cliente],
   );
 
-  // EL RESPONSE NOMBRA SU CONVERSACIÓN (design.md D13, tasks.md 1.2). Cada
-  // turno que termina —lo haya respondido el modelo o no— pudo crear una
-  // conversación nueva o tocar `ultima_actividad` de una existente, así que
-  // el rail se invalida siempre. Sólo se ACTUALIZA `conversacionActivaId`
-  // cuando la respuesta trae una: un turno que no se persistió (la escritura
-  // falló) no tiene que pisar la conversación que ya se sabía activa.
-  //
-  // LA MARCA ES AJUSTE DE ESTADO EN RENDER (mismo patrón que `turnosVistos`,
-  // arriba); INVALIDAR LA QUERY SIGUE EN UN EFECTO, porque sí es sincronizar
-  // con un sistema externo —la caché de React Query— y no un cálculo
-  // derivado del estado de React.
+  // EL RESPONSE NOMBRA SU CONVERSACIÓN (design.md D13, tasks.md 1.2).
   const ultimaRespuesta = asistente.turnos.at(-1)?.respuesta;
   const [ultimaRespuestaVista, setUltimaRespuestaVista] = useState(ultimaRespuesta);
   if (ultimaRespuesta !== ultimaRespuestaVista) {
@@ -202,10 +154,9 @@ export function useHistorialAsistente(
   });
 
   /**
-   * Reanuda una conversación propia — la misma acción que `abrirConversacion`
-   * expone hacia afuera, pero también usada internamente para «Deshacer»
-   * cuando la conversación archivada/borrada era la activa (asistente-superficie-frontend:
-   * «Deshacer» la reanuda de nuevo).
+   * Reanuda una conversación propia — la misma acción que `abrirConversacion` expone hacia afuera,
+   * pero también usada internamente para «Deshacer» cuando la conversación archivada/borrada era
+   * la activa (asistente-superficie-frontend: «Deshacer» la reanuda de nuevo).
    */
   const resumir = useCallback(
     async (id: string) => {
@@ -217,10 +168,9 @@ export function useHistorialAsistente(
   );
 
   /**
-   * Si `id` es la conversación activa, vuelve a la bienvenida
-   * (asistente-superficie-frontend: archivar o eliminar la conversación
-   * activa resetea el hilo) y devuelve si lo hizo — lo que necesita el
-   * llamador para saber si «Deshacer» tiene que volver a reanudarla.
+   * Si `id` es la conversación activa, vuelve a la bienvenida (asistente-superficie-frontend:
+   * archivar o eliminar la conversación activa resetea el hilo) y devuelve si lo hizo — lo que
+   * necesita el llamador para saber si «Deshacer» tiene que volver a reanudarla.
    */
   function soltarSiEsLaActiva(id: string): boolean {
     if (id !== conversacionActivaId) return false;

@@ -33,9 +33,8 @@ describe("Todo turno lleva señal de aborto y un tope de tiempo del cliente", ()
   });
 
   it("el pedido HTTP lleva el timeout del turno, y el cliente compartido ninguno", async () => {
-    // El backend acota el turno a 150 s; el cliente espera apenas más, para que el
-    // que corte sea el servidor con su mensaje. Y va POR REQUEST: el resto de la
-    // aplicación no tiene turnos de dos minutos y medio.
+    // El backend acota el turno a 150 s; el cliente espera apenas más, para que el que corte sea el
+    // servidor con su mensaje.
     const user = userEvent.setup();
     const post = vi.spyOn(apiClient, "post").mockResolvedValue({ data: respuesta() });
     montar(<PanelDePrueba />);

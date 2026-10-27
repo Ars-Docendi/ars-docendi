@@ -20,14 +20,7 @@ import { hojaDeLaFeature, sinComentarios } from "./test/hojas";
 
 const raiz = join(import.meta.dirname);
 
-/**
- * El código de PRODUCCIÓN de la feature: `.ts` y `.tsx`, recursivo, sin tests.
- *
- * Los tests quedan afuera a propósito. Un test que nombra una clase la está
- * verificando, no aplicándola: contarlo como uso dejaría viva una regla que ya
- * no pinta nada mientras su test siga existiendo, que es exactamente la clase de
- * cosa que este guard busca.
- */
+/** El código de PRODUCCIÓN de la feature: `.ts` y `.tsx`, recursivo, sin tests. */
 const codigoDeLaFeature = (directorio: string): string[] =>
   readdirSync(directorio, { withFileTypes: true }).flatMap((entrada) => {
     const ruta = join(directorio, entrada.name);
@@ -53,23 +46,18 @@ describe("Las clases de la hoja del asistente", () => {
       [...hoja.matchAll(/\.(adoc-asistente[\w-]*)/g)].map((coincidencia) => coincidencia[1]),
     );
 
-    // Se busca el nombre como texto y no como palabra suelta: las clases se
-    // componen tanto en `className="adoc-x"` como en plantillas
-    // (`` `adoc-x ${activo}` ``) y en `clsx`, y todas esas formas contienen el
-    // nombre completo.
+    // Se busca el nombre como texto y no como palabra suelta: las clases se componen tanto en
+    // `className="adoc-x"` como en plantillas (`` `adoc-x ${activo}` ``) y en `clsx`, y todas esas
+    // formas contienen el nombre completo.
     const huerfanas = [...definidas].filter((clase) => !codigo.includes(clase)).sort();
 
     expect(huerfanas).toEqual([]);
   });
 
   it("sólo sobreescribe clases de la librería que están declaradas", () => {
-    // LA OTRA MITAD. El guard de arriba mira las clases con el prefijo de la
-    // feature; una clase `adoc-` SIN ese prefijo es de `@ars-docendi/ui` —o de
-    // un componente compartido del propio repo, como `MenuAcciones`— y la
-    // hoja la está sobreescribiendo. Eso es legítimo —así se ajusta la tabla,
-    // o se le esconde el «⋮» hasta el hover, sin `!important` ni fork— pero
-    // tiene que ser una decisión visible: una sobreescritura que aparece sola
-    // es una feature pisando estilos ajenos.
+    // LA OTRA MITAD. El guard de arriba mira las clases con el prefijo de la feature; una clase
+    // `adoc-` SIN ese prefijo es de `@ars-docendi/ui` —o de un componente compartido del propio
+    // repo, como `MenuAcciones`— y la hoja la está sobreescribiendo.
     const declaradas = ["adoc-acciones-trigger", "adoc-btn", "adoc-modal-stage", "adoc-table"];
 
     const ajenas = [
@@ -84,9 +72,8 @@ describe("Las clases de la hoja del asistente", () => {
   });
 
   it("detecta una clase huérfana", () => {
-    // EL PAR SINTÉTICO. Sin esto, una expresión regular que dejara de matchear
-    // pasaría en verde para siempre afirmando que no hay huérfanas porque no
-    // encontró ninguna clase.
+    // EL PAR SINTÉTICO. Sin esto, una expresión regular que dejara de matchear pasaría en verde
+    // para siempre afirmando que no hay huérfanas porque no encontró ninguna clase.
     const inventada = ".adoc-asistente-clase-que-nadie-usa { display: none; }";
     const definidas = [...sinComentarios(inventada).matchAll(/\.(adoc-[\w-]+)/g)].map(
       (coincidencia) => coincidencia[1],

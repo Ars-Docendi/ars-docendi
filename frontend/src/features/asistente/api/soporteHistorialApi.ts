@@ -42,20 +42,7 @@ export interface PersonaParaSoporte {
   documento: string;
 }
 
-/**
- * Busca personas para elegir A QUIÉN leerle el historial.
- *
- * REUTILIZA EL ENDPOINT EXISTENTE de administración de usuarios
- * (`GET /api/administracion/usuarios`) en vez de crear un buscador nuevo —es
- * lo que tasks.md 13.1 pide explícitamente—, pero NO importa nada de
- * `features/usuarios/`: esta feature no cruza esa frontera (react-features-guide,
- * «las features no se importan entre sí»), así que llama al mismo endpoint
- * real por su cuenta y con la forma mínima que necesita este selector.
- *
- * Exige `usuarios.ver` en el backend, igual que la pantalla de administración
- * de usuarios: quien administra los roles decide si otorga los dos permisos
- * juntos a quien vaya a hacer soporte del historial.
- */
+/** Busca personas para elegir A QUIÉN leerle el historial. */
 export async function buscarPersonasParaSoporte(): Promise<PersonaParaSoporte[]> {
   const { data } = await apiClient.get<
     { id: string; nombre: string; apellido: string; documento: string }[]

@@ -27,12 +27,9 @@ interface PanelDeUsoProps {
   /** Texto para la región viva compartida de la página (tasks.md 13.2). */
   onGuardado: (mensaje: string) => void;
   /**
-   * Pestaña controlada desde afuera: «Exportar CSV» en el encabezado de la
-   * pestaña (`PanelAdministracionAsistente`) necesita saber cuál es la vista
-   * activa para exportar exactamente lo que se está viendo. Si no se pasa,
-   * el panel maneja su propio estado — mismo patrón controlado/no controlado
-   * que un `<input>`, para no forzar este prop en cada test que monta el
-   * panel de forma aislada.
+   * Pestaña controlada desde afuera: «Exportar CSV» en el encabezado de la pestaña
+   * (`PanelAdministracionAsistente`) necesita saber cuál es la vista activa para exportar
+   * exactamente lo que se está viendo.
    */
   pestana?: Pestana;
   onCambiarPestana?: (pestana: Pestana) => void;
@@ -88,25 +85,12 @@ function notaDeMetrica(fila: UsoAgregado, metrica: Metrica): string {
 }
 
 /**
- * El detalle del panel de uso —por usuario y por rol— del rediseño «Uso del
- * asistente» (sistema-seccion-unificada), en su pasada de fidelidad con el
- * canvas de Claude Design: UNA sola tarjeta con las pestañas y el selector de
- * métrica (Sesiones/Costo/Tokens/Latencia) arriba, y una columna de detalle
- * que muestra la métrica elegida con una barra proporcional al máximo de la
- * vista — reemplaza las seis columnas siempre visibles y el ordenamiento
- * manual por encabezado del primer rediseño. Las filas se ordenan solas,
- * descendente por la métrica elegida (mismo criterio que el canvas).
- *
- * El cupo diario sigue editándose DIRECTO EN LA FILA (`EditorDeCupoEnFila`),
- * y desde asistente-acceso-granular cada fila tiene además su columna
- * «Acceso» (`CeldaDeAcceso`): el acceso y el cupo se heredan del rol; a un
- * usuario se le puede quitar el acceso, no darlo, y tanto la revocación como
- * un cupo propio se restablecen al del rol desde la misma fila.
- * El agregado «Organización» no vive acá: está en `KpisDeUso`, arriba.
- *
- * EL COSTO SIEMPRE LLEVA «(estimado)» cuando la métrica elegida es Costo, y
- * un turno sin precio vigente NUNCA se cuenta como costo cero: se ve aparte
- * (asistente-panel-de-uso).
+ * El detalle del panel de uso —por usuario y por rol— del rediseño «Uso del asistente»
+ * (sistema-seccion-unificada), en su pasada de fidelidad con el canvas de Claude Design: UNA sola
+ * tarjeta con las pestañas y el selector de métrica (Sesiones/Costo/Tokens/Latencia) arriba, y una
+ * columna de detalle que muestra la métrica elegida con una barra proporcional al máximo de la
+ * vista — reemplaza las seis columnas siempre visibles y el ordenamiento manual por encabezado del
+ * primer rediseño.
  */
 export function PanelDeUso({
   uso,
@@ -164,11 +148,7 @@ export function PanelDeUso({
   const maxValor = Math.max(0.0001, ...ordenadas.map((f) => valorDeMetrica(f, metrica)));
   const guardarCupo = esUsuarios ? onGuardarCupoDeUsuario : onGuardarCupoDeRol;
 
-  // El default de cada rol siempre está persistido (seed de 006). El cupo de
-  // una fila de USUARIO ya no se arma acá con un mapa aparte: viene resuelto
-  // desde el backend en la propia fila (`cupoEfectivo`/`origenDeCupo`, tarea
-  // «rol y cupo efectivo por usuario» de sistema-seccion-unificada) — la
-  // misma regla que aplicaría la ejecución real del turno.
+  // El default de cada rol siempre está persistido (seed de 006).
   const cuposPorRolMap = new Map(cuposPorRol.map((c) => [c.rol, c.cupoDiarioTurnos]));
   // Un rol sin fila persistida cuenta como habilitado — misma regla que el
   // backend (`ReglaDeAccesoEfectivo`).
@@ -312,11 +292,10 @@ export function PanelDeUso({
                         origen={esUsuarios ? (fila.origenDeCupo ?? undefined) : "rol"}
                         onGuardar={(cupo) => guardarCupo(fila.clave, cupo)}
                         onGuardado={(cupo) => {
-                          // El valor persistido lo vuelve a traer la próxima
-                          // vez que se invaliden las queries del panel (el
-                          // padre lo hace tras un guardado exitoso) — ya NO
-                          // hace falta un estado local "guardado en esta
-                          // sesión" (tarea 12.8 de sistema-seccion-unificada).
+                          // El valor persistido lo vuelve a traer la próxima vez que se invaliden
+                          // las queries del panel (el padre lo hace tras un guardado exitoso) — ya
+                          // NO hace falta un estado local "guardado en esta sesión" (tarea 12.8 de
+                          // sistema-seccion-unificada).
                           onGuardado(
                             `Cupo diario de ${fila.nombreParaMostrar ?? fila.clave}: ${
                               cupo === 0 ? "sin tope" : `${cupo} turnos`

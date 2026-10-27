@@ -2,11 +2,8 @@ import type { PeriodoDeUso, UsoAgregado } from "../types";
 import { neutralizarFormula } from "./portapapeles";
 
 /**
- * Exportación CSV de la vista activa del detalle de uso (rediseño «Uso del
- * asistente», fidelidad con el canvas de Claude Design: botón «Exportar CSV»
- * en el encabezado). Las columnas son las mismas que ya se ven en la tabla
- * —nunca un dato nuevo, y nunca más PII que el nombre para mostrar que la
- * fila ya trae—, así que no hay nada acá que la pantalla no muestre ya.
+ * Exportación CSV de la vista activa del detalle de uso (rediseño «Uso del asistente», fidelidad
+ * con el canvas de Claude Design: botón «Exportar CSV» en el encabezado).
  */
 const ENCABEZADOS = [
   "Sesiones",
@@ -30,17 +27,15 @@ function celdaCsv(valor: string | number): string {
 }
 
 /**
- * Arma el CSV de una lista de filas ya cargada (por usuario o por rol): no
- * pide nada nuevo al backend, sólo serializa lo que `PanelDeUso` ya tiene en
- * memoria para el período elegido.
+ * Arma el CSV de una lista de filas ya cargada (por usuario o por rol): no pide nada nuevo al
+ * backend, sólo serializa lo que `PanelDeUso` ya tiene en memoria para el período elegido.
  */
 export function construirCsvDeUso(filas: UsoAgregado[], esUsuarios: boolean): string {
   const encabezado = [esUsuarios ? "Usuario" : "Rol", ...ENCABEZADOS].map(celdaCsv).join(",");
   const cuerpo = filas.map((f) =>
     [
-      // El nombre es el único texto libre de la fila: se neutraliza como en
-      // `tablaComoCsv`, para que «=…» no corra como fórmula al abrir el archivo.
-      // Las columnas numéricas no, porque nunca son negativas.
+      // El nombre es el único texto libre de la fila: se neutraliza como en `tablaComoCsv`, para
+      // que «=…» no corra como fórmula al abrir el archivo.
       neutralizarFormula(f.nombreParaMostrar ?? f.clave),
       f.turnos,
       f.llamadasAlModelo,

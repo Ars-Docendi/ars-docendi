@@ -71,11 +71,7 @@ export async function editarAccesoDeRol(rol: string, habilitado: boolean): Promi
   });
 }
 
-/**
- * Quita (`false`) o restablece (`true`) el acceso de un usuario. Restablecer
- * sólo borra la revocación: a un usuario se le puede quitar el acceso, no
- * darlo por encima de su rol.
- */
+/** Quita (`false`) o restablece (`true`) el acceso de un usuario. */
 export async function editarAccesoDeUsuario(actorId: string, habilitado: boolean): Promise<void> {
   await apiClient.put(`/api/asistente/administracion/presupuestos/usuarios/${actorId}/acceso`, {
     habilitado,
@@ -101,8 +97,7 @@ export async function editarMantenimiento(
 
 /**
  * La carga del servidor del modelo propio y de la compuerta del backend
- * (asistente-optimizaciones-modelo-local, D8). Con un proveedor que no es
- * `local` responde `configurado: false`.
+ * (asistente-optimizaciones-modelo-local, D8).
  */
 export async function obtenerServidorLocal(): Promise<ServidorLocal> {
   const { data } = await apiClient.get<ServidorLocal>(
@@ -121,9 +116,8 @@ export async function obtenerEstadoDelModelo(): Promise<EstadoDelModelo> {
 }
 
 /**
- * Una llamada mínima real, sin persistir nada. Una prueba que falla es un 200
- * con `exito: false` y un código; un pedido inválido (400) o sin clave maestra
- * (503) sí rechaza la promesa.
+ * Una llamada mínima real, sin persistir nada. Una prueba que falla es un 200 con `exito: false` y
+ * un código; un pedido inválido (400) o sin clave maestra (503) sí rechaza la promesa.
  */
 export async function probarModelo(pedido: PedidoDeModelo): Promise<ResultadoDePrueba> {
   const { data } = await apiClient.post<ResultadoDePrueba>(
@@ -133,10 +127,7 @@ export async function probarModelo(pedido: PedidoDeModelo): Promise<ResultadoDeP
   return data;
 }
 
-/**
- * Re-prueba en el servidor, guarda la clave nueva si viene y fija el modelo.
- * Si la prueba falla responde 422 con `codigo` y no cambia nada.
- */
+/** Re-prueba en el servidor, guarda la clave nueva si viene y fija el modelo. */
 export async function aplicarModelo(pedido: PedidoDeModelo): Promise<ModeloAplicado> {
   const { data } = await apiClient.put<ModeloAplicado>(
     "/api/asistente/administracion/modelo",
@@ -166,9 +157,8 @@ export async function reemplazarClaveDeEmpresa(
 }
 
 /**
- * Escribe un precio como una versión nueva del modelo: cierra la vigente y abre
- * la nueva en una sola transacción. Un precio o una fecha inválidos (400) traen
- * `codigo` y no cambian nada.
+ * Escribe un precio como una versión nueva del modelo: cierra la vigente y abre la nueva en una
+ * sola transacción.
  */
 export async function cargarPrecio(pedido: PedidoDePrecio): Promise<PrecioDelModelo> {
   const { data } = await apiClient.post<PrecioDelModelo>(
@@ -178,10 +168,7 @@ export async function cargarPrecio(pedido: PedidoDePrecio): Promise<PrecioDelMod
   return data;
 }
 
-/**
- * Aggregate quality metrics (asistente-metricas-de-calidad). Needs
- * `asistente.administrar`. `modelo` is the optional `empresa/modelo` filter.
- */
+/** Aggregate quality metrics (asistente-metricas-de-calidad). */
 export async function obtenerCalidad(
   periodo: PeriodoDeCalidad,
   modelo?: string,
@@ -192,12 +179,7 @@ export async function obtenerCalidad(
   return data;
 }
 
-/**
- * One page (25 rows) of the anonymous problem list. Needs
- * `asistente.revisar_calidad`, a different permission from the aggregates:
- * callers must not request it without it (the backend answers 403 and audits
- * nothing). Every successful read is audited on the server.
- */
+/** One page (25 rows) of the anonymous problem list. */
 export async function obtenerProblemasDeCalidad(
   periodo: PeriodoDeCalidad,
   pagina: number,

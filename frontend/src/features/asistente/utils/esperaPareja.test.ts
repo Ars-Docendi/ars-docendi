@@ -21,9 +21,8 @@ describe("el medidor de la espera pareja", () => {
   });
 
   it("con la semilla, el sorteo cabe entero entre el piso y el techo", () => {
-    // Si el piso se comiera la banda, las primeras esperas serían todas iguales y
-    // se percibirían como un temporizador. Los dos extremos tienen que quedar
-    // adentro sin recortarse.
+    // Si el piso se comiera la banda, las primeras esperas serían todas iguales y se percibirían
+    // como un temporizador.
     const flojo = crearMedidorDeEspera(() => 0).objetivoMs();
     const apretado = crearMedidorDeEspera(() => 1).objetivoMs();
 

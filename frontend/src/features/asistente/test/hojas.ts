@@ -2,18 +2,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-/**
- * Las hojas de estilo de la feature, leídas como TEXTO.
- *
- * Barre el DIRECTORIO en vez de nombrar `asistente.css`. La diferencia importa: un
- * `.css` nuevo con un token inexistente o un color a mano no rompe nada visible
- * —`var(--token, fallback)` se renderiza siempre—, y con la lista escrita a mano
- * ese archivo nunca entraría al guard. Barriendo, entra solo.
- *
- * Va por `fs` y no por `?raw`: con `css: false` en la config, vitest resuelve
- * cualquier import de un `.css` —también con `?raw`— a una cadena vacía, y este
- * guard pasó un tiempo afirmando cosas sobre dos cadenas vacías.
- */
+/** Las hojas de estilo de la feature, leídas como TEXTO. */
 const directorio = join(import.meta.dirname, "..");
 
 export const hojasDeLaFeature = (): string[] =>

@@ -8,9 +8,7 @@ interface CeldaDeAccesoProps {
   nombre: string;
   acceso: boolean;
   /**
-   * De dónde sale `acceso` en una fila de USUARIO: heredado del `"rol"` o
-   * una revocación `"propio"`. Sin origen, la fila es un ROL y el
-   * interruptor se mueve libremente.
+   * De dónde sale `acceso` en una fila de USUARIO: heredado del `"rol"` o una revocación `"propio"`.
    */
   origen?: "rol" | "propio";
   /**
@@ -21,13 +19,9 @@ interface CeldaDeAccesoProps {
 }
 
 /**
- * La columna «Acceso» del panel de uso (asistente-acceso-granular, canvas
- * «Uso del asistente»): sólo el interruptor —su nombre accesible dice de quién
- * es—, más «propio» y el ícono de restablecer cuando el valor es una
- * revocación del usuario.
- *
- * El backend valida la misma regla (design.md D3); el interruptor
- * deshabilitado para un usuario sin acceso heredado del rol sólo la anticipa.
+ * La columna «Acceso» del panel de uso (asistente-acceso-granular, canvas «Uso del asistente»):
+ * sólo el interruptor —su nombre accesible dice de quién es—, más «propio» y el ícono de
+ * restablecer cuando el valor es una revocación del usuario.
  */
 export function CeldaDeAcceso({ nombre, acceso, origen, onCambiar }: CeldaDeAccesoProps) {
   const [enviando, setEnviando] = useState(false);

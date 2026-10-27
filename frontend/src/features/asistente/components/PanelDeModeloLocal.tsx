@@ -27,10 +27,8 @@ const ICONO_AYUDA = (
 );
 
 /**
- * El modelo local (tarea 4.5): un servidor de la lista cerrada que devuelve el
- * backend, por nombre, y un modelo del catálogo. No hay campo de URL ni de
- * credencial: las credenciales de un servidor viven en su configuración, y el
- * tooltip lo dice.
+ * El modelo local (tarea 4.5): un servidor de la lista cerrada que devuelve el backend, por
+ * nombre, y un modelo del catálogo.
  */
 export function PanelDeModeloLocal({
   servidores,

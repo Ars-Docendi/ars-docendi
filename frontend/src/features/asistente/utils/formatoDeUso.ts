@@ -1,8 +1,7 @@
 /**
- * Formato compartido del panel de administración del asistente
- * (asistente-administracion-de-uso): antes vivía sólo dentro de `PanelDeUso`,
- * ahora también lo usan `KpisDeUso` y `TopeOrganizacionalCard` — una sola
- * fuente de verdad para «cómo se ve un monto en USD» en toda esta pantalla.
+ * Formato compartido del panel de administración del asistente (asistente-administracion-de-uso):
+ * antes vivía sólo dentro de `PanelDeUso`, ahora también lo usan `KpisDeUso` y
+ * `TopeOrganizacionalCard` — una sola fuente de verdad para «cómo se ve un monto en USD» en toda esta pantalla.
  */
 
 /** «US$ 12,34»: la factura del proveedor es la fuente de verdad, esto es sólo una guía. */

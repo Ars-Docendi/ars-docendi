@@ -12,29 +12,7 @@ import {
 } from "../api/soporteHistorialApi";
 import "../asistente.css";
 
-/**
- * Lectura de soporte del historial AJENO
- * (asistente-acceso-de-soporte-al-historial).
- *
- * SÓLO LLEGA ACÁ QUIEN TIENE EL PERMISO: `routes.tsx` la envuelve con
- * `RequirePermission`, así que esta página no vuelve a chequearlo —el mismo
- * criterio que `PeriodosPage`/`RequirePermission` en `designaciones`—.
- *
- * LA RAZÓN ES OBLIGATORIA ANTES DE VER NADA (design.md D10): sin ella no se
- * pide ni el listado ni una conversación puntual — los dos endpoints del
- * backend la exigen igual, así que esto es la misma regla del lado del
- * cliente, no una regla nueva.
- *
- * LA RAZÓN SE CONFIRMA, NO SE TIPEA: cada lectura queda auditada con su
- * razón, así que las consultas dependen de la razón confirmada con «Ver
- * historial» y no de cada tecla. Si no, escribir «porque falla» dejaba en la
- * auditoría una lectura con «p», otra con «po», y así hasta el final.
- *
- * Por la misma razón, ninguna de las dos lecturas se repite sola al volver el
- * foco a la ventana o al reconectar: cada repetición sería otra fila de
- * auditoría que nadie pidió. Sí se repite al volver a confirmar, porque ahí
- * hay una lectura nueva que registrar.
- */
+/** Lectura de soporte del historial AJENO (asistente-acceso-de-soporte-al-historial). */
 export function SoporteHistorialPage() {
   const [sujetoId, setSujetoId] = useState<string | null>(null);
   const [razon, setRazon] = useState("");
@@ -77,9 +55,8 @@ export function SoporteHistorialPage() {
     setHiloAbierto(null);
   }
 
-  // Mientras una lectura está en curso no se acepta otra confirmación: el
-  // refetch reutilizaría esa misma solicitud y la confirmación quedaría sin
-  // su lectura (y sin su fila de auditoría).
+  // Mientras una lectura está en curso no se acepta otra confirmación: el refetch reutilizaría esa
+  // misma solicitud y la confirmación quedaría sin su lectura (y sin su fila de auditoría).
   const leyendo = conversaciones.isFetching || detalle.isFetching;
 
   function confirmarRazon(evento: FormEvent) {

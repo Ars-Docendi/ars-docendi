@@ -11,11 +11,8 @@ interface BarraDeAccionesProps {
   /** El texto de la respuesta, tal cual llegó. */
   texto: string;
   /**
-   * Exportar, YA resuelto contra el orden mostrado —la misma función que
-   * `TablaDeResultado` expone vía `onExportarDisponible`—, o `null` mientras
-   * no hay tabla que exportar. `null` es también la señal de que no hay
-   * «Ampliar tabla» ni «Exportar a CSV» para este turno
-   * (asistente-superficie-frontend: sólo con al menos una fila).
+   * Exportar, YA resuelto contra el orden mostrado —la misma función que `TablaDeResultado` expone
+   * vía `onExportarDisponible`—, o `null` mientras no hay tabla que exportar.
    */
   onExportar: (() => void) | null;
   /** Abre la vista ampliada — el estado y el cierre los maneja `TablaDeResultado` (controlada). */
@@ -29,21 +26,11 @@ interface BarraDeAccionesProps {
 }
 
 /**
- * La barra de íconos bajo cada respuesta (asistente-superficie-frontend,
- * design.md D6 de asistente-rediseno-v3): reemplaza los botones de texto de
- * `AccionesDelMensaje` (borrado) y de la propia tabla —«Ampliar tabla» /
- * «Exportar a CSV», que la tabla deja de dibujar cuando recibe sus
- * disparadores controlados (`ampliado`/`onAmpliarChange`/
- * `onExportarDisponible`)— y los botones de texto de `VotoDeRetroalimentacion`.
- *
- * SIEMPRE EN EL DOM Y EN EL ORDEN DE TAB: la visibilidad la decide
- * `asistente.css` con opacidad —hover o foco dentro del turno, siempre en el
- * último turno y en los votados (`:has([aria-pressed="true"])`, sin estado
- * nuevo que levantar)—, nunca `display: none` ni un render condicional por
- * interacción. Lo que SÍ decide este componente es qué controles existen: sin
- * portapapeles no hay «Copiar respuesta», sin tabla no hay «Ampliar tabla» ni
- * «Exportar a CSV», sin token no hay voto — y sin ninguno de los tres, la
- * barra entera no se monta.
+ * La barra de íconos bajo cada respuesta (asistente-superficie-frontend, design.md D6 de
+ * asistente-rediseno-v3): reemplaza los botones de texto de `AccionesDelMensaje` (borrado) y de la
+ * propia tabla —«Ampliar tabla» / «Exportar a CSV», que la tabla deja de dibujar cuando recibe sus
+ * disparadores controlados (`ampliado`/`onAmpliarChange`/ `onExportarDisponible`)— y los botones
+ * de texto de `VotoDeRetroalimentacion`.
  */
 export function BarraDeAcciones({
   texto,
@@ -106,9 +93,7 @@ function BotonDeCopiar({ texto, duracionMs }: { texto: string; duracionMs: numbe
     try {
       await copiar(texto);
     } catch {
-      // El navegador lo negó —permiso, o el documento perdió el foco—. El texto
-      // sigue ahí para seleccionarlo a mano; el ícono no miente mostrando un
-      // tilde que no pasó.
+      // El navegador lo negó —permiso, o el documento perdió el foco—.
       return;
     }
 

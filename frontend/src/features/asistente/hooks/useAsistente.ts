@@ -11,21 +11,16 @@ export interface Asistente {
   turnos: TurnoDeLaConversacion[];
   enVuelo: boolean;
   /**
-   * `menciones`: las «@materia»/«#docente» elegidas en el composer, ya
-   * ubicadas en `mensaje` (asistente-menciones). El turno las guarda para
-   * pintarlas como chips y para que «Reintentar» las reenvíe con la misma
-   * clave; el request sólo manda `{ tipo, id }` de cada una — nunca el texto.
+   * `menciones`: las «@materia»/«#docente» elegidas en el composer, ya ubicadas en `mensaje`
+   * (asistente-menciones).
    */
   preguntar: (mensaje: string, menciones?: MencionEnPregunta[]) => Promise<void>;
   /** Reenvía un turno que terminó en error, con su misma clave y su mismo texto. */
   reintentar: (id: string) => Promise<void>;
   /**
    * Edita y reenvía la última pregunta de la conversación
-   * (asistente-edicion-de-la-ultima-pregunta): manda un turno nuevo, con una
-   * clave nueva, que le pide al backend reemplazar el actual último turno.
-   * El turno que resulta toma un `id` nuevo —nunca el que tenía—, así que su
-   * `key` en la lista cambia y el voto, el orden y la vista ampliada de la
-   * tabla se resetean solos al volver a montarse.
+   * (asistente-edicion-de-la-ultima-pregunta): manda un turno nuevo, con una clave nueva, que le
+   * pide al backend reemplazar el actual último turno.
    */
   reenviarUltima: (texto: string) => Promise<void>;
   /** Vacía la conversación y descarta el hilo: la próxima pregunta arranca de cero. */
@@ -33,25 +28,22 @@ export interface Asistente {
   /** Deja de esperar el turno en vuelo: suelta el request. El backend lo sigue igual. */
   detener: () => void;
   /**
-   * Reanuda una conversación propia (asistente-historial-conversaciones,
-   * design.md D3): reemplaza la conversación en curso por los turnos
-   * restaurados y fija el hilo efímero nuevo, para que el próximo
-   * `preguntar` siga esa misma conversación persistida.
+   * Reanuda una conversación propia (asistente-historial-conversaciones, design.md D3): reemplaza
+   * la conversación en curso por los turnos restaurados y fija el hilo efímero nuevo, para que el
+   * próximo `preguntar` siga esa misma conversación persistida.
    */
   sembrarDesdeHistorial: (hiloEfimero: string, turnos: TurnoDeHistorial[]) => void;
   /**
-   * «Volver a consultar» (design.md D4): re-ejecuta la SQL guardada de un
-   * turno histórico ya respondido, bajo el alcance actual del actor. Nunca
-   * escribe una fila nueva de historial ni llama al modelo.
+   * «Volver a consultar» (design.md D4): re-ejecuta la SQL guardada de un turno histórico ya
+   * respondido, bajo el alcance actual del actor.
    */
   reejecutar: (id: string) => Promise<void>;
 }
 
 export interface OpcionesDelAsistente {
   /**
-   * Pedir los turnos a `POST /consultas/flujo` y mostrar la redacción mientras
-   * se escribe (asistente-optimizaciones-modelo-local, D9). Lo decide
-   * `GET /capacidades`; sin él, el turno se pide entero como siempre.
+   * Pedir los turnos a `POST /consultas/flujo` y mostrar la redacción mientras se escribe
+   * (asistente-optimizaciones-modelo-local, D9).
    */
   redaccionEnFlujo?: boolean;
 }
@@ -62,18 +54,7 @@ interface TurnoEnCurso {
   aborto: AbortController;
 }
 
-/**
- * La conversación de esta sesión.
- *
- * El hilo vive acá y no en un store global. El backend ya decidió no persistirlo, y
- * un store agregaría decisiones de ciclo de vida —cuándo se limpia, qué pasa al
- * cambiar de rol— para un estado que muere igual al recargar la página.
- *
- * LO INVOCA EL DUEÑO DEL MONTAJE —el lanzador de la barra— y no el panel. El
- * panel se desmonta al cerrar el modal, y con él se iba la conversación si viviera
- * ahí; el lanzador vive con la barra, así que al reabrir el hilo sigue donde
- * estaba.
- */
+/** La conversación de esta sesión. El hilo vive acá y no en un store global. */
 export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente = {}): Asistente {
   const [turnos, setTurnos] = useState<TurnoDeLaConversacion[]>([]);
   // En un ref por el mismo motivo que `enCurso`: `enviar` se memoiza una vez, y
@@ -84,20 +65,15 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
   }, [redaccionEnFlujo]);
   const [enVuelo, setEnVuelo] = useState(false);
   const hilo = useRef<string | null>(null);
-  // Es también el guard de «un turno a la vez»: las funciones de abajo se memoizan
-  // una sola vez, así que leer `enVuelo` adentro daría siempre el valor del primer
-  // render.
+  // Es también el guard de «un turno a la vez»: las funciones de abajo se memoizan una sola vez,
+  // así que leer `enVuelo` adentro daría siempre el valor del primer render.
   const enCurso = useRef<TurnoEnCurso | null>(null);
   const montado = useRef(true);
   // Aprende de los turnos que sí llamaron al modelo para saber cuánto retener los
   // que no. Vive en un ref porque es memoria de la sesión, no estado que se pinte.
   const medidor = useRef(crearMedidorDeEspera());
 
-  // Quien se desmonta con un turno en vuelo se lleva el request consigo. Sin esto
-  // el pedido sobrevive al componente y la respuesta cae sobre un estado que ya no
-  // existe. Corre al desmontarse el DUEÑO del hook —el lanzador de la barra—, que
-  // en la práctica sólo pasa si la aplicación entera se desmonta; cerrar el modal
-  // no aborta nada, porque el lanzador sigue montado.
+  // Quien se desmonta con un turno en vuelo se lleva el request consigo.
   useEffect(() => {
     montado.current = true;
     return () => {
@@ -106,11 +82,7 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
     };
   }, []);
 
-  // Un envío, sea el primero, un reintento o un reemplazo. Quien llama ya
-  // puso el turno en la lista; acá se lo manda y se lo completa con lo que
-  // vuelva. `reemplaza` es el identificador del turno que este envío
-  // reemplaza —ausente en un turno nuevo cualquiera y en un reintento de
-  // ÉSE—, para «Editar y reenviar».
+  // Un envío, sea el primero, un reintento o un reemplazo.
   const enviar = useCallback(
     async (id: string, texto: string, reemplaza?: string, menciones?: MencionEnPregunta[]) => {
       const aborto = new AbortController();
@@ -141,9 +113,8 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
               },
             })
           : await consultar(pedido, id, { signal: aborto.signal });
-        // Si mientras tanto se dejó de esperar o se reinició la conversación, lo que
-        // llegue ya no es de nadie: tampoco el hilo, que resucitaría una
-        // conversación que el usuario dio por cerrada.
+        // Si mientras tanto se dejó de esperar o se reinició la conversación, lo que llegue ya no
+        // es de nadie: tampoco el hilo, que resucitaría una conversación que el usuario dio por cerrada.
         if (aborto.signal.aborted) return;
         hilo.current = respuesta.hilo;
 
@@ -153,13 +124,8 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
           // De acá sale la media con la que se retiene a los otros.
           medidor.current.anotar(tardo);
         } else if (respuesta.estado !== "servicio_degradado") {
-          // ESPERA PAREJA. Un carril determinista contesta en milisegundos, y esa
-          // respuesta instantánea se lee como «no hizo nada». Se retiene hasta
-          // parecerse a un turno con modelo, con lo que ya tardó descontado.
-          //
-          // El degradado queda AFUERA a propósito: es el sistema avisando que no
-          // está disponible, y hacer esperar a alguien para darle esa noticia es la
-          // clase de coherencia que no vale lo que cuesta.
+          // ESPERA PAREJA. Un carril determinista contesta en milisegundos, y esa respuesta
+          // instantánea se lee como «no hizo nada».
           await esperarHasta(medidor.current.objetivoMs() - tardo, aborto.signal);
           // La espera es abortable: si se dejó de esperar mientras corría, esta
           // respuesta ya no es de nadie.
@@ -199,15 +165,11 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
       const texto = mensaje.trim();
       if (texto.length === 0) return;
 
-      // UN TURNO A LA VEZ. Dos pedidos concurrentes son dos claves de idempotencia
-      // —dos cobros— y el segundo sale con el hilo viejo o nulo: abre otra
-      // conversación que nadie pidió. El guard vive acá y no sólo en la vista para
-      // que ningún montaje futuro lo pierda.
+      // UN TURNO A LA VEZ. Dos pedidos concurrentes son dos claves de idempotencia —dos cobros— y
+      // el segundo sale con el hilo viejo o nulo: abre otra conversación que nadie pidió.
       if (enCurso.current) return;
 
-      // Una clave POR INTENTO, que es también el id del turno. Reusarla entre
-      // turnos haría que el segundo recibiera la respuesta del primero, que es
-      // justo lo contrario de lo que se busca.
+      // Una clave POR INTENTO, que es también el id del turno.
       const id = crypto.randomUUID();
       setTurnos((previos) => [...previos, { id, pregunta: texto, menciones }]);
       await enviar(id, texto, undefined, menciones);
@@ -219,16 +181,14 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
     async (id: string) => {
       if (enCurso.current) return;
       const turno = turnos.find((t) => t.id === id);
-      // SÓLO UN TURNO QUE TERMINÓ EN ERROR. La idempotencia del backend consulta la
-      // caché antes de ejecutar y guarda después, sin registrar el turno en curso:
-      // la misma clave mientras el original sigue corriendo ejecutaría el turno
-      // entero otra vez. Uno que se dejó de esperar sigue corriendo allá.
+      // SÓLO UN TURNO QUE TERMINÓ EN ERROR. La idempotencia del backend consulta la caché antes de
+      // ejecutar y guarda después, sin registrar el turno en curso: la misma clave mientras el
+      // original sigue corriendo ejecutaría el turno entero otra vez.
       if (!turno?.error) return;
 
-      // Misma clave —el id—, mismo texto, mismas menciones y mismo objetivo de
-      // reemplazo si había uno: si el backend ya había terminado cuando se
-      // cortó, devuelve lo que guardó en lugar de cobrarle otra vez al
-      // modelo, y aplica el reemplazo a lo sumo una vez (asistente-edicion-
+      // Misma clave —el id—, mismo texto, mismas menciones y mismo objetivo de reemplazo si había
+      // uno: si el backend ya había terminado cuando se cortó, devuelve lo que guardó en lugar de
+      // cobrarle otra vez al modelo, y aplica el reemplazo a lo sumo una vez (asistente-edicion-
       // de-la-ultima-pregunta).
       setTurnos((previos) =>
         previos.map((t) =>
@@ -242,9 +202,8 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
     [turnos, enviar],
   );
 
-  // «EDITAR Y REENVIAR». Sólo tiene sentido sobre la ÚLTIMA pregunta —el
-  // backend lo exige igual (design.md D9: 409 si no lo es)—, así que se
-  // toma sin pedirle el id a quien llama: es siempre `turnos[^1]`.
+  // «EDITAR Y REENVIAR». Sólo tiene sentido sobre la ÚLTIMA pregunta —el backend lo exige igual
+  // (design.md D9: 409 si no lo es)—, así que se toma sin pedirle el id a quien llama: es siempre `turnos[^1]`.
   const reenviarUltima = useCallback(
     async (texto: string) => {
       if (enCurso.current) return;
@@ -254,20 +213,17 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
       const ultimo = turnos[turnos.length - 1];
       if (!ultimo) return;
 
-      // Un `id` NUEVO, nunca el del turno reemplazado: es la clave de
-      // idempotencia de ESTE envío, y es también lo que hace que la lista le
-      // dé una `key` distinta al turno — así el voto, el orden de la tabla y
-      // la vista ampliada del turno reemplazado se resetean solos al volver
-      // a montarse, sin código propio que los limpie a mano.
+      // Un `id` NUEVO, nunca el del turno reemplazado: es la clave de idempotencia de ESTE envío, y
+      // es también lo que hace que la lista le dé una `key` distinta al turno — así el voto, el
+      // orden de la tabla y la vista ampliada del turno reemplazado se resetean solos al volver a
+      // montarse, sin código propio que los limpie a mano.
       const id = crypto.randomUUID();
       const reemplaza = ultimo.id;
 
-      // El editor es un textarea sin popover de menciones (asistente-
-      // menciones no cubre editar): lo que sobrevive de las menciones del
-      // turno reemplazado es lo mismo que sobrevive en cualquier envío —el
-      // texto de cada una sigue presente en lo editado—, así que se resuelve
-      // igual que un envío nuevo en lugar de perderlas sin que nadie las
-      // tocara.
+      // El editor es un textarea sin popover de menciones (asistente- menciones no cubre editar):
+      // lo que sobrevive de las menciones del turno reemplazado es lo mismo que sobrevive en
+      // cualquier envío —el texto de cada una sigue presente en lo editado—, así que se resuelve
+      // igual que un envío nuevo en lugar de perderlas sin que nadie las tocara.
       const menciones = ubicarMenciones(ultimo.menciones ?? [], limpio);
 
       setTurnos((previos) => [
@@ -283,9 +239,7 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
     const actual = enCurso.current;
     if (!actual) return;
 
-    // Se suelta el request y se libera el campo ya, sin esperar a que la promesa
-    // termine de rechazarse. El backend no se entera: sigue el turno hasta el
-    // final y lo cobra, y eso es lo que el turno le dice al usuario.
+    // Se suelta el request y se libera el campo ya, sin esperar a que la promesa termine de rechazarse.
     enCurso.current = null;
     actual.aborto.abort();
     setEnVuelo(false);
@@ -319,15 +273,10 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
         turnosHistoricos.map((t) => ({
           id: t.id,
           pregunta: t.pregunta,
-          // Las menciones ya vienen re-resueltas por el backend para ESTE
-          // actor (`menciones: [{ tipo, id, etiqueta }]`, decisión 15 del PO,
-          // design.md D11 de asistente-rediseno-v3): se reusa la misma
-          // `ubicarMenciones` que ya ubica un chip en vivo, tratando cada
-          // mención como un chip cuyo texto es su `etiqueta`. Así `Mensaje`
-          // pinta el chip igual que en un turno en vivo, y `reenviarUltima`
-          // —que ya llama `ubicarMenciones(ultimo.menciones ?? [], limpio)`—
-          // conserva la referencia al editar y reenviar sin ningún cambio
-          // propio.
+          // Las menciones ya vienen re-resueltas por el backend para ESTE actor (`menciones: [{
+          // tipo, id, etiqueta }]`, decisión 15 del PO, design.md D11 de asistente-rediseno-v3): se
+          // reusa la misma `ubicarMenciones` que ya ubica un chip en vivo, tratando cada mención
+          // como un chip cuyo texto es su `etiqueta`.
           menciones: ubicarMenciones(
             (t.menciones ?? []).map((m) => ({ tipo: m.tipo, id: m.id, texto: m.etiqueta })),
             t.pregunta,
@@ -339,11 +288,10 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
     [],
   );
 
-  // «VOLVER A CONSULTAR». Sólo aplica a un turno histórico —el backend ya lo
-  // exige (`Respondida` con `sql_resuelto`), y del lado del cliente el botón
-  // que la dispara sólo existe sobre uno—, así que un turno que no lo sea, o
-  // que ya no esté en la lista, no hace nada: no hay ningún caso al que
-  // llegue sin ese estado.
+  // «VOLVER A CONSULTAR». Sólo aplica a un turno histórico —el backend ya lo exige (`Respondida`
+  // con `sql_resuelto`), y del lado del cliente el botón que la dispara sólo existe sobre uno—, así
+  // que un turno que no lo sea, o que ya no esté en la lista, no hace nada: no hay ningún caso al
+  // que llegue sin ese estado.
   const reejecutar = useCallback(async (id: string) => {
     setTurnos((previos) =>
       previos.map((t) =>
@@ -364,9 +312,8 @@ export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente 
         ),
       );
     } catch {
-      // Un fallo de TRANSPORTE, no el rechazo prolijo que ya modela `exitosa:
-      // false` —ése llega en un 200 y no entra a este catch—. Mismo criterio
-      // que el resto del hook: nunca nada crudo llega al usuario.
+      // Un fallo de TRANSPORTE, no el rechazo prolijo que ya modela `exitosa: false` —ése llega en
+      // un 200 y no entra a este catch—.
       if (!montado.current) return;
       setTurnos((previos) =>
         previos.map((t) =>

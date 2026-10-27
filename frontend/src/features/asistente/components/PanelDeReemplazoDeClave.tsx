@@ -13,10 +13,8 @@ interface PanelDeReemplazoDeClaveProps {
 }
 
 /**
- * Reemplazo de la clave de una empresa (tarea 4.9), en un panel aparte para que
- * quede claro que la clave vigente sigue en uso hasta que la nueva pase la
- * prueba contra el proveedor. El texto de la clave vive sólo acá: al cerrar el
- * panel se descarta.
+ * Reemplazo de la clave de una empresa (tarea 4.9), en un panel aparte para que quede claro que la
+ * clave vigente sigue en uso hasta que la nueva pase la prueba contra el proveedor.
  */
 export function PanelDeReemplazoDeClave({
   nombreDeLaEmpresa,

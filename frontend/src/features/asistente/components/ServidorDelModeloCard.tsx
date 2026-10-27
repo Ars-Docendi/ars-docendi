@@ -15,13 +15,9 @@ function cantidad(valor: number | null): string {
 }
 
 /**
- * La carga del servidor del modelo propio (asistente-optimizaciones-modelo-local,
- * D8): turnos en curso y en espera, KV cache y caché de prefijo según su
- * `/metrics`, y la compuerta del backend que le reparte la GPU.
- *
- * Sólo aparece con proveedor `local`: con un proveedor en la nube no hay
- * servidor propio que mirar. Una métrica que el servidor no publica se muestra
- * «—» y no «0», para no decir que la GPU está libre cuando nadie lo midió.
+ * La carga del servidor del modelo propio (asistente-optimizaciones-modelo-local, D8): turnos en
+ * curso y en espera, KV cache y caché de prefijo según su `/metrics`, y la compuerta del backend
+ * que le reparte la GPU.
  */
 export function ServidorDelModeloCard({ servidor }: ServidorDelModeloCardProps) {
   if (!servidor?.configurado) return null;

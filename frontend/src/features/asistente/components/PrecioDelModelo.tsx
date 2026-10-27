@@ -29,16 +29,8 @@ interface PrecioDelModeloProps {
 const FORMULARIO_VACIO: FormularioDePrecio = { entrada: "", salida: "", cache: "", desde: "" };
 
 /**
- * El precio del modelo elegido (asistente-modelo-en-caliente, tareas 5.3 y 5.4):
- * «Sin precio cargado» con «Cargar precio», o el precio vigente con «Cargar
- * nueva versión». Los dos abren el mismo formulario, en línea.
- *
- * LOS PRECIOS NO SE EDITAN: guardar escribe una versión nueva, y la anterior
- * queda para costear el historial con el precio de su momento. El formulario se
- * descarta al cambiar de modelo (el padre lo monta con `key`).
- *
- * El texto de ayuda sólo SUGIERE dónde buscar los valores: la página de precios
- * del proveedor es la fuente; la lista pública de LiteLLM es un atajo no oficial.
+ * El precio del modelo elegido (asistente-modelo-en-caliente, tareas 5.3 y 5.4): «Sin precio
+ * cargado» con «Cargar precio», o el precio vigente con «Cargar nueva versión».
  */
 export function PrecioDelModelo({
   empresa,

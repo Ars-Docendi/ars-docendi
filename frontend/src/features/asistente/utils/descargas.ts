@@ -1,9 +1,4 @@
-/**
- * Triggers a browser download of `contenido` as a file named `nombre`.
- *
- * A thin wrapper around the Blob/object-URL dance, kept in its own function so
- * a test can mock the trigger without needing a real DOM download to happen.
- */
+/** Triggers a browser download of `contenido` as a file named `nombre`. */
 export function descargarArchivo(nombre: string, contenido: string, tipoMime: string): void {
   const blob = new Blob([contenido], { type: tipoMime });
   const url = URL.createObjectURL(blob);
@@ -18,8 +13,7 @@ export function descargarArchivo(nombre: string, contenido: string, tipoMime: st
   enlace.click();
   enlace.remove();
 
-  // La descarga arranca asíncrona: revocar en el mismo tick la puede cortar
-  // (Safari, algunas versiones de Firefox). Mismo criterio que
-  // `DocumentacionAdjuntaPedido`.
+  // La descarga arranca asíncrona: revocar en el mismo tick la puede cortar (Safari, algunas
+  // versiones de Firefox).
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

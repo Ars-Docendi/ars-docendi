@@ -123,11 +123,7 @@ describe("Lo que nunca se muestra", () => {
   });
 
   it("ninguna etiqueta interna llega al texto de la página", async () => {
-    // Lo que el backend manda de verdad: `categoria` sigue viajando aunque el tipo
-    // del cliente ya no la declare. Es la etiqueta interna del carril que resolvió
-    // el turno (`consulta_simple`, `cruce_de_tablas`) y RNF-18 la prohíbe; lo
-    // mismo el `estado` crudo y el nombre interno de las áreas del catálogo, que
-    // la fixture trae a propósito para que este test muerda.
+    // Lo que el backend manda de verdad: `categoria` sigue viajando aunque el tipo del cliente ya no la declare.
     const METRICAS_DEL_BACKEND = { llamadasAlModelo: 2, categoria: "consulta_simple" };
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockResolvedValue(
@@ -139,10 +135,9 @@ describe("Lo que nunca se muestra", () => {
     );
     montar(<PanelDePrueba />);
 
-    // CON LA AYUDA ABIERTA. El conteo y las áreas viven ahí desde que la pantalla
-    // vacía se limpió, y con ella cerrada esta aserción pasaría sin verificar nada:
-    // los nombres internos no aparecerían porque no se renderizó el bloque, no
-    // porque se los haya excluido.
+    // CON LA AYUDA ABIERTA. El conteo y las áreas viven ahí desde que la pantalla vacía se limpió,
+    // y con ella cerrada esta aserción pasaría sin verificar nada: los nombres internos no
+    // aparecerían porque no se renderizó el bloque, no porque se los haya excluido.
     await user.click(
       await screen.findByRole("button", {
         name: "Qué puede y qué no puede hacer el asistente",
@@ -207,17 +202,14 @@ describe("Copiar", () => {
     await user.click(screen.getByRole("button", { name: "Copiar respuesta" }));
 
     expect(await navigator.clipboard.readText()).toBe("Hay 4 docentes designados.");
-    // El nombre accesible pasa a «Copiado» —el ícono también cambia a un
-    // tilde, pero eso no se puede afirmar por accesibilidad— durante la
-    // confirmación (asistente-rediseno-v3, design.md D6).
+    // El nombre accesible pasa a «Copiado» —el ícono también cambia a un tilde, pero eso no se
+    // puede afirmar por accesibilidad— durante la confirmación (asistente-rediseno-v3, design.md D6).
     expect(await screen.findByRole("button", { name: "Copiado" })).toBeInTheDocument();
   });
 
-  // «Copiar tabla» de la barra de acciones se retira en v3: el juego de
-  // íconos de la barra es «Copiar respuesta» / «Ampliar tabla» / «Exportar a
-  // CSV» | «Sirvió» / «No sirvió» (asistente-superficie-frontend, design.md
-  // D6). Copiar la tabla como texto tabulado sigue existiendo, pero sólo
-  // dentro de la vista ampliada (`TablaAmpliada.test.tsx`).
+  // «Copiar tabla» de la barra de acciones se retira en v3: el juego de íconos de la barra es
+  // «Copiar respuesta» / «Ampliar tabla» / «Exportar a CSV» | «Sirvió» / «No sirvió»
+  // (asistente-superficie-frontend, design.md D6).
 
   it("con tabla, la barra también ofrece «Ampliar tabla» y «Exportar a CSV»", () => {
     userEvent.setup();
@@ -230,15 +222,8 @@ describe("Copiar", () => {
   });
 
   it("montar con tabla no descarga nada por su cuenta, y «Exportar a CSV» sí exporta lo mostrado", async () => {
-    // REGRESIÓN: `TablaDeResultado` expone su función de exportar a `Mensaje`
-    // vía `onExportarDisponible`, y `Mensaje` la guarda con `useState`. Pasarle
-    // la función DIRECTO a `setExportar` —en vez de `setExportar(() => fn)`—
-    // hace que React la interprete como la forma "actualizador" de
-    // `useState` y la EJECUTE ahí mismo, con el estado previo como argumento:
-    // la exportación se disparaba sola al montar, y el botón de la barra
-    // quedaba con `undefined`, muerto al pulsarlo (fake UI). Este test cubre
-    // las dos puntas: nada se descarga sin que el usuario haga nada, y el
-    // botón de la barra sí funciona.
+    // REGRESIÓN: `TablaDeResultado` expone su función de exportar a `Mensaje` vía
+    // `onExportarDisponible`, y `Mensaje` la guarda con `useState`.
     const disparo = vi.spyOn(descargas, "descargarArchivo").mockImplementation(() => {});
     const user = userEvent.setup();
     montarMensaje(turno(TABLA));
@@ -282,10 +267,8 @@ describe("Copiar", () => {
   });
 
   it("sin portapapeles no hay botón de copiar, pero la tabla sigue con sus propios íconos", () => {
-    // Un contexto sin portapapeles —http sin TLS, un navegador viejo— no puede
-    // copiar nada: un botón que falla al pulsarlo es fake UI, así que no se
-    // renderiza ninguno. «Ampliar tabla» / «Exportar a CSV» no dependen del
-    // portapapeles (asistente-superficie-frontend), así que siguen ahí.
+    // Un contexto sin portapapeles —http sin TLS, un navegador viejo— no puede copiar nada: un
+    // botón que falla al pulsarlo es fake UI, así que no se renderiza ninguno.
     const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
 
@@ -314,10 +297,8 @@ describe("Copiar", () => {
 
 describe("La etiqueta de quién habla", () => {
   it("no se pega al texto de la pregunta", () => {
-    // ESTO PASÓ DE VERDAD. Sin separador, un lector de pantalla anuncia
-    // «Vosdame 3 materias…» en cada turno, y el texto copiado arranca con «Vos»
-    // pegado a la primera palabra. Un usuario pegó eso en el input y la pregunta
-    // que llegó al modelo —y quedó en el registro— fue «Vosdame 3 materias…».
+    // ESTO PASÓ DE VERDAD. Sin separador, un lector de pantalla anuncia «Vosdame 3 materias…» en
+    // cada turno, y el texto copiado arranca con «Vos» pegado a la primera palabra.
     montarMensaje({ id: "t-1", pregunta: "dame 3 materias", respuesta: respuesta() });
 
     const pregunta = screen.getByText(/dame 3 materias/).closest("p");
@@ -329,11 +310,7 @@ describe("La etiqueta de quién habla", () => {
   });
 
   it("no entra en la selección, así que copiar la pregunta no la arrastra", () => {
-    // `user-select: none` es lo que la deja afuera del portapapeles sin sacarla
-    // del árbol de accesibilidad. Se afirma sobre la clase y no sobre el
-    // resultado de copiar porque jsdom no implementa selección de texto: el
-    // contrato verificable acá es que la etiqueta lleve esa clase, y el estilo
-    // vive en `asistente.css`.
+    // `user-select: none` es lo que la deja afuera del portapapeles sin sacarla del árbol de accesibilidad.
     montarMensaje({ id: "t-1", pregunta: "dame 3 materias", respuesta: respuesta() });
 
     expect(screen.getByText("Vos:")).toHaveClass("adoc-asistente-quien");

@@ -21,33 +21,10 @@ const RAZONES: ReadonlyArray<{ valor: RazonDeRetroalimentacion; etiqueta: string
 const LARGO_MAXIMO_DEL_COMENTARIO = 500;
 
 /**
- * Thumbs up/down for an answered turn, en v3 (asistente-rediseno-v3, design.md
- * D6/D7/D14, PO-changed 2026-09-26): dos íconos —no texto— dentro de la barra de
- * acciones (`BarraDeAcciones`), y el panel «¿Qué falló?» con pastillas de
- * elección múltiple más un comentario libre acotado, igual que el mock.
- *
- * Renders nothing without a token — there is nothing to rate without one, and
- * the backend would 404 anyway. A thumbs-up submits right away; a thumbs-down
- * opens the reason panel first and submits only from there («Omitir» o
- * «Enviar comentario»), incluso sin ninguna pastilla elegida ni comentario.
- *
- * State lives locally and not in `TurnoDeLaConversacion`: this component stays
- * mounted for the life of its turn (keyed by `turno.id` in `Conversacion`), so
- * plain `useState` already gives "the recorded vote shows as active when you
- * look again" for free, with no extra plumbing.
- *
- * SIN `display` PROPIO: `.adoc-asistente-voto` es `display: contents` en
- * `asistente.css`, así que sus hijos —los dos botones y, si corresponde, el
- * panel/agradecimiento— pasan a ser ítems directos de la fila de
- * `BarraDeAcciones` sin que este componente sepa nada de layout ajeno.
- *
- * The confirmation text is picked up by the SAME live region `Conversacion.tsx`
- * already declares (`role="log" aria-live="polite"`) — there is no separate one
- * here — and nothing here ever moves focus.
- *
- * El comentario nunca se loguea, nunca viaja al modelo y no tiene superficie de
- * lectura en ningún lugar de la interfaz (asistente-retroalimentacion's spec;
- * adenda de TD-012 en docs/quality/tech-debt.md).
+ * Thumbs up/down for an answered turn, en v3 (asistente-rediseno-v3, design.md D6/D7/D14,
+ * PO-changed 2026-09-26): dos íconos —no texto— dentro de la barra de acciones
+ * (`BarraDeAcciones`), y el panel «¿Qué falló?» con pastillas de elección múltiple más un
+ * comentario libre acotado, igual que el mock.
  */
 export function VotoDeRetroalimentacion({
   claveDeRetroalimentacion,

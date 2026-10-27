@@ -11,14 +11,7 @@ export interface OpcionesDeBusquedaDeMenciones {
   signal?: AbortSignal;
 }
 
-/**
- * Busca materias o docentes para el popover de menciones.
- *
- * `q` VIAJA TAL CUAL: el composer (`useMenciones`) ya garantiza sus 2 a 100
- * caracteres antes de llamar — acá no hay un segundo guard porque duplicarlo
- * sólo escondería, con un valor por default, el día que el composer dejara de
- * cumplirlo.
- */
+/** Busca materias o docentes para el popover de menciones. */
 export async function buscarMenciones(
   tipo: TipoDeMencion,
   q: string,

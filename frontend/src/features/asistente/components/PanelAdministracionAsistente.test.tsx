@@ -50,9 +50,8 @@ const SERVIDOR_NO_CONFIGURADO: ServidorLocal = {
   compuerta: null,
 };
 
-// `GET …/presupuestos` (tarea 12.8) se pide en TODAS las variantes del panel:
-// un default vacío evita que cada test que no lo ejercita tenga que
-// mockearlo aparte. Los tests de la propia tarjeta/tabla lo pisan.
+// `GET …/presupuestos` (tarea 12.8) se pide en TODAS las variantes del panel: un default vacío
+// evita que cada test que no lo ejercita tenga que mockearlo aparte.
 beforeEach(() => {
   vi.spyOn(adminApi, "obtenerPresupuestos").mockResolvedValue(PRESUPUESTOS_VACIOS);
   vi.spyOn(adminApi, "obtenerServidorLocal").mockResolvedValue(SERVIDOR_NO_CONFIGURADO);
@@ -123,12 +122,8 @@ const USO_VACIO: UsoDelAsistente = {
 };
 
 describe("Título de la sección (tasks.md 8.1, fidelidad con el canvas)", () => {
-  // El canvas «Uso del asistente» muestra el título COMO SECCIÓN dentro de la
-  // pestaña (un `<h2>`), no como una segunda página: la página «Sistema» ya
-  // tiene su propio `<h1>` en `PageHeader`. Antes este panel no montaba
-  // ningún título propio a propósito, para no duplicar «Uso del asistente»
-  // como si fuera otro `<h1>` — ahora lo hace, pero un nivel más abajo en la
-  // jerarquía, así que sigue sin haber un segundo `<h1>`.
+  // El canvas «Uso del asistente» muestra el título COMO SECCIÓN dentro de la pestaña (un `<h2>`),
+  // no como una segunda página: la página «Sistema» ya tiene su propio `<h1>` en `PageHeader`.
   it("monta «Uso del asistente» como `<h2>`, nunca como un segundo `<h1>`", async () => {
     vi.spyOn(adminApi, "obtenerUso").mockResolvedValue(USO_VACIO);
     vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
@@ -404,10 +399,9 @@ describe("Accesibilidad del panel (tasks.md 13.1)", () => {
 describe("Los guardados se anuncian sin mover el foco (tasks.md 13.2)", () => {
   it("activar el mantenimiento anuncia y pasa el foco al botón nuevo de la rama activa", async () => {
     vi.spyOn(adminApi, "obtenerUso").mockResolvedValue(USO_VACIO);
-    // El banner es controlado por `capacidades` (sin estado local propio, a
-    // diferencia del toggle viejo): el refetch que dispara un guardado
-    // exitoso tiene que devolver el nuevo valor para que la vista cambie de
-    // rama, igual que ya hace el mock de `obtenerPresupuestos` del tope.
+    // El banner es controlado por `capacidades` (sin estado local propio, a diferencia del toggle
+    // viejo): el refetch que dispara un guardado exitoso tiene que devolver el nuevo valor para que
+    // la vista cambie de rama, igual que ya hace el mock de `obtenerPresupuestos` del tope.
     vi.spyOn(api, "obtenerCapacidades")
       .mockResolvedValueOnce(CAPACIDADES)
       .mockResolvedValue({ ...CAPACIDADES, mantenimiento: { activo: true, razon: "Prueba" } });

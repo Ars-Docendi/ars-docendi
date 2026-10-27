@@ -7,21 +7,7 @@ interface IndicadorDeCupoProps {
   turnos: TurnoDeLaConversacion[];
 }
 
-/**
- * El cupo diario restante, en la franja de estado (asistente-cupo-visible).
- *
- * A DIFERENCIA de `LineaDeMetricas` —que es `aria-hidden`, un dato de más—, ESTE
- * SÍ ES TEXTO LEÍBLE: el estado bloqueado no puede depender de que alguien note
- * un detalle visual, y tasks.md 13.3 lo pide explícitamente. Sigue FUERA de la
- * región viva de los mensajes (`Conversacion.tsx`) y sin `aria-live` propio: es
- * un dato que cambia con cada turno, y una segunda región viva que lo anuncie
- * competiría con la que ya anuncia la respuesta misma.
- *
- * SE ACTUALIZA DESDE EL PROPIO TURNO (tasks.md 12.4): si algún turno ya
- * respondido trajo `cupoRestante`, ese valor —el más reciente— gana sobre el
- * de `capacidades`, que quedó desactualizado en cuanto se cobró el primer
- * turno de la sesión.
- */
+/** El cupo diario restante, en la franja de estado (asistente-cupo-visible). */
 export function IndicadorDeCupo({ cupo, turnos }: IndicadorDeCupoProps) {
   if (!cupo) return null;
 
@@ -51,10 +37,8 @@ export function IndicadorDeCupo({ cupo, turnos }: IndicadorDeCupoProps) {
 
 /**
  * Los dos textos exactos del design spec
- * (docs/product/designs/asistente-conversacional-design-spec.md
- * §Administración de uso, «Indicador de cupo restante»). El de mantenimiento
- * no está acá: ese motivo lo dice el banner (`PanelAsistente`), y el mismo
- * documento remite a él en vez de repetirlo en este lugar.
+ * (docs/product/designs/asistente-conversacional-design-spec.md §Administración de uso, «Indicador
+ * de cupo restante»).
  */
 function textoDeBloqueo(cupo: CupoDelActor): string | null {
   switch (cupo.motivo) {

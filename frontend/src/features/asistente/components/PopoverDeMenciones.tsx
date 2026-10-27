@@ -12,16 +12,8 @@ interface PopoverDeMencionesProps {
 }
 
 /**
- * El popover de menciones «@materia» / «#docente» sobre el composer
- * (asistente-menciones, design.md D10 de asistente-rediseno-v3): un grupo, sus
- * filas y el pie con el candado. Vive por completo detrás del combobox del
- * campo — `aria-activedescendant` mueve la fila activa desde ahí, y ESTE
- * componente no toma foco propio nunca (asistente-accesibilidad).
- *
- * `onMouseDown`, NO `onClick`, en cada fila: con `onClick` el campo pierde el
- * foco un instante antes —el `blur` del `mousedown`— y quien esté siguiendo
- * la posición del cursor para la próxima tecla lo pierde. Elegir por clic
- * tiene que dejar el foco donde lo dejan las flechas y Enter.
+ * El popover de menciones «@materia» / «#docente» sobre el composer (asistente-menciones,
+ * design.md D10 de asistente-rediseno-v3): un grupo, sus filas y el pie con el candado.
  */
 export function PopoverDeMenciones({
   id,

@@ -18,10 +18,7 @@ function botonDeOrden(nombre: string): HTMLElement {
   return within(celdaDeCabecera(nombre)).getByRole("button");
 }
 
-// La hoja como texto: jsdom no aplica CSS, pero la regla se puede leer. Va por
-// `fs` y no por `?raw`: con `css: false` en la config, vitest resuelve cualquier
-// import de un `.css` —también con `?raw`— a una cadena vacía. Los tipos de node
-// se referencian acá y no en el tsconfig de la app, que no los carga.
+// La hoja como texto: jsdom no aplica CSS, pero la regla se puede leer.
 const hoja = hojaDeLaFeature();
 
 // ============================================================
@@ -59,10 +56,8 @@ describe("El marco de la tabla", () => {
   });
 
   it("las celdas numéricas se alinean a la derecha en la hoja del asistente", () => {
-    // `numeric` de la librería sólo cambia la tipografía y deja `text-align: start`:
-    // una columna de cantidades quedaba pegada a la izquierda. La alineación es
-    // de la hoja, así que se fija como texto: la regla sobre `td.num` dentro del
-    // marco propio, sin `!important`.
+    // `numeric` de la librería sólo cambia la tipografía y deja `text-align: start`: una columna de
+    // cantidades quedaba pegada a la izquierda.
     const sinComentarios = hoja.replace(/\/\*[\s\S]*?\*\//g, "");
     const regla = sinComentarios.match(/\.adoc-asistente-tabla\s+td\.num\s*\{([^}]*)\}/);
 
@@ -76,9 +71,7 @@ describe("La columna sensible", () => {
   it("se marca y se anuncia; la que no lo es, no", () => {
     montar(<TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />);
 
-    // El candado es para quien ve; «(dato personal)» para quien escucha. Las dos
-    // cosas en la misma cabecera, para que el lector de pantalla lo diga al pasar
-    // por la columna y no haya que buscar una leyenda aparte.
+    // El candado es para quien ve; «(dato personal)» para quien escucha.
     expect(
       screen.getByRole("columnheader", { name: /documento.*dato personal/i }),
     ).toBeInTheDocument();
@@ -158,9 +151,8 @@ describe("El vínculo de una celda", () => {
   });
 
   it("un tipo que este cliente no conoce deja la celda como texto", () => {
-    // COMPATIBILIDAD HACIA ADELANTE, y en la dirección que importa: el día que el
-    // backend ofrezca vínculos a perfiles de portal, un cliente viejo no muestra un
-    // enlace roto — muestra el dato, como antes.
+    // COMPATIBILIDAD HACIA ADELANTE, y en la dirección que importa: el día que el backend ofrezca
+    // vínculos a perfiles de portal, un cliente viejo no muestra un enlace roto — muestra el dato, como antes.
     montar(
       <TablaDeResultado
         columnas={TRAMITES}
@@ -271,10 +263,8 @@ describe("El orden de la tabla", () => {
   });
 
   it("ordenar no manda ningún request: no hay más que estado local", async () => {
-    // No hay ninguna función de red que espiar acá — `ordenarFilas` es
-    // puramente sincrónica sobre lo ya renderizado (design.md D5). Lo que se
-    // prueba es que el resultado sigue siendo el mismo `<table>`, no uno
-    // reemplazado por una respuesta nueva.
+    // No hay ninguna función de red que espiar acá — `ordenarFilas` es puramente sincrónica sobre
+    // lo ya renderizado (design.md D5).
     const user = userEvent.setup();
     montar(<TablaDeResultado columnas={PERSONAS} filas={FILAS_PERSONAS} truncado={false} />);
 
@@ -316,9 +306,8 @@ describe("El orden de la tabla", () => {
     );
     expect(reglaInactivo?.[1]).toMatch(/opacity:\s*0;/);
 
-    // La regla de revelado nombra las dos vías —hover del encabezado, foco del
-    // botón— y las dos llevan a `opacity: 1`, sin depender del formato exacto
-    // (salto de línea, coma) que deje `prettier`.
+    // La regla de revelado nombra las dos vías —hover del encabezado, foco del botón— y las dos
+    // llevan a `opacity: 1`, sin depender del formato exacto (salto de línea, coma) que deje `prettier`.
     const indiceHover = sinComentarios.indexOf(
       ".adoc-asistente-th-orden:hover .adoc-asistente-orden-icono--inactivo",
     );
@@ -453,10 +442,9 @@ describe("The export action", () => {
       </ul>,
     );
 
-    // `.focus()` y no una secuencia de `Tab`: cuántos controles hay ANTES de
-    // «Exportar a CSV» —los encabezados ordenables, «Ampliar tabla»— es un
-    // detalle de layout de este grupo (ARS-145) y del futuro §5, no lo que
-    // este test verifica.
+    // `.focus()` y no una secuencia de `Tab`: cuántos controles hay ANTES de «Exportar a CSV» —los
+    // encabezados ordenables, «Ampliar tabla»— es un detalle de layout de este grupo (ARS-145) y
+    // del futuro §5, no lo que este test verifica.
     screen.getByRole("button", { name: "Exportar a CSV" }).focus();
     expect(screen.getByRole("button", { name: "Exportar a CSV" })).toHaveFocus();
     await user.keyboard("{Enter}");

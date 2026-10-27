@@ -11,13 +11,9 @@ interface BannerDeMantenimientoProps {
 }
 
 /**
- * El kill switch (asistente-modo-mantenimiento, tasks.md 11.6), rehecho 1:1
- * con el canvas de Claude Design: un banner compacto de una fila —punto de
- * estado, título y copete— en vez de la tarjeta grande con toggle + «Guardar
- * cambios» del primer rediseño. Activar pide la razón EN UN PANEL QUE
- * APARECE debajo del banner, con «Cancelar»/«Activar mantenimiento»;
- * desactivar es un solo click, sin razón —mismo contrato que ya exige el
- * backend (6.2): activar sin razón está deshabilitado hasta que haya texto.
+ * El kill switch (asistente-modo-mantenimiento, tasks.md 11.6), rehecho 1:1 con el canvas de
+ * Claude Design: un banner compacto de una fila —punto de estado, título y copete— en vez de la
+ * tarjeta grande con toggle + «Guardar cambios» del primer rediseño.
  */
 export function BannerDeMantenimiento({ mantenimiento, onGuardar }: BannerDeMantenimientoProps) {
   const [editando, setEditando] = useState(false);
@@ -31,11 +27,9 @@ export function BannerDeMantenimiento({ mantenimiento, onGuardar }: BannerDeMant
   // (tasks.md 13.2: los guardados se anuncian sin mover el foco).
   const botonActivarRef = useRef<HTMLButtonElement>(null);
   const volverAEnfocarRef = useRef(false);
-  // Activar mantenimiento CAMBIA DE RAMA: el banner entero pasa de la vista
-  // «disponible» a la vista «en mantenimiento», así que no hay ningún botón
-  // en común al que volver (a diferencia de cancelar, que se queda en la
-  // misma rama). El foco pasa al botón nuevo que corresponde a esa rama
-  // —«Desactivar mantenimiento»— en vez de perderse en el `<body>`.
+  // Activar mantenimiento CAMBIA DE RAMA: el banner entero pasa de la vista «disponible» a la vista
+  // «en mantenimiento», así que no hay ningún botón en común al que volver (a diferencia de
+  // cancelar, que se queda en la misma rama).
   const botonDesactivarRef = useRef<HTMLButtonElement>(null);
   const activadoAhoraRef = useRef(false);
 

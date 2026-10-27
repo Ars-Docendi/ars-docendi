@@ -6,17 +6,13 @@ import { PanelDePrueba } from "./test/PanelDePrueba";
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
 import type { RespuestaDelAsistente } from "./types";
-// Las fixtures y el montaje son los de `test/soporte`, y no una copia local. La
-// copia existía de antes de que soporte existiera, y se quedó atrás sola: el día
-// que el montaje real sumó un router, este archivo siguió montando sin él y cuatro
-// tests reventaron por una diferencia de banco que ningún test estaba probando.
+// Las fixtures y el montaje son los de `test/soporte`, y no una copia local.
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 
-// La línea de métricas sólo se monta en modo debug (decisión 14 del PO,
-// 2026-09-26): este archivo no prueba ESE gate —lo hace `FranjaDeEstado.test.tsx`—,
-// sino el contrato de accesibilidad de la línea una vez montada (fuera de la
-// región viva), así que se fuerza el modo debug acá en vez de threadearlo como
-// prop por todo `PanelAsistente` (que hoy no lo expone, a diferencia de
+// La línea de métricas sólo se monta en modo debug (decisión 14 del PO, 2026-09-26): este archivo
+// no prueba ESE gate —lo hace `FranjaDeEstado.test.tsx`—, sino el contrato de accesibilidad de la
+// línea una vez montada (fuera de la región viva), así que se fuerza el modo debug acá en vez de
+// threadearlo como prop por todo `PanelAsistente` (que hoy no lo expone, a diferencia de
 // `umbralDelIndicadorMs`).
 vi.mock("./utils/modoDebug", () => ({ modoDebugAsistente: true }));
 
@@ -38,9 +34,7 @@ describe("El lanzador del asistente", () => {
   });
 
   it("no aparece cuando el backend niega el acceso", async () => {
-    // EL GATE ES EL PERMISO REAL, NO UNA LISTA DE ROLES. Una lista embebida acá
-    // fallaría ABIERTA con cualquier rol nuevo, e `identity.roles` no es un catálogo
-    // cerrado: Secretaría puede crear roles desde la aplicación.
+    // EL GATE ES EL PERMISO REAL, NO UNA LISTA DE ROLES.
     vi.spyOn(api, "obtenerCapacidades").mockRejectedValue(new Error("403"));
 
     montar(<LanzadorAsistente />);
@@ -49,19 +43,16 @@ describe("El lanzador del asistente", () => {
   });
 
   it("no deja ningún botón deshabilitado con leyenda de próximamente", async () => {
-    // El botón «Ayuda» estaba `disabled` con title="Próximamente", que es el fake UI
-    // que el invariante #7 prohíbe. Este componente lo reemplaza: o hay asistente, o
-    // no hay botón.
+    // El botón «Ayuda» estaba `disabled` con title="Próximamente", que es el fake UI que el
+    // invariante #7 prohíbe.
     montar(<LanzadorAsistente />);
 
     const boton = await screen.findByRole("button", { name: "Preguntar" });
 
     expect(boton).not.toBeDisabled();
 
-    // No lleva `title`: el botón ahora tiene etiqueta visible, y un tooltip que
-    // repite lo que ya dice el texto es ruido para un lector de pantalla. Lo que
-    // este test cuida no es el atributo sino la propiedad: ninguna promesa de algo
-    // que todavía no funciona.
+    // No lleva `title`: el botón ahora tiene etiqueta visible, y un tooltip que repite lo que ya
+    // dice el texto es ruido para un lector de pantalla.
     expect(boton).not.toHaveAttribute("title", "Próximamente");
     expect(boton).toHaveAccessibleName("Preguntar");
   });
@@ -152,14 +143,7 @@ describe("El panel del asistente", () => {
 
 // ------------------------------------------------------------ los cuatro estados
 
-/**
- * Tope de espera para un turno que NO llama al modelo.
- *
- * Esos turnos se retienen a propósito para que se sientan como uno que sí llamó
- * —ver `utils/esperaPareja.ts`—, y el sorteo llega hasta 2,5 s. El default de
- * `findBy*` es 1 s, así que sin este tope la espera deliberada se leería como una
- * falla intermitente.
- */
+/** Tope de espera para un turno que NO llama al modelo. */
 const TOPE_DE_ESPERA_PAREJA = { timeout: 4000 };
 
 describe("Los cuatro estados", () => {
@@ -182,10 +166,7 @@ describe("Los cuatro estados", () => {
   });
 
   it("una respuesta sin modelo se retiene para que el turno no se sienta vacío", async () => {
-    // Un carril determinista contesta en milisegundos. Sin la espera pareja, la
-    // respuesta aparece antes de que el usuario suelte la tecla y se lee como que
-    // el asistente no hizo nada. Acá se afirma que NO está todavía a los 400 ms
-    // —el umbral del indicador— y que llega después.
+    // Un carril determinista contesta en milisegundos.
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockResolvedValue(
       respuesta({ respuesta: "Hola.", metricas: { llamadasAlModelo: 0 } }),

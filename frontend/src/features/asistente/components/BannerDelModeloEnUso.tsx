@@ -12,10 +12,9 @@ interface BannerDelModeloEnUsoProps {
 }
 
 /**
- * «En uso: …» (asistente-modelo-en-caliente, tarea 4.3): el mismo banner
- * compacto del modo mantenimiento, con el modelo vigente, de dónde sale y, sólo
- * si fue elegido desde esta pantalla, el camino de vuelta a la configuración
- * del servidor.
+ * «En uso: …» (asistente-modelo-en-caliente, tarea 4.3): el mismo banner compacto del modo
+ * mantenimiento, con el modelo vigente, de dónde sale y, sólo si fue elegido desde esta pantalla,
+ * el camino de vuelta a la configuración del servidor.
  */
 export function BannerDelModeloEnUso({
   enUso,

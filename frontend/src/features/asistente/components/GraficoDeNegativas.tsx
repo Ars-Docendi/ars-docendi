@@ -14,12 +14,8 @@ interface GraficoDeNegativasProps {
 }
 
 /**
- * Negative percentage per day (per week for 90 days): one series, so no legend;
- * thin bars with rounded tops, an average reference line and a recessive axis.
- *
- * The bars are decorative for assistive technology: the container is an `img`
- * with a summary label, and «Ver como tabla» shows the same numbers as a table.
- * The hover tooltip is a convenience, never the only way to read a value.
+ * Negative percentage per day (per week for 90 days): one series, so no legend; thin bars with
+ * rounded tops, an average reference line and a recessive axis.
  */
 export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
   const [comoTabla, setComoTabla] = useState(false);

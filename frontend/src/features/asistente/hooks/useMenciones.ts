@@ -26,8 +26,7 @@ interface OpcionesDeMenciones {
   valor: string;
   onCambiar: (valor: string) => void;
   /**
-   * Anuncia por la región viva EXISTENTE del hilo (asistente-accesibilidad:
-   * «no agregar una segunda»). Ausente en un test que no la necesita.
+   * Anuncia por la región viva EXISTENTE del hilo (asistente-accesibilidad: «no agregar una segunda»).
    */
   onAnunciar?: (texto: string) => void;
 }
@@ -55,22 +54,15 @@ export interface Menciones {
 }
 
 /**
- * El estado y la mecánica del popover de menciones «@materia» / «#docente»
- * del composer (asistente-menciones, design.md D10/D11 de
- * asistente-rediseno-v3).
- *
- * NO TOCA EL DOM DEL CAMPO. Inserta texto y pide el cursor de vuelta a través
- * de `onCambiar`/`tomarCursorPendiente`: quien tiene el `ref` del textarea
- * —`EntradaDePregunta`— es quien puede fijarlo, y quien sabe cuándo el campo
- * cambió por esta vía y no por otra.
+ * El estado y la mecánica del popover de menciones «@materia» / «#docente» del composer
+ * (asistente-menciones, design.md D10/D11 de asistente-rediseno-v3).
  */
 export function useMenciones({ valor, onCambiar, onAnunciar }: OpcionesDeMenciones): Menciones {
   const [chips, setChips] = useState<ChipDeMencion[]>([]);
   const [token, setToken] = useState<TokenDeMencion | null>(null);
-  // SÓLO lo que trae la búsqueda asíncrona — nunca «cerrado»/«pista», que se
-  // derivan de `token` sin estado propio, más abajo: son inmediatos y
-  // sincrónicos, así que un efecto no tiene nada que sincronizar ahí (`no
-  // llamar a setState sincrónicamente en el cuerpo de un efecto»).
+  // SÓLO lo que trae la búsqueda asíncrona — nunca «cerrado»/«pista», que se derivan de `token` sin
+  // estado propio, más abajo: son inmediatos y sincrónicos, así que un efecto no tiene nada que
+  // sincronizar ahí (`no llamar a setState sincrónicamente en el cuerpo de un efecto»).
   const [resultado, setResultado] = useState<{
     disparador: "@" | "#";
     termino: string;
@@ -128,10 +120,9 @@ export function useMenciones({ valor, onCambiar, onAnunciar }: OpcionesDeMencion
     };
   }, [disparadorActivo, terminoActivo, onAnunciar]);
 
-  // El popover sólo muestra un resultado que corresponda AL TÉRMINO ACTUAL:
-  // mientras el debounce de arriba sigue corriendo para lo que se acaba de
-  // teclear, esto es «cerrado» y no el resultado —quizás vacío, quizás de
-  // otras materias— de la búsqueda anterior, que parpadearía como si ya
+  // El popover sólo muestra un resultado que corresponda AL TÉRMINO ACTUAL: mientras el debounce de
+  // arriba sigue corriendo para lo que se acaba de teclear, esto es «cerrado» y no el resultado
+  // —quizás vacío, quizás de otras materias— de la búsqueda anterior, que parpadearía como si ya
   // fuera la respuesta a lo nuevo.
   const estado: EstadoDelPopover =
     disparadorActivo === null

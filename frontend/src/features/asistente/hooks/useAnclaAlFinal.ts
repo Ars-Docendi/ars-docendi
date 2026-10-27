@@ -16,26 +16,7 @@ export interface AnclaAlFinal {
   onScroll: () => void;
 }
 
-/**
- * Sabe si el hilo está pegado abajo y lo desplaza cuando corresponde.
- *
- * TRES REGLAS, en lugar del salto ciego al fondo con cada cambio:
- * 1. Al enviar, al fondo siempre: la pregunta y el indicador tienen que verse.
- * 2. Al llegar la respuesta, si estaba anclado, al INICIO de su tarjeta y no al
- *    fondo: con una tabla larga, el fondo deja el texto arriba, fuera de vista,
- *    y el usuario ve el final de la tabla y no lo que le contestaron.
- * 3. Si el usuario subió a releer, no se lo mueve. «Ir al final» lo baja cuando
- *    él quiera.
- *
- * `anclado` no es sólo geometría. Lo que el hilo mueve por su cuenta lo deja
- * anclado —también al inicio de la tarjeta, con la tabla debajo—, y sólo un
- * scroll del usuario lo desancla, midiendo la distancia al fondo. Un `scrollTop`
- * fijado por código dispara `scroll` igual que la rueda, así que se recuerda
- * dónde se lo dejó para reconocer ese evento y no recalcular con él.
- *
- * `auto` y no `smooth` a propósito: la animación tarda, y durante ese rato el
- * texto se mueve debajo de quien está tratando de leerlo.
- */
+/** Sabe si el hilo está pegado abajo y lo desplaza cuando corresponde. */
 export function useAnclaAlFinal(turnos: TurnoDeLaConversacion[]): AnclaAlFinal {
   const hilo = useRef<HTMLDivElement>(null);
   const [anclado, setAnclado] = useState(true);

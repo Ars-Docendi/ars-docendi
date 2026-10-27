@@ -51,16 +51,7 @@ const CHECK = (
   </svg>
 );
 
-/**
- * La lista de modelos en la nube, agrupada por empresa (tarea 4.6). Un botón
- * abre un `listbox` ARIA con el foco en la lista y la opción resaltada en
- * `aria-activedescendant`: flechas, Inicio/Fin, Enter/Espacio para elegir, Esc
- * para cerrar devolviendo el foco al botón, y clic afuera (o Tab) para cerrar.
- *
- * El encabezado de cada grupo muestra si la empresa ya tiene clave guardada
- * (verde) o le falta (ámbar); como el `listbox` sólo admite opciones, ese
- * estado viaja también en el nombre accesible del grupo.
- */
+/** La lista de modelos en la nube, agrupada por empresa (tarea 4.6). */
 export function ListaDeModelosEnLaNube({
   id,
   etiquetadaPor,

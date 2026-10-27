@@ -95,9 +95,8 @@ describe("El banner de mantenimiento (tasks.md 12.3)", () => {
   });
 
   it("a quien administra le aclara que puede seguir consultando para verificar", async () => {
-    // El backend no bloquea a quien tiene `asistente.administrar`
-    // (asistente-modo-mantenimiento): sin esta aclaración, el campo habilitado
-    // bajo un banner de mantenimiento parece un error.
+    // El backend no bloquea a quien tiene `asistente.administrar` (asistente-modo-mantenimiento):
+    // sin esta aclaración, el campo habilitado bajo un banner de mantenimiento parece un error.
     conCapacidades({
       mantenimiento: { activo: true, razon: "Mantenimiento programado" },
       cupo: { restante: 13, bloqueado: false, motivo: null, vuelveA: null },

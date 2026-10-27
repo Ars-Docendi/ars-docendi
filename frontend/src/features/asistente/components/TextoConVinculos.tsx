@@ -12,15 +12,6 @@ interface TextoConVinculosProps {
 /**
  * El texto de la respuesta, con cada elemento vinculado como un chip en línea
  * (asistente-respuestas-con-vinculos, D1 y D8).
- *
- * EL TEXTO SE PINTA TAL CUAL LLEGÓ. Las posiciones del backend son índices de
- * UTF-16, los mismos de `String.prototype.slice`; recortar o normalizar el texto
- * las desalinearía. `white-space: pre-wrap` (`.adoc-asistente-texto`) se conserva
- * porque los chips son `<a>` en línea dentro del mismo párrafo.
- *
- * LA POSICIÓN SE VALIDA ANTES DE PINTAR: dentro del texto, sin superponerse con la
- * anterior, y con un tipo que este cliente conozca. Una posición que no cumple se
- * deja como texto: es preferible no enlazar a enlazar lo que no es.
  */
 export function TextoConVinculos({ texto, vinculos }: TextoConVinculosProps) {
   const partes: React.ReactNode[] = [];

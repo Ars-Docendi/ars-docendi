@@ -28,11 +28,7 @@ interface ProblemasDeCalidadProps {
   onCambiarPagina: (pagina: number) => void;
 }
 
-/**
- * «Respuestas con problemas»: the anonymous list, one row per turn. It asks for
- * a permission the aggregates do not (`asistente.revisar_calidad`, held by no
- * role by default), so without it an information notice takes the table's place.
- */
+/** «Respuestas con problemas»: the anonymous list, one row per turn. */
 export function ProblemasDeCalidad({
   puedeRevisar,
   tipo,

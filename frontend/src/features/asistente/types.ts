@@ -3,14 +3,7 @@
 // Ver docs/architecture/api-contracts.md §Asistente.
 // ============================================================
 
-/**
- * Los cuatro estados en que puede terminar un turno.
- *
- * `no_contestable` y `necesita_aclaracion` NO son lo mismo, y colapsarlos en la
- * interfaz haría que el asistente diga «no puedo» cuando corresponde «¿cuál de
- * estas?». `servicio_degradado` tampoco es un error del usuario: su pregunta no
- * tiene nada de malo.
- */
+/** Los cuatro estados en que puede terminar un turno. */
 export type EstadoDelTurno =
   "respondida" | "no_contestable" | "necesita_aclaracion" | "servicio_degradado";
 
@@ -25,17 +18,7 @@ export interface ColumnaDelResultado {
   sensible: boolean;
 }
 
-/**
- * Una celda que identifica algo que el usuario puede abrir.
- *
- * NO TRAE LA URL, y eso es del contrato: el backend dice QUÉ —qué clase de cosa y
- * con qué identificador— y la ruta la resuelve el cliente, que es donde viven las
- * rutas. Un `tipo` que este cliente no conoce no se pinta, así que un backend que
- * empiece a mandar uno nuevo no rompe nada.
- *
- * Que una fila esté en `filas` no implica que traiga vínculo: las filas las filtra
- * el motor y la pantalla la autoriza el módulo dueño, que son dos reglas distintas.
- */
+/** Una celda que identifica algo que el usuario puede abrir. */
 export interface VinculoDelResultado {
   fila: number;
   columna: number;
@@ -45,16 +28,13 @@ export interface VinculoDelResultado {
 
 export interface MetricasDelTurno {
   llamadasAlModelo: number;
-  // El backend también manda `categoria` («consulta_simple», «cruce_de_tablas»…) y
-  // acá no se declara A PROPÓSITO: es la etiqueta interna del carril que resolvió
-  // el turno, y RNF-18 prohíbe mostrar etiquetas internas. Lo que no está en el
-  // tipo no se puede pintar por descuido.
+  // El backend también manda `categoria` («consulta_simple», «cruce_de_tablas»…) y acá no se
+  // declara A PROPÓSITO: es la etiqueta interna del carril que resolvió el turno, y RNF-18 prohíbe
+  // mostrar etiquetas internas.
 }
 
 /**
- * Una aparición, dentro de `respuesta`, de un valor de celda que lleva a una
- * pantalla del sistema. `desde` y `largo` son unidades de código UTF-16: las que
- * usa `String.prototype.slice`, así que se aplican al texto tal cual llegó.
+ * Una aparición, dentro de `respuesta`, de un valor de celda que lleva a una pantalla del sistema.
  */
 export interface VinculoDelTexto {
   desde: number;
@@ -63,11 +43,7 @@ export interface VinculoDelTexto {
   id: string;
 }
 
-/**
- * El elemento del que trata la respuesta cuando el resultado es uno solo. `datos`
- * son claves documentadas por `tipo` (ver `api-contracts.md`); el cliente decide
- * cómo se ven.
- */
+/** El elemento del que trata la respuesta cuando el resultado es uno solo. */
 export interface PrincipalDeLaRespuesta {
   tipo: string;
   id: string;
@@ -80,12 +56,7 @@ export interface RespuestaDelAsistente {
   hilo: string;
   preguntaInterpretada?: string | null;
   razonamiento?: string | null;
-  /**
-   * Bloquean el turno: hay que elegir una para seguir. Sólo llega con
-   * `estado = "necesita_aclaracion"`. Ningún otro estado ofrece preguntas
-   * nuevas para probar — desde ARS-149 el único lugar con ejemplos clicables
-   * es la bienvenida (`capacidades.ejemplos`).
-   */
+  /** Bloquean el turno: hay que elegir una para seguir. */
   opciones: OpcionDeAclaracion[];
   columnas: ColumnaDelResultado[];
   filas: unknown[][];
@@ -93,10 +64,7 @@ export interface RespuestaDelAsistente {
   truncado: boolean;
   /** Las celdas que llevan a una pantalla del sistema. Vacío si ninguna. */
   vinculos: VinculoDelResultado[];
-  /**
-   * Dónde, dentro de `respuesta`, se nombran elementos vinculados. Vacío si ninguno
-   * (y en los turnos restaurados del historial, que no guardan el texto).
-   */
+  /** Dónde, dentro de `respuesta`, se nombran elementos vinculados. */
   vinculosDelTexto: VinculoDelTexto[];
   /** El elemento principal de la respuesta, o `null` si no hay uno solo. */
   principal: PrincipalDeLaRespuesta | null;
@@ -105,23 +73,15 @@ export interface RespuestaDelAsistente {
   /** Solo llega con el permiso `asistente.ver_consulta`. */
   sql?: string | null;
   metricas: MetricasDelTurno;
-  /**
-   * Present only when `estado` is `"respondida"`. Submit it once to
-   * `POST /api/asistente/retroalimentacion` to rate this turn. Never identifies
-   * who asked — see asistente-retroalimentacion's spec.
-   */
+  /** Present only when `estado` is `"respondida"`. */
   claveDeRetroalimentacion?: string | null;
   /**
-   * El cupo diario del actor INMEDIATAMENTE DESPUÉS de que este turno se
-   * cobrara (asistente-cupo-visible) — nunca el valor de antes. La franja de
-   * estado lo usa para actualizarse sin volver a pedir `capacidades`.
+   * El cupo diario del actor INMEDIATAMENTE DESPUÉS de que este turno se cobrara
+   * (asistente-cupo-visible) — nunca el valor de antes.
    */
   cupoRestante?: number | null;
   /**
-   * El id de `GET /historial` en el que quedó este turno (design.md D13 de
-   * asistente-rediseno-v3). Ausente si no se persistió: el rail no resalta ni
-   * titula nada con este turno, y el que ya tenía la conversación activa —si
-   * lo había— no se pisa.
+   * El id de `GET /historial` en el que quedó este turno (design.md D13 de asistente-rediseno-v3).
    */
   conversacion?: string | null;
 }
@@ -143,19 +103,13 @@ export interface MantenimientoDelAsistente {
   razon?: string | null;
 }
 
-/**
- * Uno de los motivos por los que un turno puede estar bloqueado. El texto lo
- * elige la interfaz; el backend sólo manda cuál es. `sin_acceso`: un
- * administrador le quitó el acceso a este usuario o a todos sus roles
- * (asistente-acceso-granular).
- */
+/** Uno de los motivos por los que un turno puede estar bloqueado. */
 export type MotivoDeBloqueo =
   "presupuesto_propio" | "tope_organizacional" | "mantenimiento" | "sin_acceso";
 
 /**
- * El cupo diario de ESTE actor, con el bypass de mantenimiento del admin ya
- * aplicado del lado del backend (a diferencia de `mantenimiento`, que es
- * global y sin bypass).
+ * El cupo diario de ESTE actor, con el bypass de mantenimiento del admin ya aplicado del lado del
+ * backend (a diferencia de `mantenimiento`, que es global y sin bypass).
  */
 export interface CupoDelActor {
   /** `2147483647` (`int.MaxValue`) cuando el cupo está desactivado. */
@@ -177,18 +131,13 @@ export interface CapacidadesDelAsistente {
   noPuede: string[];
   /** Qué filas ve. Va aparte de los conteos: el ámbito no cambia qué se puede preguntar. */
   alcance: string;
-  /**
-   * Por qué cosas suele venir a preguntar este usuario, según su rol. La escribe el
-   * backend —el cliente no tiene catálogo de roles ni debería crecer uno— y un rol
-   * que no reconoce recibe un texto genérico.
-   */
+  /** Por qué cosas suele venir a preguntar este usuario, según su rol. */
   presentacion: string;
   mantenimiento: MantenimientoDelAsistente;
   cupo: CupoDelActor;
   /**
-   * Si el turno se pide a `POST /consultas/flujo` para ver la redacción
-   * mientras se escribe (asistente-optimizaciones-modelo-local, D9). Ausente
-   * equivale a `false`.
+   * Si el turno se pide a `POST /consultas/flujo` para ver la redacción mientras se escribe
+   * (asistente-optimizaciones-modelo-local, D9).
    */
   redaccionEnFlujo?: boolean;
 }
@@ -221,25 +170,21 @@ export interface UsoAgregado {
   /** Turnos cuyo proveedor/modelo no tiene precio vigente: NUNCA costeados en 0. */
   turnosSinPrecio: number;
   /**
-   * Sólo en los agregados por usuario: los códigos de rol de sistema
-   * vigentes del actor (resuelto vía `IConsultasIdentity`, sin nombre legible
-   * — el backend no lo tiene, `etiquetasDeRol` lo traduce acá). Vacío en un
-   * agregado por rol o el organizacional.
+   * Sólo en los agregados por usuario: los códigos de rol de sistema vigentes del actor (resuelto
+   * vía `IConsultasIdentity`, sin nombre legible — el backend no lo tiene, `etiquetasDeRol` lo traduce acá).
    */
   codigosDeRol: string[];
   /**
-   * Sólo en los agregados por usuario: el cupo diario que hoy le aplicaría
-   * la ejecución real del turno a este actor —la misma regla que aplica el
-   * backend al bloquear un turno—, o `null` si no se puede resolver (el
-   * actor no tiene override ni ningún rol de sistema vigente).
+   * Sólo en los agregados por usuario: el cupo diario que hoy le aplicaría la ejecución real del
+   * turno a este actor —la misma regla que aplica el backend al bloquear un turno—, o `null` si no
+   * se puede resolver (el actor no tiene override ni ningún rol de sistema vigente).
    */
   cupoEfectivo: number | null;
   /** De dónde sale `cupoEfectivo`: `"override"` o `"rol"`, o `null` junto con `cupoEfectivo` nulo. */
   origenDeCupo: "override" | "rol" | null;
   /**
-   * Sólo en los agregados por usuario: si el actor tiene hoy acceso al
-   * asistente, con la misma regla que aplica el turno
-   * (asistente-acceso-granular). `null` en un agregado por rol o el organizacional.
+   * Sólo en los agregados por usuario: si el actor tiene hoy acceso al asistente, con la misma
+   * regla que aplica el turno (asistente-acceso-granular).
    */
   accesoEfectivo: boolean | null;
   /** De dónde sale `accesoEfectivo`: heredado del `"rol"` o una revocación `"propio"`. */
@@ -271,10 +216,8 @@ export interface CupoDeRolPersistido {
 }
 
 /**
- * La carga del servidor del modelo propio y de la compuerta del backend
- * (`GET /api/asistente/administracion/servidor-local`,
- * asistente-optimizaciones-modelo-local D8). Una métrica que el servidor no
- * publica llega `null`, nunca `0`.
+ * La carga del servidor del modelo propio y de la compuerta del backend (`GET
+ * /api/asistente/administracion/servidor-local`, asistente-optimizaciones-modelo-local D8).
  */
 export interface ServidorLocal {
   configurado: boolean;
@@ -298,10 +241,8 @@ export interface OverrideDeUsuarioPersistido {
 }
 
 /**
- * El estado persistido de los presupuestos
- * (`GET /api/asistente/administracion/presupuestos`): tope, cupos, acceso por
- * rol y revocaciones por usuario (asistente-acceso-granular). La serie diaria
- * de uso y la telemetría del proveedor cloud/local siguen sin implementar.
+ * El estado persistido de los presupuestos (`GET /api/asistente/administracion/presupuestos`):
+ * tope, cupos, acceso por rol y revocaciones por usuario (asistente-acceso-granular).
  */
 export interface PresupuestosDelAsistente {
   /** El tope organizacional vigente. `0` = desactivado. */
@@ -319,14 +260,7 @@ export interface PresupuestosDelAsistente {
   accesosRevocados: string[];
 }
 
-/**
- * The fixed, closed set of reasons a thumbs-down vote may carry, zero or more at once.
- * Matches `RazonesDeRetroalimentacion.Todas` on the backend exactly — see
- * `POST /api/asistente/retroalimentacion` in docs/architecture/api-contracts.md.
- * The retired `lento` (asistente-rediseno-v3, design.md D7, removed entirely
- * 2026-09-26) is deliberately absent: the client never sends it, and the server
- * rejects it with `400` like any other unknown value.
- */
+/** The fixed, closed set of reasons a thumbs-down vote may carry, zero or more at once. */
 export type RazonDeRetroalimentacion =
   "datos_incorrectos" | "no_entendio_la_pregunta" | "faltan_datos" | "otro";
 
@@ -365,21 +299,16 @@ export interface BusquedaDeMenciones {
 }
 
 /**
- * Una mención elegida en el popover, mientras se sigue escribiendo el
- * borrador: la referencia que viajaría, más el texto —disparador y nombre—
- * que quedó insertado en el campo. `referenciasVigentes` (utils/menciones.ts)
- * la filtra contra el borrador actual al enviar: si el texto ya no está, la
- * referencia no viaja (asistente-menciones, «Deleting the mention text drops
- * its reference»).
+ * Una mención elegida en el popover, mientras se sigue escribiendo el borrador: la referencia que
+ * viajaría, más el texto —disparador y nombre— que quedó insertado en el campo.
  */
 export interface ChipDeMencion extends ReferenciaDeMencion {
   texto: string;
 }
 
 /**
- * Una mención ya ubicada en el texto de una pregunta YA ENVIADA, con la
- * posición donde `Mensaje` la reemplaza por un chip. Se congela al enviar:
- * la pregunta de un turno no vuelve a cambiar, así que la posición tampoco.
+ * Una mención ya ubicada en el texto de una pregunta YA ENVIADA, con la posición donde `Mensaje`
+ * la reemplaza por un chip.
  */
 export interface MencionEnPregunta extends ReferenciaDeMencion {
   texto: string;
@@ -392,17 +321,15 @@ export interface TurnoDeLaConversacion {
   id: string;
   pregunta: string;
   /**
-   * Las menciones de ESTA pregunta, ya ubicadas en su texto (asistente-
-   * menciones): `Mensaje` las pinta como chips. Ausente si no se elegió
-   * ninguna, o si ninguna sobrevivió hasta el envío.
+   * Las menciones de ESTA pregunta, ya ubicadas en su texto (asistente- menciones): `Mensaje` las
+   * pinta como chips.
    */
   menciones?: MencionEnPregunta[];
   /** Ausente mientras el turno está en vuelo. */
   respuesta?: RespuestaDelAsistente;
   /**
-   * Lo que llegó de la redacción mientras el turno sigue en vuelo, con la
-   * redacción por fragmentos (asistente-optimizaciones-modelo-local, D9). Es una
-   * vista previa: la `respuesta` que llega al final la reemplaza.
+   * Lo que llegó de la redacción mientras el turno sigue en vuelo, con la redacción por fragmentos
+   * (asistente-optimizaciones-modelo-local, D9).
    */
   redaccionParcial?: string;
   /** Mensaje comprensible cuando el pedido falló por transporte. */
@@ -411,17 +338,12 @@ export interface TurnoDeLaConversacion {
   detenido?: boolean;
   /**
    * Presente sólo en un turno restaurado de una conversación reanudada
-   * (asistente-historial-conversaciones). El texto redactado nunca se
-   * persiste (design.md D2/D4), así que este turno no tiene `respuesta`: en
-   * su lugar se muestra su desenlace y, si terminó `respondida`, la acción
-   * «volver a consultar».
+   * (asistente-historial-conversaciones).
    */
   historico?: TurnoHistoricoEnCurso;
   /**
-   * El identificador del turno que ESTE turno reemplaza —su propio `id`
-   * anterior—, si nació de «Editar y reenviar»
-   * (asistente-edicion-de-la-ultima-pregunta). Se reusa en «Reintentar»,
-   * para que un reenvío fallido reintente con el mismo objetivo.
+   * El identificador del turno que ESTE turno reemplaza —su propio `id` anterior—, si nació de
+   * «Editar y reenviar» (asistente-edicion-de-la-ultima-pregunta).
    */
   reemplaza?: string;
 }
@@ -454,12 +376,11 @@ export interface LoteDeBorrado {
 }
 
 /**
- * Una mención de un turno histórico, ya re-resuelta por el backend para EL
- * ACTOR QUE LEE ahora (design.md D11 de asistente-rediseno-v3, decisión 15
- * del PO): `etiqueta` es el texto exacto que el composer insertó al
- * elegirla («@Nombre» / «#Nombre»), así que `sembrarDesdeHistorial`
- * (`useAsistente.ts`) la ubica en el texto de la pregunta reusando
- * `ubicarMenciones`, sin que el backend calcule posiciones.
+ * Una mención de un turno histórico, ya re-resuelta por el backend para EL ACTOR QUE LEE ahora
+ * (design.md D11 de asistente-rediseno-v3, decisión 15 del PO): `etiqueta` es el texto exacto que
+ * el composer insertó al elegirla («@Nombre» / «#Nombre»), así que `sembrarDesdeHistorial`
+ * (`useAsistente.ts`) la ubica en el texto de la pregunta reusando `ubicarMenciones`, sin que el
+ * backend calcule posiciones.
  */
 export interface MencionDeHistorial {
   tipo: TipoDeMencion;
@@ -476,9 +397,8 @@ export interface TurnoDeHistorial {
   estado: EstadoDelTurno;
   ocurrioEn: string;
   /**
-   * AUSENTE en la lectura de soporte (nunca es el actor cuyo alcance decide
-   * la visibilidad); en el lado propio siempre viaja, aunque quede vacío si
-   * ninguna referencia sobrevivió la revalidación.
+   * AUSENTE en la lectura de soporte (nunca es el actor cuyo alcance decide la visibilidad); en el
+   * lado propio siempre viaja, aunque quede vacío si ninguna referencia sobrevivió la revalidación.
    */
   menciones?: MencionDeHistorial[];
 }
@@ -555,10 +475,7 @@ export interface EstadoDelModelo {
   catalogo: EmpresaDelCatalogo[];
   /** `false` cuando falta la clave maestra: guardar claves no está disponible. */
   cifradoDisponible: boolean;
-  /**
-   * El precio vigente ahora de cada modelo del catálogo que tiene uno. Un modelo
-   * que no figura acá está «sin precio cargado».
-   */
+  /** El precio vigente ahora de cada modelo del catálogo que tiene uno. */
   precios: PrecioDelModelo[];
 }
 
@@ -574,11 +491,7 @@ export interface PrecioDelModelo {
   vigenteDesde: string;
 }
 
-/**
- * Un precio nuevo para un modelo del catálogo, en US$ por millón de tokens. Es
- * una versión nueva: la anterior se cierra en `vigenteDesde`. Sin `cachePorMillon`,
- * los tokens de caché se cobran como los de entrada.
- */
+/** Un precio nuevo para un modelo del catálogo, en US$ por millón de tokens. */
 export interface PedidoDePrecio {
   empresa: string;
   modelo: string;

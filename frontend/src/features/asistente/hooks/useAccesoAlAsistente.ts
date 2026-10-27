@@ -11,21 +11,7 @@ export interface AccesoAlAsistente {
   cargando: boolean;
 }
 
-/**
- * Decide si este usuario puede usar el asistente PREGUNTÁNDOLE AL BACKEND.
- *
- * Lo tentador sería una lista de roles —«todos menos Docente»—, y es el mismo
- * antipatrón que el backend rechazó al sembrar el permiso: `identity.roles` NO es un
- * catálogo cerrado, Secretaría puede crear roles nuevos desde la aplicación, y una
- * lista embebida acá falla ABIERTA con cualquier rol que no conozca. El fallo no
- * daría error: le mostraría el asistente a alguien que no debería verlo.
- *
- * `GET /api/asistente/capacidades` responde 403 a quien no tiene el permiso, así que
- * el gate es el permiso real, resuelto por quien lo administra.
- *
- * El catálogo que trae de vuelta no se descarta: es exactamente lo que la vista
- * necesita para su pantalla inicial, así que la consulta no es un costo extra.
- */
+/** Decide si este usuario puede usar el asistente PREGUNTÁNDOLE AL BACKEND. */
 export function useAccesoAlAsistente(): AccesoAlAsistente {
   const consulta = useQuery({
     queryKey: ["asistente", "capacidades"],
@@ -41,9 +27,8 @@ export function useAccesoAlAsistente(): AccesoAlAsistente {
   }
 
   if (consulta.isError) {
-    // Un 403 es una respuesta: no tiene acceso. Cualquier otro fallo es una
-    // incógnita, y ante la duda no se muestra: prometer una función que no
-    // responde es peor que no ofrecerla.
+    // Un 403 es una respuesta: no tiene acceso. Cualquier otro fallo es una incógnita, y ante la
+    // duda no se muestra: prometer una función que no responde es peor que no ofrecerla.
     return { tieneAcceso: false, capacidades: undefined, cargando: false };
   }
 

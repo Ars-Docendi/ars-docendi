@@ -28,34 +28,8 @@ interface RailDeConversacionesProps {
 }
 
 /**
- * El rail de conversaciones propias: siempre a la vista, a la izquierda de
- * la conversación (asistente-superficie-frontend, design.md D1 de
- * asistente-rediseno-v3).
- *
- * REEMPLAZA AL CAJÓN QUE SE ABRÍA Y CERRABA (`ListaDeConversaciones` +
- * `AbrirHistorial`, ahora borrados). La lista ya no tiene un estado propio
- * de «abierto»: lo único que colapsa es el ANCHO del rail —268 px
- * expandido, 60 px colapsado—, y el contenido (buscar, agrupar, renombrar,
- * archivar, borrar) es el mismo tanto si el rail lo mostró siempre como si
- * lo acaba de destapar.
- *
- * COLAPSADO MUESTRA TRES CONTROLES ÍCONO-SOLO: expandir, «Nueva
- * conversación» y «Historial» —éste último también expande, es la forma
- * reconocible de decir «tus conversaciones viven acá» aun angosto—.
- * `NuevaConversacion` es EL MISMO componente en los dos anchos: la hoja de
- * estilos le esconde la etiqueta visualmente cuando el rail está colapsado,
- * en vez de duplicar el botón.
- *
- * SIN BÚSQUEDA: activas agrupadas por fecha relativa, y las archivadas en su
- * propia sección colapsable al pie («Archivadas N», oculta sin ninguna).
- * CON BÚSQUEDA: una sola lista plana con todo lo que coincide —activas y
- * archivadas mezcladas, éstas marcadas «Archivada»— y la sección de
- * archivadas se esconde (asistente-superficie-frontend): las archivadas
- * tienen que seguir siendo encontrables por texto aun colapsadas.
- *
- * EL AVISO DE DESHACER VIVE ACÁ AFUERA DEL BLOQUE QUE EL COLAPSO ESCONDE
- * (design spec § v3: sigue visible con el rail colapsado, superpuesto al
- * hilo).
+ * El rail de conversaciones propias: siempre a la vista, a la izquierda de la conversación
+ * (asistente-superficie-frontend, design.md D1 de asistente-rediseno-v3).
  */
 export function RailDeConversaciones({
   asistente,
@@ -70,12 +44,9 @@ export function RailDeConversaciones({
   const archivadas = conBusqueda ? [] : lista.filter((conversacion) => conversacion.archivada);
   const grupos = agruparPorFecha(activas);
 
-  // FOCO AL CONTROL VISIBLE EN EL NUEVO ESTADO, NUNCA AL DOCUMENTO
-  // (asistente-accesibilidad, tasks.md 1.6): colapsar desmonta «Colapsar
-  // conversaciones» y monta «Expandir conversaciones» —son dos botones
-  // distintos, uno por estado—, y el que se fue no puede quedarse con el
-  // foco. La MISMA ref se pasa a los dos: sólo uno está montado a la vez,
-  // así que apunta siempre al que hay que enfocar.
+  // FOCO AL CONTROL VISIBLE EN EL NUEVO ESTADO, NUNCA AL DOCUMENTO (asistente-accesibilidad,
+  // tasks.md 1.6): colapsar desmonta «Colapsar conversaciones» y monta «Expandir conversaciones»
+  // —son dos botones distintos, uno por estado—, y el que se fue no puede quedarse con el foco.
   const toggleRef = useRef<HTMLButtonElement>(null);
   const esPrimerRender = useRef(true);
   useEffect(() => {
@@ -86,22 +57,15 @@ export function RailDeConversaciones({
     toggleRef.current?.focus();
   }, [colapsado]);
 
-  // RENOMBRAR, ARCHIVAR Y ELIMINAR SE LLEVAN CONSIGO EL CONTROL QUE TENÍA EL
-  // FOCO: guardar un título cierra el campo inline, y las otras dos sacan la
-  // fila entera de la lista. Sin esto, el navegador manda el foco a `<body>`
-  // —perdido, no «donde estaba»—, que es justo lo que asistente-accesibilidad
-  // prohíbe. El destino es la lista misma, que no se va a ningún lado con
-  // ninguna de las acciones.
+  // RENOMBRAR, ARCHIVAR Y ELIMINAR SE LLEVAN CONSIGO EL CONTROL QUE TENÍA EL FOCO: guardar un
+  // título cierra el campo inline, y las otras dos sacan la fila entera de la lista.
   const listaRef = useRef<HTMLDivElement>(null);
   const enfocarLista = () => listaRef.current?.focus();
 
   return (
-    // FRAGMENTO Y NO UN SOLO `<nav>`: el aviso de deshacer tiene que seguir
-    // visible con el rail colapsado, superpuesto al hilo (design spec § v3),
-    // y el `<nav>` recorta su contenido con `overflow: hidden` durante la
-    // transición de ancho. Puesto AFUERA, se posiciona contra
-    // `.adoc-asistente-grilla` (el contenedor común del rail y la columna,
-    // `position: relative` en `asistente.css`) y no queda nunca recortado.
+    // FRAGMENTO Y NO UN SOLO `<nav>`: el aviso de deshacer tiene que seguir visible con el rail
+    // colapsado, superpuesto al hilo (design spec § v3), y el `<nav>` recorta su contenido con
+    // `overflow: hidden` durante la transición de ancho.
     <>
       <nav
         className={colapsado ? "adoc-asistente-rail colapsado" : "adoc-asistente-rail"}
@@ -247,9 +211,8 @@ function SeccionDeArchivadas({
   historial: HistorialAsistente;
   enfocarLista: () => void;
 }) {
-  // COLAPSADA POR DEFAULT, al revés que los grupos colapsables del nav
-  // (design spec § v3): archivar es justamente sacar algo del primer plano,
-  // así que la sección arranca cerrada.
+  // COLAPSADA POR DEFAULT, al revés que los grupos colapsables del nav (design spec § v3): archivar
+  // es justamente sacar algo del primer plano, así que la sección arranca cerrada.
   const [abierta, setAbierta] = useState(false);
 
   return (
@@ -297,12 +260,10 @@ function ItemDeConversacion({
   /** A dónde va el foco cuando renombrar, archivar o eliminar se llevan el control que lo tenía. */
   enfocarLista: () => void;
   /**
-   * La marca «Archivada» junto al título. SÓLO en los resultados de
-   * búsqueda —donde activas y archivadas se mezclan en una sola lista y hace
-   * falta distinguirlas—: dentro de su propia sección «Archivadas» la marca
-   * es redundante (asistente-rediseno-v3, hallazgo de verificación visual;
-   * el mock no la dibuja ahí). Default `false`: ni la lista agrupada por
-   * fecha ni la sección de archivadas la piden.
+   * La marca «Archivada» junto al título. SÓLO en los resultados de búsqueda —donde activas y
+   * archivadas se mezclan en una sola lista y hace falta distinguirlas—: dentro de su propia
+   * sección «Archivadas» la marca es redundante (asistente-rediseno-v3, hallazgo de verificación
+   * visual; el mock no la dibuja ahí).
    */
   mostrarMarcaArchivada?: boolean;
 }) {
@@ -353,15 +314,13 @@ function ItemDeConversacion({
     }
   }
 
-  // SIN CONFIRMACIÓN (asistente-superficie-frontend, design.md D4 de
-  // asistente-rediseno-v3): la fila desaparece de inmediato y el aviso de
-  // deshacer —con foco en «Deshacer»— es la red de seguridad.
+  // SIN CONFIRMACIÓN (asistente-superficie-frontend, design.md D4 de asistente-rediseno-v3): la
+  // fila desaparece de inmediato y el aviso de deshacer —con foco en «Deshacer»— es la red de seguridad.
   async function eliminar() {
     await historial.eliminar(conversacion.id);
-    // NO se llama `enfocarLista()` acá: el aviso de deshacer que aparece a
-    // continuación se lleva el foco a su propio «Deshacer»
-    // (asistente-accesibilidad) — enfocar la lista primero lo movería ahí
-    // sólo para que el aviso lo vuelva a mover un instante después.
+    // NO se llama `enfocarLista()` acá: el aviso de deshacer que aparece a continuación se lleva el
+    // foco a su propio «Deshacer» (asistente-accesibilidad) — enfocar la lista primero lo movería
+    // ahí sólo para que el aviso lo vuelva a mover un instante después.
   }
 
   if (renombrando) {
@@ -433,9 +392,8 @@ function BorrarTodo({
   async function confirmarBorradoDeTodo() {
     await historial.eliminarTodo();
     setConfirmando(false);
-    // NO se llama `enfocarLista()` acá, mismo motivo que en `eliminar()` de
-    // `ItemDeConversacion`: el aviso de deshacer se lleva el foco a
-    // «Deshacer» apenas aparece.
+    // NO se llama `enfocarLista()` acá, mismo motivo que en `eliminar()` de `ItemDeConversacion`:
+    // el aviso de deshacer se lleva el foco a «Deshacer» apenas aparece.
   }
 
   if (confirmando) {

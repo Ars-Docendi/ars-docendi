@@ -5,10 +5,9 @@ interface KpisDeUsoProps {
   /** El agregado organizacional del período elegido; `undefined` mientras carga. */
   organizacion: UsoAgregado | undefined;
   /**
-   * Cuántos usuarios tuvieron al menos un turno en el período —«N usuarios
-   * activos» del canvas (fidelidad «Uso del asistente»)—, derivado en el
-   * padre de `uso.porUsuario`: el agregado organizacional no lo trae solo.
-   * `undefined` mientras `uso` todavía no llegó.
+   * Cuántos usuarios tuvieron al menos un turno en el período —«N usuarios activos» del canvas
+   * (fidelidad «Uso del asistente»)—, derivado en el padre de `uso.porUsuario`: el agregado
+   * organizacional no lo trae solo.
    */
   usuariosActivos: number | undefined;
 }

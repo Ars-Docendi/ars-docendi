@@ -35,11 +35,8 @@ describe("ordenarFilas", () => {
 
     const orden = ordenarFilas(filas, { columna: 0, direccion: "ascendente" });
 
-    // Como texto, "10" < "9" lexicalmente en un collator sin `numeric`... pero
-    // el collator de esta función SIEMPRE usa `numeric: true`, así que incluso
-    // como texto compara "9" antes que "10". Lo que se prueba acá es que no
-    // revienta con un valor no numérico mezclado, y que ese valor entra en la
-    // comparación de texto en vez de `NaN`.
+    // Como texto, "10" < "9" lexicalmente en un collator sin `numeric`... pero el collator de esta
+    // función SIEMPRE usa `numeric: true`, así que incluso como texto compara "9" antes que "10".
     expect(orden.map((i) => filas[i][0])).toEqual(["9", "10", "N/D"]);
   });
 

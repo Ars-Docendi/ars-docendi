@@ -34,16 +34,7 @@ interface TablaAmpliadaProps {
   onContraer: () => void;
 }
 
-/**
- * «Tabla ampliada»: la misma tabla, cubriendo todo el modal
- * (asistente-tabla-de-resultado). `TablaDeResultado` la monta vía un
- * `createPortal` dentro de `.adoc-asistente-grilla` — ver su comentario en
- * `contenedorDelModal` para el por qué del portal.
- *
- * COMPARTE EL ORDEN CON LA VISTA EN LÍNEA: `orden`/`onOrdenar` llegan por
- * props desde el mismo estado que ya usa `TablaDeResultado`, así que ordenar
- * acá o allá es ordenar LO MISMO — nunca una copia.
- */
+/** «Tabla ampliada»: la misma tabla, cubriendo todo el modal (asistente-tabla-de-resultado). */
 export function TablaAmpliada({
   pregunta,
   columnas,
@@ -102,12 +93,9 @@ export function TablaAmpliada({
   function alTeclear(evento: KeyboardEvent<HTMLDivElement>) {
     if (evento.key !== "Escape") return;
 
-    // CAPTURA, no burbujeo (design.md D5 de asistente-rediseno-v3): el Modal
-    // de @ars-docendi/ui escucha Escape en `window` sin mirar si el evento ya
-    // fue atendido más adentro, así que cerraría el modal ENTERO en vez de
-    // sólo esta capa. Frenarlo en la fase de captura —antes de que el propio
-    // evento termine de llegar a su objetivo— es lo único que evita que
-    // también dispare esa escucha, que corre después, en el burbujeo.
+    // CAPTURA, no burbujeo (design.md D5 de asistente-rediseno-v3): el Modal de @ars-docendi/ui
+    // escucha Escape en `window` sin mirar si el evento ya fue atendido más adentro, así que
+    // cerraría el modal ENTERO en vez de sólo esta capa.
     evento.stopPropagation();
     onContraer();
   }

@@ -33,10 +33,9 @@ const CONVERSACION_NUEVA: ConversacionResumen = {
 
 describe("El modal del asistente", () => {
   it("sigue nombrándose «Asistente» —el título de la librería, oculto— y el encabezado visible repite ese texto en la bienvenida", async () => {
-    // El `h4` de la librería sigue montado, y por eso el diálogo se sigue
-    // nombrando por él vía `aria-labelledby` (D1 de asistente-rediseno-v3);
-    // lo nuevo es que queda oculto y `EncabezadoDeConversacion` pinta el
-    // título de VERDAD, en el cuerpo.
+    // El `h4` de la librería sigue montado, y por eso el diálogo se sigue nombrando por él vía
+    // `aria-labelledby` (D1 de asistente-rediseno-v3); lo nuevo es que queda oculto y
+    // `EncabezadoDeConversacion` pinta el título de VERDAD, en el cuerpo.
     const user = userEvent.setup();
     montar(<LanzadorAsistente />);
 
@@ -130,9 +129,7 @@ describe("El foco del modal", () => {
   });
 
   it("deja inerte la aplicación de atrás mientras está abierto y la restaura al cerrar", async () => {
-    // El Modal de la librería no contiene el foco: Tab se escapa hacia la página
-    // de atrás. Se portalea a `body`, hermano de `#root`, así que `inert` sobre la
-    // raíz contiene Tab en el diálogo sin implementar un trap a mano.
+    // El Modal de la librería no contiene el foco: Tab se escapa hacia la página de atrás.
     const user = userEvent.setup();
     const raiz = document.createElement("div");
     raiz.id = "root";
@@ -250,9 +247,8 @@ describe("Seguir un vínculo", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByTestId("ubicacion")).toHaveTextContent("/designaciones/pedidos/abc-123");
 
-    // LA MITAD QUE MUERDE. Cerrar el modal es fácil; conservar el hilo es la
-    // propiedad real, y se rompería el día que alguien mueva `useAsistente` al
-    // panel — que es donde estaba antes.
+    // LA MITAD QUE MUERDE. Cerrar el modal es fácil; conservar el hilo es la propiedad real, y se
+    // rompería el día que alguien mueva `useAsistente` al panel — que es donde estaba antes.
     await user.click(screen.getByRole("button", { name: "Preguntar" }));
 
     expect(await screen.findByText("El 2026-9005 está devuelto.")).toBeInTheDocument();

@@ -12,35 +12,20 @@ export interface ConsultaDelAsistente {
   mensaje: string;
   hilo?: string | null;
   /**
-   * El identificador del turno que este turno reemplaza —su propio `id`
-   * anterior, la misma `Idempotency-Key` con la que se mandó, o el
-   * `turno_historico.id` de un turno restaurado por «Reanudar»—, para
-   * «Editar y reenviar» (asistente-edicion-de-la-ultima-pregunta,
-   * design.md D9 de asistente-rediseno-v3). Ausente en un turno nuevo
-   * cualquiera.
+   * El identificador del turno que este turno reemplaza —su propio `id` anterior, la misma
+   * `Idempotency-Key` con la que se mandó, o el `turno_historico.id` de un turno restaurado por
+   * «Reanudar»—, para «Editar y reenviar» (asistente-edicion-de-la-ultima-pregunta, design.md D9
+   * de asistente-rediseno-v3).
    */
   reemplaza?: string;
   /**
-   * Las «@materia»/«#docente» elegidas en el composer (asistente-menciones,
-   * design.md D10/D11 de asistente-rediseno-v3), a lo sumo 5. El controller
-   * las revalida contra el alcance ACTUAL del actor antes del candado: una
-   * desconocida o fuera de alcance da `400`, sin decir cuál de las dos fue.
+   * Las «@materia»/«#docente» elegidas en el composer (asistente-menciones, design.md D10/D11 de
+   * asistente-rediseno-v3), a lo sumo 5.
    */
   referencias?: ReferenciaDeMencion[];
 }
 
-/**
- * Lo máximo que el cliente espera un turno, en milisegundos.
- *
- * El backend acota cada turno a 150 s y, cuando lo agota, responde degradado con su
- * propio mensaje. El margen es para que el que corte sea el servidor con ese
- * mensaje; el cliente es sólo la red de seguridad para un request que se colgó
- * sin respuesta de ningún tipo.
- *
- * Va POR REQUEST y no en el cliente HTTP compartido: el resto de la aplicación no
- * tiene turnos de dos minutos y medio, y un tope global así de largo no protegería
- * a nadie.
- */
+/** Lo máximo que el cliente espera un turno, en milisegundos. */
 export const PRESUPUESTO_DEL_TURNO_MS = 160_000;
 
 export interface OpcionesDeConsulta {
@@ -49,18 +34,10 @@ export interface OpcionesDeConsulta {
 }
 
 /**
- * Un turno.
- *
- * La `Idempotency-Key` la genera quien llama, POR INTENTO y no por conversación:
- * «Reintentar» sobre un turno que terminó en error reusa la clave y el texto, que
- * es exactamente para lo que existe: si el backend ya había terminado cuando se
- * cortó, devuelve lo que guardó en lugar de cobrarle otra vez al modelo. Generarla
- * una vez por conversación haría que el segundo turno recibiera la respuesta del
- * primero.
- *
- * Reusarla SÓLO cuando el turno terminó. La idempotencia del backend consulta la
- * caché antes de ejecutar y guarda después, sin registrar el turno en curso: la
- * misma clave mientras el original sigue corriendo ejecuta el turno dos veces.
+ * Un turno. La `Idempotency-Key` la genera quien llama, POR INTENTO y no por conversación:
+ * «Reintentar» sobre un turno que terminó en error reusa la clave y el texto, que es exactamente
+ * para lo que existe: si el backend ya había terminado cuando se cortó, devuelve lo que guardó en
+ * lugar de cobrarle otra vez al modelo.
  */
 export async function consultar(
   consulta: ConsultaDelAsistente,
@@ -95,10 +72,8 @@ export interface EventosDelFlujo {
 }
 
 /**
- * Lee los eventos COMPLETOS de un `text/event-stream`: el último bloque, si
- * todavía no terminó en línea en blanco, se deja para la próxima lectura.
- * Sólo parsea los fragmentos; el resultado se devuelve crudo para no parsear
- * las filas en cada progreso.
+ * Lee los eventos COMPLETOS de un `text/event-stream`: el último bloque, si todavía no terminó en
+ * línea en blanco, se deja para la próxima lectura.
  */
 export function leerEventosDelFlujo(texto: string): EventosDelFlujo {
   const eventos: EventosDelFlujo = { redaccion: "" };
@@ -129,18 +104,9 @@ export function leerEventosDelFlujo(texto: string): EventosDelFlujo {
 }
 
 /**
- * Un turno por `POST /consultas/flujo`: el mismo pedido, la misma clave y la
- * misma respuesta que {@link consultar}, con la redacción llegando por partes
- * mientras se escribe (asistente-optimizaciones-modelo-local, D9).
- *
- * VA POR AXIOS Y NO POR `fetch` a propósito: así comparte cabeceras de sesión,
- * cancelación, timeout y la forma de los errores con el resto del turno, y
- * `mensajeDeError` no necesita un segundo vocabulario. El adaptador es XHR
- * porque es el que expone el texto parcial en cada progreso; axios los limita a
- * unos tres por segundo, que alcanza para leer y es lo que se pinta.
- *
- * Un rechazo antes de empezar (400, 404, 409) llega como cualquier error HTTP;
- * un `error` dentro del flujo se convierte en uno con ese status.
+ * Un turno por `POST /consultas/flujo`: el mismo pedido, la misma clave y la misma respuesta que
+ * {@link consultar}, con la redacción llegando por partes mientras se escribe
+ * (asistente-optimizaciones-modelo-local, D9).
  */
 export async function consultarEnFlujo(
   consulta: ConsultaDelAsistente,
@@ -203,13 +169,7 @@ export async function consultarEnFlujo(
   );
 }
 
-/**
- * Qué puede hacer el asistente para este actor.
- *
- * Sirve para dos cosas a la vez: es la pantalla inicial de la vista y es el gate de
- * acceso. Responde 403 a quien no tiene el permiso, así que preguntarlo es
- * preguntarle al backend por el permiso real en lugar de deducirlo del rol.
- */
+/** Qué puede hacer el asistente para este actor. */
 export async function obtenerCapacidades(): Promise<CapacidadesDelAsistente> {
   const { data } = await apiClient.get<CapacidadesDelAsistente>("/api/asistente/capacidades");
   return data;
@@ -223,12 +183,8 @@ export interface PedidoDeRetroalimentacion {
 }
 
 /**
- * Rates an already-answered turn: thumbs up/down, with zero or more reasons and an
- * optional free-text comment on a thumbs-down.
- *
- * `token` is the turn's own `claveDeRetroalimentacion` — it authorizes rating
- * THAT turn, and carries no identity of its own. `comentario` is never logged,
- * never sent to the model, and has no read surface anywhere in the UI.
+ * Rates an already-answered turn: thumbs up/down, with zero or more reasons and an optional
+ * free-text comment on a thumbs-down.
  */
 export async function enviarRetroalimentacion(pedido: PedidoDeRetroalimentacion): Promise<void> {
   await apiClient.post("/api/asistente/retroalimentacion", pedido);

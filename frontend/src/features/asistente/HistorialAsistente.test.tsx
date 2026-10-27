@@ -40,13 +40,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// El título de una conversación es la pregunta que la abrió (auto-titulado
-// desde el backend): a propósito, `CONVERSACION.titulo` y
-// `TURNO_RESPONDIDO.pregunta` son el MISMO texto acá, igual que en un caso
-// real. Desde que el rail y el encabezado quedan siempre a la vista (v3), ese
-// texto aparece en tres lugares a la vez —la fila del rail, el título del
-// encabezado y la burbuja de la pregunta—, así que cualquier aserción sobre
-// la burbuja necesita acotarse a la región viva de la conversación.
+// El título de una conversación es la pregunta que la abrió (auto-titulado desde el backend): a
+// propósito, `CONVERSACION.titulo` y `TURNO_RESPONDIDO.pregunta` son el MISMO texto acá, igual que
+// en un caso real.
 function regionViva(): HTMLElement {
   return screen.getByRole("log", { name: "Conversación con el asistente" });
 }
@@ -122,9 +118,8 @@ describe("Reanudar una conversación (tasks.md 12.1, 12.2)", () => {
     await user.click(await screen.findByText(CONVERSACION.titulo));
     await within(regionViva()).findByText(TURNO_RESPONDIDO.pregunta);
 
-    // El rail sigue a la vista —ya no hay un panel que abrir y cerrar—: la
-    // fila de la conversación que quedó activa en el hilo se resalta, para
-    // que se vea cuál es «esta» entre las demás.
+    // El rail sigue a la vista —ya no hay un panel que abrir y cerrar—: la fila de la conversación
+    // que quedó activa en el hilo se resalta, para que se vea cuál es «esta» entre las demás.
     expect(screen.getByRole("button", { name: CONVERSACION.titulo })).toHaveAttribute(
       "aria-current",
       "true",
@@ -132,9 +127,8 @@ describe("Reanudar una conversación (tasks.md 12.1, 12.2)", () => {
   });
 
   it("reanudar la conversación de otra persona no es una acción que este panel ofrezca", async () => {
-    // No hay ningún control en este panel que pida un id ajeno: reanudar
-    // sólo se dispara sobre lo que trajo `GET /historial`, que ya está
-    // acotado al actor de la sesión (backend, tasks.md 7.4).
+    // No hay ningún control en este panel que pida un id ajeno: reanudar sólo se dispara sobre lo
+    // que trajo `GET /historial`, que ya está acotado al actor de la sesión (backend, tasks.md 7.4).
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([CONVERSACION]);
 
     montar(<PanelDePrueba />);

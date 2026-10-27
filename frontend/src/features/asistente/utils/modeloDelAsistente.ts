@@ -123,11 +123,7 @@ export function pedidoDe(
   return claveNueva ? { ...destino, claveNueva } : { ...destino };
 }
 
-/**
- * Identifica «lo que se probó»: una prueba vale sólo para el pedido que la
- * originó. Cambiar de modelo, de servidor o escribir otra clave cambia la firma
- * y la prueba anterior deja de habilitar «Aplicar cambio».
- */
+/** Identifica «lo que se probó»: una prueba vale sólo para el pedido que la originó. */
 export function firmaDelPedido(pedido: PedidoDeModelo | null): string | null {
   return pedido ? `${pedido.empresa}|${pedido.modelo}|${pedido.claveNueva ?? ""}` : null;
 }

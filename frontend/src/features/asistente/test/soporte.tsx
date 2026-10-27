@@ -17,10 +17,8 @@ import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "../types";
 // ============================================================
 
 export const CAPACIDADES: CapacidadesDelAsistente = {
-  // `descripcion` llega como el backend la manda de verdad: el `COMMENT ON TABLE`
-  // que se escribió para el modelo, con nombres de tablas y «NO confundir con…».
-  // La fixture lo trae así a propósito para que muerda cualquier test que monte
-  // el panel vacío si alguien lo pinta.
+  // `descripcion` llega como el backend la manda de verdad: el `COMMENT ON TABLE` que se escribió
+  // para el modelo, con nombres de tablas y «NO confundir con…».
   cubre: [
     {
       nombre: "designaciones.pedidos",
@@ -71,10 +69,9 @@ export function montar(nodo: ReactNode, contenedor?: HTMLElement) {
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
 
-  // EL ROUTER VA SIEMPRE. La tabla puede renderizar enlaces a las pantallas del
-  // sistema y el lanzador observa la ubicación para cerrarse al navegar: sin router
-  // el banco probaría una composición que no existe, y ninguno de los dos podría
-  // montarse.
+  // EL ROUTER VA SIEMPRE. La tabla puede renderizar enlaces a las pantallas del sistema y el
+  // lanzador observa la ubicación para cerrarse al navegar: sin router el banco probaría una
+  // composición que no existe, y ninguno de los dos podría montarse.
   return render(
     <MemoryRouter>
       <QueryClientProvider client={cliente}>{nodo}</QueryClientProvider>

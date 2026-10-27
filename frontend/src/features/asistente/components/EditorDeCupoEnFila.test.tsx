@@ -31,9 +31,8 @@ describe("EditorDeCupoEnFila", () => {
 
     await waitFor(() => expect(onGuardar).toHaveBeenCalledWith(20));
     expect(onGuardado).toHaveBeenCalledWith(20);
-    // El valor mostrado lo controla el padre (`cupoConocido` es un prop): acá
-    // sólo hace falta ver que la fila volvió a modo vista, con el botón de
-    // editar de nuevo disponible.
+    // El valor mostrado lo controla el padre (`cupoConocido` es un prop): acá sólo hace falta ver
+    // que la fila volvió a modo vista, con el botón de editar de nuevo disponible.
     expect(
       screen.getByRole("button", { name: "Editar cupo diario de Marina Díaz" }),
     ).toBeInTheDocument();

@@ -6,15 +6,13 @@ import { formatearUsd } from "../utils/formatoDeUso";
 
 interface TopeOrganizacionalCardProps {
   /**
-   * El tope organizacional vigente, leído de `GET …/presupuestos` (tarea
-   * 12.8 de sistema-seccion-unificada). `0` desactiva el tope; `undefined`
-   * mientras la consulta está en vuelo.
+   * El tope organizacional vigente, leído de `GET …/presupuestos` (tarea 12.8 de
+   * sistema-seccion-unificada).
    */
   topeConocido: number | undefined;
   /**
-   * El gasto estimado del mes calendario en curso, del mismo endpoint —
-   * siempre una estimación, nunca la factura real del proveedor.
-   * `undefined` mientras la consulta está en vuelo.
+   * El gasto estimado del mes calendario en curso, del mismo endpoint — siempre una estimación,
+   * nunca la factura real del proveedor.
    */
   gastoEstimadoDelMes: number | undefined;
   /** Si `GET …/presupuestos` falló. */
@@ -42,22 +40,10 @@ function mesActualCapitalizado(): string {
 }
 
 /**
- * La quinta tarjeta de la fila de KPIs (rediseño «Uso del asistente», 1:1
- * con el canvas de Claude Design): el tope organizacional de gasto mensual,
- * titulada «Tope de {mes}», con el gasto del mes como número principal y el
- * tope al lado («de US$ X»), y el mismo patrón de confirmación inline al
- * BAJAR un valor que `EditorDeLimite` ya usaba. El nombre accesible del
- * grupo se mantiene «Tope organizacional mensual» a propósito —es lo que ya
- * usan los tests de integración— aunque la etiqueta VISIBLE ahora lleve el
- * mes, igual que un botón de ícono puede tener un `aria-label` más
- * descriptivo que lo que se ve.
- *
- * Lee el tope y el gasto del mes de `GET /api/asistente/administracion/presupuestos`
- * (tarea 12.8 de sistema-seccion-unificada) — YA NO depende de «lo último que
- * este admin guardó en esta sesión»: abrir la pantalla, o que la edite otro
- * admin, refleja el valor persistido. La barra de gasto-vs-tope usa los
- * mismos umbrales 50/80/100% que `DetectorDeUmbrales` ya loguea del lado del
- * backend.
+ * La quinta tarjeta de la fila de KPIs (rediseño «Uso del asistente», 1:1 con el canvas de Claude
+ * Design): el tope organizacional de gasto mensual, titulada «Tope de {mes}», con el gasto del mes
+ * como número principal y el tope al lado («de US$ X»), y el mismo patrón de confirmación inline
+ * al BAJAR un valor que `EditorDeLimite` ya usaba.
  */
 export function TopeOrganizacionalCard({
   topeConocido,

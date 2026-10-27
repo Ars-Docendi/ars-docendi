@@ -14,10 +14,7 @@ interface BarrasDeConteoProps {
   marcarSenales?: boolean;
 }
 
-/**
- * Horizontal bars of a breakdown, largest first. Each row shows its count and
- * its share of the listed total; the bar is proportional to the largest row.
- */
+/** Horizontal bars of a breakdown, largest first. */
 export function BarrasDeConteo({
   titulo,
   conteos,

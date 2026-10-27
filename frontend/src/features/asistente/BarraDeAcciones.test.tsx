@@ -187,10 +187,9 @@ describe("Visibilidad de la barra (design.md D6)", () => {
   });
 
   it("los controles de la barra no dependen de `display`: quedan en el DOM aunque apagados", () => {
-    // Cubierto también funcionalmente: los tests de arriba usan `getByRole`
-    // (que exige que el elemento esté en el árbol de accesibilidad) sin abrir
-    // hover ni foco del turno, así que ya prueban que la barra no depende de
-    // una interacción para existir en el DOM.
+    // Cubierto también funcionalmente: los tests de arriba usan `getByRole` (que exige que el
+    // elemento esté en el árbol de accesibilidad) sin abrir hover ni foco del turno, así que ya
+    // prueban que la barra no depende de una interacción para existir en el DOM.
     expect(sinComentarios).not.toMatch(/\.adoc-asistente-barra\s*\{[^}]*display:\s*none/);
   });
 });

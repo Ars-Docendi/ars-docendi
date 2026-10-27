@@ -10,16 +10,7 @@ interface SelectorDeSujetoProps {
   onSeleccionar: (personaId: string) => void;
 }
 
-/**
- * A quién leerle el historial: busca entre las personas del sistema y elige
- * una.
- *
- * REUTILIZA EL ENDPOINT de administración de usuarios (`GET
- * /api/administracion/usuarios`, vía `buscarPersonasParaSoporte`) — tasks.md
- * 13.1 pide explícitamente no crear un buscador nuevo—, pero es un componente
- * PROPIO de esta feature: `features/asistente/` no importa nada de
- * `features/usuarios/` (react-features-guide, aislamiento de features).
- */
+/** A quién leerle el historial: busca entre las personas del sistema y elige una. */
 export function SelectorDeSujeto({
   personas,
   cargando,

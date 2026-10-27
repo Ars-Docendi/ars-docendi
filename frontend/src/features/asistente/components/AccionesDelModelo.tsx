@@ -29,12 +29,7 @@ interface AccionesDelModeloProps {
   botonAplicarRef: RefObject<HTMLButtonElement | null>;
 }
 
-/**
- * «Probar conexión» y «Aplicar cambio» (tarea 4.8). Aplicar está deshabilitado
- * hasta que la prueba del destino elegido pase, y pide una confirmación en
- * línea que dice qué pasa con los turnos en curso. El resultado de la prueba se
- * anuncia (`role` del `InlineAlert`): un éxito como estado, un fallo como alerta.
- */
+/** «Probar conexión» y «Aplicar cambio» (tarea 4.8). */
 export function AccionesDelModelo({
   prueba,
   destino,

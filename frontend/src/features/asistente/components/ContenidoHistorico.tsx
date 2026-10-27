@@ -15,21 +15,7 @@ const TEXTO_DEL_ESTADO: Record<EstadoDelTurno, string> = {
   servicio_degradado: "El servicio estaba degradado cuando se hizo esta pregunta.",
 };
 
-/**
- * Un turno restaurado de una conversación reanudada (asistente-historial-conversaciones).
- *
- * NUNCA SE GUARDÓ EL TEXTO REDACTADO (design.md D2/D4): a diferencia de un
- * turno en vivo, acá no hay `respuesta.respuesta` que mostrar. Lo que se
- * muestra es el desenlace —qué pasó con esa pregunta— y, sólo si terminó
- * `respondida`, la acción «Volver a consultar», que re-ejecuta la SQL
- * guardada bajo el alcance ACTUAL del actor y nunca escribe una fila nueva de
- * historial.
- *
- * VIVE DENTRO DE `Mensaje`, que vive dentro de la región viva de
- * `Conversacion` (`role="log" aria-live="polite"`): el resultado de «Volver a
- * consultar» se anuncia solo, con el mismo mecanismo que ya usa
- * `VotoDeRetroalimentacion`, sin abrir una región propia.
- */
+/** Un turno restaurado de una conversación reanudada (asistente-historial-conversaciones). */
 export function ContenidoHistorico({ turno, onReejecutar }: ContenidoHistoricoProps) {
   const historico = turno.historico;
   if (!historico) return null;

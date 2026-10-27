@@ -20,13 +20,8 @@ import { TablaPorModelo } from "./TablaPorModelo";
 import "../asistente.css";
 
 /**
- * The «Calidad» tab of Sistema (asistente-metricas-de-calidad): how users rate
- * the answers and where the system visibly fails, per period and per model.
- *
- * Only holders of `asistente.administrar` reach this component (the tab is
- * gated by `SistemaPage`). The anonymous problem list needs a second
- * permission, `asistente.revisar_calidad`; without it the list is never
- * requested and a notice is shown instead.
+ * The «Calidad» tab of Sistema (asistente-metricas-de-calidad): how users rate the answers and
+ * where the system visibly fails, per period and per model.
  */
 export function PanelDeCalidad() {
   const { user } = useCurrentUser();

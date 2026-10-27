@@ -18,11 +18,7 @@ interface TarjetasDeModalidadProps {
   onElegir: (modalidad: ModalidadDelModelo) => void;
 }
 
-/**
- * «Modelo local» / «API en la nube» (tarea 4.4): dos tarjetas que son un solo
- * grupo de radio. La tarjeta entera es clicable, pero el control real es el
- * radio —el que recibe el foco y las flechas—.
- */
+/** «Modelo local» / «API en la nube» (tarea 4.4): dos tarjetas que son un solo grupo de radio. */
 export function TarjetasDeModalidad({ tarjetas, modalidad, onElegir }: TarjetasDeModalidadProps) {
   return (
     <div

@@ -7,10 +7,8 @@ const TEXTO_DEL_ESTADO: Record<EstadoDelTurno, string> = {
   servicio_degradado: "Servicio degradado",
 };
 
-// La zona de la institución y no la de quien mira, como el resto de la sección
-// de soporte y auditoría: el momento se compara con lo que reportó el usuario.
-// `features/sistema` tiene su propio formateador y las features no se importan
-// entre sí.
+// La zona de la institución y no la de quien mira, como el resto de la sección de soporte y
+// auditoría: el momento se compara con lo que reportó el usuario.
 const FORMATO_DEL_MOMENTO = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
   month: "numeric",
@@ -26,17 +24,7 @@ interface DetalleDeSoporteProps {
   conversacion: ConversacionDetalle;
 }
 
-/**
- * Una conversación de OTRO actor, leída por soporte
- * (asistente-acceso-de-soporte-al-historial).
- *
- * SÓLO PREGUNTA, SQL, DESENLACE Y MOMENTOS (design.md D10 de
- * asistente-historial-conversaciones) — nunca filas de resultado, y ninguna
- * acción de re-ejecución en ningún lugar de este componente. No es
- * `ContenidoHistorico`: éste no ofrece «Volver a consultar» porque esa acción
- * no existe para el historial ajeno, ni por soporte ni por nadie (design.md
- * D4/D10).
- */
+/** Una conversación de OTRO actor, leída por soporte (asistente-acceso-de-soporte-al-historial). */
 export function DetalleDeSoporte({ conversacion }: DetalleDeSoporteProps) {
   return (
     <div

@@ -24,16 +24,11 @@ interface PanelAsistenteProps {
    * página para la ruta— y no el panel, para que sobreviva a cerrar el modal.
    */
   asistente: Asistente;
-  /**
-   * El historial de conversaciones propias, para el rail. LO CREA EL MISMO
-   * DUEÑO que crea `asistente`, con el mismo criterio: es un solo hook, no
-   * una copia por montaje.
-   */
+  /** El historial de conversaciones propias, para el rail. */
   historial: HistorialAsistente;
   /**
-   * Cierra el asistente. Sólo el modal del lanzador lo tiene: la ruta
-   * `/asistente` —mientras siga existiendo, tasks.md §10— no tiene noción de
-   * «cerrar», y el encabezado no pinta ese control sin esta prop.
+   * Cierra el asistente. Sólo el modal del lanzador lo tiene: la ruta `/asistente` —mientras siga
+   * existiendo, tasks.md §10— no tiene noción de «cerrar», y el encabezado no pinta ese control sin esta prop.
    */
   onCerrar?: () => void;
   /** Para el test del umbral, que no puede esperar el tiempo real. */
@@ -41,20 +36,8 @@ interface PanelAsistenteProps {
 }
 
 /**
- * La vista del asistente: el rail de conversaciones y la conversación
- * activa, en la grilla de dos columnas de v3 (asistente-superficie-frontend,
- * design.md D1 de asistente-rediseno-v3).
- *
- * ES UNA SOLA, MONTADA DOS VECES: el lanzador de la barra la muestra en un
- * modal y, mientras la ruta `/asistente` siga existiendo (tasks.md §10), la
- * muestra también a página completa. Dos implementaciones se
- * desincronizarían —una recibiría una mejora y la otra no—, y nadie lo
- * notaría hasta que alguien reportara que «desde el botón anda distinto».
- *
- * NO TIENE CONVERSACIÓN PROPIA: la recibe. En el modal se monta al abrir y se
- * desmonta al cerrar, y si el hilo viviera acá se iría con él —Esc y un clic
- * afuera, también sin querer, cierran—. Lo que sí es suyo es lo que se está
- * escribiendo, el foco y la preferencia de ancho del rail.
+ * La vista del asistente: el rail de conversaciones y la conversación activa, en la grilla de dos
+ * columnas de v3 (asistente-superficie-frontend, design.md D1 de asistente-rediseno-v3).
  */
 export function PanelAsistente({
   asistente,
@@ -65,26 +48,21 @@ export function PanelAsistente({
   const { capacidades, tieneAcceso } = useAccesoAlAsistente();
   const { turnos, enVuelo, preguntar, reintentar, reenviarUltima, detener } = asistente;
   const [borrador, setBorrador] = useState("");
-  // El anuncio de cuántas materias/docentes coincidieron en el popover de
-  // menciones (asistente-menciones) sale por la MISMA región viva que ya
-  // usan renombrar/archivar/reanudar del rail (asistente-accesibilidad: «no
-  // agregar una segunda»); por eso vive acá, junto a `historial.anuncio`, y
-  // no adentro del composer, que no tiene ninguna región viva propia.
+  // El anuncio de cuántas materias/docentes coincidieron en el popover de menciones
+  // (asistente-menciones) sale por la MISMA región viva que ya usan renombrar/archivar/reanudar del
+  // rail (asistente-accesibilidad: «no agregar una segunda»); por eso vive acá, junto a
+  // `historial.anuncio`, y no adentro del composer, que no tiene ninguna región viva propia.
   const [anuncioDeMenciones, setAnuncioDeMenciones] = useState<string | null>(null);
   // El bypass del admin ya lo aplicó el backend en `cupo.bloqueado` (a diferencia de
-  // `mantenimiento`, que es global y sin bypass): un actor con
-  // `asistente.administrar` no se ve bloqueado por su propio mantenimiento y puede
-  // seguir escribiendo para verificar la recuperación.
+  // `mantenimiento`, que es global y sin bypass): un actor con `asistente.administrar` no se ve
+  // bloqueado por su propio mantenimiento y puede seguir escribiendo para verificar la recuperación.
   const bloqueado = capacidades?.cupo.bloqueado ?? false;
   const entrada = useRef<HTMLTextAreaElement>(null);
   const sinTurnos = turnos.length === 0;
 
-  // NO ES UN HOOK A PROPÓSITO: la sesión de desarrollo es una lectura
-  // síncrona de `localStorage`, y pasar por `useCurrentUser` traería su
-  // propia consulta de React Query a CADA test que monta este panel —que
-  // son casi todos— sin que la preferencia del rail necesite nada de eso.
-  // En producción, sin la integración de identidad todavía armada, no hay
-  // id que leer y el rail usa el default (expandido) para todo el mundo.
+  // NO ES UN HOOK A PROPÓSITO: la sesión de desarrollo es una lectura síncrona de `localStorage`, y
+  // pasar por `useCurrentUser` traería su propia consulta de React Query a CADA test que monta este
+  // panel —que son casi todos— sin que la preferencia del rail necesite nada de eso.
   const usuarioId = developmentAuthEnabled ? obtenerSesionDesarrollo()?.usuarioId : undefined;
   const rail = usePreferenciaDelRail(usuarioId);
 
@@ -101,18 +79,15 @@ export function PanelAsistente({
   const { hilo, anclado, irAlFinal, onScroll } = useAnclaAlFinal(turnos);
 
   async function enviar(mensaje: string, menciones?: MencionEnPregunta[]) {
-    // Mientras hay un turno en vuelo no se envía nada —ni por Enter, ni por el
-    // botón, ni por un chip—, pero se puede seguir escribiendo: el borrador no se
-    // toca. El hook tiene su propio guard; éste es el que cuida lo escrito.
+    // Mientras hay un turno en vuelo no se envía nada —ni por Enter, ni por el botón, ni por un
+    // chip—, pero se puede seguir escribiendo: el borrador no se toca.
     if (enVuelo || bloqueado) return;
     setBorrador("");
     await preguntar(mensaje, menciones);
   }
 
-  // SIN ACCESO NO HAY FORMULARIO. Con 403 el campo y el botón quedaban activos y
-  // el rechazo recién aparecía al enviar: un formulario que aparenta funcionar es
-  // el fake UI que el invariante #7 prohíbe. El lanzador de la barra no aparece
-  // sin acceso, así que la ruta `/asistente` es la única forma de llegar acá.
+  // SIN ACCESO NO HAY FORMULARIO. Con 403 el campo y el botón quedaban activos y el rechazo recién
+  // aparecía al enviar: un formulario que aparenta funcionar es el fake UI que el invariante #7 prohíbe.
   if (tieneAcceso === false) {
     return (
       <section className="adoc-asistente" aria-label="Asistente conversacional">
@@ -121,11 +96,8 @@ export function PanelAsistente({
     );
   }
 
-  // «Asistente» en la bienvenida; si no, el título de la conversación activa
-  // —la reanudada, o la que este mismo hilo en vivo acaba de persistir—
-  // (asistente-superficie-frontend). Mientras el rail todavía no trajo la
-  // lista —o la conversación nueva todavía no aparece en ella—, se sigue
-  // mostrando «Asistente»: nunca un hueco.
+  // «Asistente» en la bienvenida; si no, el título de la conversación activa —la reanudada, o la
+  // que este mismo hilo en vivo acaba de persistir— (asistente-superficie-frontend).
   const conversacionActiva = historial.conversaciones.data?.find(
     (c) => c.id === historial.conversacionActivaId,
   );
@@ -239,17 +211,15 @@ export function PanelAsistente({
 }
 
 /**
- * «El asistente está en mantenimiento: {razón}.» — texto exacto del design
- * spec (docs/product/designs/asistente-conversacional-design-spec.md
- * §Administración de uso), para que el banner diga lo mismo en cualquier
- * lugar donde se lo muestre.
+ * «El asistente está en mantenimiento: {razón}.» — texto exacto del design spec
+ * (docs/product/designs/asistente-conversacional-design-spec.md §Administración de uso), para que
+ * el banner diga lo mismo en cualquier lugar donde se lo muestre.
  */
 function mensajeDeMantenimiento(razon: string | null | undefined, exento: boolean): string {
   const base = razon
     ? `El asistente está en mantenimiento: ${razon}.`
     : "El asistente está en mantenimiento.";
-  // Si el backend no lo bloquea, es quien administra (el bypass de
-  // asistente-modo-mantenimiento): sin decirlo, el campo habilitado bajo el
-  // banner se lee como una falla del mantenimiento.
+  // Si el backend no lo bloquea, es quien administra (el bypass de asistente-modo-mantenimiento):
+  // sin decirlo, el campo habilitado bajo el banner se lee como una falla del mantenimiento.
   return exento ? `${base} Como administrador podés seguir consultando para verificarlo.` : base;
 }

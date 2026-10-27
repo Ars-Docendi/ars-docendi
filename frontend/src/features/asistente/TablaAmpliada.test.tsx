@@ -63,10 +63,9 @@ describe("Ampliar tabla", () => {
     expect(within(region).getByRole("button", { name: "Contraer" })).toBeInTheDocument();
   });
 
-  // Dentro del modal, `.adoc-asistente-modal header` colapsa a alto 0 cualquier
-  // `<header>` —para esconder el de la librería— y `.adoc-modal header` le pone
-  // su relleno y borde: con un `<header>` el encabezado, y con él «Contraer»,
-  // copiar y exportar, desaparecía en la app real.
+  // Dentro del modal, `.adoc-asistente-modal header` colapsa a alto 0 cualquier `<header>` —para
+  // esconder el de la librería— y `.adoc-modal header` le pone su relleno y borde: con un
+  // `<header>` el encabezado, y con él «Contraer», copiar y exportar, desaparecía en la app real.
   it("no usa header, que el modal estiliza como el suyo", async () => {
     const user = abrir();
     montar(
@@ -183,9 +182,8 @@ describe("Ampliar tabla", () => {
   });
 
   it("«Copiar tabla» copia la tabla en el orden mostrado, separada por tabulaciones, y confirma", async () => {
-    // `userEvent.setup()` instala un portapapeles de mentira en `navigator`
-    // (mismo patrón que `Mensaje.test.tsx`): lo que se escribe se puede leer
-    // después.
+    // `userEvent.setup()` instala un portapapeles de mentira en `navigator` (mismo patrón que
+    // `Mensaje.test.tsx`): lo que se escribe se puede leer después.
     const user = abrir();
     montar(
       <TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} pregunta={PREGUNTA} />,

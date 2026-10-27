@@ -1,16 +1,6 @@
 /**
- * Nombre legible de cada código de rol de sistema (tarea «rol y cupo
- * efectivo por usuario» de sistema-seccion-unificada, panel de uso del
- * asistente).
- *
- * El backend expone `codigosDeRol` — nunca un nombre — porque
- * `IConsultasIdentity` (la única puerta por la que el módulo lee identity,
- * regla 4 de AGENTS.md) no expone ningún catálogo de roles con nombre; sólo
- * `ObtenerCodigosDeRolesDeSistemaAsync`, que devuelve códigos. La traducción
- * vive acá, del lado del cliente, con el mismo catálogo fijo de los siete
- * roles de sistema que sembra `database/identity/002_identity_roles.sql` —
- * el mismo catálogo cerrado del que design.md D13 ya toma los chips
- * estáticos de módulo en la Auditoría.
+ * Nombre legible de cada código de rol de sistema (tarea «rol y cupo efectivo por usuario» de
+ * sistema-seccion-unificada, panel de uso del asistente).
  */
 const ETIQUETAS_DE_ROL: Record<string, string> = {
   docente: "Docente",

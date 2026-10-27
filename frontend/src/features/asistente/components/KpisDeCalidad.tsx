@@ -37,9 +37,8 @@ function notaDeTendencia(calidad: CalidadAgregada): { texto: string; enAlza: boo
 }
 
 /**
- * The quality KPI row. «Respuestas negativas» is first, wider and red-accented
- * (it is the headline); the rest reuse the usage panel's card styles. A rate
- * without denominator reads «—», never 0%.
+ * The quality KPI row. «Respuestas negativas» is first, wider and red-accented (it is the
+ * headline); the rest reuse the usage panel's card styles.
  */
 export function KpisDeCalidad({ calidad }: KpisDeCalidadProps) {
   const { resumen } = calidad;

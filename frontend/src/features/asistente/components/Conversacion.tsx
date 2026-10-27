@@ -7,20 +7,15 @@ interface ConversacionProps {
   onReintentar: (id: string) => void;
   /** «Volver a consultar» sobre un turno histórico (asistente-historial-conversaciones). */
   onReejecutar?: (id: string) => void;
-  /**
-   * Edita y reenvía la última pregunta (asistente-edicion-de-la-ultima-
-   * pregunta). Sólo `Mensaje` del último turno la recibe: es la única
-   * pregunta que se puede reemplazar.
-   */
+  /** Edita y reenvía la última pregunta (asistente-edicion-de-la-ultima- pregunta). */
   onEditarYReenviar?: (texto: string) => void;
   enVuelo: boolean;
   /** Cupo agotado, tope organizacional o mantenimiento: oculta «Editar y reenviar». */
   bloqueado?: boolean;
   /**
-   * Anunciado por ESTA MISMA región viva: renombrar, borrar y reanudar una
-   * conversación no tienen un turno propio al que colgar su confirmación, y
-   * la accesibilidad de la feature pide una sola región viva, no una segunda
-   * (asistente-accesibilidad). `null`/`undefined` no agrega nada al DOM.
+   * Anunciado por ESTA MISMA región viva: renombrar, borrar y reanudar una conversación no tienen
+   * un turno propio al que colgar su confirmación, y la accesibilidad de la feature pide una sola
+   * región viva, no una segunda (asistente-accesibilidad).
    */
   anuncio?: string | null;
   /** Al indicador inline del turno en vuelo. Para el test del umbral. */
@@ -28,16 +23,10 @@ interface ConversacionProps {
 }
 
 /**
- * La lista de mensajes, y NADA MÁS.
- *
- * ÉSTE ES EL DEFECTO QUE NO HAY QUE REPETIR, y está verificado en el prototipo
- * previo: la región viva envolvía el contenedor entero, así que cada re-render hacía
- * que el lector de pantalla leyera todo de nuevo — la línea de métricas incluida,
- * que cambia en cada turno.
- *
- * La región viva es exactamente esta lista. Las métricas y el indicador de proceso
- * son hermanos, fuera. `role="log"` es lo que le dice al lector que es un registro
- * de conversación donde lo nuevo se agrega al final.
+ * La lista de mensajes, y NADA MÁS. ÉSTE ES EL DEFECTO QUE NO HAY QUE REPETIR, y está verificado
+ * en el prototipo previo: la región viva envolvía el contenedor entero, así que cada re-render
+ * hacía que el lector de pantalla leyera todo de nuevo — la línea de métricas incluida, que cambia
+ * en cada turno.
  */
 export function Conversacion({
   turnos,
@@ -62,11 +51,10 @@ export function Conversacion({
 
         return (
           <Mensaje
-            // `turno.id` cambia cuando un reemplazo reenvía la pregunta con
-            // una clave nueva (asistente-edicion-de-la-ultima-pregunta): con
-            // una `key` distinta, React vuelve a montar este turno entero, y
-            // el voto, el orden de la tabla y la vista ampliada del turno
-            // reemplazado se resetean solos, sin código propio que los limpie.
+            // `turno.id` cambia cuando un reemplazo reenvía la pregunta con una clave nueva
+            // (asistente-edicion-de-la-ultima-pregunta): con una `key` distinta, React vuelve a
+            // montar este turno entero, y el voto, el orden de la tabla y la vista ampliada del
+            // turno reemplazado se resetean solos, sin código propio que los limpie.
             key={turno.id}
             turno={turno}
             onElegir={onElegir}

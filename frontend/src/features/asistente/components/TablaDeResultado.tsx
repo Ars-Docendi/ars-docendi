@@ -27,67 +27,32 @@ interface TablaDeResultadoProps {
   vinculos?: VinculoDelResultado[];
   /** El hilo del turno, sólo para nombrar el archivo exportado. */
   hilo?: string;
-  /**
-   * La pregunta del turno: título de «Tabla ampliada»
-   * (asistente-tabla-de-resultado). Sin ella —un llamador que todavía no la
-   * tiene, o un test que no la necesita— la vista ampliada muestra un
-   * título vacío en vez de romper.
-   */
+  /** La pregunta del turno: título de «Tabla ampliada» (asistente-tabla-de-resultado). */
   pregunta?: string;
   /**
-   * La vista ampliada, controlada desde afuera. Pasada junto con
-   * `onAmpliarChange`, esta tabla DEJA DE DIBUJAR su propio botón «Ampliar
-   * tabla» —el llamador ya tiene el suyo en otro lado— y sigue el valor que
-   * le llega; devolver el foco al abrir/cerrar pasa a ser responsabilidad de
-   * quien controla. Pensado para cuando la barra de acciones (ARS-146, §5)
-   * mueva el disparador a su propio ícono sin tener que editar este
-   * archivo. Sin este par —el caso de hoy— la tabla maneja su propio estado
-   * y ofrece su propio botón, como siempre.
+   * La vista ampliada, controlada desde afuera. Pasada junto con `onAmpliarChange`, esta tabla
+   * DEJA DE DIBUJAR su propio botón «Ampliar tabla» —el llamador ya tiene el suyo en otro lado— y
+   * sigue el valor que le llega; devolver el foco al abrir/cerrar pasa a ser responsabilidad de quien controla.
    */
   ampliado?: boolean;
   onAmpliarChange?: (ampliado: boolean) => void;
   /**
-   * Expone la función de exportar cuando la barra de acciones (ARS-146, §5)
-   * quiere su propio ícono «Exportar a CSV»: llega YA resuelta contra el
-   * orden mostrado (`ordenDeFilas`), la misma fuente que usa la vista en
-   * línea y la ampliada —no hay una segunda función que ordene por su cuenta
-   * (asistente-exportacion-csv: exportar SIEMPRE el orden mostrado). Pasada,
-   * esta tabla DEJA DE DIBUJAR su propio botón «Exportar a CSV», igual que
-   * con `ampliado`/`onAmpliarChange`. Sin ella, la tabla exporta con su
-   * propio botón, como siempre.
+   * Expone la función de exportar cuando la barra de acciones (ARS-146, §5) quiere su propio ícono
+   * «Exportar a CSV»: llega YA resuelta contra el orden mostrado (`ordenDeFilas`), la misma fuente
+   * que usa la vista en línea y la ampliada —no hay una segunda función que ordene por su cuenta
+   * (asistente-exportacion-csv: exportar SIEMPRE el orden mostrado).
    */
   onExportarDisponible?: (exportar: () => void) => void;
   /**
-   * No dibuja la tabla en línea, pero sigue montada: «Ampliar tabla» y la
-   * exportación a CSV siguen funcionando. Es lo que pasa una respuesta con ficha,
-   * donde la tabla de una fila repetiría lo que la ficha ya muestra
-   * (asistente-respuestas-con-vinculos, D3).
+   * No dibuja la tabla en línea, pero sigue montada: «Ampliar tabla» y la exportación a CSV siguen funcionando.
    */
   soloAmpliada?: boolean;
 }
 
 /**
- * Las filas del resultado.
- *
- * Con columnas sensibles, la narración deja de ser el vehículo del dato: el modelo
- * redacta el marco («encontré 4 docentes») y el valor real llega por acá, porque
- * nunca viajó al proveedor. Sin esta tabla, una respuesta con datos personales sería
- * un párrafo con marcadores.
- *
- * LA TABLA SCROLLEA DENTRO DE SU PROPIO MARCO. El envoltorio de la librería trae
- * `overflow: hidden` y la tabla `width: 100%`: con más columnas de las que entran,
- * las de la derecha se recortaban sin aviso. La clase propia que recibe el `Table`
- * es lo que `asistente.css` usa para sobreescribirlo, sin `!important` ni fork.
- *
- * LA CELDA QUE IDENTIFICA ALGO ABRIBLE SE VUELVE ENLACE, y no hay una columna
- * «Ver» aparte: en el modal el ancho ya está comprometido y una columna más le
- * roba lugar al dato. El identificador es además lo que el usuario ya iba a copiar,
- * así que la acción queda donde la mano ya estaba.
- *
- * QUÉ CELDAS SON ENLACE NO LO DECIDE ESTE COMPONENTE. Lo decide el backend, contra
- * el módulo dueño del recurso: que una fila esté acá no significa que su pantalla
- * esté abierta para quien pregunta. Sin vínculo, la celda es texto — y el dato se
- * ve igual.
+ * Las filas del resultado. Con columnas sensibles, la narración deja de ser el vehículo del dato:
+ * el modelo redacta el marco («encontré 4 docentes») y el valor real llega por acá, porque nunca
+ * viajó al proveedor.
  */
 export function TablaDeResultado({
   columnas,
@@ -141,21 +106,7 @@ interface TablaConAccionesProps {
 }
 
 /**
- * La renderización que el guardia de arriba protege, más el orden, la vista
- * ampliada y la exportación.
- *
- * Separado del guardia sólo porque necesita hooks (design.md D5 de
- * asistente-rediseno-v3: orden y vista ampliada son estado puro de cliente,
- * por turno) — React no permite un hook después de un `return` condicional en
- * el mismo componente.
- *
- * EL ORDEN VIVE ACÁ, NO EN UN ANCESTRO: este componente es el mismo para
- * todo lo que dura la respuesta de un turno, así que es el lugar correcto
- * para «recordar cómo lo dejó el usuario» sin inventar un mapa por id en un
- * hook compartido. Si algún día el turno se reemplaza (asistente-edicion-de-
- * la-ultima-pregunta) y `Mensaje` vuelve a montar este árbol con una key
- * distinta, este estado se resetea solo — es la razón por la que vive tan
- * cerca de la tabla y no más arriba.
+ * La renderización que el guardia de arriba protege, más el orden, la vista ampliada y la exportación.
  */
 function TablaConAcciones({
   columnas,
@@ -174,41 +125,31 @@ function TablaConAcciones({
   const [ampliadoPropio, setAmpliadoPropio] = useState(false);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
 
-  // CONTROLADA O NO, SEGÚN SI EL LLAMADOR TRAE `onAmpliarChange`: sin él —el
-  // único caso hoy—, esta tabla maneja su propio estado y dibuja su propio
-  // botón; con él, sigue el valor de afuera y NO dibuja el suyo, para que la
-  // barra de acciones (ARS-146, §5) pueda mover el disparador a su ícono sin
-  // tocar este archivo (ver `TablaDeResultadoProps.ampliado`).
+  // CONTROLADA O NO, SEGÚN SI EL LLAMADOR TRAE `onAmpliarChange`: sin él —el único caso hoy—, esta
+  // tabla maneja su propio estado y dibuja su propio botón; con él, sigue el valor de afuera y NO
+  // dibuja el suyo, para que la barra de acciones (ARS-146, §5) pueda mover el disparador a su
+  // ícono sin tocar este archivo (ver `TablaDeResultadoProps.ampliado`).
   const controlada = onAmpliarChange !== undefined;
   const ampliado = controlada ? (ampliadoControlado ?? false) : ampliadoPropio;
-  // Dónde vive la vista ampliada — ver `contenedorDelModal` más abajo. Estado
-  // y no una lectura de `raizRef.current` directamente en el render: los
-  // refs se leen fuera del render (efectos, manejadores), nunca adentro.
+  // Dónde vive la vista ampliada — ver `contenedorDelModal` más abajo.
   const [contenedorAmpliada, setContenedorAmpliada] = useState<HTMLElement | null>(null);
 
-  // Ancla para encontrar el contenedor del modal (`.adoc-asistente-grilla`,
-  // ver asistente.css) al abrir la vista ampliada — ver la nota en
-  // `contenedorDelModal` más abajo.
+  // Ancla para encontrar el contenedor del modal (`.adoc-asistente-grilla`, ver asistente.css) al
+  // abrir la vista ampliada — ver la nota en `contenedorDelModal` más abajo.
   const raizRef = useRef<HTMLDivElement>(null);
   // A dónde vuelve el foco al contraer (asistente-tabla-de-resultado:
   // «focus SHALL return to the control that opened it»).
   const disparadorAmpliarRef = useRef<HTMLButtonElement>(null);
 
-  // Corre una sola vez, después del primer commit: el nodo no cambia después
-  // —ni este árbol se re-monta con la tabla adentro—, así que no hace falta
-  // repetirlo en cada render.
+  // Corre una sola vez, después del primer commit: el nodo no cambia después —ni este árbol se
+  // re-monta con la tabla adentro—, así que no hace falta repetirlo en cada render.
   useEffect(() => {
     setContenedorAmpliada(contenedorDelModal(raizRef.current));
   }, []);
 
-  // CONTENCIÓN DE FOCO: la vista ampliada CUBRE el modal entero (rail, hilo,
-  // composer) pero no era la única cosa alcanzable con Tab — sin esto, un
-  // Tab bastaba para salir de la capa que se ve encima y caer en un control
-  // tapado visualmente (asistente-rediseno-v3, hallazgo de verificación
-  // visual). `inert` en cada HERMANO del nodo que el portal va a montar
-  // —nunca en el propio `contenedorAmpliada`, que se quedaría inerte él
-  // mismo— saca esos hermanos del árbol de foco y de accesibilidad mientras
-  // dura, y el cleanup los devuelve exactamente como estaban al cerrar.
+  // CONTENCIÓN DE FOCO: la vista ampliada CUBRE el modal entero (rail, hilo, composer) pero no era
+  // la única cosa alcanzable con Tab — sin esto, un Tab bastaba para salir de la capa que se ve
+  // encima y caer en un control tapado visualmente (asistente-rediseno-v3, hallazgo de verificación visual).
   useEffect(() => {
     if (!ampliado || !contenedorAmpliada) return;
 
@@ -244,18 +185,14 @@ function TablaConAcciones({
 
   function cerrarAmpliada() {
     cambiarAmpliado(false);
-    // Sin control externo, el disparador es el botón propio de abajo —el
-    // foco vuelve ahí—. Con control externo, quien controla el disparador
-    // (fuera de este árbol) es quien decide a dónde vuelve el foco; `.focus()`
-    // sobre un ref que nunca se asignó a nada no hace nada.
+    // Sin control externo, el disparador es el botón propio de abajo —el foco vuelve ahí—.
     disparadorAmpliarRef.current?.focus();
   }
 
   const exportar = useCallback(() => {
-    // Se relee EN EL MOMENTO DE EXPORTAR, con el orden actual: nunca se cachea
-    // una copia reordenada de `filas` aparte del array de índices, así que no
-    // hay una segunda fuente de verdad que se pueda desincronizar del orden
-    // que la tabla muestra (asistente-exportacion-csv).
+    // Se relee EN EL MOMENTO DE EXPORTAR, con el orden actual: nunca se cachea una copia reordenada
+    // de `filas` aparte del array de índices, así que no hay una segunda fuente de verdad que se
+    // pueda desincronizar del orden que la tabla muestra (asistente-exportacion-csv).
     const filasOrdenadas = ordenDeFilas.map((indice) => filas[indice]);
     const csv = tablaComoCsv(columnas, filasOrdenadas, truncado);
     const nombre = nombreDelArchivoCsv(hilo, new Date(), truncado);
@@ -299,9 +236,8 @@ function TablaConAcciones({
       )}
 
       {truncado && (
-        // SIN NÚMEROS. «Ves 3 de 124» es un canal de inferencia sobre datos que el
-        // usuario no puede ver: por eso el backend devuelve un booleano y nunca un
-        // conteo, y la interfaz respeta la misma regla.
+        // SIN NÚMEROS. «Ves 3 de 124» es un canal de inferencia sobre datos que el usuario no puede
+        // ver: por eso el backend devuelve un booleano y nunca un conteo, y la interfaz respeta la misma regla.
         <p className="adoc-asistente-truncado">
           Hay más resultados de los que se muestran. Acotá la pregunta para verlos.
         </p>
@@ -371,22 +307,11 @@ function TablaConAcciones({
 }
 
 /**
- * Dónde vive la vista ampliada: el mismo `<div>` que ya reparte el rail y la
- * columna de la conversación (`.adoc-asistente-grilla`, `position: relative`
- * en asistente.css) y así, sirviéndose de `position: absolute; inset: 0`
- * sobre ese ancestro, cubre EXACTAMENTE el modal —rail incluido— sin medir
- * nada por JS ni depender de un `Context` que esta feature no usa en ningún
- * otro lado (acá todo se pasa explícito, de dueño a dueño de montaje).
- *
- * `closest` y no un ref pasado por props desde `PanelAsistente`: la cadena
- * hasta acá pasa por `Conversacion` y `Mensaje`, que documentan explícitamente
- * no llevar nada que no rendericen ellos mismos, y este ancla es la única
- * pieza que la vista ampliada necesita de afuera.
- *
- * SIN ESE ANCESTRO —un test que monta `TablaDeResultado` sola, sin el panel
- * alrededor— cae al propio nodo raíz de la tabla: la vista ampliada sigue
- * pintándose (los tests la encuentran igual), sólo que sin la cobertura
- * exacta del modal, que en ese contexto no existe para cubrir.
+ * Dónde vive la vista ampliada: el mismo `<div>` que ya reparte el rail y la columna de la
+ * conversación (`.adoc-asistente-grilla`, `position: relative` en asistente.css) y así,
+ * sirviéndose de `position: absolute; inset: 0` sobre ese ancestro, cubre EXACTAMENTE el modal
+ * —rail incluido— sin medir nada por JS ni depender de un `Context` que esta feature no usa en
+ * ningún otro lado (acá todo se pasa explícito, de dueño a dueño de montaje).
  */
 function contenedorDelModal(raiz: HTMLDivElement | null): HTMLElement {
   // Una tabla oculta (respuesta con ficha) no puede alojar la vista ampliada: su
@@ -413,10 +338,9 @@ export interface TablaOrdenableProps {
 }
 
 /**
- * La misma clase de marco en las dos vistas: lo que cambia entre la vista en
- * línea (14 px, `max-height: 50vh`) y la ampliada (15 px, sin límite propio)
- * lo distingue `asistente.css` por el ANCESTRO —`.adoc-asistente-tabla` o
- * `.adoc-asistente-ampliada`—, no por una prop de variante acá.
+ * La misma clase de marco en las dos vistas: lo que cambia entre la vista en línea (14 px,
+ * `max-height: 50vh`) y la ampliada (15 px, sin límite propio) lo distingue `asistente.css` por el
+ * ANCESTRO —`.adoc-asistente-tabla` o `.adoc-asistente-ampliada`—, no por una prop de variante acá.
  */
 export function TablaOrdenable({
   columnas,
@@ -470,14 +394,9 @@ interface EncabezadoOrdenableProps {
 }
 
 /**
- * Un encabezado que ordena: botón enfocable con Tab, Enter o Espacio lo
- * activan por ser un `<button>` nativo, y `aria-sort` va en la celda —nunca
- * en el botón— porque es la celda la que tiene el rol `columnheader`
- * (asistente-tabla-de-resultado, asistente-accesibilidad).
- *
- * SIN `aria-sort` EN LAS DEMÁS: la spec lo prohíbe explícitamente —un
- * encabezado sin ordenar no puede reclamar una dirección—, así que se omite
- * el atributo entero en vez de mandar `"none"`.
+ * Un encabezado que ordena: botón enfocable con Tab, Enter o Espacio lo activan por ser un
+ * `<button>` nativo, y `aria-sort` va en la celda —nunca en el botón— porque es la celda la que
+ * tiene el rol `columnheader` (asistente-tabla-de-resultado, asistente-accesibilidad).
  */
 function EncabezadoOrdenable({
   columna,
@@ -558,12 +477,7 @@ function textoDelAnuncioDeOrden(
   return `Tabla ordenada por «${nombre}», ${direccion}.`;
 }
 
-/**
- * El contenido de una celda: texto, o enlace si lleva a algún lado.
- *
- * EL NOMBRE ACCESIBLE DICE A DÓNDE VA. «Enlace, 2026-9005» no informa nada; «Ver el
- * trámite 2026-9005» sí, y es lo único que oye quien no ve la tabla alrededor.
- */
+/** El contenido de una celda: texto, o enlace si lleva a algún lado. */
 function Celda({ valor, vinculo }: { valor: unknown; vinculo?: VinculoDelResultado }) {
   const texto = formatearCelda(valor);
   const destino = vinculo && destinoDe(vinculo.tipo);

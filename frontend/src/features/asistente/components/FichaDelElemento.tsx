@@ -50,13 +50,8 @@ interface FichaDelElementoProps {
 }
 
 /**
- * La ficha del elemento principal de una respuesta: de qué trata, en qué estado
- * está, sus datos clave y el botón que lo abre (asistente-respuestas-con-vinculos,
- * D2/D3/D8). Hoy sólo existe la del pedido de designación.
- *
- * Los datos no pasan por el modelo: vienen del módulo dueño, ya filtrados por el
- * alcance de quien pregunta. Las etiquetas de los campos son de la interfaz y se
- * omite todo campo que no llegó.
+ * La ficha del elemento principal de una respuesta: de qué trata, en qué estado está, sus datos
+ * clave y el botón que lo abre (asistente-respuestas-con-vinculos, D2/D3/D8).
  */
 export function FichaDelElemento({ principal }: FichaDelElementoProps) {
   const destino = destinoDe(principal.tipo);

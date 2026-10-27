@@ -4,29 +4,7 @@ import { helpIcon } from "../../../app/shell/icons";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useDescartarAlClicAfuera } from "../../../shared/hooks/useDescartarAlClicAfuera";
 
-/**
- * Qué es el asistente, hasta dónde llega y qué no hace, detrás de un «?».
- *
- * ES UN POPOVER Y NO UN TOOLTIP DE HOVER, y la diferencia importa acá. Lo que
- * guarda es un párrafo de presentación, la línea de alcance y una lista de cuatro
- * límites: un tooltip de hover no se puede leer a esa extensión —se cierra al ir
- * hacia él con el puntero—, no se alcanza con teclado y no se puede dejar abierto
- * mientras se lee lo de al lado. Se abre con clic, se cierra con Escape o con un
- * clic afuera, que es el patrón que `MenuAcciones` ya estableció en el proyecto.
- *
- * POR QUÉ SE SACÓ DE LA PANTALLA. Ocupaba la mitad del estado inicial y competía
- * con lo único accionable que hay ahí: los ejemplos. Quien abre el asistente por
- * décima vez no vuelve a leer los límites, y quien lo abre por primera vez tampoco
- * los lee antes de probar. Sigue disponible porque cuando hace falta —«¿por qué no
- * me contestó esto?»— es exactamente lo que responde.
- *
- * VIVE EN EL ENCABEZADO Y NO EN LA PANTALLA VACÍA, así que sigue disponible después
- * del primer turno — que es cuando aparece la pregunta que responde. Pide el
- * catálogo por su cuenta: `useAccesoAlAsistente` es la misma consulta de React
- * Query que ya hizo el panel, así que no es un pedido más.
- *
- * El texto lo escribe el backend y acá no se inventa nada.
- */
+/** Qué es el asistente, hasta dónde llega y qué no hace, detrás de un «?». */
 export function AyudaDelAsistente() {
   const { capacidades } = useAccesoAlAsistente();
   const [abierta, setAbierta] = useState(false);

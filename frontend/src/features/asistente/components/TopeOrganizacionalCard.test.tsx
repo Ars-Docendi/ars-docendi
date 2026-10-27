@@ -118,10 +118,8 @@ describe("TopeOrganizacionalCard", () => {
     expect(onGuardado).toHaveBeenCalledWith(
       expect.stringMatching(/^Tope organizacional mensual: US\$\s*150,50\.$/),
     );
-    // El valor mostrado lo controla el padre (`topeConocido` es un prop, no
-    // estado propio de la tarjeta): acá sólo hace falta ver que volvió a modo
-    // vista. La integración con el valor recién guardado la cubre
-    // `PanelAdministracionAsistente.test.tsx`.
+    // El valor mostrado lo controla el padre (`topeConocido` es un prop, no estado propio de la
+    // tarjeta): acá sólo hace falta ver que volvió a modo vista.
     expect(screen.getByRole("button", { name: "Editar tope" })).toBeInTheDocument();
   });
 

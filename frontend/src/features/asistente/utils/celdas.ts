@@ -1,7 +1,6 @@
 /**
- * Lo que muestra una celda vacía. Exportada para que quien ordene por lo
- * mostrado (`ordenarFilas`) reconozca el mismo vacío sin duplicar el
- * carácter: hay una sola fuente de verdad de «cómo se ve una celda».
+ * Lo que muestra una celda vacía. Exportada para que quien ordene por lo mostrado (`ordenarFilas`)
+ * reconozca el mismo vacío sin duplicar el carácter: hay una sola fuente de verdad de «cómo se ve una celda».
  */
 export const CELDA_VACIA = "—";
 

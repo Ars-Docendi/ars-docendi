@@ -99,11 +99,10 @@ describe("En mantenimiento (activo)", () => {
   });
 
   it("activar la rama entera cambia de vista: el foco pasa a «Desactivar mantenimiento», nunca al `<body>`", async () => {
-    // Este componente es controlado por `mantenimiento` (viene de la query
-    // `capacidades` del padre): simula el refetch que ocurre entre medio del
-    // guardado —onGuardar resuelve, PERO el padre todavía no re-renderizó con
-    // el nuevo valor hasta el `rerender`— igual que pasa en la integración
-    // real con react-query.
+    // Este componente es controlado por `mantenimiento` (viene de la query `capacidades` del
+    // padre): simula el refetch que ocurre entre medio del guardado —onGuardar resuelve, PERO el
+    // padre todavía no re-renderizó con el nuevo valor hasta el `rerender`— igual que pasa en la
+    // integración real con react-query.
     let mantenimientoActual: MantenimientoDelAsistente = { activo: false, razon: null };
     const onGuardar = vi.fn().mockImplementation(async (activo: boolean, razon?: string) => {
       mantenimientoActual = { activo, razon: razon ?? null };

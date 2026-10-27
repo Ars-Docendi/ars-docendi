@@ -130,9 +130,7 @@ describe("El estado inicial", () => {
   });
 
   it("la copy del rol viene del backend: el cliente no tiene ninguna", async () => {
-    // Un rol que el backend no reconoce recibe de él un texto genérico. Si el
-    // cliente tuviera su propia tabla de roles se desactualizaría sola:
-    // `identity.roles` no es cerrado y Secretaría crea roles desde la aplicación.
+    // Un rol que el backend no reconoce recibe de él un texto genérico.
     vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
       ...CAPACIDADES,
       presentacion: "Preguntá por lo que el backend diga.",
@@ -146,10 +144,8 @@ describe("El estado inicial", () => {
   });
 
   it("no muestra el comentario de las áreas: se escribió para el modelo, no para el usuario", async () => {
-    // Lo que Secretaría veía en producción bajo «Puedo consultar:»: el `COMMENT ON
-    // TABLE` que el backend le manda al modelo en el prefijo del prompt. Nombres
-    // de tablas, sinónimos del dominio y advertencias para el modelo no son un
-    // texto para el usuario (RNF-18), y el cliente no puede sanearlo.
+    // Lo que Secretaría veía en producción bajo «Puedo consultar:»: el `COMMENT ON TABLE` que el
+    // backend le manda al modelo en el prefijo del prompt.
     vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
       ...CAPACIDADES,
       tablas: 1,
@@ -163,9 +159,7 @@ describe("El estado inicial", () => {
     });
     montar(<PanelDePrueba />);
 
-    // CON LA AYUDA ABIERTA, que es donde vive el conteo. Con ella cerrada, las
-    // aserciones de «no aparece» pasarían sin verificar nada: el texto no está en
-    // la página porque no se renderizó, no porque se lo haya excluido.
+    // CON LA AYUDA ABIERTA, que es donde vive el conteo.
     await abrirAyuda();
 
     expect(screen.queryByText("Puedo consultar:")).toBeNull();
@@ -222,16 +216,12 @@ describe("El estado inicial", () => {
   });
 
   it("los chips se deshabilitan en vuelo", () => {
-    // El panel lo quita con el primer turno, así que la única forma de tener chips
-    // y un turno en vuelo a la vez es que un montaje futuro los deje. El contrato
-    // vive en el componente, como en las opciones y las sugerencias.
+    // El panel lo quita con el primer turno, así que la única forma de tener chips y un turno en
+    // vuelo a la vez es que un montaje futuro los deje.
     render(<EstadoInicial capacidades={CAPACIDADES} onElegir={() => {}} deshabilitado />);
 
-    // Acotado a la lista de ejemplos y no a todos los botones de la pantalla: el
-    // «?» de la ayuda también es un botón, y contarlo mezclaba dos cosas. Además
-    // el «?» NO se deshabilita a propósito —leer qué puede hacer el asistente
-    // mientras espera una respuesta no rompe nada—, así que un `getAllByRole`
-    // suelto empezaría a fallar por el motivo equivocado.
+    // Acotado a la lista de ejemplos y no a todos los botones de la pantalla: el «?» de la ayuda
+    // también es un botón, y contarlo mezclaba dos cosas.
     const chips = within(screen.getByRole("list", { name: "Preguntas de ejemplo" })).getAllByRole(
       "button",
     );

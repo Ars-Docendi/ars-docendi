@@ -74,9 +74,8 @@ export async function reanudarConversacion(hiloId: string): Promise<ReanudarResp
 }
 
 /**
- * «Volver a consultar»: re-ejecuta la SQL guardada de un turno propio ya
- * respondido, bajo el alcance ACTUAL del actor (design.md D4). Nunca llama
- * al modelo ni escribe una fila nueva de historial.
+ * «Volver a consultar»: re-ejecuta la SQL guardada de un turno propio ya respondido, bajo el
+ * alcance ACTUAL del actor (design.md D4).
  */
 export async function reejecutarTurno(turnoId: string): Promise<ReejecucionResultado> {
   const { data } = await apiClient.post<ReejecucionResultado>(

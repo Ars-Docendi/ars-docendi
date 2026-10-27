@@ -27,9 +27,8 @@ interface PanelDeModeloEnLaNubeProps {
 }
 
 /**
- * La configuración de una API en la nube (tareas 4.6, 4.7 y 4.9): la lista
- * agrupada por empresa y, a su lado, la clave de la empresa elegida. El panel
- * de reemplazo ocupa una fila propia debajo.
+ * La configuración de una API en la nube (tareas 4.6, 4.7 y 4.9): la lista agrupada por empresa y,
+ * a su lado, la clave de la empresa elegida.
  */
 export function PanelDeModeloEnLaNube({
   grupos,

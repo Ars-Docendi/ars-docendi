@@ -5,13 +5,7 @@ import { describe, it, expect } from "vitest";
 
 import { hojaDeLaFeature, sinComentarios as sinComentariosDe } from "./test/hojas";
 
-// Como texto y no como estilos: acá se lee la hoja, no se aplica. Va por `fs`
-// y no por `?raw`: con `css: false` en la config, vitest resuelve cualquier
-// import de un `.css` —también con `?raw`— a una cadena vacía, y este test
-// pasó un tiempo afirmando cosas sobre dos cadenas vacías. El tema se resuelve
-// como lo publica la librería (`exports["./theme.css"]`), no por una ruta a
-// `node_modules` que un bump puede mover. Los tipos de node se referencian acá
-// y no en el tsconfig de la app, que no los carga.
+// Como texto y no como estilos: acá se lee la hoja, no se aplica.
 const hoja = hojaDeLaFeature();
 const tema = readFileSync(
   createRequire(import.meta.url).resolve("@ars-docendi/ui/theme.css"),

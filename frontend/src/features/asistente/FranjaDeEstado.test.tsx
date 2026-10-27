@@ -36,9 +36,8 @@ describe("La franja de estado", () => {
     expect(estado.parentElement).toHaveClass("adoc-asistente-franja");
   });
 
-  // Decisión 14 del PO (2026-09-26): la línea de métricas sólo se muestra en
-  // modo debug (`VITE_ASISTENTE_DEBUG`), el mismo switch que gatea «Cómo lo
-  // interpreté» en `Mensaje`. El cupo no depende de esto.
+  // Decisión 14 del PO (2026-09-26): la línea de métricas sólo se muestra en modo debug
+  // (`VITE_ASISTENTE_DEBUG`), el mismo switch que gatea «Cómo lo interpreté» en `Mensaje`.
   it("sin modo debug la línea de métricas no existe en el DOM", () => {
     render(<FranjaDeEstado enVuelo={false} turnos={TURNOS} debug={false} />);
 

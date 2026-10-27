@@ -16,38 +16,27 @@ interface MensajeProps {
   onReintentar: (id: string) => void;
   /** «Volver a consultar» sobre un turno histórico (asistente-historial-conversaciones). */
   onReejecutar?: (id: string) => void;
-  /**
-   * Edita y reenvía la pregunta de este turno (asistente-edicion-de-la-
-   * ultima-pregunta). Ausente cuando este turno no es el último — `Mensaje`
-   * no ofrece «Editar y reenviar» sin esta prop, sea cual sea `esUltimo`.
-   */
+  /** Edita y reenvía la pregunta de este turno (asistente-edicion-de-la- ultima-pregunta). */
   onEditarYReenviar?: (texto: string) => void;
   enVuelo: boolean;
   /**
-   * Cupo agotado, tope organizacional o mantenimiento: mientras está
-   * bloqueado tampoco se ofrece «Editar y reenviar», igual que el composer
-   * no acepta preguntas nuevas.
+   * Cupo agotado, tope organizacional o mantenimiento: mientras está bloqueado tampoco se ofrece
+   * «Editar y reenviar», igual que el composer no acepta preguntas nuevas.
    */
   bloqueado?: boolean;
   /**
-   * El último turno del hilo: su barra de acciones queda siempre visible,
-   * nunca sólo detrás del hover (design.md D6 de asistente-rediseno-v3). Los
-   * turnos votados se resuelven aparte, por CSS (`:has([aria-pressed="true"])`
-   * en `asistente.css`), sin necesitar este mismo mecanismo de props.
+   * El último turno del hilo: su barra de acciones queda siempre visible, nunca sólo detrás del
+   * hover (design.md D6 de asistente-rediseno-v3).
    */
   esUltimo?: boolean;
   /**
-   * Modo debug (`VITE_ASISTENTE_DEBUG=true`, ver `utils/modoDebug`): sólo con
-   * esto prendido se muestra la disclosure «Cómo lo interpreté». Parámetro,
-   * no lectura directa del env, para que los tests no dependan de
-   * `import.meta.env`; en producción usa el valor real por defecto.
+   * Modo debug (`VITE_ASISTENTE_DEBUG=true`, ver `utils/modoDebug`): sólo con esto prendido se
+   * muestra la disclosure «Cómo lo interpreté».
    */
   debug?: boolean;
   /**
-   * El mismo umbral que `IndicadorDeProceso` (asistente-rediseno-v3, D14):
-   * los puntos inline no aparecen antes de él, para que una respuesta
-   * determinista no los haga parpadear. Inyectable para que el test no
-   * dependa del reloj real.
+   * El mismo umbral que `IndicadorDeProceso` (asistente-rediseno-v3, D14): los puntos inline no
+   * aparecen antes de él, para que una respuesta determinista no los haga parpadear.
    */
   umbralMs?: number;
 }
@@ -68,18 +57,14 @@ export function Mensaje({
   const { respuesta } = turno;
   const mostrarPendiente = useVisibleTrasUmbral(enVuelo, umbralMs);
 
-  // EDICIÓN DE LA PREGUNTA (asistente-edicion-de-la-ultima-pregunta,
-  // design.md D9 de asistente-rediseno-v3). Vive ACÁ y no en un componente
-  // aparte: la respuesta de más abajo se atenúa mientras se edita, y las dos
-  // cosas necesitan el mismo booleano.
+  // EDICIÓN DE LA PREGUNTA (asistente-edicion-de-la-ultima-pregunta, design.md D9 de
+  // asistente-rediseno-v3).
   const [editando, setEditando] = useState(false);
   const [textoDeEdicion, setTextoDeEdicion] = useState(turno.pregunta);
   const editarBotonRef = useRef<HTMLButtonElement>(null);
-  // El botón al que hay que devolverle el foco recién existe en el DOM
-  // DESPUÉS de que este componente se vuelva a renderizar sin el campo de
-  // edición: llamar `.focus()` en el mismo evento que pone `editando` en
-  // falso todavía lo encuentra desmontado. Este flag hace que el efecto de
-  // abajo lo enfoque una vez que React ya lo montó.
+  // El botón al que hay que devolverle el foco recién existe en el DOM DESPUÉS de que este
+  // componente se vuelva a renderizar sin el campo de edición: llamar `.focus()` en el mismo evento
+  // que pone `editando` en falso todavía lo encuentra desmontado.
   const volviendoDeCancelar = useRef(false);
 
   useEffect(() => {
@@ -121,18 +106,13 @@ export function Mensaje({
   // bloqueada — el mismo criterio que el composer.
   const puedeEditar = esUltimo && Boolean(onEditarYReenviar) && !enVuelo && !bloqueado;
 
-  // «Repetir consulta» es «Editar y reenviar» sin editar (D5): la misma
-  // condición, más que el turno haya terminado con una respuesta. Un turno con
-  // error ya tiene «Reintentar», y uno restaurado, «Volver a consultar».
+  // «Repetir consulta» es «Editar y reenviar» sin editar (D5): la misma condición, más que el turno
+  // haya terminado con una respuesta.
   const puedeRepetir = puedeEditar && Boolean(respuesta);
 
-  // EL LUGAR DONDE VA A APARECER LA RESPUESTA, mientras no hay nada más que
-  // mostrar (ni respuesta, ni error, ni «se dejó de esperar», ni contenido
-  // histórico): sólo el último turno puede estar en vuelo (design.md D14 de
-  // asistente-rediseno-v3). Es puramente visual y `aria-hidden`: el anuncio
-  // sigue siendo el `role="status"` de `IndicadorDeProceso`, fuera de esta
-  // región viva — dos anuncios del mismo «Consultando…» serían el doble aviso
-  // que la spec de accesibilidad prohíbe.
+  // EL LUGAR DONDE VA A APARECER LA RESPUESTA, mientras no hay nada más que mostrar (ni respuesta,
+  // ni error, ni «se dejó de esperar», ni contenido histórico): sólo el último turno puede estar en
+  // vuelo (design.md D14 de asistente-rediseno-v3).
   const pendiente =
     esUltimo &&
     mostrarPendiente &&
@@ -141,11 +121,8 @@ export function Mensaje({
     !turno.detenido &&
     !turno.historico;
 
-  // LA REDACCIÓN MIENTRAS SE ESCRIBE (asistente-optimizaciones-modelo-local,
-  // D9): ocupa el lugar de los puntos apenas llega el primer fragmento, sin
-  // esperar el umbral. También `aria-hidden`, por el mismo motivo que los
-  // puntos: un lector de pantalla anunciaría cada fragmento, y lo que se anuncia
-  // es la respuesta completa que la reemplaza.
+  // LA REDACCIÓN MIENTRAS SE ESCRIBE (asistente-optimizaciones-modelo-local, D9): ocupa el lugar de
+  // los puntos apenas llega el primer fragmento, sin esperar el umbral.
   const parcial =
     !respuesta && !turno.error && !turno.detenido ? turno.redaccionParcial : undefined;
 
@@ -220,10 +197,7 @@ export function Mensaje({
       )}
 
       {turno.detenido && (
-        // No es un error: lo pidió el usuario, y por eso no va en una alerta. Se
-        // dice lo que pasó de verdad —la consulta ya salió y el backend la sigue
-        // hasta el final, cupo incluido— y no se ofrece «Reintentar»: ese turno
-        // sigue corriendo allá, y la misma clave lo ejecutaría dos veces.
+        // No es un error: lo pidió el usuario, y por eso no va en una alerta.
         <p className="adoc-asistente-detenido">
           Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.
         </p>
@@ -253,9 +227,8 @@ export function Mensaje({
       )}
 
       {turno.historico && (
-        // Se envuelve en vez de pasarle la clase a `ContenidoHistorico`: ese
-        // componente ya fija su propia clase de raíz, y la opacidad cascadea
-        // igual sobre sus hijos.
+        // Se envuelve en vez de pasarle la clase a `ContenidoHistorico`: ese componente ya fija su
+        // propia clase de raíz, y la opacidad cascadea igual sobre sus hijos.
         <div className={editando ? "adoc-asistente-respuesta--editando" : undefined}>
           <ContenidoHistorico turno={turno} onReejecutar={onReejecutar} />
         </div>
@@ -276,14 +249,8 @@ export function Mensaje({
 }
 
 /**
- * La pregunta enviada, con cada mención elegida en el composer pintada como
- * chip (asistente-menciones, «In the sent question, each mention SHALL be
- * displayed as a chip»).
- *
- * `menciones` YA VIENE UBICADA (`resolverEnvio`/`ubicarMenciones` al enviar):
- * este componente sólo corta el texto en esas posiciones, nunca vuelve a
- * buscarlas — la pregunta de un turno enviado no cambia, así que la posición
- * tampoco.
+ * La pregunta enviada, con cada mención elegida en el composer pintada como chip
+ * (asistente-menciones, «In the sent question, each mention SHALL be displayed as a chip»).
  */
 function pintarPregunta(pregunta: string, menciones: MencionEnPregunta[] | undefined) {
   if (!menciones || menciones.length === 0) return pregunta;

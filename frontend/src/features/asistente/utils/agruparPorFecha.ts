@@ -12,22 +12,7 @@ function inicioDelDia(fecha: Date): number {
 }
 
 /**
- * Agrupa conversaciones por fecha relativa de última actividad: Hoy, Ayer,
- * Últimos 7 días, Anteriores.
- *
- * ES EL PATRÓN QUE COMPARTEN CHATGPT, CLAUDE.AI, GEMINI Y COPILOT para una
- * lista de conversaciones (research previo al rediseño de esta lista: el
- * agrupamiento por fecha relativa, con encabezados fijos y sin bucket vacío,
- * es lo que hace escaneable una lista larga sin que cada fila tenga que
- * repetir su fecha completa).
- *
- * UN GRUPO VACÍO NO APARECE: nadie necesita un título de sección sin filas
- * debajo. Los límites son de calendario local —el día empieza a las 00:00,
- * no 24 horas atrás—, así que «ayer a las 23:59» cae en Ayer aunque hayan
- * pasado sólo minutos, y no en Hoy.
- *
- * El orden DENTRO de cada grupo es el que ya trae `conversaciones`: esta
- * función no reordena, sólo separa en baldes.
+ * Agrupa conversaciones por fecha relativa de última actividad: Hoy, Ayer, Últimos 7 días, Anteriores.
  */
 export function agruparPorFecha(
   conversaciones: ConversacionResumen[],

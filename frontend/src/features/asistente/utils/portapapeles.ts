@@ -2,11 +2,8 @@ import { formatearCelda } from "./celdas";
 import type { ColumnaDelResultado } from "../types";
 
 /**
- * La tabla de resultados como texto tabulado: una fila de cabecera con los
- * nombres de las columnas y una fila por resultado, para pegar en una planilla.
- *
- * Un tabulador o un salto de línea dentro de una celda romperían la grilla al
- * pegarla, así que se reemplazan por un espacio.
+ * La tabla de resultados como texto tabulado: una fila de cabecera con los nombres de las columnas
+ * y una fila por resultado, para pegar en una planilla.
  */
 export function tablaComoTsv(columnas: ColumnaDelResultado[], filas: unknown[][]): string {
   const cabecera = columnas.map((columna) => celda(columna.nombre));
@@ -30,19 +27,16 @@ function celda(texto: string): string {
 const MARCA_DE_ORDEN_DE_BYTES = "﻿";
 
 /**
- * Cell-starting characters that a spreadsheet application could read as the
- * start of a formula, including a tab or carriage return (OWASP's CSV
- * injection guidance) and a plain minus sign — a negative number is
- * neutralized the same way as any other leading-dash cell (see
- * asistente-exportacion-csv's spec: uniform treatment, no special-casing
- * "looks numeric").
+ * Cell-starting characters that a spreadsheet application could read as the start of a formula,
+ * including a tab or carriage return (OWASP's CSV injection guidance) and a plain minus sign — a
+ * negative number is neutralized the same way as any other leading-dash cell (see
+ * asistente-exportacion-csv's spec: uniform treatment, no special-casing "looks numeric").
  */
 const PRIMEROS_CARACTERES_DE_FORMULA = new Set(["=", "+", "-", "@", "\t", "\r"]);
 
 /**
- * Prefixes a cell with a single leading apostrophe if its first character
- * could run as a spreadsheet formula. Applied BEFORE RFC 4180 quoting, so the
- * apostrophe itself never needs escaping.
+ * Prefixes a cell with a single leading apostrophe if its first character could run as a
+ * spreadsheet formula.
  */
 export function neutralizarFormula(texto: string): string {
   return texto.length > 0 && PRIMEROS_CARACTERES_DE_FORMULA.has(texto[0]) ? `'${texto}` : texto;
@@ -59,13 +53,8 @@ const AVISO_DE_TRUNCAMIENTO =
   "Resultado truncado: se muestran menos filas de las que cumplen la consulta.";
 
 /**
- * The result table as a real, spreadsheet-safe `.csv` file: RFC 4180 quoting,
- * formula-injection guarding, a UTF-8 BOM, and CRLF line endings.
- *
- * Built entirely from the values already rendered — the same array
- * `TablaDeResultado` paints, already masked by the time it reaches this
- * function — never from any value re-fetched or unmasked. There is nothing
- * else client-side it could read even if it tried.
+ * The result table as a real, spreadsheet-safe `.csv` file: RFC 4180 quoting, formula-injection
+ * guarding, a UTF-8 BOM, and CRLF line endings.
  */
 export function tablaComoCsv(
   columnas: ColumnaDelResultado[],
@@ -82,9 +71,8 @@ export function tablaComoCsv(
 }
 
 /**
- * Names the exported file: only ASCII-safe characters, and a truncation
- * marker when the result was truncated — a secondary, glanceable signal next
- * to the trailing row inside the file, never the only one.
+ * Names the exported file: only ASCII-safe characters, and a truncation marker when the result was
+ * truncated — a secondary, glanceable signal next to the trailing row inside the file, never the only one.
  */
 export function nombreDelArchivoCsv(hilo: string, fecha: Date, truncado: boolean): string {
   const hiloCorto = hilo.split("-")[0] || "sin-hilo";

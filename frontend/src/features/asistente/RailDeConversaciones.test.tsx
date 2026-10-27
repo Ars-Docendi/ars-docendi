@@ -43,11 +43,8 @@ const LOTE = "55555555-5555-4555-8555-555555555555";
 
 beforeEach(() => {
   vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
-  // Default inocuo: el doble clic que entra en edición dispara TAMBIÉN el
-  // clic simple que abre la conversación —son dos eventos separados del
-  // DOM, y el primero llega antes que el segundo—. Sin este default, ese
-  // clic incidental golpea la red de verdad en los tests que sólo quieren
-  // probar el renombre.
+  // Default inocuo: el doble clic que entra en edición dispara TAMBIÉN el clic simple que abre la
+  // conversación —son dos eventos separados del DOM, y el primero llega antes que el segundo—.
   vi.spyOn(historialApi, "reanudarConversacion").mockResolvedValue({
     hilo: "99999999-9999-4999-8999-999999999999",
     turnos: [],
@@ -60,9 +57,7 @@ afterEach(() => {
 
 describe("El rail está siempre a la vista, expandido por default", () => {
   it("renderiza las conversaciones, agrupadas por fecha relativa de última actividad", async () => {
-    // UNA y OTRA son de comienzos de 2026: caen en «Anteriores» sea cuando sea
-    // que corra este test. HOY se agrega con la fecha real, para el grupo que
-    // sí depende de `Date.now()`.
+    // UNA y OTRA son de comienzos de 2026: caen en «Anteriores» sea cuando sea que corra este test.
     const HOY: ConversacionResumen = {
       id: "33333333-3333-4333-8333-333333333333",
       titulo: "¿Qué pasó hoy?",
@@ -360,9 +355,8 @@ describe("La sección «Archivadas» (tasks.md §2.5)", () => {
   });
 
   it("dentro de su propia sección no lleva la marca «Archivada» — sería redundante", async () => {
-    // La marca sólo hace falta en los resultados de búsqueda, donde activas y
-    // archivadas se mezclan (asistente-rediseno-v3, hallazgo de verificación
-    // visual: el mock no la dibuja acá).
+    // La marca sólo hace falta en los resultados de búsqueda, donde activas y archivadas se mezclan
+    // (asistente-rediseno-v3, hallazgo de verificación visual: el mock no la dibuja acá).
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA, ARCHIVADA]);
 
     montar(<PanelDePrueba />);

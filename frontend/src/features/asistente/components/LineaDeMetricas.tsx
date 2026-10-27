@@ -5,11 +5,9 @@ interface LineaDeMetricasProps {
 }
 
 /**
- * Lo que costó el último turno.
- *
- * VIVE FUERA DE LA REGIÓN VIVA, y no es una decisión de maquetado: cambia en cada
- * turno, así que adentro haría que el lector de pantalla la releyera junto con toda
- * la conversación cada vez. Es el defecto exacto del prototipo previo.
+ * Lo que costó el último turno. VIVE FUERA DE LA REGIÓN VIVA, y no es una decisión de maquetado:
+ * cambia en cada turno, así que adentro haría que el lector de pantalla la releyera junto con toda
+ * la conversación cada vez.
  */
 export function LineaDeMetricas({ turnos }: LineaDeMetricasProps) {
   const ultimo = [...turnos].reverse().find((t) => t.respuesta !== undefined);

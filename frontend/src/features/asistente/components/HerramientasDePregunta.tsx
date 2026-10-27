@@ -8,17 +8,12 @@ interface HerramientasDePreguntaProps {
   /** El texto de la pregunta, tal cual se envió. */
   pregunta: string;
   /**
-   * Abre la edición de esta pregunta. Ausente en cualquier pregunta que no
-   * sea la última, o mientras un turno está en vuelo o el composer está
-   * bloqueado (asistente-edicion-de-la-ultima-pregunta): sin esta prop, el
-   * control «Editar y reenviar» no se monta.
+   * Abre la edición de esta pregunta. Ausente en cualquier pregunta que no sea la última, o
+   * mientras un turno está en vuelo o el composer está bloqueado
+   * (asistente-edicion-de-la-ultima-pregunta): sin esta prop, el control «Editar y reenviar» no se monta.
    */
   onEditar?: () => void;
-  /**
-   * Reenvía esta misma pregunta tal cual (asistente-respuestas-con-vinculos, D5).
-   * Ausente salvo en la última pregunta, ya respondida, sin turno en vuelo ni
-   * bloqueo.
-   */
+  /** Reenvía esta misma pregunta tal cual (asistente-respuestas-con-vinculos, D5). */
   onRepetir?: () => void;
   /** Al botón «Editar y reenviar», para devolverle el foco al cancelar la edición. */
   editarBotonRef?: Ref<HTMLButtonElement>;
@@ -27,14 +22,9 @@ interface HerramientasDePreguntaProps {
 }
 
 /**
- * Las herramientas de una pregunta: «Copiar pregunta» y, sólo en la última,
- * «Editar y reenviar» y «Repetir consulta» (asistente-edicion-de-la-ultima-pregunta, design.md D9
- * de asistente-rediseno-v3).
- *
- * SE REVELAN CON EL HOVER O EL FOCO DEL TURNO, igual que
- * <see cref="BarraDeAcciones" />: `asistente.css` decide la opacidad con el
- * mismo mecanismo — nunca `display`/`visibility`, para que Tab las alcance
- * igual con la fila "apagada".
+ * Las herramientas de una pregunta: «Copiar pregunta» y, sólo en la última, «Editar y reenviar» y
+ * «Repetir consulta» (asistente-edicion-de-la-ultima-pregunta, design.md D9 de
+ * asistente-rediseno-v3).
  */
 export function HerramientasDePregunta({
   pregunta,
@@ -77,9 +67,8 @@ export function HerramientasDePregunta({
 }
 
 /**
- * Copia la pregunta SIN ninguna etiqueta agregada («Vos:» nunca entra: no
- * está en el texto que este componente recibe, a diferencia de lo que se
- * vería en pantalla).
+ * Copia la pregunta SIN ninguna etiqueta agregada («Vos:» nunca entra: no está en el texto que
+ * este componente recibe, a diferencia de lo que se vería en pantalla).
  */
 function BotonDeCopiarPregunta({ texto, duracionMs }: { texto: string; duracionMs: number }) {
   const [copiado, setCopiado] = useState(false);

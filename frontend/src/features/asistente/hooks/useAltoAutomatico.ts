@@ -5,18 +5,7 @@ interface OpcionesDelAlto {
   maxLineas?: number;
 }
 
-/**
- * El campo crece con lo que se escribe, hasta un tope de líneas.
- *
- * ES UN FALLBACK. En los navegadores que entienden `field-sizing: content` no hace
- * nada: la hoja de estilos ya lo resuelve, con `max-height` como tope. Firefox y
- * Safari no lo entienden y ahí el campo se quedaba en una línea con scroll
- * adentro, que es lo que hace que una pregunta larga se lea por el ojo de una
- * cerradura. Acá se mide el contenido y se fija el alto a mano, con el mismo tope.
- *
- * `useLayoutEffect` y no `useEffect` para medir y fijar antes de pintar: con
- * `useEffect` el campo se ve un instante con el alto viejo y después salta.
- */
+/** El campo crece con lo que se escribe, hasta un tope de líneas. */
 export function useAltoAutomatico(
   ref: RefObject<HTMLTextAreaElement | null>,
   valor: string,
@@ -35,10 +24,8 @@ export function useAltoAutomatico(
     const rellenoPx = parseFloat(estilos.paddingTop) + parseFloat(estilos.paddingBottom);
     const bordePx = parseFloat(estilos.borderTopWidth) + parseFloat(estilos.borderBottomWidth);
 
-    // La caja es `border-box` (lo fija la librería bajo `.adoc-ui`), así que el
-    // alto incluye relleno y borde. `scrollHeight` ya trae el relleno; el borde
-    // hay que sumarlo. Si el alto de línea no se puede medir no hay tope: mejor un
-    // campo que crece de más que uno que se corta.
+    // La caja es `border-box` (lo fija la librería bajo `.adoc-ui`), así que el alto incluye
+    // relleno y borde.
     const tope = Number.isFinite(lineaPx) ? lineaPx * maxLineas + rellenoPx + bordePx : Infinity;
     const alto = Math.min(campo.scrollHeight + bordePx, tope);
 

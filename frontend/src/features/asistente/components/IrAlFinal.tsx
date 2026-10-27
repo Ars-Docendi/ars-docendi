@@ -7,14 +7,7 @@ interface IrAlFinalProps {
   onClick: () => void;
 }
 
-/**
- * «Ir al final», flotando abajo a la derecha del hilo mientras el usuario está
- * arriba. Es lo que reemplaza al hilo que arrastraba: quien subió a releer baja
- * cuando quiere, y de golpe.
- *
- * Va FUERA de la lista de mensajes: es un control del panel, no parte de la
- * conversación, y la región viva no tiene por qué anunciarlo.
- */
+/** «Ir al final», flotando abajo a la derecha del hilo mientras el usuario está arriba. */
 export function IrAlFinal({ visible, onClick }: IrAlFinalProps) {
   if (!visible) return null;
 

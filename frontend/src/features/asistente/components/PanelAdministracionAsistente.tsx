@@ -34,34 +34,19 @@ const PERIODOS: { valor: PeriodoDeUso; etiqueta: string }[] = [
 
 interface PanelAdministracionAsistenteProps {
   /**
-   * Contador que sube cada vez que la pestaña Asistente de «Sistema» pide
-   * «Actualizar» (design D8, sistema-seccion-unificada). El panel reacciona
-   * invalidando sus propias queries (`["asistente","administracion"]` y
-   * `["asistente","capacidades"]`) SIN perder el período elegido — nada más
-   * se resetea.
+   * Contador que sube cada vez que la pestaña Asistente de «Sistema» pide «Actualizar» (design D8,
+   * sistema-seccion-unificada).
    */
   actualizacion?: number;
 }
 
 /**
- * El panel administrativo del asistente (asistente-administracion-de-uso),
- * en su pasada de fidelidad 1:1 con el canvas «Uso del asistente» de Claude
- * Design: título propio + período relabeleado («Hoy»/«7 días»/«30 días»,
- * mismo criterio que ya usa `FiltrosAuditoria`) y «Exportar CSV» a la
- * derecha; el banner de mantenimiento compacto (`BannerDeMantenimiento`) en
- * vez de la tarjeta con toggle; los cinco KPIs arriba; y el detalle por
- * usuario/rol con el cupo diario editado directo en la fila (`PanelDeUso`).
- *
- * EL TÍTULO «Uso del asistente» ES UN `<h2>`, no un segundo `<h1>`: la
- * página «Sistema» ya tiene el suyo (`PageHeader`); este es el título de LA
- * SECCIÓN dentro de la pestaña, tal como lo muestra el canvas —antes este
- * panel no tenía ningún título propio, lo cual dejaba a la pestaña «Asistente»
- * sin la jerarquía de encabezados que sí tiene, por ejemplo, la pestaña
- * Auditoría.
- *
- * SÓLO LLEGA ACÁ QUIEN TIENE `asistente.administrar`: el gate lo aplica la
- * pestaña de `SistemaPage` (mismo criterio que antes aplicaba `routes.tsx`
- * con `RequirePermission`) — este componente no vuelve a chequear el permiso.
+ * El panel administrativo del asistente (asistente-administracion-de-uso), en su pasada de
+ * fidelidad 1:1 con el canvas «Uso del asistente» de Claude Design: título propio + período
+ * relabeleado («Hoy»/«7 días»/«30 días», mismo criterio que ya usa `FiltrosAuditoria`) y «Exportar
+ * CSV» a la derecha; el banner de mantenimiento compacto (`BannerDeMantenimiento`) en vez de la
+ * tarjeta con toggle; los cinco KPIs arriba; y el detalle por usuario/rol con el cupo diario
+ * editado directo en la fila (`PanelDeUso`).
  */
 export function PanelAdministracionAsistente({ actualizacion }: PanelAdministracionAsistenteProps) {
   const [periodo, setPeriodo] = useState<PeriodoDeUso>("dia");
@@ -74,19 +59,15 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
     queryFn: () => obtenerUso(periodo),
   });
 
-  // El tope, el gasto del mes y los cupos persistidos (tarea 12.8 de
-  // sistema-seccion-unificada) — reemplaza el "guardado en esta sesión" que
-  // `TopeOrganizacionalCard`/`EditorDeCupoEnFila` usaban porque no había
-  // ningún `GET` todavía.
+  // El tope, el gasto del mes y los cupos persistidos (tarea 12.8 de sistema-seccion-unificada) —
+  // reemplaza el "guardado en esta sesión" que `TopeOrganizacionalCard`/`EditorDeCupoEnFila` usaban
+  // porque no había ningún `GET` todavía.
   const presupuestos = useQuery({
     queryKey: ["asistente", "administracion", "presupuestos"],
     queryFn: obtenerPresupuestos,
   });
 
-  // La carga del servidor del modelo propio (asistente-optimizaciones-modelo-local,
-  // D8). Se refresca sola cada 15 s porque es lo que el admin mira cuando
-  // alguien avisa que «el asistente anda lento»; con proveedor en la nube el
-  // endpoint contesta `configurado: false` y la tarjeta no aparece.
+  // La carga del servidor del modelo propio (asistente-optimizaciones-modelo-local, D8).
   const servidorLocal = useQuery({
     queryKey: ["asistente", "administracion", "servidor-local"],
     queryFn: obtenerServidorLocal,
@@ -120,9 +101,8 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
   async function guardarMantenimiento(activo: boolean, razon?: string) {
     await editarMantenimiento(activo, razon);
     await refrescarCapacidades();
-    // El foco se queda en el botón que se apretó: el anuncio es la ÚNICA cosa
-    // que se mueve (tasks.md 13.2), igual que ya hace el resto de la feature
-    // con sus propias confirmaciones.
+    // El foco se queda en el botón que se apretó: el anuncio es la ÚNICA cosa que se mueve
+    // (tasks.md 13.2), igual que ya hace el resto de la feature con sus propias confirmaciones.
     setAnuncio(activo ? "Modo mantenimiento activado." : "Modo mantenimiento desactivado.");
   }
 
@@ -131,10 +111,9 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
     await refrescarPresupuestos();
   }
 
-  // El cupo y el acceso de una fila de USUARIO los resuelve el backend en
-  // `GET …/uso` (`cupoEfectivo`, `accesoEfectivo`), no en `…/presupuestos`:
-  // después de editar cualquiera de los dos hay que refrescar ambos, o la
-  // fila sigue mostrando el valor viejo.
+  // El cupo y el acceso de una fila de USUARIO los resuelve el backend en `GET …/uso`
+  // (`cupoEfectivo`, `accesoEfectivo`), no en `…/presupuestos`: después de editar cualquiera de los
+  // dos hay que refrescar ambos, o la fila sigue mostrando el valor viejo.
   async function refrescarUsoYPresupuestos() {
     await queryClient.invalidateQueries({ queryKey: ["asistente", "administracion"] });
   }
@@ -164,9 +143,8 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
     await refrescarUsoYPresupuestos();
   }
 
-  // «Exportar CSV»: exporta EXACTAMENTE lo que ya está cargado para la vista
-  // activa (Por usuario / Por rol) del período elegido — ningún pedido nuevo
-  // al backend, ninguna columna que la tabla no muestre ya.
+  // «Exportar CSV»: exporta EXACTAMENTE lo que ya está cargado para la vista activa (Por usuario /
+  // Por rol) del período elegido — ningún pedido nuevo al backend, ninguna columna que la tabla no muestre ya.
   function exportarCsv() {
     if (!uso.data) return;
     const filas = pestana === "usuarios" ? uso.data.porUsuario : uso.data.porRol;

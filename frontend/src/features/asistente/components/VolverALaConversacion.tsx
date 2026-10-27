@@ -6,9 +6,8 @@ interface VolverALaConversacionProps {
 }
 
 /**
- * El botón flotante que aparece en la pantalla de destino después de seguir un
- * vínculo de una respuesta (asistente-respuestas-con-vinculos, D6). Lo muestra
- * `LanzadorAsistente`, que es quien sabe por qué se cerró el asistente.
+ * El botón flotante que aparece en la pantalla de destino después de seguir un vínculo de una
+ * respuesta (asistente-respuestas-con-vinculos, D6).
  */
 export function VolverALaConversacion({ onVolver }: VolverALaConversacionProps) {
   return (

@@ -157,10 +157,9 @@ describe("El popover con 2 letras o más", () => {
 
     await user.type(campo, "@zzz");
 
-    // El mismo texto se anuncia además por la región viva existente
-    // (asistente-accesibilidad), así que hay que acotar al párrafo del
-    // popover: no es una duplicación visual, las dos veces es un solo nodo
-    // visible y uno `sr-only`.
+    // El mismo texto se anuncia además por la región viva existente (asistente-accesibilidad), así
+    // que hay que acotar al párrafo del popover: no es una duplicación visual, las dos veces es un
+    // solo nodo visible y uno `sr-only`.
     expect(
       await screen.findByText(
         "Sin materias que coincidan en las carreras a las que tenés acceso.",

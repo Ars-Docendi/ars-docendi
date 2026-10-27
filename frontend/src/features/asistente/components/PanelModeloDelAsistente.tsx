@@ -47,9 +47,8 @@ const CLAVE_ESTADO_DEL_MODELO = ["modelo", "estado"] as const;
 
 interface PanelModeloDelAsistenteProps {
   /**
-   * «Cambios del modelo», armado por `features/sistema` (que es quien conoce la
-   * auditoría) y compuesto desde `app/router.tsx`. Ausente si el usuario no
-   * puede ver la auditoría.
+   * «Cambios del modelo», armado por `features/sistema` (que es quien conoce la auditoría) y
+   * compuesto desde `app/router.tsx`.
    */
   cambios?: ReactNode;
 }
@@ -67,19 +66,8 @@ function unirNombres(nombres: string[]): string {
 }
 
 /**
- * La pestaña «Modelo» de Sistema (asistente-modelo-en-caliente, tarea 4): qué
- * modelo responde, elegido entre un servidor local y una API en la nube, con la
- * clave de cada empresa. Un cambio se prueba contra el proveedor antes de poder
- * aplicarse, y rige desde el próximo turno sin reiniciar nada.
- *
- * LA PRUEBA VALE PARA UN PEDIDO, NO PARA LA PANTALLA. `prueba` guarda la firma
- * del pedido que se probó; «Aplicar cambio» sólo se habilita si coincide con la
- * del pedido actual, así que cambiar de modelo, de servidor o la clave escrita
- * lo deshabilita solo, sin que nadie tenga que acordarse de reiniciarlo. El
- * servidor igual re-prueba al aplicar: esto es una guía, no la garantía.
- *
- * SÓLO LLEGA ACÁ QUIEN TIENE `asistente.administrar` (el gate es la pestaña de
- * `SistemaPage`); el backend lo vuelve a exigir en cada endpoint.
+ * La pestaña «Modelo» de Sistema (asistente-modelo-en-caliente, tarea 4): qué modelo responde,
+ * elegido entre un servidor local y una API en la nube, con la clave de cada empresa.
  */
 export function PanelModeloDelAsistente({ cambios }: PanelModeloDelAsistenteProps) {
   const queryClient = useQueryClient();

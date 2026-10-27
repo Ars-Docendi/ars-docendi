@@ -1,24 +1,8 @@
-/**
- * De un tipo de recurso a dónde se lo ve.
- *
- * EL BACKEND NO MANDA RUTAS. Manda qué clase de cosa identifica cada celda y con
- * qué identificador; a dónde va el usuario es una decisión de esta aplicación, y
- * cambiar una ruta no puede obligar a desplegar el backend.
- *
- * UN TIPO QUE NO ESTÁ ACÁ NO SE PINTA. Es lo que hace el contrato compatible en la
- * dirección que importa: el día que el servidor empiece a ofrecer vínculos a
- * perfiles de portal, un cliente viejo no muestra un enlace roto — sencillamente no
- * lo aprovecha.
- */
+/** De un tipo de recurso a dónde se lo ve. EL BACKEND NO MANDA RUTAS. */
 export interface DestinoDelVinculo {
   /** A dónde navega. */
   ruta: (id: string) => string;
-  /**
-   * Cómo se nombra el recurso en el nombre accesible del enlace.
-   *
-   * Un lector de pantalla que anuncia «enlace, 2026-9005» no dice a dónde lleva;
-   * «Ver el trámite 2026-9005» sí.
-   */
+  /** Cómo se nombra el recurso en el nombre accesible del enlace. */
   sustantivo: string;
 }
 
@@ -36,11 +20,7 @@ export function destinoDe(tipo: string): DestinoDelVinculo | undefined {
   return Object.hasOwn(DESTINOS, tipo) ? DESTINOS[tipo] : undefined;
 }
 
-/**
- * Los tipos de principal que este cliente sabe dibujar como ficha. Igual que con
- * los vínculos, uno que no está acá se ignora y la respuesta se ve como si no lo
- * tuviera (asistente-respuestas-con-vinculos, D3).
- */
+/** Los tipos de principal que este cliente sabe dibujar como ficha. */
 const TIPOS_CON_FICHA = new Set(["pedido-designacion"]);
 
 export function tipoConFicha(tipo: string): boolean {
