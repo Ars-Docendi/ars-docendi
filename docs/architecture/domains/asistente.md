@@ -545,7 +545,7 @@ Departamento. Detalle y medición en [modelo-local.md §6](../modelo-local.md).
 
 ## El carril determinista: retirado
 
-El enrutador de dominio en modo sombra, el catálogo de intenciones (`intenciones.json`) y la resolución de slots se **retiraron** (`asistente-retirar-enrutador-sombra`). Corrían en cada turno, anotaban qué intención habría capturado la pregunta y el turno seguía por el carril SQL: nunca cambiaron una respuesta, y la decisión no podía servir de reemplazo cuando el modelo falla. Con ellos se fue `asistente.registro_operativo.intencion_sombra` (migración `011_asistente_retirar_intencion_sombra.sql`).
+El enrutador de dominio en modo sombra, el catálogo de intenciones (`intenciones.json`) y la resolución de slots se **retiraron** (`asistente-retirar-enrutador-sombra`). Corrían en cada turno, anotaban qué intención habría capturado la pregunta y el turno seguía por el carril SQL: nunca cambiaron una respuesta, y la decisión no podía servir de reemplazo cuando el modelo falla. La columna `asistente.registro_operativo.intencion_sombra` queda en el schema sin escritor (la migración 002, publicada, la declara; ver [data-model.md](../data-model.md)).
 
 Cada turno sigue por el carril SQL. Un carril sin modelo —un plan determinista— y los edges hacia los `Contracts` de otros módulos (épica E6, ARS-46) serían un change propio, no un rescate de este código; el historial vive en `openspec/changes/archive/`.
 

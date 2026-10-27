@@ -6,8 +6,7 @@
 
 ## 2. Database
 
-- [x] 2.1 Add `011_asistente_retirar_intencion_sombra.sql`, its wrapper, the migrator entry and the protected-migrations classification
-- [x] 2.2 Ratify the single `DROP COLUMN` in the DDL guard of `ArquitecturaAsistenteTests`, with a falsifiability test
+- [x] 2.1 Keep `intencion_sombra` in the schema without a writer (no new migration; 002 is published)
 
 ## 3. Tests and docs
 

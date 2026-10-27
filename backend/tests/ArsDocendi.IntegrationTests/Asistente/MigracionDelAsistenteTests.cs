@@ -136,7 +136,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
 
         Assert.Contains("proveedor", columnas);
         Assert.Contains("tokens_de_cache", columnas);
-        Assert.DoesNotContain("intencion_sombra", columnas);
+        Assert.Contains("intencion_sombra", columnas);
         Assert.Contains("motivo_rechazo", columnas);
     }
 

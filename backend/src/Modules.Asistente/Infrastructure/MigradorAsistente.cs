@@ -32,7 +32,6 @@ internal sealed class MigradorAsistente(
         AdministracionAsistente.RecursoSqlVigenteUnico,
         ModeloAsistente.RecursoSql,
         CalidadAsistente.RecursoSql,
-        RetiroDeIntencionSombraAsistente.RecursoSql,
         RecursoVersion,
     ];
 
@@ -137,10 +136,6 @@ internal sealed class MigradorAsistente(
         // Quality columns on registro_analitico plus the review audit table
         // (asistente-metricas-de-calidad). After RegistrosAsistente: it alters its table.
         await CalidadAsistente.AplicarAsync(conexion, ct);
-
-        // Retires intencion_sombra (asistente-retirar-enrutador-sombra). After RegistrosAsistente,
-        // whose convergent DDL still re-adds the column: the drop must run after it, every time.
-        await RetiroDeIntencionSombraAsistente.AplicarAsync(conexion, ct);
 
         await VerificarColumnasDelRegistroAsync(conexion, ct);
 

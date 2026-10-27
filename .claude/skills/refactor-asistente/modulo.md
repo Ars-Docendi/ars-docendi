@@ -34,8 +34,8 @@ Siete pasos, **hasta tres llamadas al modelo**. El resto es determinista.
    - resuelve una aclaración pendiente si la hay → **cero tokens**;
    - detecta cambio de tema y suelta el segmento;
    - **reescribe la pregunta** con las anteriores del hilo → **llamada 1**, y solo si hay historial;
-   - consulta el **enrutador determinista en sombra**: decide, anota telemetría y **descarta
-     a propósito**;
+   - (el **enrutador determinista en sombra** que corría acá se retiró el 2026-10-27, ver
+     `openspec/changes/archive/2026-10-27-asistente-retirar-enrutador-sombra/`);
    - detecta ambigüedad contra un índice de entidades traído de la base → cero tokens;
    - delega en el carril SQL.
 3. **Carril SQL** — `Application/CarrilSql.cs:51`. Resuelve el perfil del actor contra
@@ -127,7 +127,7 @@ nueva. Esta lista existe para que no vuelvan cada seis meses.
    código con los siete pasos en comentarios y 6 puntos de salida), pero la consecuencia
    esperada es falsa: cada paso ya vive en una unidad pura con su propio archivo de test
    (`EnrutadorSocialTests` 15, `SeguimientoYAclaracionTests` 22, `HiloConversacionalTests` 19,
-   `AmbiguedadTests` 10, `EnrutadorDeDominioTests` 9 = **75 atributos**; tres de esos cinco
+   `AmbiguedadTests` 10, `EnrutadorDeDominioTests` 9 —retirado el 2026-10-27— = **75 atributos**; tres de esos cinco
    archivos son puros, dos derivan de `ClasePostgresAislada`). Lo que queda en `ResolverAsync`
    es **composición, no lógica**, y el orden ya está declarado fuera del código en
    `openspec/changes/archive/2026-10-26-asistente-capa-conversacional/design.md:7-17`. Peor: el objeto de request
@@ -154,7 +154,7 @@ nueva. Esta lista existe para que no vuelvan cada seis meses.
    apagado deliberado y documentado: `CupoDeLlamadasPorActor`, `FallosParaAbrirElBreaker`,
    `PresupuestoDelTurnoSegundos`, `TopeDeTurnosDelHistorial`. Un `[Range]` uniforme rompe
    cuatro mecanismos de apagado. Va como `IValidateOptions` con tres baldes (renglón D3).
-5. **Borrar el carril determinista en sombra** (`CatalogoDeIntenciones`, `ResolutorDeIntenciones`,
+5. **[RETIRADO el 2026-10-27, ya borrado: `openspec/changes/archive/2026-10-27-asistente-retirar-enrutador-sombra/`; lo que sigue es histórico]** Borrar el carril determinista en sombra (`CatalogoDeIntenciones`, `ResolutorDeIntenciones`,
    `ICatalogoDelDominio`, `EnrutadorDeDominio`, `LectorDeVocabulario`, `CatalogoDelDominioReal`
    — 838 LOC). Está **desconectado a propósito**: decide, anota telemetría y descarta. Es un
    compromiso registrado con ARS-46, argumentado en
