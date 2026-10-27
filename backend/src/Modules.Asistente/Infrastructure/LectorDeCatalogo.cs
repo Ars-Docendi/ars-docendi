@@ -21,29 +21,10 @@ internal sealed record ReferenciaLegible(
     string TablaReferida,
     string ColumnaReferida);
 
-/// <summary>
-/// Lee del catálogo de PostgreSQL lo que la conexión actual puede leer.
-/// </summary>
-/// <remarks>
-/// La pregunta que le hace a la base es literalmente «¿qué puedo leer yo?»:
-/// <c>has_column_privilege</c> y <c>has_schema_privilege</c> se evalúan contra
-/// <c>current_user</c>. Por eso el resultado cambia solo cuando cambian los
-/// <c>GRANT</c>, y por eso los dos roles del asistente obtienen esquemas
-/// distintos sin que este código sepa nada de ellos.
-///
-/// Todo va calificado con <c>pg_catalog.</c> porque los roles del asistente
-/// corren con <c>search_path = ''</c>.
-/// </remarks>
+/// <summary>Lee del catálogo de PostgreSQL lo que la conexión actual puede leer.</summary>
 internal static class LectorDeCatalogo
 {
-    /// <summary>
-    /// Esquemas del sistema, que nunca forman parte del esquema del asistente.
-    /// </summary>
-    /// <remarks>
-    /// No hace falta excluir <c>audit</c>: el manifiesto le revoca <c>USAGE</c>,
-    /// así que <c>has_schema_privilege</c> ya lo deja afuera. Excluirlo acá por
-    /// las dudas escondería una regresión de ese <c>REVOKE</c>.
-    /// </remarks>
+    /// <summary>Esquemas del sistema, que nunca forman parte del esquema del asistente.</summary>
     private const string EsquemasDelSistema =
         "('pg_catalog', 'information_schema', 'pg_toast')";
 
@@ -119,14 +100,7 @@ internal static class LectorDeCatalogo
          ORDER BY 1, 2, 3
         """;
 
-    /// <summary>
-    /// Referencias entre schemas que el modelo de datos mantiene sin FK.
-    /// </summary>
-    /// <remarks>
-    /// <c>portal.perfiles.persona_id</c> es el único camino del portal hacia una
-    /// persona, y es una referencia lógica (spec <c>integridad-referencias-logicas</c>):
-    /// sin esta fila el prefijo no le diría al modelo cómo cruzar portal con identity.
-    /// </remarks>
+    /// <summary>Referencias entre schemas que el modelo de datos mantiene sin FK.</summary>
     private const string ReferenciasLogicas =
         "('portal', 'perfiles', 'persona_id', 'identity', 'personas', 'id')";
 

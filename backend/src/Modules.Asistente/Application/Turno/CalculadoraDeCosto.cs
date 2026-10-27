@@ -4,12 +4,6 @@ namespace Modules.Asistente.Application;
 /// Una fila de consumo a costear: lo mínimo que hace falta de una fila de
 /// <c>asistente.registro_operativo</c>.
 /// </summary>
-/// <param name="Proveedor">
-/// El valor combinado que <c>IProveedorDeModelo.Nombre</c> escribe en
-/// <c>registro_operativo.proveedor</c>, con la forma <c>"{proveedor}/{modelo}"</c>
-/// (p. ej. <c>"anthropic/claude-sonnet-5"</c>). Nulo si la fila no invocó a
-/// ningún proveedor.
-/// </param>
 internal sealed record FilaDeConsumo(
     string? Proveedor,
     DateTimeOffset OcurridoEn,
@@ -29,30 +23,13 @@ internal sealed record PrecioVigente(
     DateTimeOffset? VigenteHasta);
 
 /// <summary>El resultado de costear un conjunto de filas.</summary>
-/// <param name="CostoEstimadoTotal">Suma de las filas que sí tenían precio.</param>
-/// <param name="FilasSinPrecio">
-/// Cuántas filas no tenían ningún precio vigente para su proveedor/modelo en
-/// el momento en que ocurrieron. NUNCA se costean como cero: se reportan
-/// aparte (design.md, Risks).
-/// </param>
 internal sealed record ResultadoDeCosteo(decimal CostoEstimadoTotal, int FilasSinPrecio);
 
 /// <summary>
-/// Estima el costo en USD de una fila (o un conjunto de filas) de uso del
-/// asistente contra una foto de <c>asistente.tabla_de_precios</c>
-/// (asistente-panel-de-uso / asistente-presupuesto-persistente, design.md D6).
+/// Estima el costo en USD de una fila (o un conjunto de filas) de uso del asistente contra una foto
+/// de <c>asistente.tabla_de_precios</c> (asistente-panel-de-uso /
+/// asistente-presupuesto-persistente, design.md D6).
 /// </summary>
-/// <remarks>
-/// Puro: no consulta nada. Recibe las filas y el snapshot de precios ya
-/// resueltos, igual que <see cref="PoliticaDeAbstencion"/> — lo que la hace
-/// testeable sin base.
-///
-/// <b>La versión de precio que importa es la que estaba VIGENTE cuando la
-/// fila OCURRIÓ</b>, nunca la más reciente: un precio publicado hoy no puede
-/// reescribir la estimación de un turno de la semana pasada (D1/A1). Por eso
-/// cada fila busca, entre todas las versiones de su proveedor/modelo, la que
-/// contiene su <c>OcurridoEn</c> en el rango <c>[VigenteDesde, VigenteHasta)</c>.
-/// </remarks>
 internal static class CalculadoraDeCosto
 {
     /// <summary>Costea un conjunto de filas, agregando el total y las sin precio.</summary>
@@ -116,21 +93,10 @@ internal static class CalculadoraDeCosto
     }
 
     /// <summary>
-    /// Separa <c>"{proveedor}/{modelo}"</c> (el valor que
-    /// <c>IProveedorDeModelo.Nombre</c> escribe en <c>registro_operativo</c>)
-    /// en sus dos partes, para matchear contra las columnas separadas de
-    /// <c>tabla_de_precios</c>.
+    /// Separa <c>"{proveedor}/{modelo}"</c> (el valor que <c>IProveedorDeModelo.Nombre</c> escribe
+    /// en <c>registro_operativo</c>) en sus dos partes, para matchear contra las columnas separadas
+    /// de <c>tabla_de_precios</c>.
     /// </summary>
-    /// <remarks>
-    /// Decidido acá porque design.md no especifica cómo se cruzan las dos
-    /// formas: el registro guarda un valor combinado (una sola columna,
-    /// pensada para mostrarse) y la tabla de precios separa proveedor y
-    /// modelo (pensada para versionar cada uno de forma independiente). Un
-    /// valor sin <c>/</c> —no debería ocurrir con los proveedores reales,
-    /// pero el simulado no lo tiene— se trata como "modelo vacío", que
-    /// simplemente no va a matchear ninguna fila de precios y cae en "sin
-    /// precio", nunca en una excepción.
-    /// </remarks>
     private static (string Proveedor, string Modelo) PartirClaveDelProveedor(string clave)
     {
         var separador = clave.IndexOf('/');

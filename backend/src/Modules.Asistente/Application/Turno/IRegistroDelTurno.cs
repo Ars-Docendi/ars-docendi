@@ -15,85 +15,11 @@ public enum CarrilDelTurno
     /// <summary>No había modelo disponible.</summary>
     Degradado,
 
-    /// <summary>
-    /// El turno se cayó por una excepción no prevista, en cualquier paso.
-    /// </summary>
-    /// <remarks>
-    /// No es un carril del pipeline sino la ausencia de uno: cuando el turno
-    /// revienta no se sabe cuál lo habría resuelto, y decir «SQL» porque ahí murió
-    /// mezclaría fallas con turnos que sí llegaron a consultar.
-    /// </remarks>
+    /// <summary>El turno se cayó por una excepción no prevista, en cualquier paso.</summary>
     Fallo,
 }
 
-/// <summary>
-/// Todo lo que un turno deja para registrar, antes de separarlo en dos.
-/// </summary>
-/// <remarks>
-/// Entra completo y sale partido en dos filas que no comparten ninguna columna.
-/// Tenerlo en un solo tipo hace que la separación ocurra en <b>un solo lugar</b>,
-/// que es donde se la puede leer y verificar; repartida entre los llamadores, cada
-/// uno decidiría por su cuenta qué mandar a dónde.
-///
-/// <b>No incluye las filas devueltas ni la consulta generada.</b> No es un olvido:
-/// no se persisten en ningún registro, y no tenerlas acá hace que no se puedan
-/// persistir por accidente.
-/// </remarks>
-/// <param name="Actor">Quién consultó. Va solo al registro operativo.</param>
-/// <param name="AnaliticoId">
-/// The id the application generated for this turn's analytic row (Guid.NewGuid(),
-/// not the database default). Every turn gets one, even when it never becomes a
-/// feedback token: on a Respondida turn it is the same value as
-/// <see cref="ResultadoDelTurno.ClaveDeRetroalimentacion"/>; on any other state it
-/// exists only so the analytic row has a caller-supplied id, and nothing outside
-/// this record ever needs it.
-/// </param>
-/// <param name="Cuando">
-/// Cuándo. Al operativo va completo; al analítico, redondeado al día.
-/// </param>
-/// <param name="Pregunta">
-/// Qué se preguntó. Va solo al registro analítico.
-/// </param>
-/// <param name="Proveedor">
-/// Quién respondió: la identidad que expone <see cref="IProveedorDeModelo.Nombre"/>,
-/// nunca su credencial. Va solo al registro operativo, porque es una propiedad del
-/// costo del turno y no de la pregunta.
-/// </param>
-/// <param name="IntencionSombra">
-/// La intención del catálogo que el enrutador de dominio eligió mientras corre en
-/// modo sombra, o nulo si ninguna capturó la pregunta.
-/// </param>
-/// <remarks>
-/// <b><see cref="IntencionSombra"/> va solo al registro operativo</b>, y esa es una
-/// decisión de privacidad tomada explícitamente. En el analítico sería una dimensión
-/// más por la cual agrupar preguntas, y las capturas van a ser la minoría: cada
-/// intención concreta es un valor raro, y un valor raro en el analítico es el
-/// selector que le daría utilidad al canal residual que TD-012 declara. Además no
-/// compraría nada, porque cada registro escribe una fila por turno y la cobertura
-/// sale del operativo solo.
-///
-/// <b>No es lo mismo que <see cref="Carril"/>.</b> El carril es la ruta REAL del
-/// turno; esta es la que se habría tomado.
-/// </remarks>
-/// <param name="MotivoDeRechazo">
-/// El motivo del rechazo declarado por el modelo (asistente-rechazos-dinamicos),
-/// o <c>null</c> para cualquier otro turno — incluidos el rechazo del
-/// validador, el error del motor, el resultado vacío y la generación cortada
-/// por el techo de tokens. Va SÓLO al registro operativo: el analítico no lo
-/// recibe nunca (TD-012, ver <c>database/asistente/002_asistente_registros.sql</c>).
-/// </param>
-/// <param name="Causa">
-/// Why the turn failed or came back empty (asistente-metricas-de-calidad, D2), or
-/// <c>null</c>. Goes ONLY to the analytic record, as a closed code: it carries no
-/// actor and no time, so it adds no selector (TD-012).
-/// </param>
-/// <param name="Modelo">
-/// The <c>empresa/modelo</c> of the adapter resolved for the turn
-/// (<see cref="IProveedorDeModelo.Nombre"/>), also on turns that never called a
-/// model. It is the same string as <see cref="Proveedor"/>: a coarse attribute shared
-/// by both records, accepted in design D3 and noted in TD-012. Goes to the analytic
-/// record too, so quality metrics can be compared per model without a join.
-/// </param>
+/// <summary>Todo lo que un turno deja para registrar, antes de separarlo en dos.</summary>
 public sealed record TurnoParaRegistrar(
     Guid Actor,
     Guid AnaliticoId,
@@ -115,25 +41,15 @@ public sealed record TurnoParaRegistrar(
     CausaDelTurno? Causa = null,
     string? Modelo = null);
 
-/// <summary>
-/// Escribe los dos registros desvinculados (RF-16).
-/// </summary>
-/// <remarks>
-/// <b>Nunca hace fallar el turno.</b> Un registro que rompe el turno que estaba
-/// registrando convierte la observabilidad en una fuente de indisponibilidad.
-///
-/// Es la decisión inversa a la del enmascarador, y a propósito: ahí un fallo
-/// silencioso filtra datos, acá un fallo ruidoso niega un servicio que funciona.
-/// </remarks>
+/// <summary>Escribe los dos registros desvinculados (RF-16).</summary>
 public interface IRegistroDelTurno
 {
     /// <summary>Registra un turno. No propaga errores.</summary>
     Task RegistrarAsync(TurnoParaRegistrar turno, CancellationToken ct);
 
     /// <summary>
-    /// Flags the analytic record <paramref name="analiticoId"/> as replaced by the user
-    /// (implicit dissatisfaction, design D4 of asistente-metricas-de-calidad). Does not
-    /// propagate errors and touches nothing but that flag: no actor, no time.
+    /// Flags the analytic record <paramref name="analiticoId"/> as replaced by the user (implicit
+    /// dissatisfaction, design D4 of asistente-metricas-de-calidad).
     /// </summary>
     Task MarcarReemplazadoAsync(Guid analiticoId, CancellationToken ct);
 }

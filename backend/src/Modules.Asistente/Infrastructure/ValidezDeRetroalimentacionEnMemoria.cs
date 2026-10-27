@@ -4,20 +4,7 @@ using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// In-memory feedback token store, keyed by the token alone.
-/// </summary>
-/// <remarks>
-/// A <see cref="ConcurrentDictionary{TKey, TValue}"/> and not the
-/// lock-guarded <see cref="Dictionary{TKey, TValue}"/> pattern
-/// <see cref="IdempotenciaEnMemoria"/> uses: that one is keyed by
-/// <c>(actor, clave)</c> and already needs a lock to purge safely, while this
-/// one is keyed by the token alone and the task list asks for exactly this
-/// shape. Purging opportunistically on write, same idea as
-/// <see cref="IdempotenciaEnMemoria"/>: at this scale a background sweep buys
-/// nothing a bounded dictionary of short-lived entries doesn't already give
-/// for free.
-/// </remarks>
+/// <summary>In-memory feedback token store, keyed by the token alone.</summary>
 internal sealed class ValidezDeRetroalimentacionEnMemoria(IOptions<OpcionesAsistente> opciones)
     : IValidezDeRetroalimentacion
 {

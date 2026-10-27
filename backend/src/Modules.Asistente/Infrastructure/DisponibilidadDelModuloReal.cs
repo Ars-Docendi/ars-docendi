@@ -5,18 +5,9 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// <see cref="IDisponibilidadDelModulo"/> sobre la fila única
-/// <c>asistente.modo_mantenimiento</c> (design.md D7 de
-/// asistente-administracion-de-uso).
+/// <see cref="IDisponibilidadDelModulo"/> sobre la fila única <c>asistente.modo_mantenimiento</c>
+/// (design.md D7 de asistente-administracion-de-uso).
 /// </summary>
-/// <remarks>
-/// Sin ninguna caché de proceso, a propósito (tarea 6.7): cada consulta lee
-/// la fila de nuevo. Cachear el valor en memoria reintroduciría exactamente
-/// el defecto que este mecanismo reemplaza —dos instancias del Host verían
-/// valores distintos hasta que la caché de la segunda expirara—, y una fila
-/// de una sola columna booleana es demasiado barata para justificar el
-/// riesgo.
-/// </remarks>
 internal sealed class DisponibilidadDelModuloReal(CadenaDuena cadena) : IDisponibilidadDelModulo
 {
     public async Task<EstadoDeMantenimiento> ConsultarAsync(CancellationToken ct)
@@ -30,10 +21,9 @@ internal sealed class DisponibilidadDelModuloReal(CadenaDuena cadena) : IDisponi
         await using var lector = await comando.ExecuteReaderAsync(ct);
         if (!await lector.ReadAsync(ct))
         {
-            // No debería pasar: 006 siembra la fila única. Si algún día no
-            // está, "no hay mantenimiento" es la lectura conservadora y
-            // segura — nunca bloquear al sistema entero por una fila
-            // faltante.
+            // No debería pasar: 006 siembra la fila única. Si algún día no está, "no hay
+            // mantenimiento" es la lectura conservadora y segura — nunca bloquear al sistema entero
+            // por una fila faltante.
             return new EstadoDeMantenimiento(false, null);
         }
 

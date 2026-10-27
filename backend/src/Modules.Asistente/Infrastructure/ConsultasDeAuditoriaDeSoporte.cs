@@ -9,24 +9,6 @@ namespace Modules.Asistente.Infrastructure;
 /// <summary>
 /// El lado de soporte del historial ajeno (asistente-acceso-de-soporte-al-historial).
 /// </summary>
-/// <remarks>
-/// Pide <see cref="CadenaDuena"/> por el mismo motivo que <see cref="ConsultasDeHistorial"/>:
-/// las tres tablas del historial viven en el schema propio del asistente, que
-/// los dos roles de solo lectura tienen revocado entero.
-///
-/// El log de acceso NUNCA nombra la pregunta ni la SQL junto al sujeto —sólo
-/// que hubo una lectura, quién la hizo y a quién—, extendiendo la disciplina
-/// de <c>asistente-feedback-export-seguimiento</c> D3: la fila de auditoría ya
-/// es el registro completo del qué y el por qué; el log es sólo para
-/// observabilidad operativa.
-///
-/// <b>La única de las dos lecturas que SÍ ve una conversación pendiente de
-/// borrado</b> (design.md D4 de asistente-historial-conversaciones,
-/// asistente-acceso-de-soporte-al-historial): mientras su ventana no venza,
-/// vuelve marcada <c>PendienteDeBorrado</c>; vencida, desaparece de acá
-/// también — el mismo corte que usa <see cref="ConsultasDeHistorial"/> para
-/// deshacer, no uno propio.
-/// </remarks>
 internal sealed class ConsultasDeAuditoriaDeSoporte(
     CadenaDuena cadena,
     TimeProvider reloj,
@@ -42,9 +24,8 @@ internal sealed class ConsultasDeAuditoriaDeSoporte(
         await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
 
-        // LA AUDITORÍA VA PRIMERO, Y SIN CAPTURAR SU EXCEPCIÓN. Si esta
-        // escritura falla, el método entero falla: no hay ninguna rama que
-        // devuelva datos sin haber auditado (design.md D10).
+        // LA AUDITORÍA VA PRIMERO, Y SIN CAPTURAR SU EXCEPCIÓN. Si esta escritura falla, el método
+        // entero falla: no hay ninguna rama que devuelva datos sin haber auditado (design.md D10).
         await AuditarAsync(conexion, lector, sujeto, hiloId: null, razon, ct);
 
         log.LogInformation("Listado de soporte del historial de un actor.");
@@ -102,11 +83,10 @@ internal sealed class ConsultasDeAuditoriaDeSoporte(
 
         var turnos = await LeerTurnosAsync(conexion, hiloId, ct);
 
-        // La SQL viaja SIEMPRE acá — sin un segundo gate de
-        // `asistente.ver_consulta` (design.md D9): el permiso de soporte YA
-        // ES el permiso de diagnóstico, y exigir dos permisos para ver la SQL
-        // no añadiría un límite real — quien puede leer el historial entero
-        // de otra persona ya está confiado con más que la SQL sola.
+        // La SQL viaja SIEMPRE acá — sin un segundo gate de `asistente.ver_consulta` (design.md
+        // D9): el permiso de soporte YA ES el permiso de diagnóstico, y exigir dos permisos para
+        // ver la SQL no añadiría un límite real — quien puede leer el historial entero de otra
+        // persona ya está confiado con más que la SQL sola.
         return new ConversacionDetalle(
             cabecera.Value.Id, cabecera.Value.Titulo, cabecera.Value.CreadoEn,
             cabecera.Value.UltimaActividad, turnos);

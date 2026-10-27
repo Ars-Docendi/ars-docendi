@@ -3,16 +3,7 @@ using System.Text;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Convierte lo leído del catálogo en el texto del prompt de sistema.
-/// </summary>
-/// <remarks>
-/// El orden de todo lo que emite es determinista —esquema, tabla y número de
-/// columna— porque el prefijo tiene que ser idéntico byte a byte entre procesos.
-/// Un orden que dependiera del recorrido de un diccionario haría que la huella
-/// cambiara sin que cambiara nada, y cada arranque pagaría escritura de caché en
-/// lugar de lectura.
-/// </remarks>
+/// <summary>Convierte lo leído del catálogo en el texto del prompt de sistema.</summary>
 internal static class RenderizadorDeEsquema
 {
     /// <param name="compacto">
@@ -117,16 +108,8 @@ internal static class RenderizadorDeEsquema
     }
 
     /// <summary>
-    /// Las tablas en forma compacta, con cada clave foránea en la línea de su
-    /// columna (D2).
+    /// Las tablas en forma compacta, con cada clave foránea en la línea de su columna (D2).
     /// </summary>
-    /// <remarks>
-    /// Lo único que se omite es el comentario de una columna <c>id</c> que sólo
-    /// dice «Identificador de …»: el nombre ya lo dice. Todo otro comentario y
-    /// toda descripción de tabla viajan enteros, porque ahí están las reglas del
-    /// dominio —«vigente_hasta NULO es vigencia abierta»— que un modelo chico
-    /// necesita más que uno grande.
-    /// </remarks>
     private static void EscribirCompacto(
         StringBuilder texto,
         IReadOnlyList<ColumnaLegible> columnas,

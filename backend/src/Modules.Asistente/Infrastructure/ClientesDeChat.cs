@@ -11,17 +11,11 @@ using OpenAI;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// The one file that builds <see cref="IChatClient"/> instances for the cloud
-/// companies, and therefore the only one (besides <c>ProveedorAnthropic.cs</c>)
-/// that names the Anthropic and OpenAI SDKs (asistente-modelo-en-caliente, D2/D10;
-/// <c>ArquitecturaAsistenteTests</c> enforces it).
+/// The one file that builds <see cref="IChatClient"/> instances for the cloud companies, and
+/// therefore the only one (besides <c>ProveedorAnthropic.cs</c>) that names the Anthropic and
+/// OpenAI SDKs (asistente-modelo-en-caliente, D2/D10; <c>ArquitecturaAsistenteTests</c> enforces
+/// it).
 /// </summary>
-/// <remarks>
-/// Every client is built over the module's named <see cref="HttpClient"/>, so
-/// <c>GrabadorDeCassettes</c> and <c>ReintentoDeTransporte</c> still wrap each call,
-/// and with the SDK's own retries zeroed so only <c>ReintentoDeTransporte</c>
-/// retries. Mistral and Gemini are the OpenAI client over another base URL.
-/// </remarks>
 internal static class ClientesDeChat
 {
     public const string EmpresaAnthropic = "anthropic";
@@ -85,21 +79,10 @@ internal static class ClientesDeChat
     }
 
     /// <summary>
-    /// Anthropic: <c>cache_control</c> on the stable prefix and <c>output_config.effort</c>
-    /// go through the raw <see cref="MessageCreateParams"/>, exactly as
-    /// <c>ProveedorAnthropic</c> builds them.
+    /// Anthropic: <c>cache_control</c> on the stable prefix and <c>output_config.effort</c> go
+    /// through the raw <see cref="MessageCreateParams"/>, exactly as <c>ProveedorAnthropic</c>
+    /// builds them.
     /// </summary>
-    /// <remarks>
-    /// The user turn goes in <c>Messages</c> of the raw request and the
-    /// <c>ChatMessage</c> list stays EMPTY: Microsoft.Extensions.AI appends the list
-    /// to <c>Messages</c>, so filling both would send the question twice, and an
-    /// empty <c>Messages</c> with the turn in the list would change its JSON shape
-    /// from a plain string to a content block.
-    ///
-    /// It must NEVER use <c>ChatOptions.Reasoning</c>: that selects extended thinking
-    /// (<c>thinking.budget_tokens</c>, inflated <c>max_tokens</c>), a different
-    /// feature from <c>output_config.effort</c>.
-    /// </remarks>
     private sealed class ConstructorDeAnthropic(string modelo) : IConstructorDeChat
     {
         public (IList<ChatMessage> Mensajes, ChatOptions Opciones) Armar(SolicitudAlModelo solicitud) => (
@@ -151,16 +134,10 @@ internal static class ClientesDeChat
     }
 
     /// <summary>
-    /// OpenAI, Mistral and Gemini through their OpenAI-compatible endpoints: the
-    /// stable prefix is the system message (caching is automatic on the prefix) and
-    /// the effort is the portable <c>reasoning_effort</c>.
+    /// OpenAI, Mistral and Gemini through their OpenAI-compatible endpoints: the stable prefix is
+    /// the system message (caching is automatic on the prefix) and the effort is the portable
+    /// <c>reasoning_effort</c>.
     /// </summary>
-    /// <remarks>
-    /// The temperature does not travel, as with Anthropic: current reasoning models
-    /// reject any value but their default. Mistral gets no effort: the spike proved
-    /// the wire shape only, and a 4xx on an unsupported field would take the whole
-    /// company down for the sake of a knob.
-    /// </remarks>
     private sealed class ConstructorCompatibleConOpenAi(string empresa) : IConstructorDeChat
     {
         public (IList<ChatMessage> Mensajes, ChatOptions Opciones) Armar(SolicitudAlModelo solicitud) => (

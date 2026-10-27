@@ -1,21 +1,9 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Valida el término candidato que la generación propone para un rechazo
-/// (design.md D3 de asistente-rechazos-dinamicos).
+/// Valida el término candidato que la generación propone para un rechazo (design.md D3 de
+/// asistente-rechazos-dinamicos).
 /// </summary>
-/// <remarks>
-/// <b>El modelo propone, el código re-copia.</b> Lo único que puede llegar a la
-/// respuesta es un span de <c>mensaje</c> —lo que el usuario tipeó ESTE turno—,
-/// nunca el texto que el modelo devolvió: éste sólo sirve para ENCONTRAR ese
-/// span. Confiar en la cadena del modelo pondría texto del modelo en el cuerpo
-/// de un rechazo, que es exactamente lo que el ticket prohíbe.
-///
-/// Por eso se valida contra <c>mensaje</c> y no contra la pregunta reescrita: la
-/// reescritura ya es una salida del modelo (<see cref="ReescritorDePreguntas"/>),
-/// y un término que sólo existe después de resolver una anáfora nunca lo tipeó
-/// el usuario.
-/// </remarks>
 internal static class TerminoDelRechazo
 {
     private const int MinimoDeCaracteres = 2;
@@ -55,10 +43,9 @@ internal static class TerminoDelRechazo
             return null;
         }
 
-        // PLEGADO CARÁCTER A CARÁCTER: los índices del texto plegado tienen que
-        // corresponderse 1:1 con los de `mensaje`, porque lo que se devuelve es
-        // el span del mensaje ORIGINAL —los caracteres del usuario, nunca los
-        // del modelo—.
+        // PLEGADO CARÁCTER A CARÁCTER: los índices del texto plegado tienen que corresponderse 1:1
+        // con los de `mensaje`, porque lo que se devuelve es el span del mensaje ORIGINAL —los
+        // caracteres del usuario, nunca los del modelo—.
         var mensajePlegado = Plegar(mensaje);
         var candidatoPlegado = Plegar(recortado);
 
@@ -70,9 +57,8 @@ internal static class TerminoDelRechazo
 
         var fin = inicio + candidatoPlegado.Length;
 
-        // LÍMITES DE PALABRA: sin esto, «pyth» matchearía adentro de «python» y
-        // el rechazo terminaría citando un fragmento que el usuario no escribió
-        // como palabra propia.
+        // LÍMITES DE PALABRA: sin esto, «pyth» matchearía adentro de «python» y el rechazo
+        // terminaría citando un fragmento que el usuario no escribió como palabra propia.
         if (EsLetraODigito(mensaje, inicio - 1) || EsLetraODigito(mensaje, fin))
         {
             return null;
@@ -88,9 +74,8 @@ internal static class TerminoDelRechazo
         texto.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
 
     /// <summary>
-    /// Si <paramref name="recortado"/> está hecho SÓLO de palabras vacías o de
-    /// demostrativos —«eso», «esa materia»—, que nunca deben citarse como si
-    /// nombraran algo puntual.
+    /// Si <paramref name="recortado"/> está hecho SÓLO de palabras vacías o de demostrativos
+    /// —«eso», «esa materia»—, que nunca deben citarse como si nombraran algo puntual.
     /// </summary>
     private static bool EsSoloDemostrativosOVacias(string recortado)
     {
@@ -106,9 +91,8 @@ internal static class TerminoDelRechazo
         indice >= 0 && indice < texto.Length && char.IsLetterOrDigit(texto[indice]);
 
     /// <summary>
-    /// Pliega a minúscula sin acentos, preservando la longitud carácter por
-    /// carácter para que los índices del resultado sigan valiendo sobre el
-    /// texto original.
+    /// Pliega a minúscula sin acentos, preservando la longitud carácter por carácter para que los
+    /// índices del resultado sigan valiendo sobre el texto original.
     /// </summary>
     private static string Plegar(string texto) => NormalizadorLexico.SinAcentos(texto).ToLowerInvariant();
 }

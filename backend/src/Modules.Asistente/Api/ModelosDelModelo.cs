@@ -4,10 +4,6 @@ using System.Text.Json.Serialization;
 namespace Modules.Asistente.Api;
 
 // DTOs of the model administration surface (asistente-modelo-en-caliente, slice 3).
-//
-// Request records are named `Pedido*` and are the ONLY ones that may carry key text.
-// No response record has a member that could hold a key, a password or a secret:
-// `ArquitecturaAsistenteTests` fails the build if one appears.
 
 /// <summary>
 /// A company and model to test or apply. <c>ClaveNueva</c> is a not-yet-saved key for a

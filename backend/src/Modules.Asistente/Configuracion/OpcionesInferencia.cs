@@ -7,12 +7,6 @@ namespace Modules.Asistente;
 /// El servicio de inferencia compartido (Ollama en pc-prod, publicado como
 /// <c>ia.&lt;DOMINIO&gt;</c>): dónde está y con qué credenciales se le habla.
 /// </summary>
-/// <remarks>
-/// Sección <c>Inferencia</c> y no <c>Asistente</c>: es la configuración del
-/// servicio, que entregan los deploys por GitHub Environment
-/// (<c>INFERENCIA_*</c>), y no una perilla del asistente. La usan el estado del
-/// servicio y el proveedor <c>ollama</c>.
-/// </remarks>
 public sealed class OpcionesInferencia
 {
     public const string Seccion = "Inferencia";
@@ -43,14 +37,9 @@ public sealed class OpcionesInferencia
     public Uri Ruta(string relativa) => new(new Uri(Url.TrimEnd('/') + "/"), relativa);
 
     /// <summary>
-    /// Pone las credenciales en un pedido: BasicAuth siempre y el Service Token
-    /// sólo si está configurado.
+    /// Pone las credenciales en un pedido: BasicAuth siempre y el Service Token sólo si está
+    /// configurado.
     /// </summary>
-    /// <remarks>
-    /// Por pedido y no como cabeceras del cliente: el proveedor <c>ollama</c>
-    /// sale por el mismo transporte que Anthropic, y unas cabeceras por defecto
-    /// viajarían también a otro servicio.
-    /// </remarks>
     public void Autenticar(HttpRequestMessage pedido)
     {
         ArgumentNullException.ThrowIfNull(pedido);

@@ -3,16 +3,9 @@ using System.Globalization;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// La pregunta normalizada para las comprobaciones léxicas del plan: minúsculas,
-/// sin acentos, en palabras.
+/// La pregunta normalizada para las comprobaciones léxicas del plan: minúsculas, sin acentos, en
+/// palabras.
 /// </summary>
-/// <remarks>
-/// Todo lo que el plan compara contra la pregunta —la puerta, el anclaje, el
-/// cierre— pasa por acá, y por eso las frases del catálogo se escriben también
-/// sin acentos y en minúsculas. Las búsquedas son siempre por palabra entera: sin
-/// eso, «adjunto» aparecería dentro de «adjuntos» como corresponde pero «tres»
-/// aparecería dentro de «trescientos».
-/// </remarks>
 internal sealed class TextoDeLaPregunta
 {
     private static readonly Dictionary<string, int> NumerosEnPalabras = new(StringComparer.Ordinal)

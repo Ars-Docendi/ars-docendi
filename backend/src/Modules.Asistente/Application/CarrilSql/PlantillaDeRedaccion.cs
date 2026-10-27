@@ -3,19 +3,9 @@ using System.Globalization;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// La respuesta de un resultado trivial, escrita sin modelo
-/// (asistente-optimizaciones-modelo-local, design.md D5).
+/// La respuesta de un resultado trivial, escrita sin modelo (asistente-optimizaciones-modelo-local,
+/// design.md D5).
 /// </summary>
-/// <remarks>
-/// <b>Sólo cuando no hay nada que matizar.</b> Las reglas de la redacción —no
-/// afirmar totales si el resultado se recortó, encuadrar en el alcance si el
-/// actor no ve todo, decir sobre cuántos se sabe si el dato es autodeclarado—
-/// necesitan prosa, y ahí sigue el modelo. Fuera de esos casos, una columna con
-/// pocos valores se dice igual de bien con una plantilla, y la llamada se ahorra.
-///
-/// Usa los valores que recibe el redactor, que ya vienen enmascarados: la
-/// plantilla no ve nada que el modelo no hubiera visto.
-/// </remarks>
 internal static class PlantillaDeRedaccion
 {
     /// <summary>Cuántas filas entran como mucho en una lista dicha en una oración.</summary>

@@ -8,29 +8,6 @@ using Microsoft.Extensions.Options;
 namespace Modules.Asistente.Application;
 
 /// <summary>Lo que devuelve la primera llamada al modelo.</summary>
-/// <param name="EsContestable">Si la pregunta se puede responder con el esquema disponible.</param>
-/// <param name="Sql">La consulta generada, o nulo si no es contestable.</param>
-/// <param name="Razonamiento">
-/// Cómo interpretó el modelo la pregunta. Llega a la respuesta como transparencia
-/// media (RF-11); no se descarta.
-/// </param>
-/// <param name="Categoria">Categoría estimada de dificultad.</param>
-/// <param name="Motivo">
-/// El motivo declarado por el modelo cuando <paramref name="EsContestable"/> es
-/// falso (design.md D2 de asistente-rechazos-dinamicos). <c>null</c> significa
-/// «el modelo no decidió nada»: una contradicción (contestable sin consulta),
-/// una respuesta ininteligible o una generación cortada por el techo de
-/// tokens — nunca una abstención declarada con un motivo fuera del conjunto,
-/// que resuelve <see cref="MotivoDeRechazo.NoCubierto"/> y no <c>null</c>. Esa
-/// distinción es la que mantiene <c>motivo_rechazo</c> limpia de fallas de
-/// formato (design.md D7).
-/// </param>
-/// <param name="TerminoCandidato">
-/// El término que el modelo propone para nombrar lo que no pudo responder, sin
-/// validar todavía. Sólo <see cref="TerminoDelRechazo.Validar"/> decide si
-/// llega al texto, y sólo como un span de lo que el usuario tipeó — nunca esta
-/// cadena tal cual.
-/// </param>
 public sealed record GeneracionDeSql(
     bool EsContestable,
     string? Sql,
@@ -46,17 +23,7 @@ public sealed record GeneracionDeSql(
         string razonamiento, MotivoDeRechazo? motivo = null, string? terminoCandidato = null) =>
         new(false, null, razonamiento, CategoriaNoContestable, motivo, terminoCandidato);
 
-    /// <summary>
-    /// Generación que se cortó por el techo de tokens antes de poder decidir.
-    /// </summary>
-    /// <remarks>
-    /// Para el usuario es una abstención más: mismo estado y mismo texto, porque
-    /// contarle que hubo un problema de presupuesto es contarle cómo está hecho el
-    /// sistema (RNF-18). La diferencia va en la categoría, que es lo que leen el
-    /// registro analítico y el evaluador: una abstención es una decisión del modelo
-    /// y esto no lo es, y la métrica primaria —corrección con abstención— no puede
-    /// acreditar como acierto un turno que no llegó a decidir nada.
-    /// </remarks>
+    /// <summary>Generación que se cortó por el techo de tokens antes de poder decidir.</summary>
     public static GeneracionDeSql Truncada(string razonamiento) =>
         new(false, null, razonamiento, CategoriaTruncada, Causa: CausaDelTurno.GeneracionCortada);
 
@@ -75,13 +42,9 @@ public sealed record GeneracionDeSql(
 }
 
 /// <summary>
-/// Primera llamada al modelo: traduce la pregunta a SQL (RF-11, RF-18).
+/// Primera llamada al modelo: traduce la pregunta a SQL (RF-11, RF-18). Temperatura cero y prefijo
+/// cacheado sin modificar.
 /// </summary>
-/// <remarks>
-/// Temperatura cero y prefijo cacheado sin modificar. Todo lo que varía por turno
-/// —los ejemplos, la fecha, la pregunta— viaja en el prompt de usuario: es la
-/// línea que separa lo que se cachea de lo que no.
-/// </remarks>
 public sealed class GeneradorDeSql(
     IProveedorDeEsquema esquema,
     ISelectorDeEjemplos ejemplos,
@@ -92,19 +55,9 @@ public sealed class GeneradorDeSql(
     CacheDeConsultasGeneradas? cache = null)
 {
     /// <summary>
-    /// La forma JSON de la respuesta, declarada para que un proveedor que puede
-    /// imponerla la imponga (asistente-proveedor-local, design.md D3).
+    /// La forma JSON de la respuesta, declarada para que un proveedor que puede imponerla la
+    /// imponga (asistente-proveedor-local, design.md D3).
     /// </summary>
-    /// <remarks>
-    /// Mismas claves y MISMO ORDEN que pide <c>InstruccionesDeGeneracion</c>: con
-    /// decodificación restringida el modelo escribe las propiedades en el orden del
-    /// esquema, y uno distinto del de las instrucciones lo haría pelear contra su
-    /// propio prompt. <c>motivo</c> y <c>termino</c> son opcionales y aceptan nulo,
-    /// igual que el intérprete, que los tolera ausentes o de otro tipo.
-    ///
-    /// El esquema garantiza la FORMA. Que la consulta sea segura y respete el
-    /// alcance lo sigue decidiendo <c>ValidadorDeSql</c>.
-    /// </remarks>
     internal const string EsquemaDeSalida = """
         {
           "type": "object",
@@ -126,13 +79,9 @@ public sealed class GeneradorDeSql(
         """;
 
     /// <summary>
-    /// Si una consulta que volvió vacía se vuelve a generar
-    /// (<see cref="OpcionesAsistente.ReintentarConsultaVacia"/>, D6).
+    /// Si una consulta que volvió vacía se vuelve a generar (<see
+    /// cref="OpcionesAsistente.ReintentarConsultaVacia"/>, D6).
     /// </summary>
-    /// <remarks>
-    /// Lo expone el generador porque es el dueño de la llamada que se repetiría y
-    /// el que ya recibe las opciones: el carril pregunta, no configura.
-    /// </remarks>
     internal bool ReintentaConsultaVacia => opciones.Value.ReintentarConsultaVacia;
 
     /// <summary>Si el reintento por vacío lleva la consulta anterior (D4).</summary>
@@ -164,39 +113,10 @@ public sealed class GeneradorDeSql(
     /// <summary>
     /// Razonamiento con que se resuelve una respuesta que no se pudo interpretar.
     /// </summary>
-    /// <remarks>
-    /// Está escrito para el usuario final: no menciona esquema, ni tablas, ni el
-    /// hecho de que hubo un problema de formato (D15).
-    /// </remarks>
     private const string RazonamientoIninteligible =
         "No pude interpretar la pregunta con la información disponible.";
 
     /// <summary>Genera la consulta para una pregunta.</summary>
-    /// <param name="menciones">
-    /// Las menciones nuevas de este turno, ya numeradas por
-    /// <see cref="MarcadoresDeReferencias.Asignar"/>. Vacío o nulo en un turno
-    /// sin menciones —el caso mayoritario— deja el mensaje BYTE A BYTE igual que
-    /// antes de que existieran (design.md D11): el bloque «Menciones» sólo se
-    /// agrega cuando hay algo que agregar.
-    /// </param>
-    /// <param name="preguntasAnteriores">
-    /// Las preguntas anteriores del segmento vigente, sólo con
-    /// <see cref="OpcionesAsistente.ReescrituraEnLaGeneracion"/>
-    /// (asistente-optimizaciones-modelo-local, D7): la generación resuelve la
-    /// anáfora y devuelve la pregunta interpretada, en vez de una llamada aparte
-    /// al reescritor.
-    /// </param>
-    /// <param name="intentoAnterior">
-    /// La consulta anterior de ESTE turno y qué pasó con ella —vacía, o rechazada
-    /// por el motor con el error saneado— (D4). Nulo en la primera generación.
-    /// </param>
-    /// <param name="esSegundaGeneracion">
-    /// Verdadero en el reintento tras una consulta vacía y en la reparación tras un
-    /// rechazo del motor. No se infiere de <paramref name="intentoAnterior"/>: el
-    /// reintento sin contexto no lo trae. Con
-    /// <see cref="OpcionesAsistente.RazonamientoEnSegundaGeneracion"/> prendida pide
-    /// esfuerzo alto y el techo de <see cref="OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion"/>.
-    /// </param>
     public async Task<GeneracionDeSql> GenerarAsync(
         string pregunta,
         bool conDatosPersonales,
@@ -213,9 +133,8 @@ public sealed class GeneradorDeSql(
         var conRazonamiento = esSegundaGeneracion && valores.RazonamientoEnSegundaGeneracion;
         var prefijo = await esquema.ObtenerAsync(conDatosPersonales, ct);
 
-        // EJEMPLOS EN EL PREFIJO (D3): todos al final del prefijo cacheable, y
-        // ninguno en el mensaje. Sin la opción, el prefijo y el mensaje son BYTE A
-        // BYTE los de siempre.
+        // EJEMPLOS EN EL PREFIJO (D3): todos al final del prefijo cacheable, y ninguno en el
+        // mensaje.
         var prefijoEstable = valores.EjemplosEnElPrefijo
             ? prefijo.Prefijo + BloqueDeEjemplos()
             : prefijo.Prefijo;
@@ -229,11 +148,9 @@ public sealed class GeneradorDeSql(
                     pregunta, elegidos, fecha.Hoy(), consultasAnteriores, menciones,
                     preguntasAnteriores, intentoAnterior),
                 Temperatura = 0.0m,
-                // La llamada que MÁS se beneficia de deliberar: elegir el join
-                // correcto entre catorce tablas es el trabajo que mejora pensando, y
-                // es donde equivocarse produce una respuesta falsa.
-                // En la segunda generación del turno, con la opción prendida, se paga
-                // deliberar: esfuerzo alto y su propio techo (cero usa el de siempre).
+                // La llamada que MÁS se beneficia de deliberar: elegir el join correcto entre
+                // catorce tablas es el trabajo que mejora pensando, y es donde equivocarse produce
+                // una respuesta falsa.
                 Esfuerzo = conRazonamiento
                     ? EsfuerzoDelModelo.Alto
                     : EsfuerzoConfigurado.Interpretar(
@@ -252,10 +169,9 @@ public sealed class GeneradorDeSql(
         {
             if (interpretada is null)
             {
-                // El modelo gastó el presupuesto antes de cerrar el objeto. NO es
-                // una abstención: el modelo no decidió nada, y contarla como tal
-                // haría que un techo corto se viera igual que un asistente prudente
-                // —en el registro y, peor, en la métrica—.
+                // El modelo gastó el presupuesto antes de cerrar el objeto. NO es una abstención:
+                // el modelo no decidió nada, y contarla como tal haría que un techo corto se viera
+                // igual que un asistente prudente —en el registro y, peor, en la métrica—.
                 return GeneracionDeSql.Truncada(RazonamientoIninteligible);
             }
 
@@ -270,23 +186,9 @@ public sealed class GeneradorDeSql(
     }
 
     /// <summary>
-    /// Arma el prompt de usuario. Todo lo variable del turno está acá y nada de
-    /// esto puede filtrarse al prefijo.
+    /// Arma el prompt de usuario. Todo lo variable del turno está acá y nada de esto puede
+    /// filtrarse al prefijo.
     /// </summary>
-    /// <param name="consultasAnteriores">
-    /// Las consultas del segmento vigente, de la más vieja a la más reciente. Van
-    /// ACÁ y no en el prefijo: el prefijo se cachea y su huella sella los reportes
-    /// de evaluación, así que meterle algo que cambia por turno lo invalidaría en
-    /// cada llamada y pagaría escritura a 1,25× en vez de lectura a 0,1×.
-    /// </param>
-    /// <param name="menciones">
-    /// Las menciones nuevas de este turno (design.md D11). VA DESPUÉS de la
-    /// pregunta y no antes: es la última cosa cierta de este turno —la que el
-    /// usuario eligió al escribir, no algo que haya que inferir de la pregunta—,
-    /// y por el mismo motivo por el que las consultas anteriores van después de
-    /// los ejemplos, ponerla antes la dejaría a merced de que el modelo la lea
-    /// como un ejemplo más en vez de como una instrucción sobre ESTA pregunta.
-    /// </param>
     internal static string ArmarMensaje(
         string pregunta,
         IReadOnlyList<EjemploSql> elegidos,
@@ -314,11 +216,9 @@ public sealed class GeneradorDeSql(
             }
         }
 
-        // DESPUÉS DE LOS EJEMPLOS Y ANTES DE LA PREGUNTA, a propósito. Los ejemplos
-        // enseñan la FORMA del esquema y son intercambiables entre turnos; esto es
-        // el estado de ESTA conversación y lo que la pregunta continúa. Ponerlo
-        // entre los ejemplos lo dejaría a merced de que el modelo lo lea como uno
-        // más y copie su forma en vez de continuarla.
+        // DESPUÉS DE LOS EJEMPLOS Y ANTES DE LA PREGUNTA, a propósito. Los ejemplos enseñan la
+        // FORMA del esquema y son intercambiables entre turnos; esto es el estado de ESTA
+        // conversación y lo que la pregunta continúa.
         if (consultasAnteriores is { Count: > 0 })
         {
             mensaje.Append(
@@ -332,9 +232,7 @@ public sealed class GeneradorDeSql(
             }
         }
 
-        // PREGUNTAS ANTERIORES (D7): sólo con la reescritura dentro de la
-        // generación. Van antes de la pregunta por lo mismo que las consultas
-        // anteriores: son el estado de esta conversación.
+        // PREGUNTAS ANTERIORES (D7): sólo con la reescritura dentro de la generación.
         if (preguntasAnteriores is { Count: > 0 })
         {
             mensaje.Append(
@@ -357,10 +255,9 @@ public sealed class GeneradorDeSql(
                 + "Si la pregunta ya se entiende sola, omití la clave.\n");
         }
 
-        // SÓLO SI HAY MENCIONES NUEVAS: con un turno sin ellas —el caso
-        // mayoritario, y el único que existía antes de D11— este método devuelve
-        // BYTE A BYTE el mismo texto que devolvía antes, así que ningún cassette
-        // grabado se invalida (PrefijoDeLosCassettesTests sigue en pie sin
+        // SÓLO SI HAY MENCIONES NUEVAS: con un turno sin ellas —el caso mayoritario, y el único que
+        // existía antes de D11— este método devuelve BYTE A BYTE el mismo texto que devolvía antes,
+        // así que ningún cassette grabado se invalida (PrefijoDeLosCassettesTests sigue en pie sin
         // regrabar nada).
         if (menciones is { Count: > 0 })
         {
@@ -395,14 +292,9 @@ public sealed class GeneradorDeSql(
     }
 
     /// <summary>
-    /// Todos los ejemplos verificados, en el orden del catálogo, para el final
-    /// del prefijo (asistente-optimizaciones-modelo-local, D3).
+    /// Todos los ejemplos verificados, en el orden del catálogo, para el final del prefijo
+    /// (asistente-optimizaciones-modelo-local, D3).
     /// </summary>
-    /// <remarks>
-    /// Determinista y memorizado: el catálogo es un recurso embebido y no cambia
-    /// mientras el proceso vive, así que el prefijo resultante es byte a byte
-    /// igual en cada turno — que es lo que la caché de prefijo necesita.
-    /// </remarks>
     private string BloqueDeEjemplos() => _bloqueDeEjemplos ??= ArmarBloqueDeEjemplos(ejemplos.Catalogo);
 
     private string? _bloqueDeEjemplos;
@@ -424,26 +316,11 @@ public sealed class GeneradorDeSql(
         return bloque.ToString();
     }
 
-    /// <summary>
-    /// Interpreta la respuesta del modelo.
-    /// </summary>
-    /// <remarks>
-    /// Una respuesta que no se puede interpretar resuelve <b>no contestable</b>.
-    /// La alternativa —buscar algo que parezca SQL dentro del texto— convertiría
-    /// un fallo de formato en la ejecución de una consulta que nadie declaró como
-    /// tal, que es exactamente el caso que el validador existe para evitar.
-    /// </remarks>
+    /// <summary>Interpreta la respuesta del modelo.</summary>
     internal static GeneracionDeSql Interpretar(string texto) =>
         InterpretarSiSePuede(texto) ?? GeneracionDeSql.Ininteligible(RazonamientoIninteligible);
 
-    /// <summary>
-    /// Interpreta la respuesta, o nulo si no tiene la forma esperada.
-    /// </summary>
-    /// <remarks>
-    /// Devuelve nulo en lugar de resolver por abstención porque quien llama necesita
-    /// la diferencia: la misma respuesta ininteligible es una abstención si el modelo
-    /// terminó de escribir y un corte por presupuesto si no.
-    /// </remarks>
+    /// <summary>Interpreta la respuesta, o nulo si no tiene la forma esperada.</summary>
     private static GeneracionDeSql? InterpretarSiSePuede(string texto)
     {
         var json = ExtraerObjeto(texto);
@@ -471,11 +348,10 @@ public sealed class GeneradorDeSql(
             ? RazonamientoIninteligible
             : interpretada.Razonamiento.Trim();
 
-        // EL MODELO DECLARÓ, EXPLÍCITAMENTE, QUE NO ES CONTESTABLE (design.md D2
-        // de asistente-rechazos-dinamicos): acá SÍ hubo una decisión, así que el
-        // motivo se interpreta —cualquier valor fuera del conjunto cerrado
-        // resuelve `NoCubierto`, nunca `null`— y el término candidato queda
-        // expuesto sin validar todavía.
+        // EL MODELO DECLARÓ, EXPLÍCITAMENTE, QUE NO ES CONTESTABLE (design.md D2 de
+        // asistente-rechazos-dinamicos): acá SÍ hubo una decisión, así que el motivo se interpreta
+        // —cualquier valor fuera del conjunto cerrado resuelve `NoCubierto`, nunca `null`— y el
+        // término candidato queda expuesto sin validar todavía.
         if (!interpretada.EsContestable)
         {
             var motivo = MotivosDeRechazo.Interpretar(ComoCadena(interpretada.Motivo));
@@ -484,10 +360,8 @@ public sealed class GeneradorDeSql(
             return GeneracionDeSql.NoContestable(razonamiento, motivo, termino);
         }
 
-        // Contestable sin consulta es una contradicción del modelo: se resuelve
-        // como abstención en lugar de seguir con una consulta vacía. El motivo
-        // queda `null` a propósito (design.md D2): no fue una decisión del
-        // modelo SOBRE EL MOTIVO, fue una contradicción del objeto entero.
+        // Contestable sin consulta es una contradicción del modelo: se resuelve como abstención en
+        // lugar de seguir con una consulta vacía.
         if (string.IsNullOrWhiteSpace(interpretada.Sql))
         {
             return GeneracionDeSql.NoContestable(razonamiento);
@@ -508,15 +382,9 @@ public sealed class GeneradorDeSql(
     }
 
     /// <summary>
-    /// Recorta el objeto JSON del texto, tolerando delimitadores de bloque de
-    /// código y prosa alrededor.
+    /// Recorta el objeto JSON del texto, tolerando delimitadores de bloque de código y prosa
+    /// alrededor.
     /// </summary>
-    /// <remarks>
-    /// Busca desde la primera llave hasta la última: el objeto que se espera es
-    /// uno solo y está completo, así que no hace falta equilibrar llaves — y un
-    /// texto donde eso no alcance es justamente un texto que no se puede
-    /// interpretar, que resuelve por abstención.
-    /// </remarks>
     private static string? ExtraerObjeto(string texto)
     {
         if (string.IsNullOrWhiteSpace(texto))
@@ -557,11 +425,10 @@ public sealed class GeneradorDeSql(
         [JsonPropertyName("categoria")]
         public string? Categoria { get; init; }
 
-        // TOLERANTE A PROPÓSITO (design.md D2): `JsonElement?` en vez de
-        // `string?` para que un `motivo`/`termino` que no es cadena —42, un
-        // objeto, `true`— se ignore en `ComoCadena` en lugar de que
-        // `JsonSerializer.Deserialize` tire `JsonException` y pierda la
-        // decisión entera (`es_contestable`, `sql`, `razonamiento`) con ella.
+        // TOLERANTE A PROPÓSITO (design.md D2): `JsonElement?` en vez de `string?` para que un
+        // `motivo`/`termino` que no es cadena —42, un objeto, `true`— se ignore en `ComoCadena` en
+        // lugar de que `JsonSerializer.Deserialize` tire `JsonException` y pierda la decisión
+        // entera (`es_contestable`, `sql`, `razonamiento`) con ella.
         [JsonPropertyName("motivo")]
         public JsonElement? Motivo { get; init; }
 

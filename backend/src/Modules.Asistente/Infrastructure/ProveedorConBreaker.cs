@@ -5,14 +5,6 @@ namespace Modules.Asistente.Infrastructure;
 /// <summary>
 /// Le pone timeout a cada llamada al modelo y alimenta el breaker con el resultado.
 /// </summary>
-/// <remarks>
-/// Las dos cosas van juntas en un solo decorador a propósito: el timeout es una de
-/// las dos formas de fallo que el breaker cuenta, y separarlos dejaría al breaker
-/// sin ver la mitad de los fallos que le importan.
-///
-/// El timeout es <b>por llamada</b> y no es la cota del turno. La cota del turno la
-/// pone <see cref="PresupuestoDelTurno"/>, encadenada por encima de ésta.
-/// </remarks>
 internal sealed class ProveedorConBreaker(
     IProveedorDeModelo interno,
     BreakerDelProveedor breaker,

@@ -5,20 +5,7 @@ using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Proveedor simulado y determinista. No hace ninguna llamada de red.
-/// </summary>
-/// <remarks>
-/// Es el default de todos los ambientes: usar un proveedor real exige
-/// configuración explícita. Los ambientes efímeros de PR corren siempre con este,
-/// porque su workflow ejecuta un script que viene del propio pull request en un
-/// job que tiene los secrets del environment.
-///
-/// La respuesta dice que es simulada, en el texto y en la bandera. Un proveedor de
-/// mentira que devolviera algo verosímil sería peor que uno que falla: la métrica
-/// del asistente es corrección con abstención, y un texto inventado presentado
-/// como respuesta real es justo lo que esa métrica prohíbe.
-/// </remarks>
+/// <summary>Proveedor simulado y determinista. No hace ninguna llamada de red.</summary>
 internal sealed class ProveedorSimulado : IProveedorDeModelo
 {
     /// <summary>Nombre de configuración de este proveedor.</summary>
@@ -51,14 +38,9 @@ internal sealed class ProveedorSimulado : IProveedorDeModelo
     }
 
     /// <summary>
-    /// Huella estable de la solicitud: la misma entrada devuelve siempre el mismo
-    /// texto, en cualquier proceso y en cualquier máquina.
+    /// Huella estable de la solicitud: la misma entrada devuelve siempre el mismo texto, en
+    /// cualquier proceso y en cualquier máquina.
     /// </summary>
-    /// <remarks>
-    /// SHA-256 y no <c>string.GetHashCode()</c>: en .NET el hash de string está
-    /// aleatorizado por proceso, así que usarlo daría un resultado distinto en cada
-    /// arranque y el cliente dejaría de ser determinista sin que nada fallara.
-    /// </remarks>
     private static string Huella(SolicitudAlModelo solicitud)
     {
         var material = string.Join(
@@ -74,7 +56,6 @@ internal sealed class ProveedorSimulado : IProveedorDeModelo
 
     /// <summary>
     /// Estimación grosera para que el registro operativo tenga un número estable.
-    /// No pretende coincidir con el tokenizador de ningún proveedor.
     /// </summary>
     private static int TokensAproximados(int caracteres) => Math.Max(1, caracteres / 4);
 }

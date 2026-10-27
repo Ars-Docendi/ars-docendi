@@ -6,21 +6,9 @@ using NpgsqlTypes;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// <see cref="IConsultasDeProblemasDeCalidad"/>: the anonymous list of problem answers
-/// (design D5 and D8 of asistente-metricas-de-calidad).
+/// <see cref="IConsultasDeProblemasDeCalidad"/>: the anonymous list of problem answers (design D5
+/// and D8 of asistente-metricas-de-calidad).
 /// </summary>
-/// <remarks>
-/// Same confinement as <see cref="ConsultasDeCalidad"/>, enforced by the same architecture
-/// rule: the analytic record and the vote table, no operational record, no actor, no vote
-/// free text, no vote timestamp. A row carries the question text, the reason or cause, the
-/// type, the model, the day and the state, which is everything the analytic record knows.
-///
-/// A turn with several problems is one row. Its type is the one asked for, or, with no
-/// filter, the first of negative, failure, replacement. Policy denials and an empty result
-/// are not problems and never listed. The audit of the read is written by
-/// <see cref="AuditoriaDeRevisionDeCalidad"/>, not here, so this file never needs to name
-/// who is reading.
-/// </remarks>
 internal sealed class ConsultasDeProblemasDeCalidad(
     CadenaDuena cadena,
     TimeProvider reloj) : IConsultasDeProblemasDeCalidad

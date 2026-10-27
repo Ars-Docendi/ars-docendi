@@ -7,17 +7,9 @@ internal sealed record CarreraDelPlan(Guid Id, string Nombre, string Codigo);
 internal sealed record EntidadResuelta(IReadOnlyList<Guid> Ids, string Nombre);
 
 /// <summary>Una lectura posible de una entidad ambigua.</summary>
-/// <param name="Carrera">
-/// La carrera que la desambigua, cuando el nombre es el mismo en varias carreras
-/// («Análisis Matemático»). Nula si lo que cambia es el nombre.
-/// </param>
 internal sealed record CandidatoDeEntidad(string Nombre, string? Carrera);
 
-/// <summary>
-/// Las entidades del plan ya resueltas, o la primera que no resolvió y por qué.
-/// </summary>
-/// <param name="Fallida">Nula si todas resolvieron.</param>
-/// <param name="Candidatos">Vacío si la fallida no existe; dos o más si es ambigua.</param>
+/// <summary>Las entidades del plan ya resueltas, o la primera que no resolvió y por qué.</summary>
 internal sealed record ResolucionDelPlan(
     IReadOnlyDictionary<int, EntidadResuelta> Entidades,
     CondicionValidada? Fallida,
@@ -30,16 +22,6 @@ internal sealed record ResolucionDelPlan(
 /// Resuelve las carreras y materias del plan dentro del alcance del actor (D7 de
 /// <c>asistente-plan-compilado</c>).
 /// </summary>
-/// <remarks>
-/// <b>Coincidencia exacta del nombre normalizado, o de sus palabras distintivas.</b>
-/// Nada de distancia de edición: un nombre que no resuelve se le dice al usuario,
-/// que es preferible a contar sobre la materia vecina.
-///
-/// <b>Un nombre compartido por varias carreras es ambiguo</b> —la misma política que
-/// el detector de ambigüedad de la capa conversacional—, salvo que la misma lista
-/// del plan nombre la carrera: «Análisis Matemático» sola se aclara; «Análisis
-/// Matemático en Ingeniería Industrial» resuelve a una sola materia.
-/// </remarks>
 internal sealed class ResolutorDeEntidadesDelPlan(IEjecutorDeConsulta ejecutor, IBuscadorDeMenciones menciones)
 {
     private const string ConsultaDeCarreras =

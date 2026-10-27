@@ -4,28 +4,15 @@ using Npgsql;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Aplica los privilegios de lectura del asistente sobre una base ya migrada.
-/// </summary>
-/// <remarks>
-/// Es público y recibe la conexión desde afuera a propósito: lo usan el migrador
-/// del módulo y la infraestructura de tests, y las dos tienen que ejercitar
-/// exactamente el mismo SQL. Una copia del script en los tests probaría la copia.
-/// </remarks>
+/// <summary>Aplica los privilegios de lectura del asistente sobre una base ya migrada.</summary>
 public static partial class PrivilegiosAsistente
 {
     /// <summary>Ruta lógica del recurso embebido con el DDL de privilegios.</summary>
     public const string RecursoSql = "asistente/001_asistente_grants.sql";
 
     /// <summary>
-    /// Concede los privilegios declarados en el manifiesto a los dos roles del
-    /// asistente. Idempotente: re-ejecutar converge.
+    /// Concede los privilegios declarados en el manifiesto a los dos roles del asistente.
     /// </summary>
-    /// <remarks>
-    /// Los nombres de rol llevan sufijo de ambiente, así que no pueden estar
-    /// escritos en el <c>.sql</c>. Viajan como GUC de transacción —no como
-    /// interpolación de texto— y del otro lado se citan con <c>format(%I)</c>.
-    /// </remarks>
     public static async Task AplicarAsync(
         NpgsqlConnection conexion,
         string rolSoloLectura,
@@ -37,9 +24,7 @@ public static partial class PrivilegiosAsistente
 
         var sql = RecursosSql.Leer(typeof(PrivilegiosAsistente).Assembly, RecursoSql);
 
-        // Una sola transacción: o quedan todos los privilegios del manifiesto o
-        // ninguno. Un estado a medias es peor que ninguno, porque el test de
-        // manifiesto lo reportaría como deriva sin que nadie haya cambiado nada.
+        // Una sola transacción: o quedan todos los privilegios del manifiesto o ninguno.
         await using var transaccion = await conexion.BeginTransactionAsync(ct);
 
         await using (var guc = new NpgsqlCommand(
@@ -62,14 +47,9 @@ public static partial class PrivilegiosAsistente
     }
 
     /// <summary>
-    /// Falla temprano si el nombre no tiene forma de identificador sin comillas.
+    /// Falla temprano si el nombre no tiene forma de identificador sin comillas. La inyección ya
+    /// está cerrada por el parámetro y por <c>format(%I)</c>.
     /// </summary>
-    /// <remarks>
-    /// La inyección ya está cerrada por el parámetro y por <c>format(%I)</c>. Esto
-    /// existe para que un nombre mal armado —una variable de ambiente vacía, un
-    /// valor con espacios— falle con un mensaje que dice cuál, en vez de con un
-    /// «role does not exist» a mitad del script.
-    /// </remarks>
     private static void ValidarNombreDeRol(string valor, string parametro)
     {
         if (string.IsNullOrWhiteSpace(valor))

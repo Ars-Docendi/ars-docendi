@@ -5,35 +5,16 @@ using Microsoft.Extensions.Options;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Convierte un seguimiento elíptico —«¿y en Sistemas?»— en una pregunta
-/// autocontenida.
+/// Convierte un seguimiento elíptico —«¿y en Sistemas?»— en una pregunta autocontenida. Su prompt
+/// no está cacheado, así que se lo puede editar sin tocar el prefijo estable del carril SQL.
 /// </summary>
-/// <remarks>
-/// Es la <b>única</b> llamada al modelo que agrega la capa conversacional, y solo
-/// corre cuando hay historial: un primer turno no la paga.
-///
-/// Su prompt no está cacheado, así que se lo puede editar sin tocar el prefijo
-/// estable del carril SQL.
-///
-/// Corre <b>antes</b> del detector de ambigüedad: la pregunta original no contiene
-/// ninguna entidad ambigua, pero la reescrita sí, y además ya trae el discriminador
-/// que la resuelve.
-/// </remarks>
 public sealed class ReescritorDePreguntas(
     IProveedorDeModelo modelo, IOptions<OpcionesAsistente> opciones)
 {
     private const decimal Temperatura = 0.0m;
 
 
-    /// <summary>
-    /// Reescribe el mensaje como pregunta autocontenida.
-    /// </summary>
-    /// <remarks>
-    /// Con historial vacío devuelve el mensaje tal cual, <b>sin llamar al modelo</b>.
-    /// Es el mecanismo del cambio de tema: al pivotar, el llamador manda historial
-    /// vacío y la reescritura deja de ocurrir, en vez de pedirle al modelo que
-    /// ignore lo anterior.
-    /// </remarks>
+    /// <summary>Reescribe el mensaje como pregunta autocontenida.</summary>
     public async Task<string> ReescribirAsync(
         string mensaje, IReadOnlyList<TurnoDelHilo> historial, CancellationToken ct)
     {
@@ -51,9 +32,7 @@ public sealed class ReescritorDePreguntas(
                 PrefijoEstable = Instrucciones,
                 Mensaje = ArmarMensaje(mensaje, historial),
                 Temperatura = Temperatura,
-                // Bajo: resolver «¿y el de Pérez?» contra el turno anterior es una
-                // sustitución. Y está en el camino crítico de todo seguimiento, antes
-                // de que el pipeline siquiera empiece.
+                // Bajo: resolver «¿y el de Pérez?» contra el turno anterior es una sustitución.
                 Esfuerzo = EsfuerzoConfigurado.Interpretar(
                     opciones.Value.EsfuerzoDeReescritura,
                     nameof(OpcionesAsistente.EsfuerzoDeReescritura)),
@@ -65,18 +44,6 @@ public sealed class ReescritorDePreguntas(
     }
 
     /// <summary>Instrucciones fijas de la reescritura.</summary>
-    /// <remarks>
-    /// <b>Soltar una restricción es un resultado legítimo.</b> Una regla que dijera
-    /// «conservá todas las restricciones vigentes; si no la menciona, arrastrala»
-    /// produce arrastre silencioso: el filtro del turno anterior angosta el
-    /// resultado del siguiente y el usuario no se entera. Por eso la regla enumera
-    /// los campos del dominio y decide uno por uno.
-    ///
-    /// Los dos ejemplos son deliberados. Sin el de descarte, la única forma
-    /// demostrada de resolver el prompt es arrastrar, y el modelo arrastra siempre.
-    /// Ninguno replica un turno del dataset de evaluación: un ejemplo copiado de ahí
-    /// estaría entrenando contra la métrica.
-    /// </remarks>
     internal const string Instrucciones = """
         Convertís el último mensaje de una conversación en una pregunta que se
         entienda sola, sin necesidad de leer los mensajes anteriores.
@@ -120,11 +87,6 @@ public sealed class ReescritorDePreguntas(
         """;
 
     /// <summary>Arma el prompt de usuario de la reescritura.</summary>
-    /// <remarks>
-    /// Es <c>internal</c> y puro para poder afirmar en un test <b>qué se le mandó al
-    /// modelo</b>. El test del pivote mira justamente eso: que no lleve ningún turno
-    /// anterior. Verificarlo por la salida probaría al modelo, no a este código.
-    /// </remarks>
     internal static string ArmarMensaje(string mensaje, IReadOnlyList<TurnoDelHilo> historial)
     {
         var prompt = new StringBuilder();
@@ -140,15 +102,7 @@ public sealed class ReescritorDePreguntas(
         return prompt.ToString();
     }
 
-    /// <summary>
-    /// Toma la reescritura, o el mensaje original si la respuesta no sirve.
-    /// </summary>
-    /// <remarks>
-    /// Conservar el original ante una respuesta vacía o disparatada degrada el
-    /// seguimiento y no rompe el turno. Aceptar cualquier cosa haría que un fallo
-    /// del modelo se transformara en una pregunta distinta de la que el usuario
-    /// hizo, que es peor: respondería bien algo que nadie preguntó.
-    /// </remarks>
+    /// <summary>Toma la reescritura, o el mensaje original si la respuesta no sirve.</summary>
     internal static string Interpretar(string respuesta, string original)
     {
         var limpia = respuesta

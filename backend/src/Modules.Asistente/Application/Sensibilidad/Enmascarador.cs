@@ -2,54 +2,22 @@ using System.Globalization;
 
 namespace Modules.Asistente.Application;
 
-/// <summary>
-/// What gets hidden from the result before redaction.
-/// </summary>
+/// <summary>What gets hidden from the result before redaction.</summary>
 internal enum ModoDeEnmascarado
 {
     /// <summary>Markers for <c>sensible-valor</c>, and <c>sensible-texto</c> is suppressed.</summary>
     Todo,
 
     /// <summary>
-    /// Only <c>sensible-texto</c> is suppressed; <c>sensible-valor</c> values pass
-    /// through. Chosen by <see cref="OpcionesAsistente.RedaccionSinEnmascararVigente"/>.
+    /// Only <c>sensible-texto</c> is suppressed; <c>sensible-valor</c> values pass through.
     /// </summary>
     SoloTextoLibre,
 }
 
-/// <summary>
-/// Frontera de salida: qué del resultado puede viajar al proveedor del modelo.
-/// </summary>
-/// <remarks>
-/// Se interpone entre la ejecución de la SQL y la llamada de redacción. Las filas
-/// que llegan al modelo van enmascaradas; las reales siguen viaje al llamador del
-/// carril intactas.
-///
-/// <b>Consecuencia de diseño, no efecto colateral</b>: si el valor está tapado, el
-/// modelo no puede pronunciarlo. Con columnas sensibles la narración deja de ser
-/// el vehículo del dato — el modelo redacta el marco («encontré 4 docentes») y el
-/// dato lo renderiza la interfaz.
-///
-/// <b>El enmascaramiento es asimétrico y no cierra la entrada.</b> La pregunta
-/// cruda del usuario viaja al proveedor a través de la generación. Si alguien
-/// tipea un documento en la pregunta, llega al modelo igual. Esto protege el
-/// camino de vuelta, no el de ida. Se declara acá porque un lector que asuma
-/// simetría va a confiar de más.
-///
-/// Es una función pura: se la puede ejercitar en memoria, sin base y sin proveedor.
-/// </remarks>
+/// <summary>Frontera de salida: qué del resultado puede viajar al proveedor del modelo.</summary>
 internal static class Enmascarador
 {
-    /// <summary>
-    /// Devuelve el resultado que puede viajar al modelo.
-    /// </summary>
-    /// <remarks>
-    /// Las columnas <see cref="ClasificacionDeSensibilidad.SensibleTexto"/>
-    /// desaparecen enteras —nombre incluido— y las
-    /// <see cref="ClasificacionDeSensibilidad.SensibleValor"/> conservan su columna
-    /// con los valores reemplazados por marcadores. With
-    /// <see cref="ModoDeEnmascarado.SoloTextoLibre"/> the values are not replaced.
-    /// </remarks>
+    /// <summary>Devuelve el resultado que puede viajar al modelo.</summary>
     public static ResultadoDeConsulta Enmascarar(
         ResultadoDeConsulta resultado, ModoDeEnmascarado modo = ModoDeEnmascarado.Todo)
     {
@@ -113,23 +81,7 @@ internal static class Enmascarador
             ? sensibilidad[indice]
             : SensibilidadDeColumna.Publica;
 
-    /// <summary>
-    /// Asigna marcadores estables dentro de una respuesta.
-    /// </summary>
-    /// <remarks>
-    /// <b>El marcador es un contador, no una función del valor.</b> Derivarlo del
-    /// valor —un hash corto— saldría estable sin llevar estado, y es exactamente lo
-    /// que no hay que hacer: el espacio de documentos y de teléfonos es chico y
-    /// conocido, así que un hash se invierte por fuerza bruta en segundos. El
-    /// marcador viajaría al proveedor y sería el dato, con un paso más.
-    ///
-    /// Con un contador por orden de primera aparición no hay ninguna relación entre
-    /// el marcador y el valor, y el diccionario no sobrevive al turno.
-    ///
-    /// La etiqueta la da el manifiesto, así que el modelo sabe <b>de qué</b> es el
-    /// marcador sin saber cuál. Eso es lo que le permite redactar una respuesta con
-    /// sujeto en vez de una frase hueca.
-    /// </remarks>
+    /// <summary>Asigna marcadores estables dentro de una respuesta.</summary>
     private sealed class Marcadores
     {
         private const string EtiquetaPorOmision = "dato reservado";

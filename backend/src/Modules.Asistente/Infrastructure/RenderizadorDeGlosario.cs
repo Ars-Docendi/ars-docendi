@@ -7,16 +7,6 @@ namespace Modules.Asistente.Infrastructure;
 /// Convierte el glosario en el bloque «GLOSARIO INSTITUCIONAL» del prefijo
 /// (asistente-glosario-institucional, D6).
 /// </summary>
-/// <remarks>
-/// El bloque sale de los campos ya interpretados y no de los bytes del archivo, y
-/// no ordena nada: términos, sinónimos, referencias y valores van en el orden del
-/// archivo. Nunca lee la base, el reloj ni el actor, así que es el mismo texto en
-/// cada turno y para los dos roles de lectura.
-///
-/// <b>El literal sale de las referencias</b> —<c>col = 'v'</c> o <c>col IN (…)</c>—
-/// y no se escribe aparte: el valor que viaja al modelo está en un solo lugar, el
-/// mismo que verifica <c>GlosarioInstitucionalTests</c>.
-/// </remarks>
 internal static class RenderizadorDeGlosario
 {
     /// <summary>

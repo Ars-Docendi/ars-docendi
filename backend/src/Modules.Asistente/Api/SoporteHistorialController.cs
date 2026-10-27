@@ -9,20 +9,6 @@ namespace Modules.Asistente.Api;
 /// <summary>
 /// Lectura de soporte del historial AJENO (asistente-acceso-de-soporte-al-historial).
 /// </summary>
-/// <remarks>
-/// Todo el controller exige <c>asistente.leer_historial_ajeno</c> — un permiso
-/// propio, sembrado a NINGÚN rol (ni siquiera <c>sys_admin</c>), y distinto de
-/// <c>asistente.consultar</c>: tener admisión al asistente NO alcanza para
-/// leer el historial de otra persona.
-///
-/// <c>POST</c> y no <c>GET</c> en los dos endpoints, deliberadamente: la razón
-/// obligatoria viaja en el cuerpo y nunca en la URL (design.md D10).
-///
-/// Ningún endpoint de acá ofrece re-ejecución ni filas de resultado — sólo
-/// texto y momentos —, y ningún endpoint del módulo le dice al SUJETO que
-/// alguien leyó su historial (design.md D11): eso no es un olvido, es la
-/// decisión final del cliente.
-/// </remarks>
 [ApiController]
 [Route("api/asistente/soporte/historial")]
 [Authorize(Policy = Permisos.AsistenteLeerHistorialAjeno)]

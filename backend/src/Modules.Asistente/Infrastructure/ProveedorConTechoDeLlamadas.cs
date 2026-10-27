@@ -2,18 +2,7 @@ using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Envuelve al proveedor y le cobra al contador del turno cada llamada (RNF-10).
-/// </summary>
-/// <remarks>
-/// Es un decorador y no un chequeo dentro de cada capa a propósito: el techo tiene
-/// que ser global del turno. Repartido por capa, cada una respeta su límite y el
-/// total se multiplica igual — que es exactamente el modo de falla del que este
-/// requisito nace.
-///
-/// Como todo el pipeline pide <see cref="IProveedorDeModelo"/> por inyección,
-/// ninguna capa puede saltearse el contador sin dejar de usar el proveedor.
-/// </remarks>
+/// <summary>Envuelve al proveedor y le cobra al contador del turno cada llamada (RNF-10).</summary>
 internal sealed class ProveedorConTechoDeLlamadas(
     IProveedorDeModelo interno,
     ContadorDeLlamadasDelTurno contador) : IProveedorDeModelo
@@ -40,22 +29,10 @@ internal sealed class ProveedorConTechoDeLlamadas(
     }
 }
 
-/// <summary>
-/// El proveedor elegido por configuración, todavía sin el techo del turno.
-/// </summary>
-/// <remarks>
-/// Existe solo para la registración: el proveedor concreto vive como singleton y
-/// el decorador con el contador es scoped, así que hacen falta dos entradas y esta
-/// es la de adentro.
-/// </remarks>
+/// <summary>El proveedor elegido por configuración, todavía sin el techo del turno.</summary>
 internal sealed record ProveedorBase(IProveedorDeModelo Valor);
 
 /// <summary>
 /// El proveedor base que redacta, que puede ser un modelo distinto del que genera.
 /// </summary>
-/// <remarks>
-/// Es un tipo propio y no una instancia con clave del anterior para que el
-/// contenedor pueda distinguirlos sin que ningún consumidor tenga que nombrarlos:
-/// quién sirve cada caso de uso lo decide la composición.
-/// </remarks>
 internal sealed record BaseDeRedaccion(IProveedorDeModelo Valor);

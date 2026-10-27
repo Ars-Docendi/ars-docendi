@@ -5,21 +5,10 @@ using NpgsqlTypes;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Writes to <c>asistente.retroalimentacion_turno</c>.
-/// </summary>
-/// <remarks>
-/// Takes <see cref="CadenaDuena"/> and not a read-only connection, for the same
-/// reason <see cref="RegistroDelTurno"/> does: the two read-only roles have the
-/// whole <c>asistente</c> schema revoked, so they could not write here even if
-/// asked to.
-/// </remarks>
+/// <summary>Writes to <c>asistente.retroalimentacion_turno</c>.</summary>
 internal sealed class RegistroDeRetroalimentacion(CadenaDuena cadena) : IRegistroDeRetroalimentacion
 {
-    // ON CONFLICT (analitico_id) DO UPDATE: one row per turn, last vote wins, no
-    // history kept. This is the whole of design.md D4, expressed as SQL rather
-    // than as a code sketch. `razon` (the retired single-reason column) is
-    // deliberately never written here anymore — see 003_asistente_retroalimentacion.sql.
+    // ON CONFLICT (analitico_id) DO UPDATE: one row per turn, last vote wins, no history kept.
     private const string Upsert = """
         INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razones, comentario, actualizado_en)
         VALUES (@analitico_id, @voto, @razones, @comentario, @actualizado_en)

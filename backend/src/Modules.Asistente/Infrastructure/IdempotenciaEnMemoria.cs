@@ -3,19 +3,7 @@ using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Caché de idempotencia por actor y clave, con expiración corta.
-/// </summary>
-/// <remarks>
-/// La clave del diccionario es el par <b>(actor, clave)</b> y no la clave sola. Con
-/// la clave sola, dos usuarios que manden la misma —cosa que pasa: los clientes
-/// generan claves y nada garantiza que no colisionen— compartirían respuesta, y el
-/// segundo recibiría datos calculados con el alcance del primero.
-///
-/// La purga es oportunista, al leer y al escribir: con la escala de este sistema no
-/// vale un barrido periódico, y las entradas son chicas —una respuesta de turno sin
-/// filas persistidas—.
-/// </remarks>
+/// <summary>Caché de idempotencia por actor y clave, con expiración corta.</summary>
 internal sealed class IdempotenciaEnMemoria(
     IOptions<OpcionesAsistente> opciones, TimeProvider reloj) : IIdempotencia
 {

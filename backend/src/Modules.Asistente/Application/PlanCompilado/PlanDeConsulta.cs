@@ -8,11 +8,8 @@ namespace Modules.Asistente.Application;
 internal sealed record CondicionDelPlan(string Campo, string Operador, string Valor);
 
 /// <summary>
-/// El plan tal como lo escribió el modelo, sin validar (D3 de
-/// <c>asistente-plan-compilado</c>).
+/// El plan tal como lo escribió el modelo, sin validar (D3 de <c>asistente-plan-compilado</c>).
 /// </summary>
-/// <param name="Filtros">Definen la población: el denominador de un porcentaje.</param>
-/// <param name="Condiciones">Solo para un porcentaje: definen el numerador.</param>
 internal sealed record PlanDeConsulta(
     bool Expresable,
     string Medida,
@@ -21,14 +18,7 @@ internal sealed record PlanDeConsulta(
 {
     private static readonly JsonSerializerOptions Opciones = new() { PropertyNameCaseInsensitive = true };
 
-    /// <summary>
-    /// Interpreta la salida del modelo, o devuelve nulo si no es un plan.
-    /// </summary>
-    /// <remarks>
-    /// Toma del primer <c>{</c> al último <c>}</c>, igual que la generación de SQL:
-    /// un servidor que no respeta la salida estructurada puede envolver el JSON
-    /// en texto. Nulo no es un error del sistema: es una muestra inválida.
-    /// </remarks>
+    /// <summary>Interpreta la salida del modelo, o devuelve nulo si no es un plan.</summary>
     public static PlanDeConsulta? Interpretar(string texto)
     {
         if (string.IsNullOrWhiteSpace(texto))
@@ -108,11 +98,6 @@ internal sealed record PlanDeConsulta(
 }
 
 /// <summary>Una condición validada contra el catálogo, con su valor ya tipado.</summary>
-/// <param name="Indice">Su posición en el plan: identifica a la condición para ligar sus entidades.</param>
-/// <param name="Codigo">El código del cargo, si el campo es un cargo.</param>
-/// <param name="Numero">El entero, si el campo es numérico.</param>
-/// <param name="Nombre">El nombre normalizado de la entidad, si el campo es una entidad.</param>
-/// <param name="NombreOriginal">El nombre como lo escribió el modelo, para mostrarlo.</param>
 internal sealed record CondicionValidada(
     int Indice,
     CampoDelPlan Campo,

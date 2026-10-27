@@ -5,15 +5,7 @@ using Npgsql;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// <see cref="IAccesoAlAsistente"/> sobre Postgres (asistente-acceso-granular).
-/// </summary>
-/// <remarks>
-/// Pide <see cref="CadenaDuena"/> por el mismo motivo que
-/// <see cref="CuotaPersistente"/>: lee <c>presupuesto_rol</c> y
-/// <c>acceso_usuario_revocado</c>, dentro del schema <c>asistente</c> que los
-/// roles de solo lectura tienen revocado entero.
-/// </remarks>
+/// <summary><see cref="IAccesoAlAsistente"/> sobre Postgres (asistente-acceso-granular).</summary>
 internal sealed class AccesoPersistente(CadenaDuena cadena, IConsultasIdentity identidad)
     : IAccesoAlAsistente
 {

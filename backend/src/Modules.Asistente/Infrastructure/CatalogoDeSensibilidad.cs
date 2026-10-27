@@ -5,21 +5,8 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Resuelve el manifiesto de sensibilidad a identificadores del motor y cachea el
-/// resultado.
+/// Resuelve el manifiesto de sensibilidad a identificadores del motor y cachea el resultado.
 /// </summary>
-/// <remarks>
-/// <b>Una sola resolución para los dos roles.</b> El identificador de tabla y el
-/// número de atributo no dependen de quién consulta: son del catálogo, y
-/// <c>pg_attribute</c> es legible por cualquiera con independencia de los
-/// <c>GRANT</c>. Una columna que solo el rol con datos personales puede leer
-/// aparece igual en el catálogo leído con el rol básico, así que alcanza con
-/// resolver una vez.
-///
-/// <b>Perezoso, por el mismo motivo que el prefijo del prompt.</b> Resolver al
-/// arrancar exigiría una conexión durante el arranque del Host, y el invariante #3
-/// pide que el <c>ping</c> responda con la base detenida.
-/// </remarks>
 internal sealed class CatalogoDeSensibilidad(
     AperturaDeLectura apertura,
     ManifiestoDeSensibilidad manifiesto) : IClasificadorDeSensibilidad
@@ -119,10 +106,9 @@ internal sealed class CatalogoDeSensibilidad(
 
         if (faltantes.Count > 0)
         {
-            // Falla en lugar de ignorarlas. Una columna que el manifiesto nombra y
-            // la base no tiene significa que el manifiesto quedó viejo, y un
-            // manifiesto viejo es exactamente el que deja de clasificar la columna
-            // nueva que ocupó su lugar.
+            // Falla en lugar de ignorarlas. Una columna que el manifiesto nombra y la base no tiene
+            // significa que el manifiesto quedó viejo, y un manifiesto viejo es exactamente el que
+            // deja de clasificar la columna nueva que ocupó su lugar.
             throw new InvalidOperationException(
                 "El manifiesto de sensibilidad nombra columnas que no existen en la base: " +
                 string.Join(", ", faltantes.Order(StringComparer.Ordinal)));

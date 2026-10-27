@@ -50,15 +50,9 @@ internal static class CodigosDelModelo
 }
 
 /// <summary>
-/// The logic of the model administration endpoints (asistente-modelo-en-caliente,
-/// slice 3): test, apply, revert, replace a key, read the screen.
+/// The logic of the model administration endpoints (asistente-modelo-en-caliente, slice 3): test,
+/// apply, revert, replace a key, read the screen.
 /// </summary>
-/// <remarks>
-/// Key text lives only in the local variables of <see cref="AplicarAsync"/> and
-/// <see cref="ReemplazarClaveAsync"/> and is passed straight to the repository and the
-/// prober. Every audit row is built from the company, the model and the 4-character
-/// hint, written AFTER the change and BEFORE the controller answers.
-/// </remarks>
 internal sealed class AdministracionDelModelo(
     RepositorioDelModelo modelos,
     RepositorioDeCredenciales credenciales,
@@ -105,10 +99,8 @@ internal sealed class AdministracionDelModelo(
     }
 
     /// <summary>
-    /// What the screen offers and the endpoints accept: the catalog plus, for each
-    /// configured local server, the model the environment configures for it (D5).
-    /// The environment model comes first in its group, and nothing is written to the
-    /// catalog: the model the server is already running is not an unevaluated one.
+    /// What the screen offers and the endpoints accept: the catalog plus, for each configured local
+    /// server, the model the environment configures for it (D5).
     /// </summary>
     private async Task<IReadOnlyList<ModeloDelCatalogo>> ListarOfrecidosAsync(CancellationToken ct)
     {
@@ -314,9 +306,8 @@ internal sealed class AdministracionDelModelo(
     }
 
     /// <summary>
-    /// Writes a price as a new version of its model (D9): validation first, then one
-    /// transaction that closes the open version and opens the new one, then the audit
-    /// row, then the answer. Nothing is written when validation fails.
+    /// Writes a price as a new version of its model (D9): validation first, then one transaction
+    /// that closes the open version and opens the new one, then the audit row, then the answer.
     /// </summary>
     public async Task<Resultado<PrecioDelModeloDto>> CargarPrecioAsync(
         PedidoDePrecioDto pedido, Guid actor, CancellationToken ct)

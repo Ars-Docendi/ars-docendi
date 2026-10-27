@@ -6,18 +6,9 @@ using ArsDocendi.Shared.Persistencia;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Clasificación versionada de cada columna legible, en las tres categorías que
-/// gobiernan qué sale hacia el proveedor del modelo.
+/// Clasificación versionada de cada columna legible, en las tres categorías que gobiernan qué sale
+/// hacia el proveedor del modelo.
 /// </summary>
-/// <remarks>
-/// A diferencia del manifiesto de privilegios —que se deserializa en el proyecto
-/// de tests porque nadie en producción lo consume, existe solo para ser comparado
-/// contra la base—, éste lo lee el enmascarador en cada turno. Por eso el tipo
-/// vive acá y no allá.
-///
-/// El criterio «la clasificación es de una sola fuente» se sostiene porque el test
-/// que verifica la cobertura carga <b>este mismo tipo</b>, no una copia suya.
-/// </remarks>
 internal sealed class ManifiestoDeSensibilidad
 {
     /// <summary>Ruta lógica del recurso embebido, tal como la linkea el csproj.</summary>
@@ -58,11 +49,6 @@ internal sealed class ManifiestoDeSensibilidad
             Assembly.GetExecutingAssembly(), RutaDelRecurso));
 
     /// <summary>Interpreta el manifiesto desde su texto JSON.</summary>
-    /// <exception cref="InvalidOperationException">
-    /// Si el archivo no deserializa, o si alguna columna declara una categoría que
-    /// no es ninguna de las tres. Fallar en la carga es deliberado: una categoría
-    /// mal escrita que se degradara a «pública» filtraría en silencio.
-    /// </exception>
     public static ManifiestoDeSensibilidad Interpretar(string json)
     {
         var crudo = JsonSerializer.Deserialize<ManifiestoCrudo>(json, Opciones)
@@ -150,14 +136,6 @@ internal sealed record TablaDeSensibilidad(
     string Schema, string Tabla, IReadOnlyList<EntradaDeSensibilidad> Columnas);
 
 /// <summary>La clasificación de una columna.</summary>
-/// <param name="Columna">Nombre de la columna en la tabla, no su alias en el resultado.</param>
-/// <param name="Clasificacion">En cuál de las tres categorías cae.</param>
-/// <param name="Etiqueta">
-/// Cómo nombrar el dato en el marcador, para las <c>sensible-valor</c>. Es lo que
-/// le permite al modelo redactar «el documento de la primera persona» sin
-/// conocerlo.
-/// </param>
-/// <param name="Motivo">Por qué está clasificada así, cuando no es pública.</param>
 internal sealed record EntradaDeSensibilidad(
     string Columna,
     ClasificacionDeSensibilidad Clasificacion,

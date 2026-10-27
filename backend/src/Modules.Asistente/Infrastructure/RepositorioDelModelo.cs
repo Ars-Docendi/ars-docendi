@@ -11,14 +11,9 @@ internal sealed record SeleccionDeModelo(
 internal sealed record ModeloDelCatalogo(string Empresa, string Modelo);
 
 /// <summary>
-/// The runtime model selection (<c>asistente.modelo_vigente</c>) and the model
-/// catalog (<c>asistente.catalogo_de_modelos</c>) (asistente-modelo-en-caliente, D3/D5).
+/// The runtime model selection (<c>asistente.modelo_vigente</c>) and the model catalog
+/// (<c>asistente.catalogo_de_modelos</c>) (asistente-modelo-en-caliente, D3/D5).
 /// </summary>
-/// <remarks>
-/// No process cache, same reason as <see cref="DisponibilidadDelModuloReal"/>:
-/// every Host instance has to agree from the next read on. Owner connection,
-/// because both tables are inside the wholesale-revoked <c>asistente</c> schema.
-/// </remarks>
 internal sealed class RepositorioDelModelo(CadenaDuena cadena, TimeProvider reloj)
 {
     /// <summary>The stored selection, or null when the module runs on server configuration.</summary>
@@ -42,11 +37,8 @@ internal sealed class RepositorioDelModelo(CadenaDuena cadena, TimeProvider relo
     }
 
     /// <summary>
-    /// Stores the selection if, and only if, <paramref name="empresa"/> and
-    /// <paramref name="modelo"/> are in the catalog. Returns false (and changes
-    /// nothing) when they are not. <paramref name="modeloDelEntorno"/> is the model the
-    /// environment configures for a local server: it is accepted for that company
-    /// without being a catalog row.
+    /// Stores the selection if, and only if, <paramref name="empresa"/> and <paramref
+    /// name="modelo"/> are in the catalog.
     /// </summary>
     public async Task<bool> AplicarSeleccionAsync(
         string empresa, string modelo, Guid actor, CancellationToken ct, string? modeloDelEntorno = null)

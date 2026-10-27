@@ -7,16 +7,9 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Api;
 
 /// <summary>
-/// El historial PROPIO del actor: listar, buscar, ver, renombrar, borrar,
-/// reanudar y volver a consultar un turno ya respondido
-/// (asistente-historial-conversaciones).
+/// El historial PROPIO del actor: listar, buscar, ver, renombrar, borrar, reanudar y volver a
+/// consultar un turno ya respondido (asistente-historial-conversaciones).
 /// </summary>
-/// <remarks>
-/// Todo acotado al actor de la sesión, nunca a un id que venga del cliente:
-/// mismo criterio que <see cref="AsistenteController"/>. Un hilo que no existe
-/// o que pertenece a otro actor da 404 en los dos casos — igual que el hilo
-/// ajeno del turno en vivo — para no confirmar cuál de los dos fue.
-/// </remarks>
 [ApiController]
 [Route("api/asistente/historial")]
 [Authorize(Policy = Permisos.AsistenteConsultar)]
@@ -147,9 +140,8 @@ public sealed class HistorialController(
     }
 
     /// <summary>
-    /// Deshace un lote de borrado propio, dentro de su ventana. <c>404</c> si
-    /// el lote no existe, no es propio, o venció — los tres casos son
-    /// indistinguibles a propósito.
+    /// Deshace un lote de borrado propio, dentro de su ventana. <c>404</c> si el lote no existe, no
+    /// es propio, o venció — los tres casos son indistinguibles a propósito.
     /// </summary>
     [HttpPost("borrados/{lote:guid}/deshacer")]
     public async Task<IActionResult> DeshacerBorrado(Guid lote, CancellationToken ct)
@@ -184,15 +176,9 @@ public sealed class HistorialController(
 
         var perfil = await perfiles.ObtenerAsync(actor, ct);
 
-        // `TurnoHistoricoId: t.Id`, y no `ClaveDelCliente`: un turno sembrado no
-        // tiene Idempotency-Key de esta sesión, así que un reemplazo sobre él se
-        // nombra por su id de `turno_historico` (design.md D9 de
-        // asistente-rediseno-v3, «Editar y reenviar»).
-        // `Estado: t.Estado` (asistente-rechazos-dinamicos, design.md D5): un
-        // hilo reanudado cuya última fila terminó `no_contestable` tiene que
-        // seguir contando ese rechazo para la escalación — sin esto, cada
-        // reanudación reiniciaría la cuenta en cero y el primer rechazo tras
-        // reanudar volvería a mostrar la primera variante.
+        // `TurnoHistoricoId: t.Id`, y no `ClaveDelCliente`: un turno sembrado no tiene
+        // Idempotency-Key de esta sesión, así que un reemplazo sobre él se nombra por su id de
+        // `turno_historico` (design.md D9 de asistente-rediseno-v3, «Editar y reenviar»).
         var sembrado = hilos.Sembrar(
             actor,
             hiloId,
@@ -200,18 +186,16 @@ public sealed class HistorialController(
                 t.Pregunta, t.OcurrioEn, t.SqlResuelto, TurnoHistoricoId: t.Id, Referencias: t.Referencias,
                 Estado: t.Estado))]);
 
-        // Mismo criterio que `Obtener`: las menciones se re-resuelven para el actor
-        // que reanuda, así que el cliente pinta el chip apenas siembra la
-        // conversación (decisión 15 del PO).
+        // Mismo criterio que `Obtener`: las menciones se re-resuelven para el actor que reanuda,
+        // así que el cliente pinta el chip apenas siembra la conversación (decisión 15 del PO).
         var turnosDto = await TurnoDeHistorialDto.DeTodosAsync(turnos, perfil.VeLaConsulta, actor, menciones, ct);
 
         return Ok(new ReanudarDto(sembrado.Id, turnosDto));
     }
 
     /// <summary>
-    /// «Volver a consultar»: vuelve a ejecutar la SQL de un turno propio ya
-    /// respondido, bajo el alcance ACTUAL del actor. Nunca llama al modelo, y
-    /// nunca escribe una fila nueva de historial (design.md D4).
+    /// «Volver a consultar»: vuelve a ejecutar la SQL de un turno propio ya respondido, bajo el
+    /// alcance ACTUAL del actor.
     /// </summary>
     [HttpPost("turnos/{turnoId:guid}/reejecutar")]
     public async Task<ActionResult<ReejecucionDto>> Reejecutar(Guid turnoId, CancellationToken ct)
@@ -244,11 +228,10 @@ public sealed class HistorialController(
 
         var perfil = await perfiles.ObtenerAsync(actor, ct);
 
-        // REVALIDACIÓN DE LAS MENCIONES CONTRA EL ALCANCE ACTUAL (design.md D11
-        // de asistente-rediseno-v3, tarea 7.4): entre la pregunta original y
-        // este «Volver a consultar» el actor puede haber perdido el permiso o
-        // el ámbito que alcanzaba a la entidad referenciada. Mismo texto de
-        // abstención que un rechazo del motor, para no distinguir las causas.
+        // REVALIDACIÓN DE LAS MENCIONES CONTRA EL ALCANCE ACTUAL (design.md D11 de
+        // asistente-rediseno-v3, tarea 7.4): entre la pregunta original y este «Volver a consultar»
+        // el actor puede haber perdido el permiso o el ámbito que alcanzaba a la entidad
+        // referenciada.
         var bindings = new Dictionary<string, Guid>(StringComparer.Ordinal);
         if (turno.Referencias is { Count: > 0 } referencias)
         {
@@ -285,9 +268,8 @@ public sealed class HistorialController(
         }
         catch (Exception excepcion) when (excepcion is ConsultaSinPrivilegio or ConsultaRechazadaPorElMotor)
         {
-            // La SQL guardada ya no corre —privilegios que se achicaron desde
-            // que se hizo la pregunta, o un esquema que cambió—. Nunca un
-            // error crudo: la misma abstención que ya usa el carril en vivo.
+            // La SQL guardada ya no corre —privilegios que se achicaron desde que se hizo la
+            // pregunta, o un esquema que cambió—.
             return Ok(new ReejecucionDto
             {
                 Exitosa = false,

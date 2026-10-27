@@ -11,20 +11,10 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Adaptador de <see cref="IProveedorDeModelo"/> contra un modelo propio servido
-/// por un servidor OpenAI-compatible: vLLM, llama.cpp (<c>llama-server</c>) o
-/// SGLang (asistente-proveedor-local, design.md D2).
+/// Adaptador de <see cref="IProveedorDeModelo"/> contra un modelo propio servido por un servidor
+/// OpenAI-compatible: vLLM, llama.cpp (<c>llama-server</c>) o SGLang (asistente-proveedor-local,
+/// design.md D2).
 /// </summary>
-/// <remarks>
-/// Igual que <c>ProveedorAnthropic</c>, su única responsabilidad es
-/// <b>traducir</b>. El techo del turno, la compuerta de concurrencia, el corte,
-/// el timeout por llamada y el reintento de transporte viven en decoradores y
-/// handlers que no saben qué proveedor hay adentro.
-///
-/// No usa ningún SDK: la API es <c>POST {url}/chat/completions</c> con JSON
-/// plano, y los tres servidores la hablan igual. Un SDK agregaría una
-/// dependencia para serializar cinco campos.
-/// </remarks>
 internal sealed partial class ProveedorLocal : IProveedorDeModelo
 {
     /// <summary>Nombre de configuración de este proveedor.</summary>
@@ -56,8 +46,7 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
 
     /// <summary>
     /// <c>local/{modelo}</c>: el mismo formato <c>proveedor/modelo</c> que parte
-    /// <c>CalculadoraDeCosto</c>. Sin fila en <c>tabla_de_precios</c> esos turnos
-    /// se informan «sin precio», nunca como costo cero.
+    /// <c>CalculadoraDeCosto</c>.
     /// </summary>
     public string Nombre => $"{Clave}/{_modelo}";
 
@@ -119,11 +108,6 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
     }
 
     /// <summary>Arma el cuerpo del request.</summary>
-    /// <remarks>
-    /// <b>El orden de los mensajes es la caché.</b> El servidor cachea por
-    /// prefijo de tokens: el sistema va primero y es byte a byte igual entre
-    /// turnos, y todo lo variable va en el mensaje de usuario, detrás.
-    /// </remarks>
     internal JsonObject Cuerpo(SolicitudAlModelo solicitud)
     {
         var cuerpo = new JsonObject
@@ -139,11 +123,9 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
             ["max_tokens"] = solicitud.MaximoDeTokens,
             ["stream"] = solicitud.AlRecibirTexto is not null,
 
-            // EL RAZONAMIENTO SE APAGA SALVO QUE SE LO PIDA EXPLÍCITAMENTE (D2).
-            // En un modelo local pensar multiplica la salida 5–20×, y en una GPU
-            // compartida eso es latencia para todos los que esperan. `medio` —el
-            // default de la generación— no piensa: con Claude «medio» era una
-            // perilla de costo, acá es una de capacidad.
+            // EL RAZONAMIENTO SE APAGA SALVO QUE SE LO PIDA EXPLÍCITAMENTE (D2). En un modelo local
+            // pensar multiplica la salida 5–20×, y en una GPU compartida eso es latencia para todos
+            // los que esperan.
             ["chat_template_kwargs"] = new JsonObject
             {
                 ["enable_thinking"] = solicitud.Esfuerzo is EsfuerzoDelModelo.Alto or EsfuerzoDelModelo.Maximo,
@@ -159,9 +141,8 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
 
         if (solicitud.EsquemaDeSalidaJson is { } esquema)
         {
-            // Decodificación restringida: el servidor sólo puede emitir tokens que
-            // mantienen válido el esquema (xgrammar en vLLM/SGLang, GBNF en
-            // llama-server). No reemplaza al validador de SQL.
+            // Decodificación restringida: el servidor sólo puede emitir tokens que mantienen válido
+            // el esquema (xgrammar en vLLM/SGLang, GBNF en llama-server).
             cuerpo["response_format"] = new JsonObject
             {
                 ["type"] = "json_schema",
@@ -178,11 +159,6 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
     }
 
     /// <summary>Convierte la respuesta del servidor al contrato del puerto.</summary>
-    /// <remarks>
-    /// Una respuesta sin texto NO es una caída, por el mismo motivo que en
-    /// <c>ProveedorAnthropic</c>: el validador rechaza una SQL vacía y el turno
-    /// abstiene, en vez de abrir el corte por algo que no es una falla de servicio.
-    /// </remarks>
     private RespuestaDelModelo Traducir(string json, SolicitudAlModelo solicitud)
     {
         JsonNode? raiz;
@@ -207,17 +183,10 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
     }
 
     /// <summary>
-    /// Lee una respuesta <c>text/event-stream</c> y le pasa a
-    /// <see cref="SolicitudAlModelo.AlRecibirTexto"/> el texto visible a medida
-    /// que llega (asistente-optimizaciones-modelo-local, design.md D9).
+    /// Lee una respuesta <c>text/event-stream</c> y le pasa a <see
+    /// cref="SolicitudAlModelo.AlRecibirTexto"/> el texto visible a medida que llega
+    /// (asistente-optimizaciones-modelo-local, design.md D9).
     /// </summary>
-    /// <remarks>
-    /// Devuelve lo mismo que la respuesta entera: el texto completo sin
-    /// razonamiento y los tokens del último evento que los traiga. Un corte a
-    /// mitad del flujo es una falla de transporte, igual que sin flujo. Lo que
-    /// lance quien escucha no se traduce: no es una falla del servidor y no le
-    /// corresponde al breaker contarla.
-    /// </remarks>
     private async Task<RespuestaDelModelo> LeerFlujoAsync(
         HttpResponseMessage respuesta, SolicitudAlModelo solicitud, CancellationToken ct)
     {
@@ -293,15 +262,7 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
         return Armar(acumulado.ToString(), motivoDeFin, uso, tiempos, solicitud);
     }
 
-    /// <summary>
-    /// Lo que se puede mostrar de una respuesta que todavía está llegando.
-    /// </summary>
-    /// <remarks>
-    /// Saca los bloques de razonamiento cerrados, corta en uno abierto y retiene
-    /// un <c>&lt;think&gt;</c> que llegó a medias, para no mostrar «&lt;thi» y
-    /// tener que desdecirse. Lo que devuelve sólo crece, así que el llamador
-    /// emite la diferencia.
-    /// </remarks>
+    /// <summary>Lo que se puede mostrar de una respuesta que todavía está llegando.</summary>
     internal static string VisibleHastaAhora(string texto)
     {
         const string Apertura = "<think>";
@@ -343,9 +304,8 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
         var entrada = Entero(uso?["prompt_tokens"]);
 
         // `prompt_tokens_details.cached_tokens` es lo que informa vLLM (con
-        // --enable-prompt-tokens-details) y llama-server reciente; `timings.cache_n`
-        // es lo que informa llama-server por su cuenta. Cero significa «no informa»
-        // o «no acertó», igual que con Anthropic.
+        // --enable-prompt-tokens-details) y llama-server reciente; `timings.cache_n` es lo que
+        // informa llama-server por su cuenta.
         var informados = Entero(uso?["prompt_tokens_details"]?["cached_tokens"]);
         if (informados == 0)
         {
@@ -364,16 +324,8 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
     }
 
     /// <summary>
-    /// Descarta un bloque <c>&lt;think&gt;…&lt;/think&gt;</c> que el modelo haya
-    /// emitido igual.
+    /// Descarta un bloque <c>&lt;think&gt;…&lt;/think&gt;</c> que el modelo haya emitido igual.
     /// </summary>
-    /// <remarks>
-    /// Hubo versiones de servidores que no respetaban <c>enable_thinking</c>. Lo
-    /// que viene antes del cierre es razonamiento, no respuesta: dejarlo rompería
-    /// el JSON de la generación —que se busca de la primera llave a la última— y
-    /// le mostraría al usuario un borrador. Un bloque abierto que nunca cierra es
-    /// una respuesta cortada a mitad del razonamiento: no hay respuesta.
-    /// </remarks>
     internal static string SinRazonamiento(string texto)
     {
         var sinBloques = BloqueDeRazonamiento().Replace(texto, string.Empty);
@@ -386,17 +338,9 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
     private static partial Regex BloqueDeRazonamiento();
 
     /// <summary>
-    /// Traduce un estado no exitoso al único vocabulario de falla que el pipeline
-    /// conoce, nombrando la causa en el log.
+    /// Traduce un estado no exitoso al único vocabulario de falla que el pipeline conoce, nombrando
+    /// la causa en el log.
     /// </summary>
-    /// <remarks>
-    /// Todas terminan en <see cref="HttpRequestException"/>, igual que en
-    /// <c>ProveedorAnthropic</c>: el breaker cuenta exactamente esa excepción, y
-    /// el usuario recibe la degradación del contrato y nunca un 500. Lo que cambia
-    /// es lo que dice el log, porque la reacción de quien lo lee no se parece. El
-    /// cuerpo del servidor NO se loguea entero: puede repetir el prompt, y el
-    /// prompt lleva la pregunta del usuario.
-    /// </remarks>
     private HttpRequestException Rechazo(HttpStatusCode estado, string cuerpo)
     {
         var codigo = (int)estado;

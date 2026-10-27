@@ -6,15 +6,9 @@ namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
 /// <see cref="IAuditoriaDeRevisionDeCalidad"/>: one row in
-/// <c>asistente.auditoria_revision_de_calidad</c> per successful read of the problem list
-/// (design D5 of asistente-metricas-de-calidad).
+/// <c>asistente.auditoria_revision_de_calidad</c> per successful read of the problem list (design
+/// D5 of asistente-metricas-de-calidad).
 /// </summary>
-/// <remarks>
-/// Append-only: this class only INSERTs, and nothing in the module updates or deletes the
-/// table except the retention purge. The moment is the database clock, like
-/// <c>auditoria_acceso_historial</c>. An exception here propagates on purpose: the caller
-/// has not answered yet, so a failed audit means no data leaves.
-/// </remarks>
 internal sealed class AuditoriaDeRevisionDeCalidad(CadenaDuena cadena) : IAuditoriaDeRevisionDeCalidad
 {
     public async Task RegistrarAsync(Guid lector, string filtros, int filas, CancellationToken ct)

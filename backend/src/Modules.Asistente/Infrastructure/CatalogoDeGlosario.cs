@@ -7,18 +7,8 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Una columna que un término del glosario nombra, con los valores guardados que
-/// le corresponden.
+/// Una columna que un término del glosario nombra, con los valores guardados que le corresponden.
 /// </summary>
-/// <param name="Columna">Nombre cualificado: <c>esquema.tabla.columna</c>.</param>
-/// <param name="Valores">
-/// Los valores tal como se guardan, no como se muestran. Varios significan «alguno
-/// de». Vacío si el término nombra la columna sin fijar un valor.
-/// </param>
-/// <param name="VerificaContra">
-/// La columna de catálogo contra la que se verifican los valores, para una columna
-/// que no tiene <c>CHECK</c> ni es un catálogo (<c>propietario_actual</c>).
-/// </param>
 internal sealed record ReferenciaDeGlosario(
     string Columna,
     IReadOnlyList<string> Valores,
@@ -40,24 +30,9 @@ internal sealed record TerminoDeGlosario(
     string? Sql);
 
 /// <summary>
-/// El glosario institucional: el vocabulario del Departamento y el valor exacto
-/// que le corresponde en el esquema (asistente-glosario-institucional, D3).
+/// El glosario institucional: el vocabulario del Departamento y el valor exacto que le corresponde
+/// en el esquema (asistente-glosario-institucional, D3).
 /// </summary>
-/// <remarks>
-/// <b>Se lee sólo con <c>GlosarioEnElPrefijo</c> prendida</b> y una sola vez por
-/// proceso: un archivo mal formado no puede tumbar un despliegue con el default.
-///
-/// <b>Valida al cargar</b> lo que se puede validar sin base: campos obligatorios,
-/// términos únicos, forma de las columnas y cierre de la pista SQL. Que cada
-/// columna y cada valor existan lo verifica <c>GlosarioInstitucionalTests</c>
-/// contra la base migrada.
-///
-/// Las referencias de un término son SIEMPRE una conjunción: «en Cátedra» es
-/// <c>estado = 'devuelto'</c> Y <c>propietario_actual = 'jefe_catedra'</c>. Lo que
-/// no es una conjunción de igualdades —la suma de tres columnas de horas— lleva
-/// una pista SQL, y la pista sólo puede nombrar columnas y literales del propio
-/// término, así que no puede colar algo que los tests no vieron.
-/// </remarks>
 internal sealed partial class CatalogoDeGlosario
 {
     /// <summary>Ruta lógica del recurso embebido con el glosario.</summary>
@@ -81,10 +56,6 @@ internal sealed partial class CatalogoDeGlosario
     public static CatalogoDeGlosario Cargar() => Interpretar(LeerRecurso());
 
     /// <summary>Interpreta el glosario desde su texto JSON.</summary>
-    /// <exception cref="InvalidOperationException">
-    /// Si el archivo no se interpreta o una entrada incumple una regla. El mensaje
-    /// nombra el término.
-    /// </exception>
     public static CatalogoDeGlosario Interpretar(string json)
     {
         ArchivoDeGlosario? archivo;
@@ -197,9 +168,7 @@ internal sealed partial class CatalogoDeGlosario
         return new ReferenciaDeGlosario(crudo.Columna, [.. crudo.Valores], crudo.VerificaContra);
     }
 
-    /// <summary>
-    /// La pista sólo puede nombrar literales y columnas del propio término.
-    /// </summary>
+    /// <summary>La pista sólo puede nombrar literales y columnas del propio término.</summary>
     private static void ValidarPista(
         string termino, string sql, IReadOnlyList<ReferenciaDeGlosario> referencias)
     {

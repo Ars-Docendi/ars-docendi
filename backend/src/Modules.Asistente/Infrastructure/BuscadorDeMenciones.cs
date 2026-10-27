@@ -8,32 +8,12 @@ namespace Modules.Asistente.Infrastructure;
 /// Busca materias y docentes dentro del alcance del actor (design.md D10/D11 de
 /// asistente-rediseno-v3).
 /// </summary>
-/// <remarks>
-/// <b>Corre con el rol básico y el actor fijado, nunca con la conexión dueña ni
-/// con un filtro de C# como única guardia.</b> El alcance de las materias lo
-/// resuelve <c>identity.asistente_materias_visibles()</c>; el de los docentes lo
-/// resuelve la policy de RLS de <c>designaciones.designaciones</c>, que ya
-/// conjunta <c>designaciones.ver</c> con el ámbito del actor
-/// (<c>20261020001000_RlsAsistenteDesignaciones.sql</c>). Un actor sin ese permiso ve la
-/// tabla vacía por la policy, no porque este código haya evaluado el permiso: si
-/// alguien borrara el chequeo de acá adentro, el resultado no cambia.
-///
-/// Ninguna columna que toca está clasificada <c>sensible-*</c> en el manifiesto
-/// de sensibilidad: <c>identity.materias.name/code</c>,
-/// <c>identity.carreras.name</c>, <c>identity.personas.nombre/apellido</c> y
-/// <c>designaciones.cargos.nombre</c> son todas <c>publica</c>. El identificador
-/// que este puerto SÍ devuelve —a diferencia del carril SQL— es
-/// <c>identificador</c> y no <c>sensible-*</c>: D10 registra por qué eso no
-/// contradice el manifiesto (llega al navegador del propio actor, nunca al
-/// modelo).
-/// </remarks>
 internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscadorDeMenciones
 {
     /// <summary>
-    /// Tope de resultados por búsqueda (design.md D10: «a lo sumo 6»). Se pide
-    /// uno de más —ver <see cref="EjecutorDeConsulta"/> para el mismo truco— para
-    /// distinguir «hay exactamente el tope» de «hay más y se recortó» sin exponer
-    /// un conteo.
+    /// Tope de resultados por búsqueda (design.md D10: «a lo sumo 6»). Se pide uno de más —ver <see
+    /// cref="EjecutorDeConsulta"/> para el mismo truco— para distinguir «hay exactamente el tope»
+    /// de «hay más y se recortó» sin exponer un conteo.
     /// </summary>
     private const int Tope = 6;
 
@@ -70,10 +50,8 @@ internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscado
         """;
 
     /// <summary>
-    /// La designación vigente más reciente de cada persona, para el cargo que se
-    /// muestra en el resultado. Lee de <c>designaciones.designaciones</c>, así que
-    /// la policy de RLS ya filtró las filas ANTES de que <c>ROW_NUMBER()</c> las
-    /// numere: nunca hay que volver a chequear el alcance sobre esta CTE.
+    /// La designación vigente más reciente de cada persona, para el cargo que se muestra en el
+    /// resultado.
     /// </summary>
     private const string ConDesignacionReciente = """
         WITH designacion_reciente AS (
@@ -183,15 +161,10 @@ internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscado
     };
 
     /// <summary>
-    /// Escapa los comodines de <c>LIKE</c> (<c>%</c>, <c>_</c> y la barra de
-    /// escape misma) del término escrito por el usuario, para que un signo de
-    /// porcentaje tipeado a mano no se comporte como comodín.
+    /// Escapa los comodines de <c>LIKE</c> (<c>%</c>, <c>_</c> y la barra de escape misma) del
+    /// término escrito por el usuario, para que un signo de porcentaje tipeado a mano no se
+    /// comporte como comodín.
     /// </summary>
-    /// <remarks>
-    /// No hay riesgo de inyección —viaja como parámetro, nunca interpolado en el
-    /// texto de la consulta—; esto es sólo para que el patrón de <c>LIKE</c> siga
-    /// significando «empieza con lo que se tipeó» y no algo más laxo.
-    /// </remarks>
     private static string EscaparParaLike(string termino) =>
         termino.Replace("\\", "\\\\", StringComparison.Ordinal)
                .Replace("%", "\\%", StringComparison.Ordinal)

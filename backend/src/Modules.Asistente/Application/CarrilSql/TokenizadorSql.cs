@@ -22,17 +22,7 @@ internal enum ClaseDeToken
     Marcador,
 }
 
-/// <summary>
-/// Un token con su clase y su texto ya en minúsculas.
-/// </summary>
-/// <param name="Inicio">
-/// Posición del primer carácter del token en el texto original.
-/// <see cref="ClaseDeToken.Marcador"/> la necesita —<see cref="ReescritorDeMarcadores"/>
-/// la usa para reescribir el <c>$</c> en <c>@</c> sin reconstruir la consulta
-/// entera— y <see cref="ClaseDeToken.Palabra"/> la lleva para que
-/// <see cref="OrigenesDeLosDatos"/> pueda ver si la palabra va seguida de un punto
-/// (un nombre calificado). El resto de los tokens la deja en su valor por defecto.
-/// </param>
+/// <summary>Un token con su clase y su texto ya en minúsculas.</summary>
 internal readonly record struct TokenSql(ClaseDeToken Clase, string Texto, int Inicio = -1);
 
 /// <summary>
@@ -42,24 +32,7 @@ internal readonly record struct TokenSql(ClaseDeToken Clase, string Texto, int I
 internal sealed class SqlSinCerrar(string que)
     : Exception($"La consulta tiene {que} sin cerrar.");
 
-/// <summary>
-/// Parte una consulta en tokens, emitiendo lo que el validador necesita ver.
-/// </summary>
-/// <remarks>
-/// <b>La decisión entera de esta clase</b> es que el contenido de las comillas
-/// dobles se <b>emite</b> como token propio.
-///
-/// En PostgreSQL las comillas dobles delimitan un <b>identificador</b>, no una
-/// cadena: <c>"set_config"</c> sigue siendo la función <c>set_config</c>. Un
-/// tokenizador que las trate como comillas de cadena y descarte su contenido
-/// deja pasar exactamente eso —la función que escribe el ajuste del actor—, con
-/// la que una consulta puede fijarse un actor distinto del suyo y saltear Row
-/// Level Security. Está verificado sobre una base real en el prototipo previo:
-/// 26 filas contra 138.
-///
-/// El contenido de los comentarios y de los literales de texto, en cambio, se
-/// descarta: ahí las palabras no son código.
-/// </remarks>
+/// <summary>Parte una consulta en tokens, emitiendo lo que el validador necesita ver.</summary>
 internal static class TokenizadorSql
 {
     public static IReadOnlyList<TokenSql> Tokenizar(string sql)
@@ -88,12 +61,8 @@ internal static class TokenizadorSql
                     break;
 
                 case 'e' or 'E' when Siguiente(sql, posicion) == '\'':
-                    // Literal con escapes: E'...'. La E es parte del literal, no
-                    // una palabra suelta. A diferencia de un literal simple, acá
-                    // la barra invertida escapa el carácter que sigue —incluida
-                    // una comilla—, así que necesita su propio escáner: usar
-                    // `SaltarLiteralDeTexto` cerraría el literal en el primer
-                    // `\'` y volvería a leer el resto como código.
+                    // Literal con escapes: E'...'. La E es parte del literal, no una palabra
+                    // suelta.
                     posicion = SaltarLiteralConEscapes(sql, posicion + 1);
                     break;
 
@@ -106,12 +75,9 @@ internal static class TokenizadorSql
                     posicion = LeerIdentificador(sql, posicion, tokens);
                     break;
 
-                // VA ANTES del signo pesos de abajo: un marcador y la apertura de un
-                // literal delimitado por signo pesos empiezan igual —"$" seguido de
-                // letras—, y "$ref1" tiene forma de las dos. Un marcador nunca es lo
-                // que el modelo elegiría como etiqueta de un literal —esa etiqueta
-                // la inventa el motor, no el prompt— así que priorizarlo acá no le
-                // saca ningún caso legítimo al literal delimitado.
+                // VA ANTES del signo pesos de abajo: un marcador y la apertura de un literal
+                // delimitado por signo pesos empiezan igual —"$" seguido de letras—, y "$ref1"
+                // tiene forma de las dos.
                 case '$' when EsMarcador(sql, posicion, out var marcador):
                     tokens.Add(new TokenSql(ClaseDeToken.Marcador, marcador, posicion));
                     posicion += marcador.Length;
@@ -212,12 +178,9 @@ internal static class TokenizadorSql
     }
 
     /// <summary>
-    /// Salta un literal <c>E'...'</c> (o <c>e'...'</c>). Una barra invertida
-    /// escapa el carácter que sigue, sea cual sea —<c>\'</c> es una comilla
-    /// literal, <c>\\</c> es una barra literal— y ese carácter nunca cierra el
-    /// literal ni vuelve a leerse como código. Dos comillas simples seguidas
-    /// siguen siendo también una comilla escapada: PostgreSQL admite las dos
-    /// formas adentro de un literal con escapes.
+    /// Salta un literal <c>E'...'</c> (o <c>e'...'</c>). Una barra invertida escapa el carácter que
+    /// sigue, sea cual sea —<c>\'</c> es una comilla literal, <c>\\</c> es una barra literal— y ese
+    /// carácter nunca cierra el literal ni vuelve a leerse como código.
     /// </summary>
     private static int SaltarLiteralConEscapes(string sql, int posicion)
     {
@@ -227,11 +190,8 @@ internal static class TokenizadorSql
         {
             if (sql[posicion] == '\\')
             {
-                // Se saltan LOS DOS caracteres juntos: la barra y lo que
-                // escapa, exista o no como secuencia reconocida. Es lo que
-                // impide que un `\'` cierre el literal y que el contenido que
-                // sigue —un marcador, una palabra prohibida— se vuelva a leer
-                // como código.
+                // Se saltan LOS DOS caracteres juntos: la barra y lo que escapa, exista o no como
+                // secuencia reconocida.
                 posicion += 2;
                 continue;
             }
@@ -293,18 +253,6 @@ internal static class TokenizadorSql
     /// Lee un identificador con escapes Unicode —<c>U&amp;"…"</c>— y lo emite ya
     /// <b>decodificado</b>.
     /// </summary>
-    /// <remarks>
-    /// PostgreSQL resuelve los escapes antes de resolver el nombre:
-    /// <c>U&amp;"\0073et_config"</c> es la función <c>set_config</c>. Emitir el
-    /// texto crudo le entrega a la lista negra una cadena que no se parece a
-    /// ningún nombre prohibido, y deja pasar exactamente la función que fija el
-    /// actor de la sesión —el ataque contra el que existe esta clase—.
-    ///
-    /// La cláusula <c>UESCAPE 'c'</c> viene <b>después</b> de la comilla de
-    /// cierre, así que el carácter de escape no se conoce hasta terminar de leer:
-    /// se junta el contenido crudo, se mira si sigue un <c>UESCAPE</c>, y recién
-    /// ahí se decodifica.
-    /// </remarks>
     private static int LeerIdentificadorConEscapes(string sql, int posicion, List<TokenSql> tokens)
     {
         // Saltea «U&"» y queda sobre el primer carácter del contenido.
@@ -341,9 +289,8 @@ internal static class TokenizadorSql
     }
 
     /// <summary>
-    /// Si detrás del identificador viene <c>UESCAPE 'c'</c>, devuelve ese carácter
-    /// y consume la cláusula. Si no, devuelve la barra invertida, que es el
-    /// carácter de escape por defecto.
+    /// Si detrás del identificador viene <c>UESCAPE 'c'</c>, devuelve ese carácter y consume la
+    /// cláusula.
     /// </summary>
     private static char LeerCaracterDeEscape(string sql, ref int posicion)
     {
@@ -386,16 +333,9 @@ internal static class TokenizadorSql
     }
 
     /// <summary>
-    /// Resuelve las secuencias de escape de un identificador Unicode: la corta
-    /// —<c>\XXXX</c>—, la larga —<c>\+XXXXXX</c>— y el carácter de escape
-    /// duplicado, que vale por el carácter literal.
+    /// Resuelve las secuencias de escape de un identificador Unicode: la corta —<c>\XXXX</c>—, la
+    /// larga —<c>\+XXXXXX</c>— y el carácter de escape duplicado, que vale por el carácter literal.
     /// </summary>
-    /// <remarks>
-    /// Una secuencia mal formada se emite <b>verbatim</b>. PostgreSQL la rechaza
-    /// con error de sintaxis, así que esa consulta no llega a ejecutarse nunca:
-    /// inventarle acá un nombre decodificado sería afirmar algo que el motor no
-    /// va a ver.
-    /// </remarks>
     private static string Decodificar(string crudo, char escape)
     {
         if (crudo.IndexOf(escape) < 0)

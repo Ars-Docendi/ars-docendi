@@ -7,36 +7,19 @@ using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Selector por solapamiento de términos normalizados.
-/// </summary>
-/// <remarks>
-/// El parecido es el índice de Jaccard sobre los conjuntos de términos: los
-/// términos compartidos sobre los términos distintos que hay entre las dos.
-/// Dividir por la unión y no solo por la intersección es lo que impide que un
-/// ejemplo muy largo gane por acumulación.
-/// </remarks>
+/// <summary>Selector por solapamiento de términos normalizados.</summary>
 internal sealed class SelectorDeEjemplos : ISelectorDeEjemplos
 {
     /// <summary>Ruta lógica del recurso embebido con el catálogo.</summary>
     public const string RecursoCatalogo = "Modules.Asistente.Recursos.ejemplos-sql.json";
 
-    /// <summary>Cuántos ejemplos entran como mucho en el prompt de usuario.</summary>
-    /// <remarks>
-    /// El tope existe por costo: cada ejemplo es texto que se paga en el prompt
-    /// variable, que no se cachea. Cuatro alcanzan para mostrar la forma de la
-    /// respuesta y las convenciones del esquema.
-    /// </remarks>
+    /// <summary>
+    /// Cuántos ejemplos entran como mucho en el prompt de usuario. El tope existe por costo: cada
+    /// ejemplo es texto que se paga en el prompt variable, que no se cachea.
+    /// </summary>
     private const int TopeDeEjemplos = 4;
 
-    /// <summary>
-    /// Parecido mínimo para que un ejemplo entre.
-    /// </summary>
-    /// <remarks>
-    /// Con términos normalizados y sin palabras vacías, compartir un solo término
-    /// del dominio sobre una decena ya da alrededor de este valor. Por debajo, lo
-    /// que comparten es casualidad.
-    /// </remarks>
+    /// <summary>Parecido mínimo para que un ejemplo entre.</summary>
     private const double ParecidoMinimo = 0.08;
 
     private readonly IReadOnlyList<EjemploIndexado> _indexados;

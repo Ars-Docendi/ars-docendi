@@ -5,26 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
 
-/// <summary>
-/// Segunda llamada al modelo: narra las filas en español (RF-01, RF-10, RNF-18).
-/// </summary>
-/// <remarks>
-/// Es la segunda superficie de falla de la métrica, y la que la evaluación no
-/// suele mirar: el dataset de capacidad compara conjuntos de resultados y no ve
-/// la redacción. Una consulta correcta narrada mal es tan falsa como una consulta
-/// incorrecta.
-///
-/// Sin prefijo cacheado, a diferencia de la generación: el prompt de redacción es
-/// distinto en cada turno por definición —lleva las filas—, así que no hay nada
-/// estable que cachear.
-/// </remarks>
-/// <remarks>
-/// <b>El proveedor se lo inyecta la composición con clave, y puede ser otro modelo
-/// que el que genera.</b> Redactar toma filas ya obtenidas, ya enmascaradas y ya
-/// validadas y las escribe en una oración: no decide nada. Que sea la composición
-/// la que elige quién sirve este caso de uso, y no el puerto, es lo que deja este
-/// tipo sin enterarse de qué modelo le tocó.
-/// </remarks>
+/// <summary>Segunda llamada al modelo: narra las filas en español (RF-01, RF-10, RNF-18).</summary>
 public sealed class RedactorDeRespuesta(
     [FromKeyedServices(ModuleExtensions.ProveedorDeRedaccion)] IProveedorDeModelo modelo,
     IOptions<OpcionesAsistente> opciones,
@@ -38,11 +19,6 @@ public sealed class RedactorDeRespuesta(
 
 
     /// <summary>Cuántas filas se le muestran al modelo como mucho.</summary>
-    /// <remarks>
-    /// El tope existe por costo del prompt, no por seguridad: las filas ya vienen
-    /// acotadas por el ejecutor. Cuando entran menos de las que hay, se le dice al
-    /// modelo que está viendo una muestra, para que no narre un total.
-    /// </remarks>
     private const int TopeDeFilasEnElPrompt = 40;
 
     /// <summary>Redacta la respuesta sobre las filas devueltas.</summary>
@@ -53,10 +29,8 @@ public sealed class RedactorDeRespuesta(
         IReadOnlyList<CoberturaDeUnDato> cobertura,
         CancellationToken ct)
     {
-        // RESULTADO TRIVIAL, SIN MODELO (asistente-optimizaciones-modelo-local,
-        // D5): una columna con pocos valores, alcance completo, sin recorte ni
-        // cobertura autodeclarada. Fuera de eso, las reglas de abajo necesitan
-        // prosa.
+        // RESULTADO TRIVIAL, SIN MODELO (asistente-optimizaciones-modelo-local, D5): una columna
+        // con pocos valores, alcance completo, sin recorte ni cobertura autodeclarada.
         if (opciones.Value.RedaccionConPlantillas
             && PlantillaDeRedaccion.Intentar(resultado, alcanzaTodo, cobertura) is { } deterministica)
         {
@@ -69,9 +43,7 @@ public sealed class RedactorDeRespuesta(
                 PrefijoEstable = Instrucciones,
                 Mensaje = ArmarMensaje(pregunta, resultado, alcanzaTodo, cobertura),
                 Temperatura = Temperatura,
-                // Bajo a propósito: las filas ya están y esto es convertirlas en
-                // una oración. Cada nivel de más es tiempo que el usuario mira una
-                // pantalla quieta después de que la consulta ya se resolvió.
+                // Bajo a propósito: las filas ya están y esto es convertirlas en una oración.
                 Esfuerzo = EsfuerzoConfigurado.Interpretar(
                     opciones.Value.EsfuerzoDeRedaccion,
                     nameof(OpcionesAsistente.EsfuerzoDeRedaccion)),
@@ -105,14 +77,7 @@ public sealed class RedactorDeRespuesta(
            código.
         """;
 
-    /// <summary>
-    /// Arma el prompt de usuario de la redacción.
-    /// </summary>
-    /// <remarks>
-    /// Es <c>internal</c> y puro para poder afirmar en un test que las reglas de
-    /// abstención llegaron al prompt. Verificarlo a través de la respuesta del
-    /// modelo probaría al modelo, no a este código.
-    /// </remarks>
+    /// <summary>Arma el prompt de usuario de la redacción.</summary>
     internal static string ArmarMensaje(
         string pregunta,
         ResultadoDeConsulta resultado,

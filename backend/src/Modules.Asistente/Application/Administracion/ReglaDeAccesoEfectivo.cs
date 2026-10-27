@@ -1,23 +1,9 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// La regla que decide si un actor tiene ACCESO operativo al asistente
-/// (asistente-acceso-granular, design.md D2).
+/// La regla que decide si un actor tiene ACCESO operativo al asistente (asistente-acceso-granular,
+/// design.md D2).
 /// </summary>
-/// <remarks>
-/// A diferencia de <see cref="ReglaDeCupoEfectivo"/>, que es un espejo de la
-/// regla que aplica <c>CuotaPersistente</c>, esta clase es la ÚNICA
-/// implementación: la llaman tanto <c>AccesoPersistente</c> (el bloqueo real
-/// del turno) como el panel de administración (lo que se muestra), así que
-/// no hay dos reglas que puedan divergir.
-/// <para>
-/// El acceso es una capa ADICIONAL al permiso <c>asistente.consultar</c>
-/// (D1): sólo puede restringir. Por eso un actor sin ningún rol de sistema
-/// tiene acceso —no hay rol del que heredar un "no", y la puerta real sigue
-/// siendo el permiso— y un rol ausente de <paramref name="accesoPorRol"/>
-/// cuenta como habilitado.
-/// </para>
-/// </remarks>
 internal static class ReglaDeAccesoEfectivo
 {
     public const string OrigenRol = "rol";
@@ -44,9 +30,8 @@ internal static class ReglaDeAccesoEfectivo
             return (false, OrigenPropio);
         }
 
-        // «Alguno» y no «todos» (D2): un rol extra no le quita el acceso a
-        // quien otro rol se lo da — el acceso se quita explícitamente, por
-        // usuario, con la revocación de arriba.
+        // «Alguno» y no «todos» (D2): un rol extra no le quita el acceso a quien otro rol se lo da
+        // — el acceso se quita explícitamente, por usuario, con la revocación de arriba.
         var alguno = codigosDeRol.Count == 0
             || codigosDeRol.Any(rol => accesoPorRol.GetValueOrDefault(rol, true));
 

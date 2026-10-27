@@ -4,36 +4,8 @@ namespace Modules.Asistente.Application;
 public sealed record RangoDePeriodo(DateTimeOffset Desde, DateTimeOffset Hasta);
 
 /// <summary>
-/// Un agregado de uso: por usuario, por rol, u organizacional
-/// (asistente-panel-de-uso).
+/// Un agregado de uso: por usuario, por rol, u organizacional (asistente-panel-de-uso).
 /// </summary>
-/// <param name="Clave">
-/// El id del actor (como texto), el código del rol, o <c>"organizacion"</c>.
-/// </param>
-/// <param name="NombreParaMostrar">
-/// Sólo para agregados por usuario, resuelto vía
-/// <see cref="ArsDocendi.Shared.Identity.IConsultasIdentity.ListarUsuariosAsync"/>
-/// (design.md D12) — nunca vía <c>usuarios.ver</c>.
-/// </param>
-/// <param name="CostoEstimado">
-/// Suma de <see cref="CalculadoraDeCosto"/> sobre las filas CON precio. Nunca
-/// incluye las filas de <paramref name="TurnosSinPrecio"/>.
-/// </param>
-/// <param name="TurnosSinPrecio">
-/// Turnos cuyo proveedor/modelo no tenía ningún precio vigente al momento en
-/// que ocurrieron — reportados aparte, nunca costeados en cero.
-/// </param>
-/// <param name="CodigosDeRol">
-/// Sólo para agregados por usuario: los códigos de rol de sistema vigentes
-/// del actor, resueltos vía
-/// <see cref="ArsDocendi.Shared.Identity.IConsultasIdentity.ObtenerCodigosDeRolesDeSistemaAsync"/>
-/// — el mismo seam que <see cref="NombreParaMostrar"/>, nunca SQL directo a
-/// <c>identity</c> (regla 4, AGENTS.md). Lista vacía para un agregado por rol
-/// o el organizacional, donde el concepto no aplica. Un nombre legible de rol
-/// NO viaja acá: <c>IConsultasIdentity</c> no expone ninguno hoy — el
-/// frontend traduce el código (tarea «rol y cupo efectivo por usuario» de
-/// sistema-seccion-unificada).
-/// </param>
 public sealed record UsoAgregado(
     string Clave,
     string? NombreParaMostrar,
@@ -57,15 +29,9 @@ public sealed record PanelDeUso(
     UsoAgregado Organizacion);
 
 /// <summary>
-/// Agrega <c>asistente.registro_operativo</c> para el panel de uso
-/// (asistente-panel-de-uso, gated por <c>asistente.administrar</c>).
+/// Agrega <c>asistente.registro_operativo</c> para el panel de uso (asistente-panel-de-uso, gated
+/// por <c>asistente.administrar</c>).
 /// </summary>
-/// <remarks>
-/// Sólo <c>registro_operativo</c>, nunca <c>registro_analitico</c> — el
-/// primero no tiene el texto de las preguntas, y por eso puede tener actor;
-/// el segundo tiene el texto y por eso nunca lleva actor (TD-012). Cruzarlos
-/// acá reabriría exactamente el canal que esa separación cierra.
-/// </remarks>
 public interface IConsultasDeUso
 {
     Task<PanelDeUso> ObtenerAsync(RangoDePeriodo periodo, CancellationToken ct);

@@ -10,19 +10,6 @@ namespace Modules.Asistente.Infrastructure;
 /// <see cref="IConsultasDeCalidad"/> over <c>asistente.registro_analitico</c> joined with
 /// <c>asistente.retroalimentacion_turno</c> (design D1 and D8 of asistente-metricas-de-calidad).
 /// </summary>
-/// <remarks>
-/// <b>Structurally confined, on purpose (TD-012).</b> This file is the only reader of the
-/// vote table besides <see cref="ConsultasDeProblemasDeCalidad"/>, and
-/// <c>ArquitecturaAsistenteTests</c> fails if its code names the operational record, an actor
-/// column, a vote's free text or its timestamp. The join is by id, inside the two tables that
-/// are already linked; nothing here can tell who voted or when.
-///
-/// The day of a vote is the day of its turn: the series groups by the analytic record's own
-/// day column. Turns whose cause is in the policy family are outside every numerator and
-/// denominator and come back as a separate count.
-///
-/// Owner connection, like every reader of this schema: both read-only roles have it revoked.
-/// </remarks>
 internal sealed class ConsultasDeCalidad(
     CadenaDuena cadena,
     TimeProvider reloj,
@@ -196,9 +183,8 @@ internal sealed class ConsultasDeCalidad(
             }
         }
 
-        // The series covers every day (or every week) of the period, so a chart cannot stretch
-        // one day of data over the whole width. A point with no turns carries a null rate:
-        // it is a gap, and 0% would claim "no negatives" where nobody voted.
+        // The series covers every day (or every week) of the period, so a chart cannot stretch one
+        // day of data over the whole width.
         var paso = porSemana ? 7 : 1;
         var primero = porSemana ? LunesDe(desde) : desde;
         var puntos = new List<PuntoDeCalidad>();

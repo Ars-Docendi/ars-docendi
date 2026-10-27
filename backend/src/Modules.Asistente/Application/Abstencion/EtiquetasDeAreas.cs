@@ -1,16 +1,9 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Traduce las tablas del catálogo de capacidades a etiquetas humanas, para
-/// nombrar las áreas consultables en un rechazo (design.md D4 de
-/// asistente-rechazos-dinamicos).
+/// Traduce las tablas del catálogo de capacidades a etiquetas humanas, para nombrar las áreas
+/// consultables en un rechazo (design.md D4 de asistente-rechazos-dinamicos).
 /// </summary>
-/// <remarks>
-/// Nombrar áreas consultables no amplía lo que se revela (D15): es la MISMA
-/// información que la meta-pregunta y el popover «?» ya le dan a ese actor,
-/// derivada de los mismos privilegios efectivos —nunca del schema, la tabla o
-/// la columna, que son etiquetas internas (RNF-18).
-/// </remarks>
 internal static class EtiquetasDeAreas
 {
     /// <summary>Cuántas etiquetas como máximo se listan antes del «, entre otros datos».</summary>
@@ -49,11 +42,7 @@ internal static class EtiquetasDeAreas
     ];
 
     /// <summary>
-    /// Los schemas que el asistente tiene habilitados: los de las tablas con
-    /// etiqueta. Es la fuente de las áreas que declara la respuesta
-    /// (<see cref="OrigenesDeLosDatos"/>), y no una lista aparte: el guard de
-    /// cobertura que compara este mapa contra el manifiesto de privilegios la
-    /// mantiene al día.
+    /// Los schemas que el asistente tiene habilitados: los de las tablas con etiqueta.
     /// </summary>
     internal static readonly IReadOnlySet<string> SchemasHabilitados =
         Mapa.Select(par => par.Tabla[..par.Tabla.IndexOf('.', StringComparison.Ordinal)])
@@ -63,16 +52,10 @@ internal static class EtiquetasDeAreas
         Mapa.Select(par => par.Tabla).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
-    /// Las etiquetas de las áreas que <paramref name="cubre"/> nombra, en el
-    /// orden declarado, sin repetir, hasta cinco, con «, entre otros datos»
-    /// cuando hay más — o <c>null</c> si ninguna tabla cubierta tiene etiqueta.
+    /// Las etiquetas de las áreas que <paramref name="cubre"/> nombra, en el orden declarado, sin
+    /// repetir, hasta cinco, con «, entre otros datos» cuando hay más — o <c>null</c> si ninguna
+    /// tabla cubierta tiene etiqueta.
     /// </summary>
-    /// <remarks>
-    /// Una tabla cubierta pero desconocida para este mapa (defensivo: un GRANT
-    /// nuevo sin wording todavía decidido) se salta en silencio — nunca se
-    /// imprime por su nombre interno. La tarea 3.2 la detecta en CI antes de
-    /// que llegue a producción.
-    /// </remarks>
     public static string? Nombrar(IReadOnlyList<AreaCubierta> cubre)
     {
         ArgumentNullException.ThrowIfNull(cubre);
@@ -99,10 +82,5 @@ internal static class EtiquetasDeAreas
     }
 
     /// <summary>Si esta tabla calificada tiene una etiqueta declarada.</summary>
-    /// <remarks>
-    /// Sólo para el guard de cobertura (tarea 3.2): compara este mapa contra
-    /// <c>database/asistente/manifiesto-privilegios.json</c> y falla si una
-    /// tabla <c>concedida</c> queda sin wording.
-    /// </remarks>
     internal static bool Conoce(string tablaCalificada) => TablasConocidas.Contains(tablaCalificada);
 }

@@ -3,52 +3,11 @@ using Microsoft.Extensions.Options;
 namespace Modules.Asistente;
 
 /// <summary>
-/// Verifica que las perillas del módulo tengan valores con los que el pipeline
-/// pueda funcionar.
+/// Verifica que las perillas del módulo tengan valores con los que el pipeline pueda funcionar.
 /// </summary>
-/// <remarks>
-/// <b>Ninguna de estas 22 perillas tenía validación.</b> Un cero o un negativo en
-/// la configuración de un ambiente entraba tal cual, y el modo de falla dependía
-/// de cuál: algunos rompen ruidosamente en el primer turno, y otros —los peores—
-/// <b>apagan una defensa en silencio</b>.
-///
-/// Los dos que hacen eso están acá y merecen leerse con cuidado:
-/// <c>TimeoutDeSentenciaMs</c> en cero es <c>statement_timeout = 0</c>, que en
-/// PostgreSQL significa <b>sin límite</b>; <c>TimeoutDeComandoSegundos</c> en cero
-/// es lo mismo del lado de Npgsql. En los dos casos, el número que parece
-/// «desactivado» desactiva la cota que impide que una consulta generada con un
-/// producto cartesiano ocupe un backend hasta terminar.
-///
-/// <b>No se registra con <c>ValidateOnStart</c>, y es una decisión.</b> Con
-/// arranque validado, un <c>Asistente:TopeDeFilas</c> en cero tumbaría el Host
-/// entero —incluido <c>/api/tareas/ping</c>, que no tiene nada que ver—. Eso
-/// invierte la postura que el módulo ya tiene escrita en su composición: el
-/// proveedor se registra como fábrica «para que un nombre desconocido o una clave
-/// faltante falle recién cuando alguien lo pida, y no impida arrancar: el ping
-/// tiene que responder en cualquier ambiente». El invariante #3 pide que el ping
-/// distinga «el módulo está cargado» de «la base responde»; un Host que no arranca
-/// no distingue nada.
-///
-/// Así, la validación corre la primera vez que alguien lee las opciones —o sea, en
-/// el primer turno del asistente— y falla ahí, nombrando la perilla. El resto del
-/// sistema sigue en pie.
-/// </remarks>
 internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAsistente>
 {
-    /// <summary>
-    /// Las perillas que usan el cero como apagado deliberado y documentado.
-    /// </summary>
-    /// <remarks>
-    /// No llevan regla de positividad justamente porque el cero es un valor con
-    /// significado: sin corte del proveedor, sin presupuesto de turno, sin
-    /// historial para el reescritor. Ponerles <c>[Range(1, …)]</c> —que es el
-    /// reflejo obvio— rompería una capacidad que el módulo ofrece.
-    ///
-    /// El cupo por actor dejó de estar acá con asistente-administracion-de-uso:
-    /// ya no es una perilla de <see cref="OpcionesAsistente"/> sino una fila en
-    /// <c>asistente.presupuesto_rol</c>/<c>presupuesto_usuario</c>, y el mismo
-    /// convenio de "cero desactiva" sigue vigente ahí (ver <c>CuotaPersistente</c>).
-    /// </remarks>
+    /// <summary>Las perillas que usan el cero como apagado deliberado y documentado.</summary>
     private static readonly (string Nombre, Func<OpcionesAsistente, int> Leer)[] ConCeroComoApagado =
     [
         (nameof(OpcionesAsistente.FallosParaAbrirElBreaker), o => o.FallosParaAbrirElBreaker),
@@ -94,30 +53,16 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.MuestrasDelPlan), o => o.MuestrasDelPlan),
     ];
 
-    /// <summary>
-    /// La única donde el cero es sensato y el negativo no.
-    /// </summary>
-    /// <remarks>
-    /// Espera base en cero es «reintentar sin esperar», que es una configuración
-    /// legítima —agresiva, pero legítima— para un ambiente de prueba. Negativa no
-    /// significa nada.
-    /// </remarks>
+    /// <summary>La única donde el cero es sensato y el negativo no.</summary>
     private static readonly (string Nombre, Func<OpcionesAsistente, int> Leer)[] NoNegativas =
     [
         (nameof(OpcionesAsistente.EsperaBaseMs), o => o.EsperaBaseMs),
     ];
 
     /// <summary>
-    /// Valida las claves maestras SÓLO cuando alguien va a cifrar o descifrar una
-    /// credencial (asistente-modelo-en-caliente, tarea 1.5).
+    /// Valida las claves maestras SÓLO cuando alguien va a cifrar o descifrar una credencial
+    /// (asistente-modelo-en-caliente, tarea 1.5).
     /// </summary>
-    /// <remarks>
-    /// No forma parte de <see cref="Validate"/> a propósito: esa corre en el primer
-    /// turno de cualquier ambiente, y un ambiente sin clave maestra —el simulado, el
-    /// modelo local— es una configuración válida. Los mensajes nombran la variable y
-    /// nunca su valor: una clave mal pegada es, igual, una clave.
-    /// </remarks>
-    /// <returns>Una falla por problema; vacía si se puede operar con claves.</returns>
     internal static IReadOnlyList<string> ValidarClavesMaestras(OpcionesAsistente options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -211,10 +156,8 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
                 + "los dos apliquen, corte primero el del servidor —que además libera el backend—.");
         }
 
-        // El plan compilado (asistente-plan-compilado, D5): sus muestras son
-        // llamadas del mismo turno, así que no pueden superar su techo. Solo rige
-        // con la opción encendida: un techo bajo sin el plan es una configuración
-        // válida, y el default de las muestras no puede volverla inválida.
+        // El plan compilado (asistente-plan-compilado, D5): sus muestras son llamadas del mismo
+        // turno, así que no pueden superar su techo.
         if (options.PlanCompilado && options.MuestrasDelPlan > options.MaximoDeLlamadasPorTurno)
         {
             fallas.Add(

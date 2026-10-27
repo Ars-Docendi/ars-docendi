@@ -56,11 +56,8 @@ internal sealed class CuotaPersistente(
 
     public async Task AnotarAsync(Guid actor, CancellationToken ct)
     {
-        // Ver el XML-doc de ICuotaDelActor.AnotarAsync: el consumo se deriva
-        // contando registro_operativo, así que no hay nada que ESCRIBIR acá.
-        // Lo que sí corresponde acá (tarea 9.7) es el aviso de umbral: para
-        // este momento, la fila que este turno ya escribió (vía
-        // IRegistroDelTurno, que corre ANTES en el mismo finally) ya cuenta.
+        // Ver el XML-doc de ICuotaDelActor.AnotarAsync: el consumo se deriva contando
+        // registro_operativo, así que no hay nada que ESCRIBIR acá.
         var cupo = await CupoEfectivoAsync(actor, ct);
         if (cupo <= 0)
         {
@@ -112,16 +109,9 @@ internal sealed class CuotaPersistente(
         DateOnly.FromDateTime(momento.UtcDateTime).ToString("yyyy-MM-dd");
 
     /// <summary>
-    /// Turnos consumidos hoy: filas de <c>registro_operativo</c> del actor, del día
-    /// calendario UTC en curso, que efectivamente invocaron al modelo (D4).
+    /// Turnos consumidos hoy: filas de <c>registro_operativo</c> del actor, del día calendario UTC
+    /// en curso, que efectivamente invocaron al modelo (D4).
     /// </summary>
-    /// <remarks>
-    /// Contar acá y no en una tabla propia es la decisión que design.md deja
-    /// abierta en la tarea 3.2, tomada a favor de <c>registro_operativo</c>
-    /// directo: una segunda fuente de verdad (un contador propio) podría
-    /// desincronizarse del registro real, y <c>registro_operativo</c> ya es
-    /// la fuente autorizada de "cuántos turnos hizo este actor".
-    /// </remarks>
     private async Task<int> TurnosDeHoyAsync(Guid actor, CancellationToken ct)
     {
         await using var conexion = new NpgsqlConnection(cadena.Valor);

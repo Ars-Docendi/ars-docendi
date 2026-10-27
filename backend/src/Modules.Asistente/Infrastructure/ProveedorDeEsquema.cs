@@ -7,28 +7,7 @@ using Npgsql;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Construye el prefijo del prompt de sistema y lo cachea por rol.
-/// </summary>
-/// <remarks>
-/// <b>Perezoso a propósito.</b> Construirlo al arrancar exigiría una conexión a
-/// la base durante el arranque del Host, y el invariante #3 pide que
-/// <c>GET /api/asistente/ping</c> responda con la base detenida.
-///
-/// <b>No se invalida solo.</b> Una migración de esquema exige reiniciar el
-/// proceso para que el prefijo se recalcule. Es lo correcto para lo que se
-/// optimiza: un prefijo que se invalidara por su cuenta podría cambiar entre dos
-/// turnos consecutivos —lo que RNF-14 prohíbe— y cada invalidación pagaría
-/// escritura de caché sobre el bloque más grande del prompt. El despliegue ya
-/// reinicia el proceso, y el hash del prefijo va sellado en cada reporte de
-/// evaluación, así que una corrida contra un esquema viejo queda registrada como
-/// tal en lugar de pasar desapercibida.
-/// </remarks>
-/// <param name="opciones">
-/// Opcional: sólo decide <see cref="OpcionesAsistente.EsquemaCompacto"/> y
-/// <see cref="OpcionesAsistente.GlosarioEnElPrefijo"/>. Sin opciones —como lo
-/// construyen los tests de cassettes— el prefijo es el de siempre.
-/// </param>
+/// <summary>Construye el prefijo del prompt de sistema y lo cachea por rol.</summary>
 internal sealed class ProveedorDeEsquema(
     AperturaDeLectura apertura, IOptions<OpcionesAsistente>? opciones = null) : IProveedorDeEsquema
 {
@@ -54,9 +33,8 @@ internal sealed class ProveedorDeEsquema(
         var conGlosario = opciones?.Value.GlosarioEnElPrefijo ?? false;
         var vocabularios = await LectorDeValoresDeCatalogo.LeerAsync(conexion, ct, conGlosario);
 
-        // EL GLOSARIO SE LEE SÓLO CON LA OPCIÓN PRENDIDA: un archivo mal formado no
-        // puede tumbar un despliegue con el default. Va dentro del prefijo y por eso
-        // dentro de la huella: el sello del evaluador distingue con glosario de sin él.
+        // EL GLOSARIO SE LEE SÓLO CON LA OPCIÓN PRENDIDA: un archivo mal formado no puede tumbar un
+        // despliegue con el default.
         var bloqueDeGlosario = conGlosario
             ? RenderizadorDeGlosario.Renderizar(CatalogoDeGlosario.Vigente.Terminos)
             : null;
@@ -66,14 +44,7 @@ internal sealed class ProveedorDeEsquema(
         return new EsquemaParaPrompt(prefijo, Huella(prefijo));
     }
 
-    /// <summary>
-    /// Huella estable del prefijo.
-    /// </summary>
-    /// <remarks>
-    /// SHA-256 y no <c>string.GetHashCode()</c>: en .NET el hash de string está
-    /// aleatorizado por proceso. Un reporte de evaluación sellado con un valor
-    /// que cambia en cada arranque no sella nada.
-    /// </remarks>
+    /// <summary>Huella estable del prefijo.</summary>
     internal static string Huella(string prefijo) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(prefijo)));
 }

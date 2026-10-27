@@ -6,15 +6,9 @@ using Microsoft.Extensions.Options;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Lo que el servidor del modelo propio y la compuerta del backend dicen de su
-/// carga (asistente-optimizaciones-modelo-local, design.md D8).
+/// Lo que el servidor del modelo propio y la compuerta del backend dicen de su carga
+/// (asistente-optimizaciones-modelo-local, design.md D8).
 /// </summary>
-/// <param name="Motor"><c>vllm</c>, <c>llama.cpp</c>, o nulo si no se reconoció.</param>
-/// <param name="UsoDeKvCache">Fracción de la KV cache ocupada, de 0 a 1.</param>
-/// <param name="AciertosDeCacheDePrefijo">
-/// Fracción de tokens de prompt servidos desde la caché de prefijo desde que el
-/// servidor arrancó, de 0 a 1. Sólo vLLM la publica.
-/// </param>
 internal sealed record EstadoDelServidorLocal(
     bool Configurado,
     bool Alcanzable,
@@ -25,17 +19,7 @@ internal sealed record EstadoDelServidorLocal(
     double? AciertosDeCacheDePrefijo,
     (int Capacidad, int EnCurso, int EnEspera)? Compuerta);
 
-/// <summary>
-/// Lee el <c>/metrics</c> Prometheus del servidor local (D8).
-/// </summary>
-/// <remarks>
-/// <b>Una métrica que el servidor no publica queda nula, nunca en cero.</b> Cero
-/// turnos en espera es un dato; «no sé» es otro, y confundirlos le diría al panel
-/// que la GPU está libre cuando nadie lo midió.
-///
-/// No es parte del camino del turno: un servidor que no responde a tiempo se
-/// informa como inalcanzable en 3 s y nada más.
-/// </remarks>
+/// <summary>Lee el <c>/metrics</c> Prometheus del servidor local (D8).</summary>
 internal sealed class TelemetriaDelServidorLocal(
     IHttpClientFactory clientes,
     IOptions<OpcionesAsistente> opciones,
@@ -95,11 +79,6 @@ internal sealed class TelemetriaDelServidorLocal(
     }
 
     /// <summary>Interpreta el formato de texto de Prometheus (D8).</summary>
-    /// <remarks>
-    /// Suma las muestras de cada métrica sin mirar las etiquetas: un servidor con
-    /// un solo modelo publica una serie por métrica, y si publicara varias, la
-    /// suma es lo que el panel quiere ver.
-    /// </remarks>
     internal static EstadoDelServidorLocal Interpretar(string texto)
     {
         var metricas = new Dictionary<string, double>(StringComparer.Ordinal);

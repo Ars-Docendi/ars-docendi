@@ -1,17 +1,6 @@
 namespace Modules.Asistente.Application;
 
-/// <summary>
-/// El breaker está abierto: no se llamó al proveedor.
-/// </summary>
-/// <remarks>
-/// Tiene tipo propio porque significa algo distinto de un fallo de red. Nadie la
-/// reintenta y nadie la loguea como error del proveedor: es el sistema haciendo
-/// exactamente lo que se le pidió.
-///
-/// Vive en <c>Application</c> y no junto al decorador que la lanza porque quien la
-/// atrapa —el carril y la capa conversacional— no puede depender de
-/// infraestructura.
-/// </remarks>
+/// <summary>El breaker está abierto: no se llamó al proveedor.</summary>
 internal sealed class ProveedorNoDisponible()
     : Exception("El proveedor del modelo está fuera de servicio y no se lo llamó.");
 
@@ -27,16 +16,6 @@ internal sealed class TimeoutDelProveedor(TimeSpan cuanto)
 /// La compuerta de concurrencia no dio lugar a tiempo: no se llamó al proveedor
 /// (asistente-proveedor-local, design.md D4).
 /// </summary>
-/// <remarks>
-/// Tipo propio y no <see cref="TimeoutDelProveedor"/> a propósito: el proveedor
-/// no falló, está OCUPADO atendiendo a otros. Contarlo como fallo abriría el
-/// breaker y apagaría el asistente para todos justo cuando más se lo usa — el
-/// breaker no la ve porque la compuerta va por fuera de él.
-///
-/// La lanza también <c>ProveedorOllama</c> cuando el servicio compartido responde
-/// 429 o 503 (asistente-proveedor-ollama, design.md D4): ahí la cola llena es la
-/// del servidor y no la del módulo, sin espera propia, y el motivo lo dice.
-/// </remarks>
 internal sealed class ProveedorSaturado(TimeSpan espera, string? motivo = null)
     : Exception(motivo ?? $"No hubo lugar para llamar al modelo en {espera.TotalSeconds:0.#} s: hay demasiadas consultas en curso.")
 {

@@ -8,18 +8,6 @@ namespace Modules.Asistente.Infrastructure;
 /// <summary>
 /// El lado de lectura propia del historial (asistente-historial-conversaciones §6-8).
 /// </summary>
-/// <remarks>
-/// Pide <see cref="CadenaDuena"/> y no una de solo lectura: <c>asistente.hilo_historico</c>
-/// y <c>asistente.turno_historico</c> viven en el schema propio del asistente,
-/// que los dos roles de solo lectura tienen revocado entero — leerlas necesita
-/// la misma conexión que escribirlas.
-///
-/// <b>Toda consulta filtra <c>borrado_pendiente_desde IS NULL</c></b>
-/// (asistente-rediseno-v3, design.md D4): una conversación pendiente de
-/// borrado no existe para su propio dueño ni por esta interfaz, aunque su
-/// ventana de «Deshacer» todavía no haya vencido — eso lo ve únicamente
-/// <c>IConsultasDeAuditoriaDeSoporte</c>, marcada.
-/// </remarks>
 internal sealed class ConsultasDeHistorial(
     CadenaDuena cadena, TimeProvider reloj, IOptions<OpcionesAsistente> opciones)
     : IConsultasDeHistorial

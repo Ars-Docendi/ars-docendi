@@ -8,37 +8,10 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Aplica los privilegios de lectura del asistente. Interno al módulo: el Host
-/// lo resuelve solo a través de <see cref="IMigradorModulo"/>.
+/// Aplica los privilegios de lectura del asistente. Interno al módulo: el Host lo resuelve solo a
+/// través de <see cref="IMigradorModulo"/>. Sin esas tablas, cada GRANT fallaría con «relation does
+/// not exist».
 /// </summary>
-/// <remarks>
-/// No usa EF Core: el módulo no tiene entidades propias, así que no hay nada que
-/// versionar con un historial de migraciones. Los scripts convergen por
-/// construcción —<c>CREATE ... IF NOT EXISTS</c>, GRANT repetido y
-/// <c>ADD COLUMN IF NOT EXISTS</c> son no-op la segunda vez—, que es justo lo que
-/// <see cref="IMigradorModulo"/> pide.
-///
-/// Sin historial, nada garantiza que esa convergencia se haya escrito. Por eso
-/// después de aplicar los scripts verifica que la base tenga las columnas que el
-/// módulo escribe, y no arranca si le falta alguna: ver
-/// <see cref="VerificarColumnasDelRegistroAsync"/>.
-///
-/// Se registra último en la composición del Host, así que corre después de las
-/// migraciones que crean las tablas de <c>identity</c> y <c>designaciones</c>.
-/// Sin esas tablas, cada GRANT fallaría con «relation does not exist».
-///
-/// Pide <see cref="CadenaDuena"/> y no una cadena cualquiera: conceder requiere
-/// ser dueño de la tabla, así que con una de solo lectura este código no podría
-/// hacer su trabajo. Que el tipo lo diga evita descubrirlo en runtime.
-///
-/// <b>Estado para el deploy.</b> El runner de migraciones decide si corre
-/// <c>--migrate</c> por las pendientes que informa cada contexto. Sin historial,
-/// el asistente informa UNA versión disponible: la huella de sus scripts y de los
-/// nombres de rol (<see cref="Huella"/>). Está aplicada cuando coincide con la que
-/// guarda <c>asistente.version_aplicada</c>; si no, es la pendiente. Así una
-/// release cuyo único cambio es un GRANT del asistente también pasa por
-/// <c>--migrate</c>.
-/// </remarks>
 internal sealed class MigradorAsistente(
     IOptions<OpcionesAsistente> opciones,
     CadenaDuena cadena,
@@ -101,10 +74,6 @@ internal sealed class MigradorAsistente(
     /// <summary>
     /// El SQL que <see cref="MigrarAsync"/> ejecutaría, para el preview del deploy.
     /// </summary>
-    /// <remarks>
-    /// Los nombres de rol viajan como GUC de transacción, igual que al aplicar: el
-    /// preview los fija con <c>set_config</c> en vez de interpolarlos en los scripts.
-    /// </remarks>
     public async Task<string> GenerarScriptAsync(CancellationToken ct)
     {
         var estado = await ConsultarAsync(ct);
@@ -151,17 +120,13 @@ internal sealed class MigradorAsistente(
         // since its primary key is a foreign key into that table.
         await RetroalimentacionAsistente.AplicarAsync(conexion, ct);
 
-        // Same reason as the feedback table: no role GUCs needed, both live
-        // inside the already wholesale-denied `asistente` schema. Historial
-        // before auditoria only for readability — there is no foreign key
-        // between them (design.md D10 of asistente-historial-conversaciones).
+        // Same reason as the feedback table: no role GUCs needed, both live inside the already
+        // wholesale-denied `asistente` schema.
         await HistorialAsistente.AplicarAsync(conexion, ct);
         await AuditoriaDeSoporteAsistente.AplicarAsync(conexion, ct);
 
-        // Same reason as the two calls above: no role GUCs needed, lives
-        // inside the already wholesale-denied `asistente` schema. Runs last
-        // among the DDL calls only for readability — nothing in it depends
-        // on the other tables existing.
+        // Same reason as the two calls above: no role GUCs needed, lives inside the already
+        // wholesale-denied `asistente` schema.
         await AdministracionAsistente.AplicarAsync(conexion, ct);
 
         // Same reason: runtime-model tables (credential, selection, catalog),
@@ -223,12 +188,10 @@ internal sealed class MigradorAsistente(
     }
 
     /// <summary>
-    /// Columns written NOT by the two INSERTs of <see cref="RegistroDelTurno"/> but by
-    /// something else, checked explicitly because nothing derives them from that list
-    /// (asistente-metricas-de-calidad): the replaced flag, written by its own UPDATE,
-    /// and the audit table of reads of the quality problem list, written by its own
-    /// INSERT. Same silent failure mode as the INSERTs: a missing column makes a write
-    /// that is swallowed on purpose fail on every turn.
+    /// Columns written NOT by the two INSERTs of <see cref="RegistroDelTurno"/> but by something
+    /// else, checked explicitly because nothing derives them from that list
+    /// (asistente-metricas-de-calidad): the replaced flag, written by its own UPDATE, and the audit
+    /// table of reads of the quality problem list, written by its own INSERT.
     /// </summary>
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> ColumnasEscritasAparte =
         new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
@@ -240,23 +203,6 @@ internal sealed class MigradorAsistente(
     /// <summary>
     /// Falla si a la base le falta alguna columna que el registro del turno escribe.
     /// </summary>
-    /// <remarks>
-    /// CIERRA EL MODO DE FALLA SILENCIOSO, que es el único que importa acá. Con una
-    /// columna faltante, el INSERT del registro revienta en cada turno; el escritor
-    /// se traga el fallo a propósito —para que la observabilidad no tumbe el
-    /// servicio— y el endpoint sigue devolviendo 200. El resultado es un registro que
-    /// deja de guardar sin que nada avise, y solo se descubre mirando la tabla. Pasó,
-    /// y pasó desapercibido un día entero.
-    ///
-    /// Negarse a arrancar es la respuesta proporcionada: el arranque es el último
-    /// momento en que alguien está mirando, y una migración a medias es exactamente
-    /// lo que <c>--migrate</c> existe para no dejar pasar.
-    ///
-    /// La lista de columnas sale de <see cref="RegistroDelTurno.ColumnasQueEscribe"/>
-    /// y no de una copia acá: una segunda lista solo puede coincidir con el INSERT o
-    /// mentirle, y este chequeo existe justamente porque la que mentía no la miraba
-    /// nadie.
-    /// </remarks>
     private static async Task VerificarColumnasDelRegistroAsync(
         NpgsqlConnection conexion, CancellationToken ct)
     {

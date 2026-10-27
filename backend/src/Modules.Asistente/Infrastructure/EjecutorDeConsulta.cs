@@ -9,18 +9,9 @@ using Npgsql.Schema;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Ejecuta la consulta generada acotada al actor.
+/// Ejecuta la consulta generada acotada al actor. Las <b>policies RLS</b> filtran las filas según
+/// el actor fijado.
 /// </summary>
-/// <remarks>
-/// Tres capas, en este orden y cada una independiente de las otras:
-///
-/// 1. El <b>rol</b> con que conecta no tiene ningún privilegio de mutación.
-/// 2. La <b>transacción</b> se declara <c>READ ONLY</c>.
-/// 3. Las <b>policies RLS</b> filtran las filas según el actor fijado.
-///
-/// El validador es una cuarta capa que corre antes, fuera de esta clase. Si
-/// fallara entera, las tres de acá siguen en pie.
-/// </remarks>
 internal sealed class EjecutorDeConsulta(
     AperturaDeLectura apertura,
     IClasificadorDeSensibilidad clasificador,
@@ -37,18 +28,15 @@ internal sealed class EjecutorDeConsulta(
 
         var valores = opciones.Value;
 
-        // Reescribe $refN -> @refN ANTES de abrir la conexión: es puro (no toca la
-        // base), y si algo estuviera mal —un marcador sin binding, señal de que el
-        // validador y este ejecutor divergieron— revienta sin haber gastado una
-        // transacción.
+        // Reescribe $refN -> @refN ANTES de abrir la conexión: es puro (no toca la base), y si algo
+        // estuviera mal —un marcador sin binding, señal de que el validador y este ejecutor
+        // divergieron— revienta sin haber gastado una transacción.
         var (sqlParaEjecutar, bindings) = marcadores is { Count: > 0 }
             ? ReescritorDeMarcadores.Reescribir(sql, marcadores)
             : (sql, (IReadOnlyDictionary<string, Guid>)new Dictionary<string, Guid>());
 
-        // Conexión y transacción NUEVAS por ejecución, también en el reintento.
-        // Reusar la transacción dejaría que una segunda ejecución heredara el
-        // ajuste de la primera. El techo de comando ya viene puesto por la
-        // apertura, que es donde se decide para las cuatro lecturas del módulo.
+        // Conexión y transacción NUEVAS por ejecución, también en el reintento. Reusar la
+        // transacción dejaría que una segunda ejecución heredara el ajuste de la primera.
         await using var conexion = await apertura.AbrirAsync(conDatosPersonales, ct);
 
         await using var transaccion = await conexion.BeginTransactionAsync(
@@ -75,20 +63,7 @@ internal sealed class EjecutorDeConsulta(
         }
     }
 
-    /// <summary>
-    /// Ejecuta la consulta envuelta y devuelve las filas ya recortadas.
-    /// </summary>
-    /// <remarks>
-    /// <b>La envoltura pide una fila de más a propósito.</b> Con un límite exacto,
-    /// «devolvió N» y «devolvió más de N y se recortó» son indistinguibles desde
-    /// el resultado, y la redacción termina afirmando un total sobre un recorte —
-    /// una afirmación falsa producida por el sistema, no por el modelo. Con la
-    /// fila sonda, la distinción es aritmética.
-    ///
-    /// La consulta generada ya pasó por el validador, así que interpolarla acá no
-    /// abre nada que el validador no haya mirado. Parametrizarla es imposible: es
-    /// código, no un valor.
-    /// </remarks>
+    /// <summary>Ejecuta la consulta envuelta y devuelve las filas ya recortadas.</summary>
     private static async Task<ResultadoDeConsulta> LeerAsync(
         NpgsqlConnection conexion,
         NpgsqlTransaction transaccion,
@@ -102,10 +77,9 @@ internal sealed class EjecutorDeConsulta(
 
         await using var comando = new NpgsqlCommand(envuelta, conexion, transaccion);
 
-        // Los `@refN` que reescribió el validador se ligan como `uuid`, nunca
-        // interpolados: es la frontera que hace que un identificador interno no
-        // pueda llegar al modelo por ningún camino, ni siquiera el de una
-        // consulta que lo carga en el WHERE (design.md D11).
+        // Los `@refN` que reescribió el validador se ligan como `uuid`, nunca interpolados: es la
+        // frontera que hace que un identificador interno no pueda llegar al modelo por ningún
+        // camino, ni siquiera el de una consulta que lo carga en el WHERE (design.md D11).
         foreach (var (nombre, id) in bindings)
         {
             comando.Parameters.Add(new NpgsqlParameter(nombre, NpgsqlTypes.NpgsqlDbType.Uuid) { Value = id });
@@ -116,11 +90,8 @@ internal sealed class EjecutorDeConsulta(
         var columnas = new List<string>(lector.FieldCount);
         var sensibilidad = new List<SensibilidadDeColumna>(lector.FieldCount);
 
-        // El esquema de columnas trae el identificador de tabla y el número de
-        // atributo que el motor reportó para cada una. Se clasifica ACÁ y no en la
-        // capa de aplicación porque es el único punto donde esos identificadores
-        // existen: más arriba solo quedan los alias, que no dicen de dónde vino la
-        // columna.
+        // El esquema de columnas trae el identificador de tabla y el número de atributo que el
+        // motor reportó para cada una.
         var esquema = lector.GetColumnSchema();
 
         for (var indice = 0; indice < lector.FieldCount; indice++)

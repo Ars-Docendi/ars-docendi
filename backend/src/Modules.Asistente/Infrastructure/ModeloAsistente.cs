@@ -4,16 +4,9 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Creates the three runtime-model tables (per-company credential, current
-/// selection, model catalog) on an already-migrated base.
+/// Creates the three runtime-model tables (per-company credential, current selection, model
+/// catalog) on an already-migrated base.
 /// </summary>
-/// <remarks>
-/// Public and takes the connection from the outside, for the same reason as
-/// <see cref="AdministracionAsistente"/>: the module's migrator and the test
-/// infrastructure have to run the exact same SQL. Needs no role GUCs: the new
-/// tables live inside the <c>asistente</c> schema, already denied wholesale to
-/// both read-only roles.
-/// </remarks>
 public static class ModeloAsistente
 {
     /// <summary>Logical resource path of the embedded DDL.</summary>

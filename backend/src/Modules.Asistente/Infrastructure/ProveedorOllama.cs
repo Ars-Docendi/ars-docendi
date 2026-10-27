@@ -9,25 +9,9 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Adaptador de <see cref="IProveedorDeModelo"/> contra la API nativa de Ollama
-/// (<c>POST /api/chat</c>) del servicio de inferencia compartido
-/// (asistente-proveedor-ollama, design.md D1).
+/// Adaptador de <see cref="IProveedorDeModelo"/> contra la API nativa de Ollama (<c>POST
+/// /api/chat</c>) del servicio de inferencia compartido (asistente-proveedor-ollama, design.md D1).
 /// </summary>
-/// <remarks>
-/// Como <see cref="ProveedorLocal"/>, su única responsabilidad es traducir: el
-/// techo del turno, la compuerta, el corte y el reintento de transporte viven en
-/// decoradores y handlers que no saben qué proveedor hay adentro.
-///
-/// <b>La API nativa y no la OpenAI-compatible</b> porque es la que el servicio
-/// publica: Traefik sólo deja pasar <c>/api/chat</c>, <c>/api/generate</c>,
-/// <c>/api/version</c> y <c>/api/tags</c>. Con la nativa además el razonamiento
-/// se apaga con <c>think</c> y el contexto se fija por pedido con
-/// <c>num_ctx</c>.
-///
-/// Las credenciales salen de <see cref="OpcionesInferencia"/> y se ponen por
-/// pedido: el transporte es el mismo que el de Anthropic, y una cabecera por
-/// defecto viajaría también allá.
-/// </remarks>
 internal sealed class ProveedorOllama : IProveedorDeModelo
 {
     /// <summary>Nombre de configuración de este proveedor.</summary>
@@ -65,8 +49,7 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
 
     /// <summary>
     /// <c>ollama/{modelo}</c>: el mismo formato <c>proveedor/modelo</c> que parte
-    /// <c>CalculadoraDeCosto</c>. Sin fila en <c>tabla_de_precios</c> esos turnos
-    /// se informan «sin precio», nunca como costo cero.
+    /// <c>CalculadoraDeCosto</c>.
     /// </summary>
     public string Nombre => $"{Clave}/{_modelo}";
 
@@ -120,11 +103,6 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
     }
 
     /// <summary>Arma el cuerpo del request.</summary>
-    /// <remarks>
-    /// <b>El orden de los mensajes es la caché.</b> El servidor reutiliza el
-    /// prefijo de tokens del pedido anterior: el sistema va primero y es byte a
-    /// byte igual entre turnos, y todo lo variable va en el mensaje de usuario.
-    /// </remarks>
     internal JsonObject Cuerpo(SolicitudAlModelo solicitud)
     {
         var opciones = new JsonObject
@@ -133,9 +111,8 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
             ["num_predict"] = solicitud.MaximoDeTokens,
         };
 
-        // Fijo por configuración y el mismo en todos los pedidos: un num_ctx
-        // distinto del que tiene cargado el servidor lo hace recargar el modelo.
-        // Cero no lo manda y deja el del servidor (OLLAMA_CONTEXT_LENGTH).
+        // Fijo por configuración y el mismo en todos los pedidos: un num_ctx distinto del que tiene
+        // cargado el servidor lo hace recargar el modelo.
         if (_contexto > 0)
         {
             opciones["num_ctx"] = _contexto;
@@ -151,10 +128,9 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
             },
             ["stream"] = solicitud.AlRecibirTexto is not null,
 
-            // EL RAZONAMIENTO SE APAGA SALVO QUE SE LO PIDA EXPLÍCITAMENTE, igual que
-            // en ProveedorLocal: en una GPU compartida, pensar multiplica la salida
-            // y es latencia para todos los que esperan.
-            // Explícito siempre: qwen3.5 piensa por defecto si no se lo dice.
+            // EL RAZONAMIENTO SE APAGA SALVO QUE SE LO PIDA EXPLÍCITAMENTE, igual que en
+            // ProveedorLocal: en una GPU compartida, pensar multiplica la salida y es latencia para
+            // todos los que esperan.
             ["think"] = solicitud.Esfuerzo is EsfuerzoDelModelo.Alto or EsfuerzoDelModelo.Maximo,
 
             // Un prompt más largo que el contexto es un error y no un recorte: por
@@ -191,16 +167,10 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
     }
 
     /// <summary>
-    /// Lee una respuesta NDJSON —un objeto por línea, el último con
-    /// <c>done: true</c> y los conteos— y le pasa a
-    /// <see cref="SolicitudAlModelo.AlRecibirTexto"/> el texto visible a medida
-    /// que llega.
+    /// Lee una respuesta NDJSON —un objeto por línea, el último con <c>done: true</c> y los
+    /// conteos— y le pasa a <see cref="SolicitudAlModelo.AlRecibirTexto"/> el texto visible a
+    /// medida que llega.
     /// </summary>
-    /// <remarks>
-    /// Un corte a mitad del flujo, una línea que no es JSON o un objeto con
-    /// <c>error</c> son fallas de transporte, igual que sin flujo. Lo que lance
-    /// quien escucha no se traduce: no es una falla del servidor.
-    /// </remarks>
     private async Task<RespuestaDelModelo> LeerFlujoAsync(
         HttpResponseMessage respuesta, SolicitudAlModelo solicitud, CancellationToken ct)
     {
@@ -278,13 +248,10 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
         return Armar(acumulado.ToString(), final, solicitud);
     }
 
-    /// <summary>Arma la respuesta del puerto con el texto y el objeto final.</summary>
-    /// <remarks>
-    /// <c>prompt_eval_count</c> es el prompt entero, cacheado o no;
-    /// <c>prompt_eval_cached_count</c> —que informan las versiones recientes— es
-    /// la parte que salió de la caché. Sin él, los tokens de caché quedan en cero,
-    /// que el puerto define como «no informa».
-    /// </remarks>
+    /// <summary>
+    /// Arma la respuesta del puerto con el texto y el objeto final. Sin él, los tokens de caché
+    /// quedan en cero, que el puerto define como «no informa».
+    /// </summary>
     private RespuestaDelModelo Armar(string contenido, JsonNode? final, SolicitudAlModelo solicitud)
     {
         var seQuedoSinTokens = Cadena(final?["done_reason"]) == "length";
@@ -333,10 +300,7 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
         }
         else if (estado is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
         {
-            // 429 lo pone Traefik (tasa o pedidos en vuelo); 503 lo pone Ollama con
-            // la cola llena. Los dos son saturación del servicio, no una caída: no
-            // es transporte, así que el breaker no la cuenta y el usuario lee «probá
-            // en unos segundos» en vez de apagar el asistente para todos.
+            // 429 lo pone Traefik (tasa o pedidos en vuelo); 503 lo pone Ollama con la cola llena.
             _log.LogWarning(
                 "El servicio de inferencia está saturado ({Estado}): límite de pedidos o cola llena.",
                 codigo);

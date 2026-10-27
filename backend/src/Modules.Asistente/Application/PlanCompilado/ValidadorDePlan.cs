@@ -14,14 +14,6 @@ internal sealed record VeredictoDelPlan(PlanValidado? Plan, string? Motivo)
 /// Valida una muestra del plan contra el catálogo y contra la pregunta (D6 de
 /// <c>asistente-plan-compilado</c>).
 /// </summary>
-/// <remarks>
-/// <b>En los dos sentidos.</b> Hacia adelante, cada condición tiene que estar
-/// anclada en el texto: su término, su valor y, si compara, una señal compatible.
-/// Hacia atrás, todo término del catálogo que aparece en la pregunta tiene que
-/// estar en el plan. Lo primero frena las condiciones inventadas; lo segundo, los
-/// filtros que se pierden en silencio —el defecto que tiene hoy el enrutador de
-/// intenciones—. Una muestra que falla cualquiera de las dos no se ejecuta.
-/// </remarks>
 internal static class ValidadorDePlan
 {
     private static readonly string[] Negaciones = ["no", "sin", "excepto", "salvo", "menos los", "menos las"];
@@ -73,10 +65,9 @@ internal static class ValidadorDePlan
         var condiciones = new List<CondicionValidada>();
         var indice = 0;
 
-        // En conteo y listado las dos listas son la misma conjunción: la muestra que
-        // reparte sus condiciones entre ambas dice lo mismo que la que las pone todas en
-        // `filtros`, así que se pliegan ahí. Solo el porcentaje separa el denominador
-        // del numerador. Rechazarla era abstenerse por la forma y no por el contenido.
+        // En conteo y listado las dos listas son la misma conjunción: la muestra que reparte sus
+        // condiciones entre ambas dice lo mismo que la que las pone todas en `filtros`, así que se
+        // pliegan ahí.
         var destinoDeCondiciones = esPorcentaje ? condiciones : filtros;
 
         foreach (var (cruda, destino) in plan.Filtros.Select(c => (c, filtros))
@@ -198,11 +189,8 @@ internal static class ValidadorDePlan
 
         var operador = cruda.Operador;
 
-        // Sin señal de comparación junto al número, es exactamente ese número: «categoría
-        // 5», «en dos carreras», «25 años de antigüedad» (decisión del 2026-10-08). El
-        // modelo local igual escribe «>=», y con las tres muestras de acuerdo el turno
-        // respondía «al menos». Se corrige el operador en vez de rechazar la muestra, que
-        // sería abstenerse de una pregunta que tiene una sola lectura.
+        // Sin señal de comparación junto al número, es exactamente ese número: «categoría 5», «en
+        // dos carreras», «25 años de antigüedad» (decisión del 2026-10-08).
         if (operador == ">=" && ventanas.All(ventana => Senalados(ventana).Count == 0))
         {
             operador = "=";

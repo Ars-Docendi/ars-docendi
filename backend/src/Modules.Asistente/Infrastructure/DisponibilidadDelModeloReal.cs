@@ -2,15 +2,7 @@ using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Compone las dos razones por las que un turno puede quedarse sin modelo.
-/// </summary>
-/// <remarks>
-/// El orden importa poco para el resultado y mucho para el mensaje: la cuota se
-/// mira primero porque es lo único que el usuario puede entender y esperar. «Se cayó
-/// el proveedor» no le dice a nadie qué hacer; «alcanzaste tu límite, volvés a tener
-/// consultas a las 15:40» sí.
-/// </remarks>
+/// <summary>Compone las dos razones por las que un turno puede quedarse sin modelo.</summary>
 internal sealed class DisponibilidadDelModeloReal(
     IAccesoAlAsistente acceso,
     ICuotaDelActor cuota,
@@ -42,10 +34,9 @@ internal sealed class DisponibilidadDelModeloReal(
             return MotivoSinModelo.TopeOrganizacionalAgotado;
         }
 
-        // El mantenimiento SIEMPRE se reporta acá, sin excepción para nadie
-        // (design.md D8): el bypass del admin es decisión del LLAMADOR
-        // (CapaConversacional, que conoce los permisos del actor), no de
-        // este puerto de almacenamiento — que no sabe nada de permisos.
+        // El mantenimiento SIEMPRE se reporta acá, sin excepción para nadie (design.md D8): el
+        // bypass del admin es decisión del LLAMADOR (CapaConversacional, que conoce los permisos
+        // del actor), no de este puerto de almacenamiento — que no sabe nada de permisos.
         var mantenimiento = await disponibilidadDelModulo.ConsultarAsync(ct);
         if (mantenimiento.Activo)
         {

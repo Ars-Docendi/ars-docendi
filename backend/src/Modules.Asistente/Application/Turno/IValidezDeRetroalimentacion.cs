@@ -1,21 +1,6 @@
 namespace Modules.Asistente.Application;
 
-/// <summary>
-/// Tracks how long a feedback token stays live, keyed by the token itself.
-/// </summary>
-/// <remarks>
-/// Same in-memory, no-persistence, short-TTL shape as <see cref="IIdempotencia"/>
-/// — the module's existing precedent for exactly this kind of state — but keyed
-/// by the token alone and NOT by actor. That is load-bearing and not an
-/// oversight: keying by actor would make this a second place that maps a
-/// feedback token back to who asked, which is precisely the channel TD-012
-/// closes by never giving the analytic row an actor column in the first place.
-///
-/// A stale or never-issued token has to be rejected the same way (see
-/// asistente-retroalimentacion's spec), so this port answers one question —
-/// "is this token still live right now" — rather than separately exposing
-/// "does it exist" and "has it expired".
-/// </remarks>
+/// <summary>Tracks how long a feedback token stays live, keyed by the token itself.</summary>
 public interface IValidezDeRetroalimentacion
 {
     /// <summary>Records that this token was minted, right now.</summary>
@@ -25,10 +10,8 @@ public interface IValidezDeRetroalimentacion
     bool EsVigente(Guid token, DateTimeOffset ahora);
 
     /// <summary>
-    /// Stops accepting this token, right now — same outcome as an unknown or
-    /// expired one (asistente-edicion-de-la-ultima-pregunta: replacing a turn
-    /// revokes its feedback token). A no-op if the token was never minted or
-    /// already expired.
+    /// Stops accepting this token, right now — same outcome as an unknown or expired one
+    /// (asistente-edicion-de-la-ultima-pregunta: replacing a turn revokes its feedback token).
     /// </summary>
     void Revocar(Guid token);
 }

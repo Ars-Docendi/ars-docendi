@@ -5,19 +5,7 @@ using Npgsql;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Cuenta cuánta gente cargó cada dato del portal, con el alcance del actor.
-/// </summary>
-/// <remarks>
-/// Es UNA consulta y no una por tabla: son conteos chicos y agrupados, y abrir una
-/// transacción por cada uno multiplicaría la latencia de un turno que ya gastó una
-/// llamada al modelo.
-///
-/// El nombre de la tabla se interpola, y por eso <b>sale de un catálogo cerrado</b>
-/// —lo que devuelve <see cref="CoberturaDelPortal.TablasQueToca"/>, que sólo puede
-/// producir claves de su propio diccionario— y nunca del texto de la consulta ni de
-/// nada que venga del modelo. Un identificador no se puede parametrizar.
-/// </remarks>
+/// <summary>Cuenta cuánta gente cargó cada dato del portal, con el alcance del actor.</summary>
 internal sealed class ConsultorDeCobertura(AperturaDeLectura apertura) : IConsultorDeCobertura
 {
     public async Task<IReadOnlyList<CoberturaDeUnDato>> ObtenerAsync(

@@ -16,11 +16,6 @@ internal enum TipoDeCampo
 }
 
 /// <summary>Un campo que el plan puede filtrar o poner como condición.</summary>
-/// <param name="Nombre">Como aparece en el plan.</param>
-/// <param name="Terminos">
-/// Frases que anclan el campo en la pregunta (D6). Vacío para las entidades, que
-/// se anclan por su propio nombre.
-/// </param>
 internal sealed record CampoDelPlan(
     string Nombre,
     TipoDeCampo Tipo,
@@ -36,15 +31,6 @@ internal sealed record CargoDelPlan(string Codigo, string Etiqueta, IReadOnlyLis
 /// <summary>
 /// El catálogo semántico del plan compilado: lo único que el plan puede expresar.
 /// </summary>
-/// <remarks>
-/// <b>Es código y no configuración</b> (D2 de <c>asistente-plan-compilado</c>):
-/// cada campo tiene su fragmento de SQL en <see cref="CompiladorDePlan"/> y su
-/// test, y de acá salen el esquema de salida, el prompt y las etiquetas de la
-/// interpretación, así que no pueden divergir.
-///
-/// La población es una sola: personas con al menos una designación vigente
-/// (<c>vigente_hasta IS NULL</c>) que el actor puede ver.
-/// </remarks>
 internal static class CatalogoDelPlan
 {
     public const string Cargo = "cargo";

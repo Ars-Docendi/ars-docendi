@@ -3,33 +3,15 @@ using System.Text.RegularExpressions;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Numera los marcadores <c>$refN</c> de las menciones nuevas de un turno,
-/// continuando donde quedaron los que ya trae el segmento (design.md D11 de
-/// asistente-rediseno-v3: «numerados después de los que ya trae el hilo»).
+/// Numera los marcadores <c>$refN</c> de las menciones nuevas de un turno, continuando donde
+/// quedaron los que ya trae el segmento (design.md D11 de asistente-rediseno-v3: «numerados después
+/// de los que ya trae el hilo»).
 /// </summary>
-/// <remarks>
-/// <b>No hay un contador en <see cref="HiloConversacional"/>.</b> El máximo se
-/// deriva de las mismas <c>consultasAnteriores</c> que ya viajan al generador
-/// —el mismo criterio con que el resto del módulo evita un segundo lugar que
-/// pueda desincronizarse del primero (ver los comentarios de
-/// <see cref="HiloConversacional.ConsultasVigentes"/>)—. Un pivote de tema ya
-/// vacía esa lista, así que la numeración vuelve a arrancar en 1 sin código
-/// propio para detectarlo.
-/// </remarks>
 internal static class MarcadoresDeReferencias
 {
     private static readonly Regex PatronDeMarcador = new(@"\$ref(\d+)", RegexOptions.Compiled);
 
-    /// <summary>
-    /// Asigna un marcador a cada referencia nueva, en el orden en que llegaron.
-    /// </summary>
-    /// <remarks>
-    /// Devuelve tuplas y no un tipo propio a propósito: <c>Modules.Asistente.Contracts</c>
-    /// está vacío y cada tipo público nuevo de <c>Application</c> es una promesa
-    /// de estabilidad que hay que poder justificar (ver
-    /// <c>ArquitecturaAsistenteTests.SuperficiePublicaDeApplication</c>). Esta
-    /// clase es <c>internal</c>, así que una tupla no fuerza nada a ser público.
-    /// </remarks>
+    /// <summary>Asigna un marcador a cada referencia nueva, en el orden en que llegaron.</summary>
     public static IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)> Asignar(
         IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)> nuevas,
         IReadOnlyList<string>? consultasAnteriores)

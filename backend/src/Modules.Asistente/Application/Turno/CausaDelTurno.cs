@@ -3,18 +3,6 @@ namespace Modules.Asistente.Application;
 /// <summary>
 /// Why a turn failed or came back empty (design D2 of asistente-metricas-de-calidad).
 /// </summary>
-/// <remarks>
-/// A closed set of 22 codes, one per failure path, recorded on the analytic record
-/// next to the turn's existing outcome state, which it never changes. A model's own
-/// declination of a question is NOT a cause: it is a legitimate abstention and stays
-/// only in <see cref="MotivoDeRechazo"/> on the operational record.
-///
-/// <b>Public, and not internal like <see cref="CausasDelTurno"/></b>: it is the type of
-/// a parameter of three public records (<see cref="GeneracionDeSql"/>,
-/// <see cref="ResultadoDelTurno"/>, <see cref="TurnoParaRegistrar"/>), and an enum less
-/// accessible than the record that exposes it does not compile. Same criterion as
-/// <see cref="MotivoDeRechazo"/>.
-/// </remarks>
 public enum CausaDelTurno
 {
     /// <summary>The breaker is open, or the availability pre-check found the provider down.</summary>

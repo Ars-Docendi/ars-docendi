@@ -5,76 +5,30 @@ using Npgsql;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Resuelve el perfil del actor con la conexión de lectura básica.
-/// </summary>
-/// <remarks>
-/// Usa siempre la conexión básica, incluso cuando el turno vaya a leer datos
-/// personales: la pregunta —«¿qué alcance tiene este actor?»— no depende de qué
-/// columnas se van a leer después, y hacerla con el rol de menor privilegio es
-/// gratis.
-/// </remarks>
+/// <summary>Resuelve el perfil del actor con la conexión de lectura básica.</summary>
 internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDelActor
 {
-    /// <summary>
-    /// Permiso que habilita la conexión con datos personales.
-    /// </summary>
-    /// <remarks>
-    /// Es el mismo permiso con que la aplicación deja ver el padrón de docentes.
-    /// Se lee en vivo de <c>identity.rol_permisos</c>, así que revocarlo tiene
-    /// efecto en el turno siguiente sin redesplegar nada.
-    /// </remarks>
+    /// <summary>Permiso que habilita la conexión con datos personales.</summary>
     private const string PermisoDeDatosPersonales = "usuarios.ver";
 
-    /// <summary>
-    /// Permiso que habilita ver la consulta generada.
-    /// </summary>
-    /// <remarks>
-    /// A diferencia del de datos personales, éste <b>no</b> se conjuga con el
-    /// alcance global. El alcance acota qué filas ve el actor, y la consulta que se
-    /// le muestra es la que se ejecutó con su propio alcance: verla no le agrega
-    /// ninguna fila. Lo que le agrega es entender qué hizo el asistente, y eso es
-    /// justamente lo que el permiso decide.
-    /// </remarks>
+    /// <summary>Permiso que habilita ver la consulta generada.</summary>
     private const string PermisoDeVerLaConsulta = "asistente.ver_consulta";
 
     /// <summary>
-    /// El permiso que la policy de RLS conjuga con el ámbito sobre las cuatro tablas
-    /// del trámite.
+    /// El permiso que la policy de RLS conjuga con el ámbito sobre las cuatro tablas del trámite.
     /// </summary>
-    /// <remarks>
-    /// Hay que leerlo acá porque <b>el ámbito solo no dice si el actor alcanza los
-    /// datos</b>: la policy exige las dos cosas, así que un actor global sin este
-    /// permiso ve cero filas igual que uno cuyo literal no matcheó. Ver
-    /// <see cref="PerfilDelActor.AlcanzaTodo"/>.
-    ///
-    /// Es UN permiso porque hoy hay UN dominio con policies. Cuando haya un segundo
-    /// —`portal` es el candidato inmediato— esto deja de ser un booleano y pasa a
-    /// depender de qué tablas tocó la consulta.
-    /// </remarks>
     private const string PermisoDeDominio = "designaciones.ver";
 
     /// <summary>El permiso de leer el perfil profesional de otra persona.</summary>
-    /// <remarks>
-    /// Se lee sólo para decidir qué anuncia la presentación. La frontera real la
-    /// impone la policy de portal, que vuelve a preguntar por él en cada consulta:
-    /// si este booleano quedara desactualizado, el actor vería un anuncio de más y
-    /// cero filas, nunca filas de más.
-    /// </remarks>
     private const string PermisoDeTrayectoriaAjena = "portal.ver_trayectoria_ajena";
 
-    /// <summary>
-    /// SQLSTATE con que PostgreSQL reporta un <c>RAISE EXCEPTION</c> de plpgsql.
-    /// Es el que usa <c>identity.asistente_actor()</c> cuando el identificador no
-    /// corresponde a un usuario activo.
-    /// </summary>
+    /// <summary>SQLSTATE con que PostgreSQL reporta un <c>RAISE EXCEPTION</c> de plpgsql.</summary>
     private const string RaiseDeLaFuncion = "P0001";
 
     public async Task<PerfilDelActor> ObtenerAsync(Guid actor, CancellationToken ct)
     {
-        // Igual que el ejecutor: el rechazo del motor sale traducido. `ActorNoResuelto`
-        // se lanza adentro y no lo toca este catch, porque ya no es una
-        // PostgresException cuando llega acá.
+        // Igual que el ejecutor: el rechazo del motor sale traducido. `ActorNoResuelto` se lanza
+        // adentro y no lo toca este catch, porque ya no es una PostgresException cuando llega acá.
         try
         {
             return await LeerPerfilAsync(actor, ct);
@@ -85,27 +39,7 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
         }
     }
 
-    /// <summary>
-    /// Los seis valores del perfil, en UNA consulta.
-    /// </summary>
-    /// <remarks>
-    /// Eran nueve viajes a la base por turno: uno por cada función de
-    /// <c>identity</c> más la lectura del rol. Ahora son tres —dos del preámbulo y
-    /// éste—, y el turno completo del asistente hace dos llamadas al modelo, así
-    /// que seis round-trips de menos no es cosmética.
-    ///
-    /// <b>Ya no hay cortocircuito sobre el permiso de datos personales.</b> Antes,
-    /// un actor no global no llegaba a preguntar por ese permiso; ahora la función
-    /// se evalúa siempre y la conjunción se hace en C#. El resultado observable es
-    /// idéntico —<c>esGlobal &amp;&amp; permiso</c> da lo mismo en los dos órdenes— y
-    /// lo que se cambia es una llamada de función dentro de la misma consulta por
-    /// un viaje de red entero.
-    ///
-    /// <c>identity.asistente_actor()</c> va primero en la lista de columnas por su
-    /// efecto, no por su valor: levanta <c>P0001</c> si el identificador no
-    /// corresponde a un usuario activo, y esa excepción sigue saliendo como
-    /// <see cref="ActorNoResuelto"/> igual que cuando era su propia consulta.
-    /// </remarks>
+    /// <summary>Los seis valores del perfil, en UNA consulta.</summary>
     private async Task<PerfilDelActor> LeerPerfilAsync(Guid actor, CancellationToken ct)
     {
         const string Consulta = """
@@ -147,11 +81,9 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
 
         var esGlobal = lector.GetBoolean(1);
 
-        // El acceso a datos personales exige alcance global ADEMÁS del permiso.
-        // Ver la nota de IPerfilDelActor: la política de la aplicación es la
-        // puerta, y el acotamiento de los datos es otra cosa que se aplica
-        // después, en el controller. Sin la conjunción, el asistente heredaría la
-        // puerta sin el acotamiento.
+        // El acceso a datos personales exige alcance global ADEMÁS del permiso. Ver la nota de
+        // IPerfilDelActor: la política de la aplicación es la puerta, y el acotamiento de los datos
+        // es otra cosa que se aplica después, en el controller.
         var veDatosPersonales = esGlobal && lector.GetBoolean(2);
 
         // RIESGO RESIDUAL ACEPTADO, y registrado a propósito donde se toma la
@@ -172,15 +104,8 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
         // impacto sobre consumidores que no son el asistente.
         var veLaConsulta = lector.GetBoolean(3);
 
-        // LA CONJUNCIÓN ES LA MISMA QUE HACE LA POLICY, y por eso se lee acá en vez
-        // de reusar `esGlobal`. Los dos ejes son independientes: sin el permiso, el
-        // ámbito global no alcanza ninguna fila, y con el permiso, un ámbito de
-        // materia sigue sin alcanzar el resto. Cero filas solo significa «no hay»
-        // cuando se cumplen los dos.
-        // Se guardan los DOS: el permiso suelto y su conjunción con el ámbito. No es
-        // redundancia — responden preguntas distintas. «¿Puede ver alguna fila del
-        // trámite?» es el permiso, y sirve para anunciar el área; «¿cero filas
-        // significa que no hay?» es la conjunción, que es lo que la policy exige.
+        // LA CONJUNCIÓN ES LA MISMA QUE HACE LA POLICY, y por eso se lee acá en vez de reusar
+        // `esGlobal`.
         var veDesignaciones = lector.GetBoolean(4);
 
         return new PerfilDelActor(
@@ -196,12 +121,6 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
     /// <summary>
     /// Ejecuta la consulta traduciendo el <c>RAISE</c> de <c>asistente_actor()</c>.
     /// </summary>
-    /// <remarks>
-    /// La función ya levanta excepción con un mensaje que explica el caso. Se la
-    /// envuelve en un tipo del módulo para que quien llama pueda distinguir «este
-    /// actor no existe» de «la base no respondió»: el primero es un error de
-    /// programación del llamador y el segundo es servicio degradado.
-    /// </remarks>
     private static async Task<NpgsqlDataReader> LeerOTraducirAsync(
         NpgsqlCommand comando, Guid actor, CancellationToken ct)
     {

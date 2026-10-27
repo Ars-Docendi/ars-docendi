@@ -7,13 +7,6 @@ namespace Modules.Asistente;
 /// States at startup whether redaction masks <c>sensible-valor</c> values
 /// (asistente-redaccion-sin-enmascarado-local, design.md D6).
 /// </summary>
-/// <remarks>
-/// It is what an operator can read without inspecting prompts. It takes the
-/// options already bound instead of <c>IOptions</c>: reading them through
-/// <c>IOptions</c> would trigger validation at startup, and the module decided
-/// that an invalid configuration fails on the first turn rather than taking the
-/// Host down.
-/// </remarks>
 internal sealed class AnuncioDeLaRedaccion(
     OpcionesAsistente opciones, ILogger<AnuncioDeLaRedaccion> log) : IHostedService
 {

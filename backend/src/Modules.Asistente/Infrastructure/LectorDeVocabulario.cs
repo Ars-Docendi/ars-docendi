@@ -4,15 +4,9 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// La restricción de una columna no tiene la forma de la que se pueden derivar sus
-/// valores admitidos.
+/// La restricción de una columna no tiene la forma de la que se pueden derivar sus valores
+/// admitidos.
 /// </summary>
-/// <remarks>
-/// Existe para que el desajuste sea ruidoso. La alternativa —devolver una lista
-/// vacía— es el mismo modo de fallar que este lector existe para evitar: nada se
-/// rompe, el resolutor deja de reconocer un vocabulario entero y la única señal es
-/// que las preguntas dejan de tomar el camino barato.
-/// </remarks>
 internal sealed class VocabularioIlegible(string restriccion, string definicion)
     : InvalidOperationException(
         $"La restricción '{restriccion}' no enumera literales, así que no se puede "
@@ -22,32 +16,10 @@ internal sealed class VocabularioIlegible(string restriccion, string definicion)
     public string Restriccion { get; } = restriccion;
 }
 
-/// <summary>
-/// Lee de la base los vocabularios cerrados del trámite.
-/// </summary>
-/// <remarks>
-/// <b>De la base y no de una lista.</b> El vocabulario del trámite —estados,
-/// novedades, tipos de baja— vive en restricciones <c>CHECK</c> sobre la tabla que
-/// las declara, y ahí es donde se lo lee. El motivo no es evitar la duplicación
-/// sino el modo de fallar de la copia: una lista escrita a mano no se rompe cuando
-/// alguien agrega un estado. El resolutor simplemente deja de reconocerlo, la
-/// pregunta cae al carril caro y nadie se entera de que había uno más barato.
-///
-/// Los cargos ya tienen tabla propia, así que se leen de ella.
-///
-/// Todo va calificado con <c>pg_catalog.</c> y con el esquema escrito, porque los
-/// roles del asistente corren con <c>search_path</c> vacío.
-/// </remarks>
+/// <summary>Lee de la base los vocabularios cerrados del trámite.</summary>
 internal static partial class LectorDeVocabulario
 {
-    /// <summary>
-    /// La definición normalizada de las restricciones de una tabla.
-    /// </summary>
-    /// <remarks>
-    /// Se pide <c>pg_get_constraintdef</c> y no el texto original: PostgreSQL
-    /// normaliza <c>IN (...)</c> a <c>= ANY (ARRAY[...])</c>, así que la forma que
-    /// se parsea es estable frente a cómo se haya escrito el DDL.
-    /// </remarks>
+    /// <summary>La definición normalizada de las restricciones de una tabla.</summary>
     private const string SqlRestricciones = """
         SELECT c.conname                                   AS restriccion,
                pg_catalog.pg_get_constraintdef(c.oid)      AS definicion
@@ -67,12 +39,7 @@ internal static partial class LectorDeVocabulario
          ORDER BY orden
         """;
 
-    /// <summary>
-    /// Los valores admitidos de cada restricción pedida.
-    /// </summary>
-    /// <exception cref="VocabularioIlegible">
-    /// Si alguna restricción no enumera literales.
-    /// </exception>
+    /// <summary>Los valores admitidos de cada restricción pedida.</summary>
     public static async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> VocabulariosAsync(
         NpgsqlConnection conexion,
         string esquema,
@@ -108,10 +75,6 @@ internal static partial class LectorDeVocabulario
     }
 
     /// <summary>Los cargos activos, por su nombre y por su abreviatura.</summary>
-    /// <remarks>
-    /// Las dos formas entran como valores distintos del mismo cargo: la gente
-    /// pregunta tanto «los JTP» como «los jefes de trabajos prácticos».
-    /// </remarks>
     public static async Task<IReadOnlyList<(string Valor, string Cargo)>> CargosAsync(
         NpgsqlConnection conexion, CancellationToken ct)
     {
@@ -136,15 +99,7 @@ internal static partial class LectorDeVocabulario
         return cargos;
     }
 
-    /// <summary>
-    /// Extrae los literales de una definición normalizada.
-    /// </summary>
-    /// <remarks>
-    /// Exige la forma <c>= ANY (ARRAY[...])</c> y falla si no está. Es deliberado
-    /// que sea estricto: cualquier otra forma significa que la restricción dejó de
-    /// ser una enumeración, y adivinar qué quiso decir es peor que decir que no se
-    /// puede leer.
-    /// </remarks>
+    /// <summary>Extrae los literales de una definición normalizada.</summary>
     private static IReadOnlyList<string> Literales(string restriccion, string definicion)
     {
         var arreglo = Arreglo().Match(definicion);
@@ -162,9 +117,8 @@ internal static partial class LectorDeVocabulario
         return valores.Count > 0 ? valores : throw new VocabularioIlegible(restriccion, definicion);
     }
 
-    // El bloque ARRAY[...] de la forma normalizada. Perezoso a propósito: una
-    // restricción puede tener más de un ANY —`col IS NULL OR col = ANY (...)`— y el
-    // primero es el que enumera.
+    // El bloque ARRAY[...] de la forma normalizada. Perezoso a propósito: una restricción puede
+    // tener más de un ANY —`col IS NULL OR col = ANY (...)`— y el primero es el que enumera.
     [GeneratedRegex(@"=\s*ANY\s*\(\s*ARRAY\[(?<valores>.*?)\]", RegexOptions.Singleline)]
     private static partial Regex Arreglo();
 

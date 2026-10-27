@@ -27,14 +27,7 @@ public sealed class AsistenteController(
     private const string TipoMateria = "materia";
     private const string TipoDocente = "docente";
 
-    /// <summary>
-    /// Un turno del asistente.
-    /// </summary>
-    /// <remarks>
-    /// La <c>Idempotency-Key</c> es obligatoria y no es formalismo: cada turno cuesta
-    /// dos o tres llamadas al modelo, así que un doble submit se factura completo dos
-    /// veces. Se resuelve en memoria, acotada por actor, con expiración corta.
-    /// </remarks>
+    /// <summary>Un turno del asistente.</summary>
     [Authorize(Policy = Permisos.AsistenteConsultar)]
     [HttpPost("consultas")]
     public async Task<ActionResult<RespuestaDelAsistente>> Consultar(
@@ -48,21 +41,9 @@ public sealed class AsistenteController(
     }
 
     /// <summary>
-    /// El mismo turno que <see cref="Consultar"/>, con la redacción por
-    /// fragmentos en <c>text/event-stream</c> (asistente-optimizaciones-modelo-local,
-    /// design.md D9).
+    /// El mismo turno que <see cref="Consultar"/>, con la redacción por fragmentos en
+    /// <c>text/event-stream</c> (asistente-optimizaciones-modelo-local, design.md D9).
     /// </summary>
-    /// <remarks>
-    /// Mismo pedido, misma <c>Idempotency-Key</c> y misma lógica. Lo que falla
-    /// antes de escribir nada —clave, mención, hilo, reemplazo— responde con el
-    /// mismo status de siempre. Después manda <c>redaccion</c> con cada fragmento,
-    /// <c>resultado</c> con la respuesta completa —siempre, y es la que vale— o
-    /// <c>error</c> con el status que hubiera tenido.
-    ///
-    /// <b>Escribir no es parte del turno.</b> Si el cliente se va, los fragmentos
-    /// se dejan de mandar y el turno termina igual: queda guardado bajo su clave,
-    /// y un reintento con la misma lo recibe sin volver a cobrarlo.
-    /// </remarks>
     [Authorize(Policy = Permisos.AsistenteConsultar)]
     [HttpPost("consultas/flujo")]
     public async Task<IActionResult> ConsultarEnFlujo(
@@ -117,12 +98,9 @@ public sealed class AsistenteController(
     }
 
     /// <summary>
-    /// Valida el pedido y corre el turno: lo que comparten <see cref="Consultar"/>
-    /// y <see cref="ConsultarEnFlujo"/>.
+    /// Valida el pedido y corre el turno: lo que comparten <see cref="Consultar"/> y <see
+    /// cref="ConsultarEnFlujo"/>.
     /// </summary>
-    /// <returns>
-    /// El rechazo, si el pedido no llega a ser un turno; si no, el turno.
-    /// </returns>
     private async Task<(ActionResult? Rechazo, ResultadoDelTurno? Turno)> ResolverTurnoAsync(
         ConsultaDelAsistente consulta,
         string? claveDeIdempotencia,
@@ -206,9 +184,8 @@ public sealed class AsistenteController(
         }
         catch (ReemplazoInvalido)
         {
-            // `Reemplaza` no nombra el último turno vigente del hilo —o el hilo
-            // venció— (design.md D9 de asistente-rediseno-v3). `409` y nada
-            // cambió: ni el hilo, ni el historial, ni el cupo.
+            // `Reemplaza` no nombra el último turno vigente del hilo —o el hilo venció— (design.md
+            // D9 de asistente-rediseno-v3).
             return (Conflict(new ProblemDetails
             {
                 Title = "Ese turno ya no se puede reemplazar",
@@ -223,16 +200,9 @@ public sealed class AsistenteController(
     }
 
     /// <summary>
-    /// Qué puede hacer el asistente para este actor.
+    /// Qué puede hacer el asistente para este actor. Se deriva de los GRANT efectivos y nunca del
+    /// payload del prompt.
     /// </summary>
-    /// <remarks>
-    /// Una caja de texto libre sin descubrimiento es una falsa promesa: el usuario no
-    /// sabe qué preguntar, y averiguarlo le cuesta un turno que termina en rechazo.
-    /// Este endpoint es la mitad que falta.
-    ///
-    /// Se deriva de los GRANT efectivos y nunca del payload del prompt. Cuesta cero
-    /// tokens, así que sigue respondiendo con el proveedor caído.
-    /// </remarks>
     [Authorize(Policy = Permisos.AsistenteConsultar)]
     [HttpGet("capacidades")]
     public async Task<ActionResult<CapacidadesDto>> Capacidades(CancellationToken ct)
@@ -254,15 +224,9 @@ public sealed class AsistenteController(
     }
 
     /// <summary>
-    /// Busca materias o docentes para el popover de menciones «@materia» /
-    /// «#docente» del composer (design.md D10 de asistente-rediseno-v3).
+    /// Busca materias o docentes para el popover de menciones «@materia» / «#docente» del composer
+    /// (design.md D10 de asistente-rediseno-v3).
     /// </summary>
-    /// <remarks>
-    /// Corre sobre <see cref="IBuscadorDeMenciones"/>, que hace todo el trabajo
-    /// de alcance con el motor —RLS y <c>identity.asistente_materias_visibles()</c>—
-    /// y nunca con un filtro de acá. Este método sólo valida la forma del pedido
-    /// (<paramref name="tipo"/> y el largo de <paramref name="q"/>) y traduce.
-    /// </remarks>
     [Authorize(Policy = Permisos.AsistenteConsultar)]
     [HttpGet("menciones")]
     public async Task<ActionResult<MencionesDto>> Menciones(
@@ -300,17 +264,8 @@ public sealed class AsistenteController(
     }
 
     /// <summary>
-    /// Rates an already-answered turn: thumbs up/down, with an optional reason on
-    /// a thumbs-down.
+    /// Rates an already-answered turn: thumbs up/down, with an optional reason on a thumbs-down.
     /// </summary>
-    /// <remarks>
-    /// Authorization here is possession of <paramref name="pedido"/>'s token, not
-    /// actor identity (design.md D2): the policy below only gates "is this an
-    /// assistant user at all", the token is what says "which turn". An unknown or
-    /// expired token 404s — the same outcome for both, so a caller can't tell
-    /// which — rather than returning a body that would confirm a token existed.
-    /// </remarks>
-    /// <summary>Longest <see cref="PedidoDeRetroalimentacion.Comentario"/> accepted, after trimming.</summary>
     private const int LargoMaximoDelComentario = 500;
 
     [Authorize(Policy = Permisos.AsistenteConsultar)]
@@ -382,14 +337,7 @@ public sealed class AsistenteController(
         };
     }
 
-    /// <summary>
-    /// El actor sale de la identidad de la sesión y de ningún otro lado.
-    /// </summary>
-    /// <remarks>
-    /// Un identificador tomado del cuerpo del pedido sería un selector de alcance
-    /// controlado por el cliente: todo el trabajo de RLS y de privilegios por columna
-    /// se evapora si el usuario elige con qué identidad se lo evalúa.
-    /// </remarks>
+    /// <summary>El actor sale de la identidad de la sesión y de ningún otro lado.</summary>
     private bool ActorDeLaSesion(out Guid actor) =>
         Guid.TryParse(usuario.UserId, out actor);
 

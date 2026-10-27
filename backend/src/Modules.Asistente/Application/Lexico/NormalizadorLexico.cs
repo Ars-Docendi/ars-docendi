@@ -3,39 +3,14 @@ using System.Text;
 
 namespace Modules.Asistente.Application;
 
-/// <summary>
-/// Convierte una pregunta en el conjunto de términos con que se la compara.
-/// </summary>
-/// <remarks>
-/// Es la única pieza del selector que decide qué cuenta como «parecido». Hace
-/// tres cosas y ninguna más: baja a minúsculas y saca acentos, descarta las
-/// palabras vacías del español, y unifica los sinónimos del dominio.
-///
-/// Los sinónimos son la parte que no es genérica. En el Departamento «profesor»,
-/// «docente» y «agente» nombran lo mismo, y «trámite», «pedido» y «solicitud»
-/// también. Sin unificarlos, dos preguntas idénticas escritas por dos personas
-/// distintas seleccionarían ejemplos distintos.
-/// </remarks>
-/// <remarks>
-/// Es público —y no interno como nació— porque el eje de diálogo de la evaluación
-/// necesita decidir si un término se arrastró de un turno al siguiente, y tiene que
-/// hacerlo con LA MISMA noción de igualdad que usa el asistente. Con dos plegados
-/// distintos, el evaluador podría reportar un arrastre que el módulo no ve, o
-/// pasarle por al lado a uno que sí.
-/// </remarks>
+/// <summary>Convierte una pregunta en el conjunto de términos con que se la compara.</summary>
 internal static class NormalizadorLexico
 {
     /// <summary>
-    /// Palabras vacías del español. Se descartan porque aparecen en casi toda
-    /// pregunta: si contaran, dos preguntas sin nada en común pero largas se
-    /// parecerían más que dos cortas sobre el mismo tema.
+    /// Palabras vacías del español. Se descartan porque aparecen en casi toda pregunta: si
+    /// contaran, dos preguntas sin nada en común pero largas se parecerían más que dos cortas sobre
+    /// el mismo tema.
     /// </summary>
-    /// <remarks>
-    /// <b>Internal, y no privada</b> (asistente-rechazos-dinamicos, design.md
-    /// D3): <see cref="TerminoDelRechazo.Validar"/> la reusa para descartar un
-    /// término candidato que sólo está hecho de palabras vacías, con la MISMA
-    /// lista que usa el selector de ejemplos.
-    /// </remarks>
     internal static readonly HashSet<string> PalabrasVacias = new(StringComparer.Ordinal)
     {
         "a", "al", "algo", "algun", "alguna", "algunas", "alguno", "algunos", "ante",
@@ -142,16 +117,8 @@ internal static class NormalizadorLexico
     }
 
     /// <summary>
-    /// Las palabras del texto en orden, en minúscula y sin acentos, sin descartar
-    /// ninguna.
+    /// Las palabras del texto en orden, en minúscula y sin acentos, sin descartar ninguna.
     /// </summary>
-    /// <remarks>
-    /// Es lo que <see cref="Terminos"/> tiene antes de tirar las palabras vacías y
-    /// de aplicar sinónimos. Lo necesita el enrutador social, que decide
-    /// justamente por lo que queda después de sacar la apertura de cortesía: si
-    /// arrancara de un conjunto ya sin palabras vacías, «¿qué tal?» llegaría vacío
-    /// desde el principio y cualquier pregunta corta se confundiría con un saludo.
-    /// </remarks>
     public static IReadOnlyList<string> Palabras(string texto) =>
         [.. Trocear(texto).Select(SinAcentos)];
 
@@ -184,16 +151,7 @@ internal static class NormalizadorLexico
         }
     }
 
-    /// <summary>
-    /// Saca los acentos descomponiendo y descartando las marcas diacríticas.
-    /// </summary>
-    /// <remarks>
-    /// La eñe cae también: al descomponerla queda «n» más una tilde combinante,
-    /// que es marca diacrítica. Es lo buscado —quien escribe «diseño» y quien
-    /// escribe «diseno» pregunta lo mismo— y ninguno de los términos del dominio
-    /// colisiona con otro al plegarla.
-    /// </remarks>
-    /// <summary>Quita tildes y diéresis, dejando la letra base.</summary>
+    /// <summary>Saca los acentos descomponiendo y descartando las marcas diacríticas.</summary>
     public static string SinAcentos(string palabra)
     {
         var descompuesta = palabra.Normalize(NormalizationForm.FormD);

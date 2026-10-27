@@ -113,17 +113,9 @@ internal sealed class PresupuestosAdministrablesReal(
     }
 
     /// <summary>
-    /// Serializa las escrituras de <c>presupuesto_usuario</c> de un mismo actor
-    /// hasta que termine la transacción.
+    /// Serializa las escrituras de <c>presupuesto_usuario</c> de un mismo actor hasta que termine
+    /// la transacción.
     /// </summary>
-    /// <remarks>
-    /// Sin esto, dos ediciones simultáneas cierran la misma fila y abren una cada
-    /// una, y el índice único de
-    /// 008_asistente_presupuesto_usuario_vigente_unico.sql rechazaría la segunda
-    /// con un 500. Y un restablecimiento que corre durante una edición espera por
-    /// la fila vieja, no ve la nueva y la deja vigente. Con el lock, cada
-    /// operación lee lo que dejó la anterior.
-    /// </remarks>
     private static async Task SerializarPorActorAsync(
         NpgsqlConnection conexion, NpgsqlTransaction transaccion, Guid actor, CancellationToken ct)
     {

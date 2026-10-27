@@ -1,11 +1,6 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>Qué clase de cosa puede exigir un slot de una intención.</summary>
-/// <remarks>
-/// Es un enum y no una cadena para que una intención con una clase inventada no
-/// cargue. El catálogo de intenciones es un archivo, así que sin este cierre el
-/// error se descubriría recién cuando un slot no resolviera nunca.
-/// </remarks>
 public enum ClaseDeSlot
 {
     /// <summary>Una materia, del índice de entidades.</summary>
@@ -27,39 +22,11 @@ public enum ClaseDeSlot
     Cargo,
 }
 
-/// <summary>
-/// Un valor del dominio que puede ocupar un slot.
-/// </summary>
-/// <param name="Clase">Qué clase de cosa es.</param>
-/// <param name="Valor">El valor tal como está en la base.</param>
-/// <param name="Termino">
-/// El valor normalizado, que es contra lo que se busca en la pregunta.
-/// </param>
-/// <param name="Discriminador">
-/// Lo que distingue a este valor de los que comparten su término: la carrera de una
-/// materia, el nombre completo de una persona.
-/// <b>Sin él dos personas apellidadas igual serían el mismo valor</b>, la colisión
-/// no se vería y el carril enrutaría con el López equivocado.
-/// </param>
+/// <summary>Un valor del dominio que puede ocupar un slot.</summary>
 public sealed record ValorDeSlot(
     ClaseDeSlot Clase, string Valor, string Termino, string Discriminador);
 
-/// <summary>
-/// Todos los valores que pueden ocupar un slot, indexados por término.
-/// </summary>
-/// <remarks>
-/// Compone dos fuentes que se cargan por separado: el índice de entidades
-/// —materias y personas, que ya existía— y el vocabulario cerrado del trámite
-/// —estados, novedades, tipos de baja y cargos—.
-///
-/// <b>Compone en lugar de ampliar</b>, y no es un detalle de organización.
-/// <see cref="CatalogoDeEntidades"/> lo consumen el detector de ambigüedad y el de
-/// cambio de tema: el primero dispara cuando un término colisiona, el segundo mide
-/// el solapamiento de entidades entre dos preguntas. Meterles «borrador», «Alta» y
-/// «Titular» adentro les cambiaría el comportamiento en silencio, porque palabras
-/// que hoy son texto común pasarían a ser entidades del dominio. Componiendo
-/// afuera, los dos quedan intactos por construcción y no por un test que lo vigile.
-/// </remarks>
+/// <summary>Todos los valores que pueden ocupar un slot, indexados por término.</summary>
 public sealed class CatalogoDelDominio
 {
     private readonly Dictionary<string, IReadOnlyList<ValorDeSlot>> _porTermino;
@@ -81,9 +48,8 @@ public sealed class CatalogoDelDominio
                 grupo => (IReadOnlyList<ValorDeSlot>)[.. grupo],
                 StringComparer.Ordinal);
 
-        // De mayor a menor longitud, para que «bases de datos» le gane a «datos»
-        // cuando los dos estén indexados. Es el mismo orden que usa el detector de
-        // ambigüedad, y por el mismo motivo.
+        // De mayor a menor longitud, para que «bases de datos» le gane a «datos» cuando los dos
+        // estén indexados.
         _terminosPorClase = distintos
             .GroupBy(valor => valor.Clase)
             .ToDictionary(
@@ -102,19 +68,7 @@ public sealed class CatalogoDelDominio
     public IReadOnlyList<string> TerminosDe(ClaseDeSlot clase) =>
         _terminosPorClase.TryGetValue(clase, out var terminos) ? terminos : [];
 
-    /// <summary>
-    /// El único valor de esa clase que corresponde al término, o nulo.
-    /// </summary>
-    /// <remarks>
-    /// <b>Devuelve nulo también cuando hay más de uno</b>, y esa es la regla que
-    /// hace honesto al carril: con dos Pérez, enrutar con uno de los dos devuelve
-    /// las filas del otro, y esa respuesta es indistinguible de la correcta para
-    /// quien preguntó. No resolver manda la pregunta al carril que sí puede
-    /// responderla —o pedir la aclaración—, que es el default seguro de la épica.
-    ///
-    /// Distintos se cuentan por discriminador y no por valor: dos personas
-    /// apellidadas igual comparten el valor, y contarlas por él las volvería una.
-    /// </remarks>
+    /// <summary>El único valor de esa clase que corresponde al término, o nulo.</summary>
     public ValorDeSlot? Unico(ClaseDeSlot clase, string termino)
     {
         if (!_porTermino.TryGetValue(termino, out var valores))

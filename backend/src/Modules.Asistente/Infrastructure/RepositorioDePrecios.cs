@@ -28,18 +28,9 @@ internal sealed record EscrituraDePrecio(
     DesenlaceDeEscrituraDePrecio Desenlace, VersionDePrecio? Anterior, VersionDePrecio? Nueva);
 
 /// <summary>
-/// The writer of <c>asistente.tabla_de_precios</c> (asistente-modelo-en-caliente, D9):
-/// every write closes the open version and inserts a new one in ONE transaction. A
-/// stored row is never edited in place beyond closing it.
+/// The writer of <c>asistente.tabla_de_precios</c> (asistente-modelo-en-caliente, D9): every write
+/// closes the open version and inserts a new one in ONE transaction.
 /// </summary>
-/// <remarks>
-/// Readers (<see cref="ConsultasDeUso"/>, <see cref="PresupuestoOrganizacionalPersistente"/>,
-/// <c>CalculadoraDeCosto</c>) pick the row whose half-open range
-/// <c>[vigente_desde, vigente_hasta)</c> contains the moment. Closing the previous row
-/// AT the new row's start keeps the ranges contiguous and non-overlapping, so exactly
-/// one row matches any moment. Owner connection: the table sits inside the
-/// wholesale-revoked <c>asistente</c> schema.
-/// </remarks>
 internal sealed class RepositorioDePrecios(CadenaDuena cadena)
 {
     private const string Columnas =
@@ -72,10 +63,8 @@ internal sealed class RepositorioDePrecios(CadenaDuena cadena)
     }
 
     /// <summary>
-    /// Closes the open version of <paramref name="empresa"/>/<paramref name="modelo"/> at
-    /// <paramref name="vigenteDesde"/> and opens the new one, atomically. Rejects (changing
-    /// nothing) a start earlier than the open version's. Equal is allowed: the old row
-    /// becomes an empty range that no moment matches.
+    /// Closes the open version of <paramref name="empresa"/>/<paramref name="modelo"/> at <paramref
+    /// name="vigenteDesde"/> and opens the new one, atomically.
     /// </summary>
     public async Task<EscrituraDePrecio> EscribirNuevaVersionAsync(
         string empresa,

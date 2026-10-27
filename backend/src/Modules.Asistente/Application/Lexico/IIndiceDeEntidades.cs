@@ -13,31 +13,13 @@ public enum ClaseDeEntidad
 /// <summary>
 /// Un valor del dominio que existe en la base, listo para buscar en una pregunta.
 /// </summary>
-/// <param name="Clase">Materia o persona.</param>
-/// <param name="Valor">El valor tal como está en la base.</param>
-/// <param name="Termino">
-/// El valor normalizado —minúscula, sin acentos, sin puntuación— que es contra lo
-/// que se busca en la pregunta del usuario.
-/// </param>
-/// <param name="Discriminador">
-/// Lo que distingue a este valor de los que comparten su término: la carrera de una
-/// materia, el nombre completo de una persona.
-/// </param>
 public sealed record ValorDelDominio(
     ClaseDeEntidad Clase,
     string Valor,
     string Termino,
     string Discriminador);
 
-/// <summary>
-/// Los valores del dominio y sus colisiones, tal como están en la base.
-/// </summary>
-/// <remarks>
-/// Lo comparten el detector de ambigüedad y el de cambio de tema, y lo va a
-/// necesitar el enrutador de dominio de la épica siguiente para resolver sus slots.
-/// Tres piezas con tres copias del mismo índice serían tres oportunidades de que
-/// una quede vieja.
-/// </remarks>
+/// <summary>Los valores del dominio y sus colisiones, tal como están en la base.</summary>
 public sealed class CatalogoDeEntidades
 {
     private readonly Dictionary<string, IReadOnlyList<ValorDelDominio>> _porTermino;

@@ -1,15 +1,8 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Deriva el título automático de una conversación nueva a partir de su
-/// primera pregunta.
+/// Deriva el título automático de una conversación nueva a partir de su primera pregunta.
 /// </summary>
-/// <remarks>
-/// La conversación se auto-titula (asistente-historial-conversaciones); un
-/// usuario puede sobreescribir este título renombrándola, y esa renombrada
-/// nunca se pisa por un turno posterior — este helper sólo se llama la
-/// primera vez que una conversación se persiste.
-/// </remarks>
 internal static class TituloDeConversacion
 {
     /// <summary>Longitud máxima del título, antes de la elipsis.</summary>
@@ -27,9 +20,7 @@ internal static class TituloDeConversacion
             return recortada;
         }
 
-        // Se trunca en el último espacio antes del límite, para no cortar una
-        // palabra al medio. Si no hay ningún espacio en ese tramo —una sola
-        // palabra larguísima—, se corta a lo bruto: no hay mejor opción.
+        // Se trunca en el último espacio antes del límite, para no cortar una palabra al medio.
         var corte = recortada[..LongitudMaxima];
         var ultimoEspacio = corte.LastIndexOf(' ');
 

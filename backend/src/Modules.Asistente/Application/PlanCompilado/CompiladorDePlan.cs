@@ -10,18 +10,6 @@ internal sealed record ConsultaCompilada(string Sql, IReadOnlyDictionary<string,
 /// Compila un plan validado a una única consulta de lectura (D8 de
 /// <c>asistente-plan-compilado</c>).
 /// </summary>
-/// <remarks>
-/// <b>Ningún texto del modelo llega al SQL.</b> Los ids de las entidades van como
-/// marcadores <c>$refN</c>, lo único que el ejecutor sabe ligar; los códigos de
-/// cargo salen de la lista cerrada del catálogo y los números ya son enteros
-/// validados. La fecha de referencia es la del turno, nunca el reloj del servidor:
-/// una antigüedad calculada con <c>now()</c> cambiaría de un día para otro sin que
-/// cambie ningún dato.
-///
-/// La población es la de las designaciones vigentes que el actor puede ver: RLS
-/// filtra <c>designaciones.designaciones</c>, así que un actor acotado cuenta solo
-/// su ámbito sin que el compilador lo sepa.
-/// </remarks>
 internal static class CompiladorDePlan
 {
     private const string Vigentes =
@@ -89,17 +77,7 @@ internal static class CompiladorDePlan
         CatalogoDelPlan.Cargo, CatalogoDelPlan.Carrera, CatalogoDelPlan.Materia, CatalogoDelPlan.Dedicacion,
     };
 
-    /// <summary>
-    /// Los predicados de una lista del plan.
-    /// </summary>
-    /// <remarks>
-    /// <b>Las condiciones afirmativas sobre la designación van juntas, en un solo
-    /// <c>EXISTS</c></b>: «titulares de Ingeniería Industrial» son quienes tienen una
-    /// designación vigente como titular EN una materia de Industrial, no quienes son
-    /// titulares en otra carrera y adjuntos en Industrial. Las negadas van cada una
-    /// en su <c>NOT EXISTS</c>, y las de la persona —cantidades y antigüedades—
-    /// cada una por su lado.
-    /// </remarks>
+    /// <summary>Los predicados de una lista del plan.</summary>
     private static IEnumerable<string> Predicados(
         IReadOnlyList<CondicionValidada> condiciones,
         IReadOnlyDictionary<int, EntidadResuelta> entidades,

@@ -5,15 +5,9 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// (De)serializa <c>asistente.turno_historico.referencias</c>: marcador →
-/// tipo e id (design.md D11 de asistente-rediseno-v3).
+/// (De)serializa <c>asistente.turno_historico.referencias</c>: marcador → tipo e id (design.md D11
+/// de asistente-rediseno-v3).
 /// </summary>
-/// <remarks>
-/// Un solo lugar para el formato del JSON, usado por
-/// <see cref="RegistroDeHistorial"/> (escribe) y <see cref="ConsultasDeHistorial"/>
-/// (lee) — para que los dos lados de la misma columna no puedan divergir en
-/// silencio.
-/// </remarks>
 internal static class SerializacionDeReferencias
 {
     private sealed class Entrada

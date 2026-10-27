@@ -7,13 +7,7 @@ namespace Modules.Asistente.Infrastructure;
 internal sealed record EstadoDeCredencial(
     string Empresa, string Pista, DateTimeOffset? ValidadaEn, DateTimeOffset ActualizadoEn);
 
-/// <summary>
-/// A decrypted key, for the one consumer that has to send it to the provider.
-/// </summary>
-/// <remarks>
-/// Not a record and with a redacted <see cref="ToString"/>, so it cannot be
-/// printed by accident through string interpolation or a structured logger.
-/// </remarks>
+/// <summary>A decrypted key, for the one consumer that has to send it to the provider.</summary>
 internal sealed class CredencialAbierta(string empresa, string clave)
 {
     public string Empresa { get; } = empresa;
@@ -25,15 +19,9 @@ internal sealed class CredencialAbierta(string empresa, string clave)
 }
 
 /// <summary>
-/// Per-company API keys in <c>asistente.credencial_de_proveedor</c>
-/// (asistente-modelo-en-caliente, D4). Every read and write goes through
-/// <see cref="CifradoDeCredenciales"/>; the listing and write surface returns the
-/// four-character hint and never the key.
+/// Per-company API keys in <c>asistente.credencial_de_proveedor</c> (asistente-modelo-en-caliente,
+/// D4).
 /// </summary>
-/// <remarks>
-/// Uses the owner connection: the table sits inside the wholesale-revoked
-/// <c>asistente</c> schema, so even reading it needs it.
-/// </remarks>
 internal sealed class RepositorioDeCredenciales(
     CadenaDuena cadena, CifradoDeCredenciales cifrado, TimeProvider reloj)
 {
@@ -70,10 +58,9 @@ internal sealed class RepositorioDeCredenciales(
     }
 
     /// <summary>
-    /// Stores or replaces the key of <paramref name="empresa"/>, encrypted. Returns
-    /// the hint, the only thing a caller may show.
+    /// Stores or replaces the key of <paramref name="empresa"/>, encrypted. Returns the hint, the
+    /// only thing a caller may show.
     /// </summary>
-    /// <exception cref="ClaveMaestraNoDisponibleException">No usable master key (the endpoint answers 503).</exception>
     public async Task<string> GuardarAsync(string empresa, string clave, Guid actor, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(empresa);
@@ -128,17 +115,9 @@ internal sealed class RepositorioDeCredenciales(
     }
 
     /// <summary>
-    /// Opens the key of <paramref name="empresa"/> to send it to its provider, or
-    /// null when none is stored. A value still under the previous master key is
-    /// stored again under the current one (lazily, on this read).
+    /// Opens the key of <paramref name="empresa"/> to send it to its provider, or null when none is
+    /// stored.
     /// </summary>
-    /// <remarks>
-    /// The re-encryption is a compare-and-swap on the ciphertext just read: if an
-    /// administrator replaced the key meanwhile, the update touches no row and the
-    /// newer value stands. A failed re-encryption never fails the read.
-    /// </remarks>
-    /// <exception cref="ClaveMaestraNoDisponibleException">No usable master key.</exception>
-    /// <exception cref="CredencialIlegibleException">The stored value cannot be opened.</exception>
     public async Task<CredencialAbierta?> AbrirAsync(string empresa, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(empresa);

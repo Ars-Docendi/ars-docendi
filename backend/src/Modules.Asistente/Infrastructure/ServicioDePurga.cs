@@ -5,18 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Corre la purga de los registros cada tanto, mientras el Host viva.
-/// </summary>
-/// <remarks>
-/// Resuelve la purga desde un scope propio en cada vuelta y no la toma por
-/// constructor: <see cref="PurgaDeRegistros"/> depende de la cadena dueña, que es
-/// scoped, y capturarla en un singleton la dejaría viva para siempre.
-///
-/// Un fallo de una vuelta se loguea y no tumba el servicio. Una purga que se cae y
-/// se lleva puesto el Host convertiría la retención en un riesgo de
-/// disponibilidad, que es justamente al revés de lo que se busca.
-/// </remarks>
+/// <summary>Corre la purga de los registros cada tanto, mientras el Host viva.</summary>
 internal sealed class ServicioDePurga(
     IServiceScopeFactory scopes,
     IOptions<OpcionesAsistente> opciones,

@@ -6,36 +6,11 @@ using NpgsqlTypes;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Parte cada turno en dos filas que no se pueden volver a juntar.
-/// </summary>
-/// <remarks>
-/// Pide <see cref="CadenaDuena"/> y no una de solo lectura: los registros los
-/// escribe la aplicación, y los roles del asistente tienen el schema
-/// <c>asistente</c> revocado entero. Que el tipo lo diga evita descubrirlo en
-/// runtime.
-///
-/// Las dos inserciones NO van en una transacción común. Una transacción las ataría
-/// en el WAL y en el orden de commit, y lo que este código existe para lograr es
-/// exactamente lo contrario. Si una falla y la otra no, se pierde media
-/// observación: es el precio, y es menor que el de poder reconstruir quién preguntó
-/// qué.
-/// </remarks>
+/// <summary>Parte cada turno en dos filas que no se pueden volver a juntar.</summary>
 internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTurno> log)
     : IRegistroDelTurno
 {
     /// <summary>Las columnas que este escritor pone, tabla por tabla.</summary>
-    /// <remarks>
-    /// ES LA ÚNICA LISTA, Y TIENE QUE SEGUIR SIÉNDOLO. Los dos INSERT de abajo se
-    /// arman desde acá, y <see cref="MigradorAsistente"/> verifica contra acá que la
-    /// base las tenga antes de dejar arrancar. Escribirla dos veces —una acá y otra
-    /// en el chequeo— haría que el próximo desajuste fuera entre las dos listas, que
-    /// es el mismo defecto una capa más arriba y sin nadie que lo mire.
-    ///
-    /// Los nombres son a la vez los de las columnas y los de los parámetros: el
-    /// INSERT se arma con ambos desde esta lista, así que agregar una columna es
-    /// agregar un renglón acá y su <c>AddWithValue</c> con el mismo nombre.
-    /// </remarks>
     internal static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> ColumnasQueEscribe =
         new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
         {
@@ -81,19 +56,14 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         comando.Parameters.AddWithValue("proveedor", turno.Proveedor);
         comando.Parameters.AddWithValue("tokens_de_cache", turno.TokensDeCache);
 
-        // También va solo al operativo, y el motivo es el mismo de arriba más uno
-        // propio: las capturas son la minoría, así que cada intención concreta es un
-        // valor raro, y un valor raro en el analítico es el selector que le daría
-        // utilidad al canal residual de TD-012.
-        //
-        // Nulo se manda como nulo y no como cadena vacía: «no capturó» es el caso
-        // normal, y una cadena vacía sería una intención sin nombre.
+        // También va solo al operativo, y el motivo es el mismo de arriba más uno propio: las
+        // capturas son la minoría, así que cada intención concreta es un valor raro, y un valor
+        // raro en el analítico es el selector que le daría utilidad al canal residual de TD-012.
         comando.Parameters.AddWithValue(
             "intencion_sombra", NpgsqlDbType.Text, (object?)turno.IntencionSombra ?? DBNull.Value);
 
-        // También nulo por omisión, y también es el caso normal (asistente-
-        // rechazos-dinamicos): sólo un rechazo declarado por el modelo lo
-        // trae. El término del rechazo NUNCA se persiste — sólo el motivo.
+        // También nulo por omisión, y también es el caso normal (asistente- rechazos-dinamicos):
+        // sólo un rechazo declarado por el modelo lo trae.
         comando.Parameters.AddWithValue(
             "motivo_rechazo",
             NpgsqlDbType.Text,
@@ -107,31 +77,22 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
     {
         await using var comando = new NpgsqlCommand(InsertarEnAnalitico, conexion);
 
-        // Supplied by the caller and not left to the column's own DEFAULT
-        // gen_random_uuid(): on a Respondida turn this is the exact id already
-        // handed to the client as ResultadoDelTurno.ClaveDeRetroalimentacion, so the
-        // feedback token and the row it rates have to be the same value from the
-        // moment either one exists. Generating it here instead would make that
-        // impossible without a second round trip.
+        // Supplied by the caller and not left to the column's own DEFAULT gen_random_uuid(): on a
+        // Respondida turn this is the exact id already handed to the client as
+        // ResultadoDelTurno.ClaveDeRetroalimentacion, so the feedback token and the row it rates
+        // have to be the same value from the moment either one exists.
         comando.Parameters.AddWithValue("id", turno.AnaliticoId);
         comando.Parameters.AddWithValue("pregunta", turno.Pregunta);
         comando.Parameters.AddWithValue("categoria", turno.Categoria);
         comando.Parameters.AddWithValue("estado", turno.Estado.ToString());
 
-        // EL REDONDEO. Con la hora puesta, un join por tiempo contra el registro
-        // operativo devolvería el autor de cada pregunta.
-        //
-        // Quien garantiza que la hora se pierda es el TIPO de la columna, que es
-        // `date`: aunque acá se mandara un timestamp completo, el motor lo trunca.
-        // Esta conversión es explícita igual, para que el código diga lo mismo que
-        // el esquema; el test que sostiene la propiedad es el que verifica el tipo.
+        // EL REDONDEO. Con la hora puesta, un join por tiempo contra el registro operativo
+        // devolvería el autor de cada pregunta.
         comando.Parameters.AddWithValue("dia", DateOnly.FromDateTime(turno.Cuando.UtcDateTime));
 
         // Two coarse attributes of the TURN, never of the person (design D2/D3 of
-        // asistente-metricas-de-calidad): a closed failure code, and the same
-        // empresa/modelo string the operational record carries. Neither adds an actor
-        // or a precise time. `reemplazado` is not written here: it is flagged later,
-        // by its own UPDATE, if the user replaces this turn (MarcarReemplazadoAsync).
+        // asistente-metricas-de-calidad): a closed failure code, and the same empresa/modelo string
+        // the operational record carries.
         comando.Parameters.AddWithValue(
             "causa",
             NpgsqlDbType.Text,
@@ -162,13 +123,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
             },
             ct);
 
-    /// <summary>
-    /// Arma el INSERT de una tabla desde <see cref="ColumnasQueEscribe"/>.
-    /// </summary>
-    /// <remarks>
-    /// Las columnas no se interpolan de ningún valor de afuera: salen de la
-    /// constante de arriba y nada más. Los valores siguen viajando por parámetro.
-    /// </remarks>
+    /// <summary>Arma el INSERT de una tabla desde <see cref="ColumnasQueEscribe"/>.</summary>
     private static string Insertar(string tabla)
     {
         var columnas = ColumnasQueEscribe[tabla];
@@ -188,9 +143,8 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         }
         catch (Exception excepcion) when (excepcion is NpgsqlException or InvalidOperationException)
         {
-            // Se traga el fallo a propósito: el turno ya se resolvió y el usuario ya
-            // tiene su respuesta. Lo que se pierde es una observación; lo que se
-            // evitaría perdiendo menos es el servicio entero.
+            // Se traga el fallo a propósito: el turno ya se resolvió y el usuario ya tiene su
+            // respuesta.
             log.LogError(
                 excepcion, "No se pudo escribir el registro {Cual} del asistente.", cual);
         }

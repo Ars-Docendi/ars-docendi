@@ -1,39 +1,15 @@
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// El texto fijo del prompt de generación: lo que se le pide al modelo, dónde
-/// empieza el esquema y dónde empiezan los valores de catálogo.
+/// El texto fijo del prompt de generación: lo que se le pide al modelo, dónde empieza el esquema y
+/// dónde empiezan los valores de catálogo.
 /// </summary>
-/// <remarks>
-/// Estaba adentro de <see cref="RenderizadorDeEsquema"/>, que es quien lo arma.
-/// Separarlo no es cosmética: <b>este texto es la mitad del sello de todos los
-/// cassettes</b>. Cambiar una palabra acá mueve la huella del prefijo y deja
-/// irreproducible el corpus entero, y eso ya pasó una vez —`ce1ede8`— con 56
-/// cassettes convertidos en peso muerto y una corrida financiada para recuperar
-/// el resto.
-///
-/// Con el texto en su propio archivo, el diff que lo toca se lee como lo que es:
-/// «esto invalida los cassettes». Adentro del renderizador quedaba mezclado con
-/// cambios de formato que no invalidan nada. El guard de
-/// <c>PrefijoDeLosCassettesTests</c> es la red; esto es lo que hace que la red no
-/// haga falta tan seguido.
-///
-/// La prohibición del reloj está acá <b>y</b> en el validador. Acá es un pedido;
-/// allá es una imposición. La duplicación es deliberada: pedirlo mejora la tasa
-/// de acierto y ahorra rechazos, imponerlo es lo que hace que la garantía valga.
-/// </remarks>
 internal static class InstruccionesDeGeneracion
 {
     /// <summary>
-    /// Instrucciones fijas del carril SQL. Son parte del prefijo: no cambian por
-    /// turno y por eso se cachean junto con el esquema.
+    /// Instrucciones fijas del carril SQL. Son parte del prefijo: no cambian por turno y por eso se
+    /// cachean junto con el esquema.
     /// </summary>
-    /// <remarks>
-    /// La prohibición del reloj está acá <b>y</b> en el validador. Acá es un
-    /// pedido; allá es una imposición. La duplicación es deliberada: pedirlo
-    /// mejora la tasa de acierto y ahorra rechazos, imponerlo es lo que hace que
-    /// la garantía valga.
-    /// </remarks>
     internal const string Instrucciones = """
         Sos el traductor de preguntas a SQL de un sistema de gestión docente
         universitaria. Recibís una pregunta en español y devolvés una consulta
@@ -126,9 +102,8 @@ internal static class InstruccionesDeGeneracion
         """;
 
     /// <summary>
-    /// Encabezado del esquema en su forma compacta (asistente-optimizaciones-
-    /// modelo-local, D2): la leyenda explica la notación que reemplaza a la
-    /// prosa de la forma completa.
+    /// Encabezado del esquema en su forma compacta (asistente-optimizaciones- modelo-local, D2): la
+    /// leyenda explica la notación que reemplaza a la prosa de la forma completa.
     /// </summary>
     internal const string EncabezadoDelEsquemaCompacto = """
 
@@ -141,11 +116,6 @@ internal static class InstruccionesDeGeneracion
         """;
 
     /// <summary>Encabezado de los valores de catálogo cerrado.</summary>
-    /// <remarks>
-    /// Dice «todos» sin matices a propósito: el lector devuelve la columna entera
-    /// o no la devuelve, justamente para que esta afirmación no pueda ser falsa
-    /// —ver <c>LectorDeValoresDeCatalogo</c>—.
-    /// </remarks>
     internal const string EncabezadoDelVocabulario = """
 
         VALORES POSIBLES

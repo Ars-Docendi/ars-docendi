@@ -6,15 +6,9 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// <see cref="IPresupuestoOrganizacional"/> sobre Postgres (design.md D3/D6
-/// de asistente-administracion-de-uso).
+/// <see cref="IPresupuestoOrganizacional"/> sobre Postgres (design.md D3/D6 de
+/// asistente-administracion-de-uso).
 /// </summary>
-/// <remarks>
-/// Pide <see cref="CadenaDuena"/> por el mismo motivo que
-/// <see cref="CuotaPersistente"/>: <c>tope_organizacional</c>,
-/// <c>consumo_organizacional_mensual</c> y <c>tabla_de_precios</c> viven en el
-/// schema <c>asistente</c>, revocado entero a los dos roles de solo lectura.
-/// </remarks>
 internal sealed class PresupuestoOrganizacionalPersistente(
     CadenaDuena cadena, TimeProvider reloj, DetectorDeUmbrales detector, ILogger<PresupuestoOrganizacionalPersistente> log)
     : IPresupuestoOrganizacional
@@ -52,20 +46,14 @@ internal sealed class PresupuestoOrganizacionalPersistente(
         await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
 
-        // El precio VIGENTE AHORA, no el histórico de `ocurridoEn` (design.md
-        // D6): el acumulador incrementa una vez, en el momento del cobro, con
-        // el precio que rige en ese instante. El panel de uso (grupo 9) es
-        // quien re-costea contra el histórico para mostrarle al admin la
-        // estimación de una fila pasada.
+        // El precio VIGENTE AHORA, no el histórico de `ocurridoEn` (design.md D6): el acumulador
+        // incrementa una vez, en el momento del cobro, con el precio que rige en ese instante.
         var precio = await PrecioVigenteAhoraAsync(conexion, proveedor, ct);
         if (precio is null)
         {
-            // Sin precio, no hay nada que sumar — un proveedor/modelo sin
-            // fila en tabla_de_precios no puede aportar al tope organizacional
-            // (mismo criterio de "no costear en cero" de CalculadoraDeCosto).
-            // No poder tapar el tope con un proveedor sin precio es una
-            // limitación conocida, no un bug: el panel de uso (grupo 9) sigue
-            // reportando esas filas como "sin precio", visibles.
+            // Sin precio, no hay nada que sumar — un proveedor/modelo sin fila en tabla_de_precios
+            // no puede aportar al tope organizacional (mismo criterio de "no costear en cero" de
+            // CalculadoraDeCosto).
             return;
         }
 

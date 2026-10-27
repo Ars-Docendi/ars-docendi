@@ -10,17 +10,6 @@ namespace Modules.Asistente.Api;
 /// How users rate the Asistente's answers and where it visibly fails
 /// (asistente-metricas-de-calidad).
 /// </summary>
-/// <remarks>
-/// <b>No class-level policy, on purpose.</b> Two attributes would be ANDed; here each
-/// endpoint has its own permission, because they guard different things. The aggregates
-/// are counters and need <c>asistente.administrar</c>. The problem list shows question text
-/// and needs <c>asistente.revisar_calidad</c>, seeded to no role: holding the administration
-/// permission alone is not enough to read it.
-///
-/// The responses are the Application records as they are. None of them has an actor, a vote's
-/// free text or a vote's timestamp, and <c>CalidadControllerTests</c> scans the serialized
-/// JSON for them, so adding one later fails a test instead of leaking it.
-/// </remarks>
 [ApiController]
 [Route("api/asistente/administracion/calidad")]
 public sealed class CalidadController(
@@ -30,11 +19,9 @@ public sealed class CalidadController(
     ICurrentUser usuario) : ControllerBase
 {
     /// <summary>
-    /// The aggregate metrics: negative rate, reasons, failures by cause, coverage, per-model
-    /// table, series and trend against the previous period of equal length.
+    /// The aggregate metrics: negative rate, reasons, failures by cause, coverage, per-model table,
+    /// series and trend against the previous period of equal length.
     /// </summary>
-    /// <param name="periodo">7, 30 (the default) or 90 days.</param>
-    /// <param name="modelo">Optional <c>empresa/modelo</c> filter.</param>
     [HttpGet]
     [Authorize(Policy = Permisos.AsistenteAdministrar)]
     public async Task<ActionResult<CalidadAgregada>> Obtener(int? periodo, string? modelo, CancellationToken ct)
@@ -51,10 +38,6 @@ public sealed class CalidadController(
     /// <summary>
     /// One page of the anonymous problem list. Audits every successful read, before answering.
     /// </summary>
-    /// <param name="periodo">7, 30 (the default) or 90 days.</param>
-    /// <param name="modelo">Optional <c>empresa/modelo</c> filter.</param>
-    /// <param name="tipo">Optional: <c>negativa</c>, <c>fallo</c> or <c>reemplazo</c>.</param>
-    /// <param name="pagina">1-based page number. Default 1.</param>
     [HttpGet("problemas")]
     [Authorize(Policy = Permisos.AsistenteRevisarCalidad)]
     public async Task<ActionResult<PaginaDeProblemas>> Problemas(

@@ -16,20 +16,7 @@ internal enum Reconocimiento
 /// <summary>El resultado de reconocer una respuesta a una aclaración.</summary>
 internal sealed record RespuestaAAclaracion(Reconocimiento Estado, OpcionDeAclaracion? Opcion);
 
-/// <summary>
-/// Reconoce cuál de las opciones eligió el usuario, sin llamar al modelo.
-/// </summary>
-/// <remarks>
-/// Tres pasos en orden de especificidad: etiqueta completa, token distintivo,
-/// ordinal.
-///
-/// <b>Corre antes del reescritor</b>, y el orden importa: le entrega la etiqueta
-/// canónica del catálogo, no el «2» que el usuario tipeó. Si el reescritor viera el
-/// ordinal tendría que adivinar a qué se refiere, y adivinar es justo lo que esta
-/// capa evita.
-///
-/// Clase pura.
-/// </remarks>
+/// <summary>Reconoce cuál de las opciones eligió el usuario, sin llamar al modelo.</summary>
 internal static class ReconocedorDeAclaracion
 {
     /// <summary>Reconoce la respuesta contra las opciones ofrecidas.</summary>
@@ -70,15 +57,7 @@ internal static class ReconocedorDeAclaracion
         };
     }
 
-    /// <summary>
-    /// Paso 2 — una palabra que aparece en una sola de las etiquetas.
-    /// </summary>
-    /// <remarks>
-    /// «Informática» distingue a «Ingeniería en Informática» de «Ingeniería en
-    /// Electrónica»; «ingeniería» no distingue nada. Solo las distintivas cuentan,
-    /// y si el usuario dijo una palabra compartida el resultado es ambiguo — que
-    /// vuelve a preguntar, no que elija.
-    /// </remarks>
+    /// <summary>Paso 2 — una palabra que aparece en una sola de las etiquetas.</summary>
     private static RespuestaAAclaracion? PorTokenDistintivo(
         IReadOnlyList<string> palabras, Aclaracion aclaracion)
     {

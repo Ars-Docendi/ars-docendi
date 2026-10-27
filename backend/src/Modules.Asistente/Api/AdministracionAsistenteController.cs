@@ -9,15 +9,9 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Api;
 
 /// <summary>
-/// Administración del uso del asistente: modo mantenimiento y (grupo 9)
-/// presupuestos y panel de uso (asistente-administracion-de-uso).
+/// Administración del uso del asistente: modo mantenimiento y (grupo 9) presupuestos y panel de uso
+/// (asistente-administracion-de-uso).
 /// </summary>
-/// <remarks>
-/// Todo el controller exige <c>asistente.administrar</c> — un permiso propio,
-/// sembrado directamente a <c>sys_admin</c> (design.md D13), distinto de
-/// <c>asistente.leer_historial_ajeno</c>: administrar presupuestos y el kill
-/// switch no habilita leer conversaciones de otros usuarios, ni viceversa.
-/// </remarks>
 [ApiController]
 [Route("api/asistente/administracion")]
 [Authorize(Policy = Permisos.AsistenteAdministrar)]
@@ -30,21 +24,9 @@ public sealed class AdministracionAsistenteController(
     ICurrentUser usuario) : ControllerBase
 {
     /// <summary>
-    /// El panel de uso: turnos, resultado, llamadas, tokens, latencia,
-    /// proveedor y costo estimado, por usuario, por rol y organizacional
-    /// (tareas 9.1-9.4). Cada fila de <c>PorUsuario</c> también trae sus
-    /// códigos de rol y el cupo diario efectivo con su origen — resuelto acá
-    /// contra <see cref="IPresupuestosAdministrables.ObtenerEstadoAsync"/>
-    /// para que el valor mostrado sea, siempre, el que la aplicación real del
-    /// cupo usaría (tarea «rol y cupo efectivo por usuario» de
-    /// sistema-seccion-unificada).
+    /// El panel de uso: turnos, resultado, llamadas, tokens, latencia, proveedor y costo estimado,
+    /// por usuario, por rol y organizacional (tareas 9.1-9.4).
     /// </summary>
-    /// <param name="periodo">
-    /// Uno de <c>dia</c>, <c>semana</c>, <c>mes</c> (relativo a ahora). Default: <c>dia</c>.
-    /// Ignorado si <paramref name="desde"/> viene puesto.
-    /// </param>
-    /// <param name="desde">Rango explícito: desde. Requiere <paramref name="hasta"/>.</param>
-    /// <param name="hasta">Rango explícito: hasta (exclusivo).</param>
     [HttpGet("uso")]
     public async Task<ActionResult<UsoDto>> Uso(
         string? periodo, DateTimeOffset? desde, DateTimeOffset? hasta, CancellationToken ct)
@@ -74,28 +56,20 @@ public sealed class AdministracionAsistenteController(
     }
 
     /// <summary>
-    /// El estado persistido de los presupuestos: el tope organizacional
-    /// vigente, el cupo default de cada rol, cada override de usuario
-    /// vigente, y el gasto estimado del mes calendario en curso (tarea 12.8
-    /// de sistema-seccion-unificada — cierra el gap de "sólo <c>PUT</c>,
-    /// nunca <c>GET</c>" que documentaban
-    /// <c>TopeOrganizacionalCard</c>/<c>EditorDeCupoEnFila</c>).
+    /// El estado persistido de los presupuestos: el tope organizacional vigente, el cupo default de
+    /// cada rol, cada override de usuario vigente, y el gasto estimado del mes calendario en curso
+    /// (tarea 12.8 de sistema-seccion-unificada — cierra el gap de "sólo <c>PUT</c>, nunca
+    /// <c>GET</c>" que documentaban <c>TopeOrganizacionalCard</c>/<c>EditorDeCupoEnFila</c>).
     /// </summary>
-    /// <remarks>
-    /// Deliberadamente NO trae la serie diaria de uso ni la telemetría del
-    /// proveedor cloud/local — siguen sin implementar. El acceso por rol y
-    /// las revocaciones por usuario sí (asistente-acceso-granular).
-    /// </remarks>
     [HttpGet("presupuestos")]
     public async Task<ActionResult<PresupuestosDto>> Presupuestos(CancellationToken ct)
     {
         var estado = await presupuestos.ObtenerEstadoAsync(ct);
 
-        // El mes CALENDARIO en curso, con el mismo límite UTC que el
-        // acumulador que aplica el tope (design.md D2 de
-        // asistente-administracion-de-uso: "el límite ya es UTC en todo el
-        // resto del módulo") — nunca América/Argentina/Buenos_Aires, para no
-        // introducir una segunda noción de "mes" para este único endpoint.
+        // El mes CALENDARIO en curso, con el mismo límite UTC que el acumulador que aplica el tope
+        // (design.md D2 de asistente-administracion-de-uso: "el límite ya es UTC en todo el resto
+        // del módulo") — nunca América/Argentina/Buenos_Aires, para no introducir una segunda
+        // noción de "mes" para este único endpoint.
         var ahora = reloj.GetUtcNow();
         var inicioDelMes = new DateTimeOffset(ahora.Year, ahora.Month, 1, 0, 0, 0, TimeSpan.Zero);
         var panelDelMes = await consultasDeUso.ObtenerAsync(new RangoDePeriodo(inicioDelMes, ahora), ct);
@@ -107,11 +81,6 @@ public sealed class AdministracionAsistenteController(
     /// La carga del servidor del modelo propio y de la compuerta del backend
     /// (asistente-optimizaciones-modelo-local, D8).
     /// </summary>
-    /// <remarks>
-    /// Se resuelve del contenedor del request y no por constructor: el lector
-    /// es un tipo interno de <c>Infrastructure</c> y no hay motivo para que sea
-    /// público sólo para este endpoint.
-    /// </remarks>
     [HttpGet("servidor-local")]
     public async Task<ActionResult<ServidorLocalDto>> ServidorLocal(CancellationToken ct)
     {
@@ -187,10 +156,7 @@ public sealed class AdministracionAsistenteController(
         return NoContent();
     }
 
-    /// <summary>
-    /// Prende o apaga el acceso operativo de un rol (asistente-acceso-granular).
-    /// Audita.
-    /// </summary>
+    /// <summary>Prende o apaga el acceso operativo de un rol (asistente-acceso-granular).</summary>
     [HttpPut("presupuestos/roles/{rol}/acceso")]
     public async Task<IActionResult> AccesoDeRol(string rol, PedidoDeAccesoDto pedido, CancellationToken ct)
     {
@@ -263,8 +229,7 @@ public sealed class AdministracionAsistenteController(
     }
 
     /// <summary>
-    /// Prende o apaga el modo mantenimiento. La razón es obligatoria para
-    /// prenderlo (tarea 6.2).
+    /// Prende o apaga el modo mantenimiento. La razón es obligatoria para prenderlo (tarea 6.2).
     /// </summary>
     [HttpPatch("mantenimiento")]
     public async Task<ActionResult<MantenimientoDto>> Mantenimiento(
@@ -300,10 +265,9 @@ public sealed class AdministracionAsistenteController(
 
         var despues = await disponibilidadDelModulo.ConsultarAsync(ct);
 
-        // Write-before-respond (mismo criterio que asistente-historial-conversaciones
-        // para su propia auditoría de soporte): la fila de auditoría se escribe
-        // ANTES de devolver éxito al cliente, así que un 200 recibido siempre
-        // implica que la fila ya existe.
+        // Write-before-respond (mismo criterio que asistente-historial-conversaciones para su
+        // propia auditoría de soporte): la fila de auditoría se escribe ANTES de devolver éxito al
+        // cliente, así que un 200 recibido siempre implica que la fila ya existe.
         await auditoria.RegistrarAsync(
             actor,
             despues.Activo ? "mantenimiento.activar" : "mantenimiento.desactivar",

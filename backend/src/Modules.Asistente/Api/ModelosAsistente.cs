@@ -4,70 +4,32 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Api;
 
 /// <summary>Lo que el cliente manda en un turno.</summary>
-/// <param name="Mensaje">Lo que escribió el usuario.</param>
-/// <param name="Hilo">
-/// El hilo del turno anterior, para que el seguimiento funcione. Nulo en el primero.
-/// </param>
-/// <param name="Reemplaza">
-/// El identificador del turno que este turno reemplaza —la
-/// <c>Idempotency-Key</c> de un turno vivo, o el <c>turno_historico.id</c> de
-/// uno restaurado por «Reanudar»—, o <c>null</c> para un turno nuevo
-/// cualquiera (asistente-edicion-de-la-ultima-pregunta, design.md D9 de
-/// asistente-rediseno-v3). Se honra sólo si nombra el último turno vigente del
-/// hilo del actor; si no, <c>409</c> y nada cambia.
-/// </param>
-/// <param name="Referencias">
-/// Las menciones «@materia»/«#docente» elegidas en el composer (design.md
-/// D10/D11 de asistente-rediseno-v3), a lo sumo 5. El controller revalida cada
-/// una contra el alcance ACTUAL del actor con la misma búsqueda de
-/// <c>GET /menciones</c>, antes del candado y del resto del pipeline: una
-/// mención desconocida o fuera de alcance da <c>400</c> — el mismo para las dos
-/// causas, para no confirmar cuál de las dos fue — y no cobra cupo ni escribe
-/// historial.
-/// </param>
-/// <remarks>
-/// <b>No trae al actor.</b> El actor sale de la identidad de la sesión y de ningún
-/// otro lado: un identificador tomado del cuerpo del pedido sería un selector de
-/// alcance controlado por el cliente.
-/// </remarks>
 public sealed record ConsultaDelAsistente(
-    // Las anotaciones van en el PARÁMETRO y no en la propiedad. Con
-    // `[property: ...]` sobre un parámetro del constructor primario, ASP.NET Core
-    // levanta excepción al validar el modelo —no las ignora en silencio— y todo
-    // request al endpoint termina en 500.
+    // Las anotaciones van en el PARÁMETRO y no en la propiedad. Con `[property: ...]` sobre un
+    // parámetro del constructor primario, ASP.NET Core levanta excepción al validar el modelo —no
+    // las ignora en silencio— y todo request al endpoint termina en 500.
     [Required(AllowEmptyStrings = false)]
     [MaxLength(2000)]
     string Mensaje,
     Guid? Hilo,
-    // Sin `[Required]`: ausente es «turno nuevo cualquiera», el caso de
-    // siempre. Ver `CapaConversacional.ResponderAsync` (design.md D9 de
-    // asistente-rediseno-v3, «Editar y reenviar»).
+    // Sin `[Required]`: ausente es «turno nuevo cualquiera», el caso de siempre.
     string? Reemplaza = null,
-    // `[MaxLength(5)]` sobre una colección cuenta elementos, no caracteres:
-    // con `[ApiController]`, una sexta referencia nunca llega a la acción — el
-    // filtro de validación del modelo devuelve 400 antes (escenario «Too many
-    // references are rejected» de asistente-menciones).
+    // `[MaxLength(5)]` sobre una colección cuenta elementos, no caracteres: con `[ApiController]`,
+    // una sexta referencia nunca llega a la acción — el filtro de validación del modelo devuelve
+    // 400 antes (escenario «Too many references are rejected» de asistente-menciones).
     [MaxLength(5)]
     IReadOnlyList<ReferenciaDto>? Referencias = null);
 
 /// <summary>Una mención tal como la manda el cliente en el turno (design.md D11).</summary>
-/// <param name="Tipo">
-/// <c>"materia"</c> o <c>"docente"</c>. Cualquier otro valor se trata igual que
-/// un identificador que no existe: <c>400</c>, sin confirmar cuál de las dos
-/// cosas fue.
-/// </param>
 public sealed record ReferenciaDto(string Tipo, Guid Id);
 
 /// <summary>Una opción del menú de aclaración.</summary>
 public sealed record OpcionDto(string Etiqueta, string PreguntaResuelta);
 
 /// <summary>
-/// Una materia o un docente encontrado por <c>GET /api/asistente/menciones</c>
-/// (design.md D10 de asistente-rediseno-v3).
+/// Una materia o un docente encontrado por <c>GET /api/asistente/menciones</c> (design.md D10 de
+/// asistente-rediseno-v3).
 /// </summary>
-/// <param name="Carrera">La carrera de la materia. <c>null</c> para un docente.</param>
-/// <param name="Codigo">El código de la materia. <c>null</c> para un docente.</param>
-/// <param name="Cargo">El cargo de la designación del docente. <c>null</c> para una materia.</param>
 public sealed record MencionDto(Guid Id, string Nombre, string? Carrera, string? Codigo, string? Cargo)
 {
     internal static MencionDto De(ResultadoDeMencion resultado) => new(
@@ -75,10 +37,6 @@ public sealed record MencionDto(Guid Id, string Nombre, string? Carrera, string?
 }
 
 /// <summary>La respuesta de <c>GET /api/asistente/menciones</c>.</summary>
-/// <param name="HayMas">
-/// Si había más coincidencias que las devueltas. Nunca un conteo — mismo motivo
-/// que <see cref="RespuestaDelAsistente.Truncado"/>.
-/// </param>
 public sealed record MencionesDto(IReadOnlyList<MencionDto> Resultados, bool HayMas)
 {
     internal static MencionesDto De(BusquedaDeMenciones busqueda) =>
@@ -86,85 +44,22 @@ public sealed record MencionesDto(IReadOnlyList<MencionDto> Resultados, bool Hay
 }
 
 /// <summary>What the client sends to rate an already-answered turn.</summary>
-/// <param name="Token">
-/// The feedback token minted for that turn (<c>ClaveDeRetroalimentacion</c> in
-/// the turn's response). Authorizes rating THAT turn; it does not identify the
-/// caller.
-/// </param>
-/// <param name="Voto">Thumbs up (<c>true</c>) or thumbs down (<c>false</c>).</param>
-/// <param name="Razones">
-/// Zero or more of <see cref="RazonesDeRetroalimentacion.Todas"/>, no duplicates.
-/// Validated in the controller against that closed list rather than via an
-/// attribute, so the list is declared exactly once. Ignored server-side when
-/// <see cref="Voto"/> is <c>true</c>, even if present here — the client is never
-/// trusted to have omitted it.
-/// </param>
-/// <param name="Comentario">
-/// Free text, trimmed by the controller before validating and storing it; empty
-/// after trimming is treated as absent. At most 500 characters after trimming,
-/// else <c>400</c>. Same "ignored on a thumbs-up" rule as <see cref="Razones"/>.
-/// Never logged, never sent to the model provider, never surfaced back to any
-/// screen — asistente-retroalimentacion's spec and the TD-012 addendum in
-/// <c>docs/quality/tech-debt.md</c>.
-/// </param>
 public sealed record PedidoDeRetroalimentacion(
     Guid Token, bool Voto, IReadOnlyList<string>? Razones, string? Comentario);
 
-/// <summary>
-/// Un vínculo a la pantalla que muestra lo que una celda identifica.
-/// </summary>
-/// <param name="Fila">Índice de la fila dentro de <c>filas</c>.</param>
-/// <param name="Columna">Índice de la columna dentro de esa fila.</param>
-/// <param name="Tipo">Qué clase de recurso es. El cliente lo traduce a una ruta.</param>
-/// <param name="Id">Con qué identificador se abre.</param>
-/// <remarks>
-/// <b>Sin URL, a propósito.</b> La ruta es una decisión de la interfaz, y un
-/// cliente que no reconozca el <paramref name="Tipo"/> no pinta nada — así un tipo
-/// nuevo no rompe a un cliente viejo, sólo no lo aprovecha.
-/// </remarks>
+/// <summary>Un vínculo a la pantalla que muestra lo que una celda identifica.</summary>
 public sealed record VinculoDto(int Fila, int Columna, string Tipo, string Id);
 
 /// <summary>
-/// Dónde, dentro del texto de la respuesta, aparece un valor que el resultado ya
-/// vinculó (<c>vinculosDelTexto</c>).
+/// Dónde, dentro del texto de la respuesta, aparece un valor que el resultado ya vinculó
+/// (<c>vinculosDelTexto</c>).
 /// </summary>
-/// <param name="Desde">
-/// Índice del primer carácter en <c>respuesta</c>, en unidades de código UTF-16: las
-/// mismas que usa <c>String.prototype.slice</c> en el cliente.
-/// </param>
-/// <param name="Largo">Cuántas unidades de código ocupa el valor.</param>
-/// <param name="Tipo">Igual que en <see cref="VinculoDto"/>.</param>
-/// <param name="Id">Igual que en <see cref="VinculoDto"/>.</param>
-/// <remarks>
-/// Sólo se señala lo que una celda del resultado ya vinculó: un número que aparece
-/// únicamente en la prosa no lleva enlace. Llegan con el evento final de
-/// <c>/consultas/flujo</c>; los borradores parciales no las traen.
-/// </remarks>
 public sealed record VinculoDelTextoDto(int Desde, int Largo, string Tipo, string Id);
 
-/// <summary>
-/// El elemento sobre el que trata la respuesta, con su ficha (<c>principal</c>).
-/// </summary>
-/// <param name="Tipo">El mismo tipo que el vínculo del elemento.</param>
-/// <param name="Id">El mismo identificador que el vínculo del elemento.</param>
-/// <param name="Datos">
-/// Los datos clave, con claves documentadas por tipo (ver <c>api-contracts.md</c>).
-/// Para <c>pedido-designacion</c>: <c>numero</c>, <c>novedad</c>, <c>materia</c>,
-/// <c>estado</c>, <c>estadoEtiqueta</c>, <c>periodo</c>, <c>cargo</c>,
-/// <c>dedicacion</c> y <c>ultimaActividad</c>.
-/// </param>
-/// <remarks>
-/// Un cliente que no conoce el <paramref name="Tipo"/> ignora la ficha y muestra la
-/// respuesta como si no hubiera principal.
-/// </remarks>
+/// <summary>El elemento sobre el que trata la respuesta, con su ficha (<c>principal</c>).</summary>
 public sealed record PrincipalDto(string Tipo, string Id, IReadOnlyDictionary<string, string?> Datos);
 
 /// <summary>Una columna del resultado, con su marca de sensibilidad.</summary>
-/// <param name="Sensible">
-/// Si la columna trae un dato personal. Lo necesita quien renderiza: con columnas
-/// sensibles la narración deja de ser el vehículo del dato —el modelo redacta el
-/// marco y la interfaz muestra la tabla—.
-/// </param>
 public sealed record ColumnaDto(string Nombre, bool Sensible);
 
 /// <summary>Lo que el cliente recibe de un turno (§4.6).</summary>
@@ -203,63 +98,41 @@ public sealed record RespuestaDelAsistente
     /// <summary>La consulta que se ejecutó. Presente solo con el permiso correspondiente.</summary>
     public string? Sql { get; init; }
 
-    /// <summary>
-    /// The feedback token: present only when <c>estado</c> is <c>respondida</c>.
-    /// Submit it once to <c>POST /api/asistente/retroalimentacion</c> to rate this
-    /// turn. Never derived from, and never carries, any actor identifier.
-    /// </summary>
+    /// <summary>The feedback token: present only when <c>estado</c> is <c>respondida</c>.</summary>
     public Guid? ClaveDeRetroalimentacion { get; init; }
 
     /// <summary>
-    /// Las celdas que identifican algo que el actor <b>puede abrir</b>. Vacío si no
-    /// hay ninguna.
+    /// Las celdas que identifican algo que el actor <b>puede abrir</b>. Vacío si no hay ninguna.
     /// </summary>
-    /// <remarks>
-    /// Que una fila esté en <c>filas</c> no implica que su recurso tenga vínculo:
-    /// las filas las filtra el motor y la pantalla la autoriza el módulo dueño, que
-    /// son dos reglas distintas. Este campo trae el veredicto de la segunda.
-    /// </remarks>
     public IReadOnlyList<VinculoDto> Vinculos { get; init; } = [];
 
     /// <summary>
-    /// Las apariciones, dentro de <c>respuesta</c>, de los valores de celda que tienen
-    /// vínculo. Vacío si no hay ninguna.
+    /// Las apariciones, dentro de <c>respuesta</c>, de los valores de celda que tienen vínculo.
     /// </summary>
     public IReadOnlyList<VinculoDelTextoDto> VinculosDelTexto { get; init; } = [];
 
     /// <summary>
-    /// El elemento sobre el que trata la respuesta, con su ficha. Nulo salvo que el
-    /// resultado sea una sola fila con un solo vínculo y el módulo dueño haya entregado
-    /// la ficha.
+    /// El elemento sobre el que trata la respuesta, con su ficha. Nulo salvo que el resultado sea
+    /// una sola fila con un solo vínculo y el módulo dueño haya entregado la ficha.
     /// </summary>
     public PrincipalDto? Principal { get; init; }
 
     /// <summary>
-    /// De qué áreas salen los datos: códigos de schema (<c>designaciones</c>,
-    /// <c>identity</c>, <c>portal</c>), sin repetir y en orden estable. Vacío si el
-    /// turno no ejecutó consulta. Nunca la consulta, sus tablas ni cuántas filas.
+    /// De qué áreas salen los datos: códigos de schema (<c>designaciones</c>, <c>identity</c>,
+    /// <c>portal</c>), sin repetir y en orden estable.
     /// </summary>
     public IReadOnlyList<string> Origenes { get; init; } = [];
 
     /// <summary>Lo que costó el turno.</summary>
     public required MetricasDto Metricas { get; init; }
 
-    /// <summary>
-    /// El cupo diario del actor, ya cobrado este turno (asistente-cupo-visible).
-    /// Nulo sólo si <see cref="ResultadoDelTurno.CupoRestante"/> no se resolvió
-    /// —no debería ocurrir en producción, y es exactamente lo que
-    /// <see cref="int.MaxValue"/> vs. un número concreto ya distingue de "sin
-    /// tope" vs. "con tope".
-    /// </summary>
+    /// <summary>El cupo diario del actor, ya cobrado este turno (asistente-cupo-visible).</summary>
     public int? CupoRestante { get; init; }
 
     /// <summary>
-    /// El id de la conversación persistida (<c>asistente.hilo_historico.id</c>)
-    /// en la que este turno quedó registrado (design.md D13 de
-    /// asistente-rediseno-v3), para que el rail la resalte y titule el
-    /// encabezado. Nulo si el turno no se persistió —la escritura del
-    /// historial falló, o el turno terminó en <c>Fallo</c>—. Nunca viaja junto
-    /// a <see cref="ClaveDeRetroalimentacion"/> ni al registro analítico.
+    /// El id de la conversación persistida (<c>asistente.hilo_historico.id</c>) en la que este
+    /// turno quedó registrado (design.md D13 de asistente-rediseno-v3), para que el rail la resalte
+    /// y titule el encabezado.
     /// </summary>
     public Guid? Conversacion { get; init; }
 
@@ -296,13 +169,7 @@ public sealed record RespuestaDelAsistente
         };
     }
 
-    /// <summary>
-    /// Traduce el estado a la forma del contrato HTTP.
-    /// </summary>
-    /// <remarks>
-    /// Explícito y no <c>ToString()</c>: el nombre del enum es un detalle interno del
-    /// backend, y renombrarlo no puede romper a los clientes en silencio.
-    /// </remarks>
+    /// <summary>Traduce el estado a la forma del contrato HTTP.</summary>
     private static string Nombrar(EstadoDelTurno estado) => estado switch
     {
         EstadoDelTurno.Respondida => "respondida",
@@ -320,10 +187,6 @@ public sealed record MetricasDto(int LlamadasAlModelo, string Categoria);
 /// Lo que se manda a <c>PATCH /api/asistente/administracion/mantenimiento</c>
 /// (asistente-modo-mantenimiento).
 /// </summary>
-/// <param name="Activo">Prender o apagar el mantenimiento.</param>
-/// <param name="Razon">
-/// Obligatoria para activar (tarea 6.2); opcional para desactivar.
-/// </param>
 public sealed record PedidoDeMantenimientoDto(bool Activo, string? Razon);
 
 /// <summary>El modo mantenimiento, tal como lo ve cualquier consultante.</summary>
@@ -334,49 +197,14 @@ public sealed record MantenimientoDto(bool Activo, string? Razon)
 }
 
 /// <summary>
-/// El cupo diario del actor, tal como lo cuenta <c>capacidades</c> y el
-/// resultado del propio turno (asistente-cupo-visible).
+/// El cupo diario del actor, tal como lo cuenta <c>capacidades</c> y el resultado del propio turno
+/// (asistente-cupo-visible).
 /// </summary>
-/// <param name="Restante">
-/// Turnos que le quedan hoy. <see cref="int.MaxValue"/> si el cupo está
-/// desactivado — ver <c>ICuotaDelActor.CupoRestanteAsync</c>.
-/// </param>
-/// <param name="Bloqueado">Si el actor está bloqueado AHORA MISMO.</param>
-/// <param name="Motivo">
-/// Uno de <c>presupuesto_propio</c>, <c>tope_organizacional</c>,
-/// <c>mantenimiento</c> o <c>sin_acceso</c>. Nulo si no está bloqueado.
-/// </param>
-/// <param name="VuelveA">Cuándo se destraba, si se sabe.</param>
 public sealed record CupoDto(int Restante, bool Bloqueado, string? Motivo, DateTimeOffset? VuelveA);
 
-/// <summary>Un agregado de uso: por usuario, por rol, u organizacional (asistente-panel-de-uso).</summary>
-/// <param name="EsEstimado">
-/// Siempre <c>true</c>: el costo es una estimación propia, nunca la factura
-/// del proveedor (tarea 9.4).
-/// </param>
-/// <param name="CodigosDeRol">
-/// Sólo en una fila de <c>PorUsuario</c>: los códigos de rol de sistema
-/// vigentes del actor. Vacío en una fila de rol o la de organización.
-/// </param>
-/// <param name="CupoEfectivo">
-/// Sólo en una fila de <c>PorUsuario</c>: el cupo diario que hoy le aplicaría
-/// la ejecución real del turno a este actor (misma regla que
-/// <c>CuotaPersistente.CupoEfectivoAsync</c>), o <c>null</c> si no se puede
-/// resolver (el actor no tiene override ni ningún rol de sistema).
-/// </param>
-/// <param name="OrigenDeCupo">
-/// De dónde sale <see cref="CupoEfectivo"/>: <c>"override"</c> o
-/// <c>"rol"</c>, o <c>null</c> junto con <see cref="CupoEfectivo"/> nulo.
-/// </param>
-/// <param name="AccesoEfectivo">
-/// Sólo en una fila de <c>PorUsuario</c>: si el actor tiene hoy acceso
-/// operativo al asistente, con la MISMA <see cref="ReglaDeAccesoEfectivo"/>
-/// que aplica el turno (asistente-acceso-granular). Nulo en las demás filas.
-/// </param>
-/// <param name="OrigenDeAcceso">
-/// De dónde sale <see cref="AccesoEfectivo"/>: <c>"rol"</c> o <c>"propio"</c>
-/// (una revocación del usuario). Nulo junto con <see cref="AccesoEfectivo"/>.
-/// </param>
+/// <summary>
+/// Un agregado de uso: por usuario, por rol, u organizacional (asistente-panel-de-uso).
+/// </summary>
 public sealed record UsoAgregadoDto(
     string Clave,
     string? NombreParaMostrar,
@@ -420,11 +248,10 @@ public sealed record UsoAgregadoDto(
         OrigenDeAcceso: null);
 
     /// <summary>
-    /// Como <see cref="De"/>, pero además resuelve <see cref="CupoEfectivo"/>
-    /// y <see cref="OrigenDeCupo"/> con <see cref="ReglaDeCupoEfectivo"/> —
-    /// sólo tiene sentido para una fila de <c>PorUsuario</c>: una fila de rol
-    /// o la de organización ya ES su propio cupo, sin necesidad de resolver
-    /// nada (se lee directo de <c>GET …/presupuestos</c>).
+    /// Como <see cref="De"/>, pero además resuelve <see cref="CupoEfectivo"/> y <see
+    /// cref="OrigenDeCupo"/> con <see cref="ReglaDeCupoEfectivo"/> — sólo tiene sentido para una
+    /// fila de <c>PorUsuario</c>: una fila de rol o la de organización ya ES su propio cupo, sin
+    /// necesidad de resolver nada (se lee directo de <c>GET …/presupuestos</c>).
     /// </summary>
     internal static UsoAgregadoDto DeUsuario(UsoAgregado agregado, EstadoDePresupuestos presupuestos)
     {
@@ -469,9 +296,7 @@ public sealed record UsoDto(
 public sealed record PedidoDeCupoDto(int Cupo);
 
 /// <summary>
-/// Lo que se manda a cambiar el acceso de un rol o de un usuario
-/// (asistente-acceso-granular). Para un usuario, <c>true</c> sólo borra su
-/// revocación: nunca le da acceso por encima de su rol.
+/// Lo que se manda a cambiar el acceso de un rol o de un usuario (asistente-acceso-granular).
 /// </summary>
 public sealed record PedidoDeAccesoDto(bool Habilitado);
 
@@ -496,23 +321,9 @@ public sealed record OverrideDeUsuarioDto(Guid ActorId, string? NombreParaMostra
 }
 
 /// <summary>
-/// El estado persistido de los presupuestos
-/// (<c>GET /api/asistente/administracion/presupuestos</c>, tarea 12.8 de
-/// sistema-seccion-unificada). Cierra el gap de "tope y cupos actuales" y,
-/// desde asistente-acceso-granular, el acceso por rol y las revocaciones por
-/// usuario. La serie diaria de uso y la telemetría del proveedor cloud/local
-/// siguen sin implementar.
+/// El estado persistido de los presupuestos (<c>GET /api/asistente/administracion/presupuestos</c>,
+/// tarea 12.8 de sistema-seccion-unificada).
 /// </summary>
-/// <param name="TopeMensualUsd">El tope organizacional vigente. <c>0</c> = desactivado.</param>
-/// <param name="GastoEstimadoDelMes">
-/// El costo estimado del mes calendario en curso (límite UTC, igual que el
-/// acumulador que aplica el tope — design.md D2 de
-/// asistente-administracion-de-uso), calculado con el mismo mecanismo de
-/// costeo versionado que <c>GET /uso</c> (<c>IConsultasDeUso</c>). Nunca la
-/// factura real del proveedor.
-/// </param>
-/// <param name="EsEstimado">Siempre <c>true</c> — mismo campo que <see cref="UsoAgregadoDto"/>.</param>
-/// <param name="AccesosRevocados">Los actores con el acceso revocado (asistente-acceso-granular).</param>
 public sealed record PresupuestosDto(
     decimal TopeMensualUsd,
     decimal GastoEstimadoDelMes,
@@ -531,16 +342,9 @@ public sealed record PresupuestosDto(
 }
 
 /// <summary>
-/// La carga del servidor del modelo propio y de la compuerta
-/// (<c>GET /api/asistente/administracion/servidor-local</c>, asistente-optimizaciones-
-/// modelo-local D8). Cada métrica que el servidor no publica viaja nula, nunca en cero.
+/// La carga del servidor del modelo propio y de la compuerta (<c>GET
+/// /api/asistente/administracion/servidor-local</c>, asistente-optimizaciones- modelo-local D8).
 /// </summary>
-/// <param name="Configurado">Si el proveedor es <c>local</c> con URL.</param>
-/// <param name="Alcanzable">Si su <c>/metrics</c> respondió.</param>
-/// <param name="Motor"><c>vllm</c>, <c>llama.cpp</c> o nulo.</param>
-/// <param name="UsoDeKvCache">De 0 a 1.</param>
-/// <param name="AciertosDeCacheDePrefijo">De 0 a 1, acumulado desde que arrancó el servidor.</param>
-/// <param name="Compuerta">Nula si el backend no limita la concurrencia.</param>
 public sealed record ServidorLocalDto(
     bool Configurado,
     bool Alcanzable,

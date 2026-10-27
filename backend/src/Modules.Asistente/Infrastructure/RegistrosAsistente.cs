@@ -3,33 +3,16 @@ using Npgsql;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>
-/// Crea el schema del asistente y sus dos registros sobre una base ya migrada.
-/// </summary>
-/// <remarks>
-/// Es público y recibe la conexión desde afuera por el mismo motivo que
-/// <see cref="PrivilegiosAsistente"/>: lo usan el migrador del módulo y la
-/// infraestructura de tests, y las dos tienen que ejercitar exactamente el mismo
-/// SQL. Una copia del DDL en los tests probaría la copia.
-///
-/// Corre <b>después</b> de los privilegios y no antes: el archivo revoca el schema
-/// nuevo a los dos roles del asistente, y para eso los roles ya tienen que existir.
-/// </remarks>
+/// <summary>Crea el schema del asistente y sus dos registros sobre una base ya migrada.</summary>
 public static class RegistrosAsistente
 {
     /// <summary>Ruta lógica del recurso embebido con el DDL de los registros.</summary>
     public const string RecursoSql = "asistente/002_asistente_registros.sql";
 
     /// <summary>
-    /// Aplica el DDL de los registros. Converge también sobre una base que ya tenía
-    /// las tablas: lo que el <c>CREATE TABLE IF NOT EXISTS</c> no puede agregar lo
-    /// agrega un <c>ALTER TABLE ... ADD COLUMN IF NOT EXISTS</c> por columna.
+    /// Aplica el DDL de los registros. Converge también sobre una base que ya tenía las tablas: lo
+    /// que el <c>CREATE TABLE IF NOT EXISTS</c> no puede agregar lo agrega un <c>ALTER TABLE ...
     /// </summary>
-    /// <remarks>
-    /// Los nombres de rol llevan sufijo de ambiente, así que viajan como GUC de
-    /// transacción —no como interpolación de texto— y del otro lado se citan con
-    /// <c>format(%I)</c>.
-    /// </remarks>
     public static async Task AplicarAsync(
         NpgsqlConnection conexion,
         string rolSoloLectura,

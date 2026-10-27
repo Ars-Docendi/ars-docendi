@@ -8,15 +8,6 @@ namespace Modules.Asistente.Api;
 /// Escribe eventos <c>text/event-stream</c> sobre la respuesta del request
 /// (asistente-optimizaciones-modelo-local, design.md D9).
 /// </summary>
-/// <remarks>
-/// Los encabezados salen con el primer evento, no antes: mientras no se escribió
-/// nada, el endpoint todavía puede responder un 400 o un 404 como siempre.
-///
-/// <b>Nunca lanza por un cliente que se fue.</b> La escritura se marca rota y los
-/// eventos siguientes se descartan: el turno no es de la conexión, y una falla
-/// acá que llegara al adaptador del modelo se contaría como una caída del
-/// proveedor.
-/// </remarks>
 internal sealed class FlujoDeEventos(HttpResponse respuesta, JsonSerializerOptions json)
 {
     private bool _roto;
@@ -37,9 +28,8 @@ internal sealed class FlujoDeEventos(HttpResponse respuesta, JsonSerializerOptio
             {
                 respuesta.StatusCode = StatusCodes.Status200OK;
                 respuesta.ContentType = "text/event-stream; charset=utf-8";
-                // Un proxy que bufferea (nginx, Traefik con compresión) juntaría los
-                // eventos y el flujo llegaría entero al final. Si igual lo hace, el
-                // resultado llega completo como en el endpoint de siempre.
+                // Un proxy que bufferea (nginx, Traefik con compresión) juntaría los eventos y el
+                // flujo llegaría entero al final.
                 respuesta.Headers.CacheControl = "no-cache";
                 respuesta.Headers["X-Accel-Buffering"] = "no";
                 respuesta.HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();

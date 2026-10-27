@@ -18,38 +18,15 @@ public enum EstadoDelBreaker
 }
 
 /// <summary>
-/// El estado del breaker del adaptador que el turno resolvió
-/// (asistente-modelo-en-caliente, D8).
+/// El estado del breaker del adaptador que el turno resolvió (asistente-modelo-en-caliente, D8).
 /// </summary>
-/// <remarks>
-/// Es asíncrono porque saber CUÁL es el adaptador del turno puede requerir leer la
-/// selección guardada. <see cref="BreakerDelProveedor"/> lo implementa trivialmente
-/// con su propio estado: un breaker suelto no tiene nada que resolver.
-/// </remarks>
 internal interface IBreakerDelTurno
 {
     /// <summary>Estado del breaker del adaptador resuelto para este turno.</summary>
     Task<EstadoDelBreaker> EstadoAsync(CancellationToken ct);
 }
 
-/// <summary>
-/// Corta las llamadas al proveedor cuando viene fallando, y las restablece solo.
-/// </summary>
-/// <remarks>
-/// Cuenta <b>fallos de transporte y de timeout</b>, nunca rechazos semánticos. Un
-/// modelo que devuelve una respuesta que el validador descarta está sano: cortarle
-/// las llamadas por eso apagaría el asistente cada vez que alguien hace una
-/// pregunta difícil.
-///
-/// En prueba deja pasar <b>una sola</b> llamada, no una por turno. Con varios
-/// turnos concurrentes, «una por turno» significa una avalancha contra un proveedor
-/// que recién se está recuperando, que es exactamente el escenario que el breaker
-/// existe para evitar.
-///
-/// Guarda el estado de UN adaptador. Hay uno por <c>Nombre</c> y los reparte
-/// <see cref="RegistroDeBreakers"/>, que es el singleton: el estado del proveedor
-/// es del proceso, no del request, y cambiar de modelo no hereda el de otro.
-/// </remarks>
+/// <summary>Corta las llamadas al proveedor cuando viene fallando, y las restablece solo.</summary>
 internal sealed class BreakerDelProveedor(
     IOptions<OpcionesAsistente> opciones,
     TimeProvider reloj,
@@ -76,9 +53,7 @@ internal sealed class BreakerDelProveedor(
     /// <inheritdoc />
     public Task<EstadoDelBreaker> EstadoAsync(CancellationToken ct) => Task.FromResult(Estado);
 
-    /// <summary>
-    /// Si esta llamada puede salir. En prueba, se la concede a una sola.
-    /// </summary>
+    /// <summary>Si esta llamada puede salir. En prueba, se la concede a una sola.</summary>
     public bool Permite()
     {
         if (opciones.Value.FallosParaAbrirElBreaker <= 0)
@@ -130,9 +105,8 @@ internal sealed class BreakerDelProveedor(
 
         lock (_candado)
         {
-            // Un fallo durante la prueba reabre de una y reinicia la espera: no hace
-            // falta volver a acumular el umbral entero para descubrir lo que se
-            // acaba de comprobar.
+            // Un fallo durante la prueba reabre de una y reinicia la espera: no hace falta volver a
+            // acumular el umbral entero para descubrir lo que se acaba de comprobar.
             if (_pruebaEnCurso)
             {
                 _pruebaEnCurso = false;

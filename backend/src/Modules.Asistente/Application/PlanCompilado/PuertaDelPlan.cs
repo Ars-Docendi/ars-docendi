@@ -13,14 +13,7 @@ internal enum DecisionDeLaPuerta
     Candidata,
 }
 
-/// <summary>
-/// La puerta léxica del plan compilado (D4 de <c>asistente-plan-compilado</c>).
-/// </summary>
-/// <remarks>
-/// Determinista y sin acceso a la base: decide con la pregunta sola. Su trabajo
-/// es no gastar una llamada en una pregunta que el catálogo no puede expresar, y
-/// no dejar que el modelo elija en silencio entre dos definiciones.
-/// </remarks>
+/// <summary>La puerta léxica del plan compilado (D4 de <c>asistente-plan-compilado</c>).</summary>
 internal static class PuertaDelPlan
 {
     private static readonly string[] AyudanteConOrden =
@@ -60,11 +53,8 @@ internal static class PuertaDelPlan
         texto.ContieneAlguna(CatalogoDelPlan.PalabrasDePoblacion)
         || CatalogoDelPlan.Cargos.Any(cargo => texto.ContieneAlguna(cargo.Sinonimos));
 
-    // «¿Qué asignaturas se dictan en Ingeniería Industrial?» nombra una carrera y usa un
-    // verbo de la población, pero pide materias. Sin esto el modelo arma un listado de
-    // docentes, el validador lo rechaza y el turno se abstiene de algo que el carril SQL
-    // responde. Se mira la palabra que sigue a cada interrogativo, salteando artículos y
-    // «porcentaje de»: si es una entidad que no son personas, la pregunta no es del plan.
+    // «¿Qué asignaturas se dictan en Ingeniería Industrial?» nombra una carrera y usa un verbo de
+    // la población, pero pide materias.
     private static bool PideOtraEntidad(TextoDeLaPregunta texto)
     {
         var palabras = texto.Palabras;

@@ -4,15 +4,9 @@ using Microsoft.Extensions.Options;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// El carril del plan compilado: puerta, muestras, acuerdo, entidades, compilación,
-/// ejecución y plantilla (change <c>asistente-plan-compilado</c>, prototipo).
+/// El carril del plan compilado: puerta, muestras, acuerdo, entidades, compilación, ejecución y
+/// plantilla (change <c>asistente-plan-compilado</c>, prototipo).
 /// </summary>
-/// <remarks>
-/// <b>Nulo significa «no es mío»</b>: la pregunta sigue por el carril SQL. Todo lo
-/// demás —respuesta, aclaración o abstención— termina el turno acá. La asimetría es
-/// la del diseño: una pregunta que parecía del plan y no se pudo expresar con
-/// seguridad no se le pasa al carril menos preciso; se aclara o se abstiene.
-/// </remarks>
 public sealed class CarrilDelPlan
 {
     private readonly GeneradorDePlan _generador;

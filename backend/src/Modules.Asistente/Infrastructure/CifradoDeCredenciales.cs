@@ -11,18 +11,12 @@ namespace Modules.Asistente.Infrastructure;
 internal sealed class ClaveMaestraNoDisponibleException(string message) : InvalidOperationException(message);
 
 /// <summary>
-/// A stored credential cannot be opened: it is malformed, was encrypted under a
-/// master key that is not configured, or failed authentication (tampered, or
-/// moved to another company's row). Carries no key material and no inner detail.
+/// A stored credential cannot be opened: it is malformed, was encrypted under a master key that is
+/// not configured, or failed authentication (tampered, or moved to another company's row).
 /// </summary>
 internal sealed class CredencialIlegibleException(string message) : InvalidOperationException(message);
 
 /// <summary>Result of opening a stored credential.</summary>
-/// <param name="Clave">The plaintext API key. Never log it or put it in a message.</param>
-/// <param name="NecesitaRecifrado">
-/// True when it was encrypted under the previous master key and should be
-/// stored again under the current one.
-/// </param>
 internal sealed record ClaveDescifrada(string Clave, bool NecesitaRecifrado)
 {
     /// <summary>Redacted on purpose: the default record printer would show <see cref="Clave"/>.</summary>
@@ -33,20 +27,6 @@ internal sealed record ClaveDescifrada(string Clave, bool NecesitaRecifrado)
 /// <summary>
 /// Encrypts per-company API keys with AES-GCM (asistente-modelo-en-caliente, D4).
 /// </summary>
-/// <remarks>
-/// Stored format: <c>v1:{kid}:{base64(iv|tag|ciphertext)}</c>, with a 12-byte IV
-/// and a 16-byte tag. The associated data is <c>asistente:{empresa}</c>, so a
-/// ciphertext copied to another company's row fails authentication.
-///
-/// <c>kid</c> is the first 8 hex characters of SHA-256 over a fixed label and the
-/// raw master key. It names which master key encrypted a value, so decryption
-/// picks the key directly instead of trying the current one and then the previous
-/// one. A truncated hash of a 256-bit random key discloses nothing useful.
-///
-/// Reads <see cref="IOptions{TOptions}"/> on every operation and validates the
-/// master keys only then (<see cref="ValidadorDeOpcionesAsistente.ValidarClavesMaestras"/>),
-/// so constructing it, and starting the module, never depends on the keys.
-/// </remarks>
 internal sealed class CifradoDeCredenciales(IOptions<OpcionesAsistente> opciones)
 {
     private const string Version = "v1";
@@ -83,8 +63,6 @@ internal sealed class CifradoDeCredenciales(IOptions<OpcionesAsistente> opciones
     }
 
     /// <summary>Opens a stored value, choosing the master key by its <c>kid</c>.</summary>
-    /// <exception cref="ClaveMaestraNoDisponibleException">No usable master key.</exception>
-    /// <exception cref="CredencialIlegibleException">Malformed, unknown key id, or failed authentication.</exception>
     public ClaveDescifrada Descifrar(string empresa, string almacenado)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(empresa);

@@ -9,12 +9,6 @@ namespace Modules.Asistente.Api;
 /// <summary>
 /// Model and provider-key administration (asistente-modelo-en-caliente, slice 3).
 /// </summary>
-/// <remarks>
-/// Same permission as the rest of the administration (<c>asistente.administrar</c>).
-/// The logic lives in an internal service resolved per request, because a public
-/// controller cannot take internal types in its constructor. No action reads, logs
-/// or echoes a key: bodies carry codes and four-character hints only.
-/// </remarks>
 [ApiController]
 [Route("api/asistente/administracion")]
 [Authorize(Policy = Permisos.AsistenteAdministrar)]
@@ -81,7 +75,6 @@ public sealed class AdministracionDelModeloController(ICurrentUser usuario) : Co
 
     /// <summary>
     /// Writes a price (USD per million tokens) as a new version of a catalog model.
-    /// Closes the open version and opens the new one in one transaction. Audited.
     /// </summary>
     [HttpPost("precios")]
     public async Task<ActionResult<PrecioDelModeloDto>> CargarPrecio(PedidoDePrecioDto pedido, CancellationToken ct)

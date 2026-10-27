@@ -1,28 +1,9 @@
 namespace Modules.Asistente.Application;
 
-/// <summary>
-/// Una de las opciones que el asistente le ofrece al usuario para desambiguar.
-/// </summary>
-/// <param name="Etiqueta">
-/// Lo que se le muestra al usuario y lo que el reconocedor considera la respuesta
-/// canónica. Nunca el texto que el usuario escribió.
-/// </param>
-/// <param name="PreguntaResuelta">
-/// La pregunta autocontenida que queda si el usuario elige esta opción. La calcula
-/// el detector en el momento de armar el menú, y no el reconocedor: el detector es
-/// el único que sabe qué término de la pregunta era el ambiguo.
-/// </param>
+/// <summary>Una de las opciones que el asistente le ofrece al usuario para desambiguar.</summary>
 public sealed record OpcionDeAclaracion(string Etiqueta, string PreguntaResuelta);
 
-/// <summary>
-/// Una aclaración pendiente en el hilo.
-/// </summary>
-/// <remarks>
-/// Es el tercer estado del sistema, y el que justifica toda la pieza: no es «no
-/// puedo responder», es «puedo en cuanto elijas». Colapsarlo contra «no
-/// contestable» hace que el asistente diga «no puedo» cuando corresponde «¿cuál de
-/// estas?».
-/// </remarks>
+/// <summary>Una aclaración pendiente en el hilo.</summary>
 public sealed class Aclaracion(
     string terminoAmbiguo,
     string preguntaOriginal,

@@ -17,15 +17,9 @@ public enum ResultadoDeRetroalimentacion
 }
 
 /// <summary>
-/// Orchestrates one feedback submission: token validity, then the
-/// thumbs-up-ignores-any-reason rule, then persistence.
+/// Orchestrates one feedback submission: token validity, then the thumbs-up-ignores-any-reason
+/// rule, then persistence.
 /// </summary>
-/// <remarks>
-/// Takes NO actor parameter, anywhere on this type — not because it was left
-/// out, but because there is nothing here that needs one. That absence is
-/// what makes it structurally impossible for this class's own logging to ever
-/// pair an actor id with a feedback token in the same log event (design.md D3).
-/// </remarks>
 public sealed class ServicioDeRetroalimentacion(
     IValidezDeRetroalimentacion validez,
     IRegistroDeRetroalimentacion registro,

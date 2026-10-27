@@ -5,21 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
 
-/// <summary>
-/// Convierte una serie de consultas sueltas en una conversación.
-/// </summary>
-/// <remarks>
-/// Va <b>encima</b> del carril SQL y no adentro. Esa separación es lo que deja
-/// intactos el prefijo cacheado, el validador y los datasets:
-/// <see cref="CarrilSql.ResponderAsync"/> ya aceptaba una pregunta autocontenida, y
-/// lo que esta capa hace es calcularla.
-///
-/// El orden del pipeline no es de conveniencia: cada posición tiene un motivo, y
-/// están anotados en cada paso.
-///
-/// Casi todo cuesta cero tokens. La única llamada al modelo que agrega es el
-/// reescritor, y solo cuando hay historial vigente.
-/// </remarks>
+/// <summary>Convierte una serie de consultas sueltas en una conversación.</summary>
 public sealed class CapaConversacional(
     IAlmacenDeHilos hilos,
     IIndiceDeEntidades indice,
@@ -46,33 +32,6 @@ public sealed class CapaConversacional(
     ILogger<CapaConversacional> log)
 {
     /// <summary>Responde un turno dentro de un hilo.</summary>
-    /// <param name="actor">El usuario autenticado.</param>
-    /// <param name="hilo">
-    /// El hilo que trajo el cliente. Nulo en el primer turno; uno vencido o
-    /// inexistente arranca uno nuevo sin error.
-    /// </param>
-    /// <param name="mensaje">Lo que escribió el usuario.</param>
-    /// <param name="ct">El token del request.</param>
-    /// <param name="claveDelCliente">
-    /// La <c>Idempotency-Key</c> de este turno. Se guarda en el turno que
-    /// resulte (<see cref="TurnoDelHilo.ClaveDelCliente"/>), para que un
-    /// reemplazo futuro pueda nombrarlo (design.md D9 de asistente-rediseno-v3).
-    /// </param>
-    /// <param name="reemplaza">
-    /// El identificador del turno que este turno reemplaza —la
-    /// <c>Idempotency-Key</c> de un turno vivo, o el <c>turno_historico.id</c>
-    /// de uno reanudado—, o <c>null</c> para un turno nuevo cualquiera.
-    /// </param>
-    /// <param name="mencionesNuevas">
-    /// Las menciones de este turno, ya revalidadas por el controller contra el
-    /// alcance ACTUAL del actor (design.md D10/D11 de asistente-rediseno-v3).
-    /// Vacío o nulo si el turno no trae ninguna.
-    /// </param>
-    /// <exception cref="HiloAjeno">Si el hilo pertenece a otro actor.</exception>
-    /// <exception cref="ReemplazoInvalido">
-    /// Si <paramref name="reemplaza"/> no nombra el último turno vigente del
-    /// hilo del actor. No cambia nada: ni el hilo, ni el historial, ni el cupo.
-    /// </exception>
     public async Task<ResultadoDelTurno> ResponderAsync(
         Guid actor,
         Guid? hilo,
@@ -84,10 +43,9 @@ public sealed class CapaConversacional(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
-        // EL CANDADO DEL TURNO. Primerísimo, antes de abrir el presupuesto y de
-        // resolver el hilo (design.md D5 de asistente-administracion-de-uso): es
-        // el chequeo más barato de todos y el más probable de rechazar al
-        // instante, así que quien pierde la carrera no paga el resto.
+        // EL CANDADO DEL TURNO. Primerísimo, antes de abrir el presupuesto y de resolver el hilo
+        // (design.md D5 de asistente-administracion-de-uso): es el chequeo más barato de todos y el
+        // más probable de rechazar al instante, así que quien pierde la carrera no paga el resto.
         var candado = await candadoDelTurno.IntentarAsync(actor, ct);
         if (candado is null)
         {
@@ -96,12 +54,8 @@ public sealed class CapaConversacional(
                 conversacionRechazada, PoliticaDeAbstencion.TextoTurnoConcurrente,
                 CausaDelTurno.TurnoConcurrente);
 
-            // REEMPLAZO + CANDADO RECHAZADO (design.md D9, punto 4): «el
-            // rechazo del candado no cambia nada». Un turno nuevo cualquiera
-            // sigue anotando el rechazo en el historial como siempre —y por
-            // eso lo marca como último registrado, igual que cualquier otro
-            // turno registrable—; un reemplazo NO lo anota, para que el turno
-            // viejo quede intacto.
+            // REEMPLAZO + CANDADO RECHAZADO (design.md D9, punto 4): «el rechazo del candado no
+            // cambia nada».
             if (reemplaza is null)
             {
                 await RegistrarAsync(
@@ -119,25 +73,14 @@ public sealed class CapaConversacional(
 
         var valores = opciones.Value;
 
-        // LA COTA DEL TURNO. Una sola, punta a punta, encadenada al token del
-        // request. No es la suma de los timeouts de las etapas: cuatro llamadas de
-        // diez segundos son cuarenta segundos de espera y cada una habría respetado
-        // su límite.
+        // LA COTA DEL TURNO. Una sola, punta a punta, encadenada al token del request.
         using var presupuesto = PresupuestoDelTurno.Abrir(
             ct, TimeSpan.FromSeconds(valores.PresupuestoDelTurnoSegundos), reloj);
 
         var conversacion = hilos.Resolver(hilo, actor);
 
-        // VALIDACIÓN DEL OBJETIVO DE REEMPLAZO (design.md D9, punto 1): después
-        // del candado, y antes de sacar nada. El objetivo se chequea contra
-        // `UltimoRegistrado` —el último turno que se registró al historial,
-        // SEA CUAL SEA SU CARRIL— y no contra el contexto SQL: un saludo, una
-        // meta-pregunta, un menú de aclaración o una degradación pre-SQL
-        // nunca entran a ese contexto, pero siguen siendo «la última
-        // pregunta». Un objetivo que no coincide —o un hilo vencido, que
-        // resolvió acá arriba en uno nuevo y vacío— es 409 y no cambia nada:
-        // no cobra cupo (no hubo llamada al modelo) y suelta el candado
-        // explícitamente, porque salir acá se salta el `finally` de abajo.
+        // VALIDACIÓN DEL OBJETIVO DE REEMPLAZO (design.md D9, punto 1): después del candado, y
+        // antes de sacar nada.
         TurnoSacado? reemplazado = null;
         if (reemplaza is not null)
         {
@@ -148,20 +91,18 @@ public sealed class CapaConversacional(
                 throw new ReemplazoInvalido(reemplaza);
             }
 
-            // SACA EL TURNO VIEJO ANTES DE RESOLVER (design.md D9, punto 2): la
-            // pregunta nueva se resuelve contra la MISMA `conversacion`, ya sin
-            // su último turno —si había entrado al contexto SQL— y con el
-            // segmento/aclaración que tenía antes de él — la vista sin el
+            // SACA EL TURNO VIEJO ANTES DE RESOLVER (design.md D9, punto 2): la pregunta nueva se
+            // resuelve contra la MISMA `conversacion`, ya sin su último turno —si había entrado al
+            // contexto SQL— y con el segmento/aclaración que tenía antes de él — la vista sin el
             // turno reemplazado.
             reemplazado = conversacion.QuitarUltimoParaReemplazo();
         }
 
-        // SNAPSHOT DE «ANTES DE ESTE TURNO» (design.md D9). Se captura ACÁ —
-        // después de sacar el turno reemplazado, si lo hay, así que ve la
-        // vista ya restaurada— y no adentro de `ResolverAsync`, porque el
-        // `catch` de abajo (presupuesto vencido) nunca llega a invocarlo y
-        // necesita el mismo valor: es lo que describe el contexto que ESTE
-        // turno tuvo, para que un reemplazo futuro pueda restaurarlo.
+        // SNAPSHOT DE «ANTES DE ESTE TURNO» (design.md D9). Se captura ACÁ — después de sacar el
+        // turno reemplazado, si lo hay, así que ve la vista ya restaurada— y no adentro de
+        // `ResolverAsync`, porque el `catch` de abajo (presupuesto vencido) nunca llega a invocarlo
+        // y necesita el mismo valor: es lo que describe el contexto que ESTE turno tuvo, para que
+        // un reemplazo futuro pueda restaurarlo.
         var inicioDeSegmentoAntes = conversacion.InicioDeSegmento;
         var aclaracionAntes = conversacion.AclaracionPendiente;
 
@@ -176,18 +117,15 @@ public sealed class CapaConversacional(
 
             if (turno.ClaveDeRetroalimentacion is { } token)
             {
-                // Minted right here and not inside IRegistroDelTurno's
-                // fire-and-forget write: the token has to be live before the
-                // response carrying it is even built, and writing to this
-                // in-memory store can't fail the turn either way.
+                // Minted right here and not inside IRegistroDelTurno's fire-and-forget write: the
+                // token has to be live before the response carrying it is even built, and writing
+                // to this in-memory store can't fail the turn either way.
                 validezDeRetroalimentacion.Registrar(token, reloj.GetUtcNow());
             }
 
-            // EL LADO DEL ACTOR DE D3. Este evento nombra al actor —como ya hace la
-            // cuota— y nunca el token de retroalimentación: el endpoint de
-            // retroalimentación es el que nombra el token, y nunca el actor. Que
-            // los dos campos nunca aparezcan juntos en un mismo evento es lo que
-            // impide que el logging reabra el cruce que TD-012 cierra.
+            // EL LADO DEL ACTOR DE D3. Este evento nombra al actor —como ya hace la cuota— y nunca
+            // el token de retroalimentación: el endpoint de retroalimentación es el que nombra el
+            // token, y nunca el actor.
             log.LogInformation("Turno del asistente resuelto para el actor {ActorId}.", actor);
 
             await RegistrarAsync(
@@ -214,20 +152,15 @@ public sealed class CapaConversacional(
         }
         catch (Exception excepcion) when (!presupuesto.Vencio)
         {
-            // El turno se cayó. La cuota ya lo cobra en el `finally` de abajo, así
-            // que sin esta rama el actor pagaba llamadas que no aparecían en ningún
-            // lado: el registro operativo —la única fuente para «cuántas veces
-            // falló»— sub-contaba justo las fallas duras.
-            //
-            // Se registra y se relanza: quien llamó sigue viendo la excepción y el
-            // contrato HTTP no cambia. La fila no es una respuesta, es telemetría.
+            // El turno se cayó. La cuota ya lo cobra en el `finally` de abajo, así que sin esta
+            // rama el actor pagaba llamadas que no aparecían en ningún lado: el registro operativo
+            // —la única fuente para «cuántas veces falló»— sub-contaba justo las fallas duras.
             log.LogError(
                 excepcion, "El turno del asistente terminó en una excepción no prevista.");
 
-            // FALLO EN UN REEMPLAZO: no cambia nada (design.md D9, punto 4). Se
-            // repone el turno viejo ANTES de registrar el fallo, así que el
-            // hilo queda exactamente como estaba cuando el actor pidió el
-            // reemplazo.
+            // FALLO EN UN REEMPLAZO: no cambia nada (design.md D9, punto 4). Se repone el turno
+            // viejo ANTES de registrar el fallo, así que el hilo queda exactamente como estaba
+            // cuando el actor pidió el reemplazo.
             if (reemplazado is { } saliente)
             {
                 conversacion.ReponerTrasFallo(saliente);
@@ -242,31 +175,12 @@ public sealed class CapaConversacional(
         }
         finally
         {
-            // EL CANDADO SE LIBERA ACÁ, en el mismo `finally` que ya cobraba la
-            // cuota — no uno nuevo (design.md D5/D4: mismos puntos de salida). Se
-            // libera SIEMPRE, incluso si el turno se cayó o el presupuesto venció
-            // (los dos `catch` de arriba también terminan acá), porque
-            // CandadoDelTurno.DisposeAsync usa CancellationToken.None por dentro:
-            // el candado tiene que soltarse aunque el token de este turno ya esté
-            // cancelado.
+            // EL CANDADO SE LIBERA ACÁ, en el mismo `finally` que ya cobraba la cuota — no uno
+            // nuevo (design.md D5/D4: mismos puntos de salida).
             await candado.DisposeAsync();
 
-            // Se anota en `finally` para que un turno que se cayó a la mitad pague
-            // igual las llamadas que llegó a emitir. Cobrar solo los turnos que
-            // terminan bien haría del fallo una forma de consultar gratis.
-            //
-            // El guard de `contador.Llamadas > 0` es EL sitio donde vive design.md
-            // D4 ("no llamó al modelo, no paga"): ICuotaDelActor.AnotarAsync ya no
-            // recibe cuántas llamadas hizo el turno —se derivó de
-            // registro_operativo, que ya distingue por sí solo cuánto costó cada
-            // fila (asistente-administracion-de-uso)—, así que decidir SI corresponde
-            // cobrar es responsabilidad de este sitio de llamada, no de la
-            // implementación de la cuota.
-            //
-            // Ni el registro de arriba ni esta contabilidad usan el token del
-            // request: un cliente que se va DESPUÉS de la llamada al modelo no
-            // puede saltearse el cobro. La cuota se deriva de registro_operativo,
-            // así que una fila que no se escribe es un turno que no se cobra.
+            // Se anota en `finally` para que un turno que se cayó a la mitad pague igual las
+            // llamadas que llegó a emitir.
             if (contador.Llamadas > 0)
             {
                 await cuota.AnotarAsync(actor, CancellationToken.None);
@@ -283,17 +197,8 @@ public sealed class CapaConversacional(
             }
         }
 
-        // FUERA del try/finally, a propósito (tarea 7.2): el cupo restante
-        // tiene que reflejar el cobro que el `finally` de arriba ACABA de
-        // hacer, no el valor de antes. Adjuntarlo adentro del `finally` no
-        // alcanzaría — el valor de retorno de un `try` con `return` ya queda
-        // fijado antes de que el `finally` corra.
-        //
-        // `conversacion.HiloHistorico` SE LEE ACÁ, DESPUÉS de `RegistrarAsync`
-        // (design.md D13 de asistente-rediseno-v3): esa llamada es la que lo
-        // fija la primera vez que el hilo escribe una fila del historial, así
-        // que leerlo antes vería siempre `null` en el primer turno de una
-        // conversación nueva.
+        // FUERA del try/finally, a propósito (tarea 7.2): el cupo restante tiene que reflejar el
+        // cobro que el `finally` de arriba ACABA de hacer, no el valor de antes.
         return resultado with
         {
             CupoRestante = await cuota.CupoRestanteAsync(actor, ct),
@@ -301,44 +206,7 @@ public sealed class CapaConversacional(
         };
     }
 
-    /// <summary>
-    /// Manda el turno a los dos registros, ya partido en lo que va a cada uno.
-    /// </summary>
-    /// <remarks>
-    /// Se registra <b>lo que escribió el usuario</b> y no la pregunta interpretada:
-    /// el registro analítico existe para saber cómo pregunta la gente, y guardar la
-    /// versión reescrita mediría al reescritor en lugar de a los usuarios.
-    ///
-    /// Va con el token del request y no con el del presupuesto: si el turno se cortó
-    /// por tiempo, el registro de ese corte es justamente lo que hay que conservar.
-    /// </remarks>
-    /// <param name="claveDelCliente">
-    /// La <c>Idempotency-Key</c> de este turno. Queda como la identidad de
-    /// <see cref="HiloConversacional.UltimoRegistrado"/> si el turno se
-    /// registra, para que un reemplazo futuro pueda nombrarlo.
-    /// </param>
-    /// <param name="inicioDeSegmentoAntes">
-    /// El segmento que el hilo tenía justo ANTES de resolver este turno. Ver
-    /// <see cref="HiloConversacional.MarcarUltimoRegistrado"/>.
-    /// </param>
-    /// <param name="aclaracionAntes">Mismo motivo que <paramref name="inicioDeSegmentoAntes"/>.</param>
-    /// <param name="reemplazado">
-    /// El turno que este resultado reemplaza, o <c>null</c> para un turno nuevo
-    /// cualquiera (design.md D9 de asistente-rediseno-v3). Con un turno
-    /// reemplazado: se revoca su token de retroalimentación y el historial
-    /// reemplaza su fila en vez de agregar una nueva.
-    /// </param>
-    /// <param name="mencionesNuevas">
-    /// Las menciones que el pedido declaró, ya revalidadas por el controller
-    /// contra el alcance ACTUAL del actor —las mismas que <see cref="ResponderAsync"/>
-    /// recibió—, usadas como respaldo de <see cref="TurnoParaHistorial.Referencias"/>
-    /// cuando <paramref name="turno"/> no llegó a bindear sus propios marcadores
-    /// (decisión 15 del PO, 2026-09-26): un rechazo, una aclaración, una
-    /// degradación o una respuesta social/meta nunca entran al carril SQL
-    /// —<see cref="ResultadoDelTurno.ReferenciasEjecutadas"/> queda nulo—, pero
-    /// el pedido sí mencionó algo, y esa mención tiene que sobrevivir al
-    /// historial igual que la pregunta misma.
-    /// </param>
+    /// <summary>Manda el turno a los dos registros, ya partido en lo que va a cada uno.</summary>
     private async Task RegistrarAsync(
         Guid actor,
         HiloConversacional conversacion,
@@ -354,10 +222,8 @@ public sealed class CapaConversacional(
     {
         var ahora = reloj.GetUtcNow();
 
-        // On a Respondida turn, ClaveDeRetroalimentacion already IS this row's
-        // analytic id — the exact one already handed to the client. Anything else
-        // never surfaces a token, so any application-generated id works: nothing
-        // outside this write will ever need it.
+        // On a Respondida turn, ClaveDeRetroalimentacion already IS this row's analytic id — the
+        // exact one already handed to the client.
         var analiticoId = turno.ClaveDeRetroalimentacion ?? Guid.NewGuid();
 
         await registro.RegistrarAsync(
@@ -385,28 +251,15 @@ public sealed class CapaConversacional(
                 proveedor.Nombre),
             ct);
 
-        // HISTORIAL PROPIO (asistente-historial-conversaciones). Se excluye
-        // EXACTAMENTE Fallo, y es la ÚNICA exclusión — no hay opt-out por
-        // conversación (design.md D2): un turno caído nunca produjo cuerpo
-        // HTTP (el mapeo del estado revienta si se le pide un nombre público),
-        // así que no hay nada coherente para mostrar en una conversación
-        // retomada.
-        //
-        // La pregunta que se persiste es la INTERPRETADA —la misma que
-        // `HiloConversacional.Agregar` ya recibe—, no el mensaje crudo: es lo
-        // que Reanudar necesita para volver a poblar `HistorialVigente` con
-        // turnos autocontenidos, igual que el hilo en memoria ya los guarda.
-        // `PreguntaInterpretada` viene nula cuando coincide con el mensaje
-        // (RF-10), así que el mensaje es el valor correcto en ese caso.
+        // HISTORIAL PROPIO (asistente-historial-conversaciones). Se excluye EXACTAMENTE Fallo, y es
+        // la ÚNICA exclusión — no hay opt-out por conversación (design.md D2): un turno caído nunca
+        // produjo cuerpo HTTP (el mapeo del estado revienta si se le pide un nombre público), así
+        // que no hay nada coherente para mostrar en una conversación retomada.
         if (turno.Estado != EstadoDelTurno.Fallo)
         {
-            // MARCA ESTE TURNO COMO EL ÚLTIMO REGISTRADO, SEA CUAL SEA SU
-            // CARRIL (design.md D9): es lo que deja disponible para un
-            // reemplazo FUTURO, sin importar si este turno también entró al
-            // contexto SQL. `TurnoHistoricoId` queda en null a propósito: un
-            // turno vivo no se identifica por ahí —ver
-            // `EsElObjetivoDelReemplazo`—, y el reemplazo en la base apunta a
-            // «la última fila de esta conversación» sin necesitar guardar su id.
+            // MARCA ESTE TURNO COMO EL ÚLTIMO REGISTRADO, SEA CUAL SEA SU CARRIL (design.md D9): es
+            // lo que deja disponible para un reemplazo FUTURO, sin importar si este turno también
+            // entró al contexto SQL.
             conversacion.MarcarUltimoRegistrado(
                 claveDelCliente,
                 turnoHistoricoId: null,
@@ -422,25 +275,17 @@ public sealed class CapaConversacional(
                 ahora,
                 ReferenciasParaElHistorial(turno.ReferenciasEjecutadas, mencionesNuevas));
 
-            // REEMPLAZO CON DESENLACE REGISTRABLE (design.md D9, punto 3): se
-            // revoca el token viejo y el historial reemplaza su fila, en vez de
-            // agregar una nueva. Nunca llega acá con `turno.Estado == Fallo`
-            // —ese caso restaura el turno viejo antes de llamar y no lo pasa—,
-            // así que un `reemplazado` no nulo siempre es un reemplazo que se
-            // concreta.
+            // REEMPLAZO CON DESENLACE REGISTRABLE (design.md D9, punto 3): se revoca el token viejo
+            // y el historial reemplaza su fila, en vez de agregar una nueva.
             if (reemplazado is not null)
             {
                 if (reemplazado.Identidad.ClaveDeRetroalimentacion is { } tokenViejo)
                 {
                     validezDeRetroalimentacion.Revocar(tokenViejo);
 
-                    // IMPLICIT DISSATISFACTION (asistente-metricas-de-calidad, D4). The
-                    // token is the replaced turn's analytic id ONLY for a Respondida
-                    // turn: every other state generates an id nobody keeps, and a
-                    // restart empties the in-memory thread. When it is null nothing is
-                    // flagged, on purpose: the limitation is documented, not guessed.
-                    // Here, and not earlier, so a replacement that fails (restored
-                    // before registering, never reaching this point) flags nothing.
+                    // IMPLICIT DISSATISFACTION (asistente-metricas-de-calidad, D4). The token is
+                    // the replaced turn's analytic id ONLY for a Respondida turn: every other state
+                    // generates an id nobody keeps, and a restart empties the in-memory thread.
                     await registro.MarcarReemplazadoAsync(tokenViejo, ct);
                 }
 
@@ -454,27 +299,9 @@ public sealed class CapaConversacional(
     }
 
     /// <summary>
-    /// Lo que se persiste en <c>asistente.turno_historico.referencias</c>
-    /// (decisión 15 del PO, 2026-09-26, design.md D11 de asistente-rediseno-v3).
+    /// Lo que se persiste en <c>asistente.turno_historico.referencias</c> (decisión 15 del PO,
+    /// 2026-09-26, design.md D11 de asistente-rediseno-v3).
     /// </summary>
-    /// <remarks>
-    /// <b>El carril SQL manda cuando corrió</b>: <paramref name="referenciasEjecutadas"/>
-    /// —heredadas más nuevas, ya ligadas a los marcadores que la consulta
-    /// realmente usa— es siempre el conjunto completo cuando no es nulo, porque
-    /// el validador rechaza un marcador declarado y no usado (design.md D11):
-    /// nunca es un subconjunto silencioso.
-    ///
-    /// <b>Si el carril SQL nunca corrió</b> —rechazo, aclaración, degradación,
-    /// una respuesta social o de capacidades—, no hay nada que bindear, pero el
-    /// pedido sí declaró menciones y el controller ya las revalidó contra el
-    /// alcance del actor antes del candado. Numerarlas con
-    /// <see cref="MarcadoresDeReferencias.Asignar"/> sin <c>consultasAnteriores</c>
-    /// las deja en la MISMA forma que persiste el carril SQL —un diccionario
-    /// marcador → (tipo, id)— sin que ese marcador corresponda a nada en
-    /// <c>sql_resuelto</c> (que queda <c>null</c> acá): nadie vuelve a leer esas
-    /// claves para bindear una consulta que no existe, sólo para reconstruir
-    /// los chips del historial (<c>TurnoDeHistorialDto.DeAsync</c>).
-    /// </remarks>
     private static IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? ReferenciasParaElHistorial(
         IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasEjecutadas,
         IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas)
@@ -494,9 +321,8 @@ public sealed class CapaConversacional(
     }
 
     /// <summary>
-    /// Si <paramref name="reemplaza"/> nombra al último turno registrado: su
-    /// <c>Idempotency-Key</c> si es de esta sesión, o su
-    /// <c>turno_historico.id</c> si es de una conversación reanudada
+    /// Si <paramref name="reemplaza"/> nombra al último turno registrado: su <c>Idempotency-Key</c>
+    /// si es de esta sesión, o su <c>turno_historico.id</c> si es de una conversación reanudada
     /// (design.md D9 de asistente-rediseno-v3).
     /// </summary>
     private static bool EsElObjetivoDelReemplazo(IdentidadDelUltimoRegistrado ultimo, string reemplaza) =>
@@ -536,18 +362,13 @@ public sealed class CapaConversacional(
         IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null)
     {
         // EL VEREDICTO SOBRE EL MODELO, resuelto una sola vez y ANTES del pipeline.
-        // No corta el turno: los cinco pasos que no necesitan proveedor siguen
-        // corriendo. Tratarlo como excepción apagaría el saludo a cero tokens y el
-        // menú de aclaración justo cuando son lo único que queda en pie.
         var motivo = await disponibilidad.ConsultarAsync(actor, ct);
 
-        // EL BYPASS DE MANTENIMIENTO ES CASO POR CASO Y VIVE ACÁ, no en el
-        // puerto de almacenamiento (design.md D8): un admin con
-        // asistente.administrar puede seguir usando el asistente en
-        // mantenimiento —para verificar que la recuperación funcionó antes
-        // de reabrirlo a todos—, pero NO está exento de su propio cupo ni del
-        // tope organizacional ni de la exclusión de turno concurrente: sólo
-        // se ignora el motivo Mantenimiento, y sólo ese.
+        // EL BYPASS DE MANTENIMIENTO ES CASO POR CASO Y VIVE ACÁ, no en el puerto de almacenamiento
+        // (design.md D8): un admin con asistente.administrar puede seguir usando el asistente en
+        // mantenimiento —para verificar que la recuperación funcionó antes de reabrirlo a todos—,
+        // pero NO está exento de su propio cupo ni del tope organizacional ni de la exclusión de
+        // turno concurrente: sólo se ignora el motivo Mantenimiento, y sólo ese.
         if (motivo == MotivoSinModelo.Mantenimiento)
         {
             var permisos = await identidad.ObtenerCodigosDePermisosAsync(actor, ct);
@@ -576,19 +397,13 @@ public sealed class CapaConversacional(
                 "El turno corre sin modelo disponible ({Motivo}).", motivo);
         }
 
-        // 1 — CARRIL SIN DATOS. Se saltea entero si hay una aclaración pendiente:
-        // con un menú abierto, un «gracias» le robaría la respuesta al menú y la
-        // aclaración quedaría colgada.
+        // 1 — CARRIL SIN DATOS. Se saltea entero si hay una aclaración pendiente: con un menú
+        // abierto, un «gracias» le robaría la respuesta al menú y la aclaración quedaría colgada.
         if (conversacion.AclaracionPendiente is null)
         {
             var intencion = EnrutadorSocial.Clasificar(mensaje);
 
-            // La meta-pregunta se responde con el catálogo REAL y no con un texto
-            // fijo. Un texto escrito a mano es una promesa sobre capacidades que
-            // nadie verifica, y se desactualiza en silencio con cada GRANT.
-            //
-            // Sigue costando cero tokens: el catálogo sale de la base y del catálogo
-            // de ejemplos, no del modelo.
+            // La meta-pregunta se responde con el catálogo REAL y no con un texto fijo.
             if (intencion == IntencionSocial.Meta)
             {
                 var puede = await capacidades.ObtenerAsync(actor, ct);
@@ -618,9 +433,8 @@ public sealed class CapaConversacional(
 
         var catalogo = await indice.ObtenerAsync(ct);
 
-        // 3 — CAMBIO DE TEMA. Al marcarlo se suelta el segmento, así que el paso
-        // siguiente encuentra el historial vigente vacío y NO llama al reescritor.
-        // El pivote se fuerza acá; no se le pide al modelo que ignore nada.
+        // 3 — CAMBIO DE TEMA. Al marcarlo se suelta el segmento, así que el paso siguiente
+        // encuentra el historial vigente vacío y NO llama al reescritor.
         var historial = conversacion.HistorialVigente(valores.TopeDeTurnosDelHistorial);
         var pivote = DetectorDeCambioDeTema.EsPivote(pregunta, historial, catalogo);
 
@@ -631,47 +445,24 @@ public sealed class CapaConversacional(
             historial = [];
         }
 
-        // 4 — REESCRITURA. Única llamada al modelo de esta capa, y por eso el único
-        // paso de acá que se saltea sin modelo. Sin él la pregunta sigue cruda: un
-        // seguimiento con anáfora va a resolver peor, pero un turno autocontenido
-        // —que es la mayoría— no pierde nada.
-        //
-        // CON LA REESCRITURA DENTRO DE LA GENERACIÓN (asistente-optimizaciones-
-        // modelo-local, D7) no se llama al reescritor: la generación recibe las
-        // preguntas anteriores y devuelve la pregunta resuelta junto con la
-        // consulta. Una llamada menos por seguimiento, a cambio de que el
-        // enrutador en sombra y el detector de ambigüedad vean la pregunta cruda.
+        // 4 — REESCRITURA. Única llamada al modelo de esta capa, y por eso el único paso de acá que
+        // se saltea sin modelo.
         var reescribeLaGeneracion = valores.ReescrituraEnLaGeneracion;
         var interpretada = hayModelo && !reescribeLaGeneracion
             ? await ReescribirOCrudaAsync(pregunta, historial, ct)
             : pregunta;
 
-        // 5 — ENRUTADOR DE DOMINIO, EN MODO SOMBRA. Va acá y no en otro lado: después
-        // del reescritor porque «¿y el de Pérez?» no tiene slot que resolver hasta
-        // que se resuelve la anáfora, y antes del detector de ambigüedad porque una
-        // pregunta con todos sus slots únicos no es ambigua.
-        //
-        // LA DECISIÓN SE TOMA Y NO SE USA, A PROPÓSITO. No hay a dónde enrutar: los
-        // adaptadores de respuesta y los edges hacia Modules.<X>.Contracts todavía no
-        // existen, y los edges necesitan que el equipo apruebe el checklist de cinco
-        // pasos del repositorio.
-        //
-        // Está cableado igual porque ese pedido de aprobación se fundamenta con un
-        // número —qué proporción del tráfico real captura un catálogo de cinco
-        // intenciones, y cuántas veces se equivoca— y ese número no existe si la
-        // decisión no se toma nunca. No cambia ninguna respuesta, así que no puede
-        // romper nada, y se saca borrando estas líneas.
-        //
-        // QUIEN VENGA A CONECTARLO: hace falta ARS-46 (edges) y los adaptadores de
-        // respuesta. No alcanza con cambiar este `if`.
+        // 5 — ENRUTADOR DE DOMINIO, EN MODO SOMBRA. Va acá y no en otro lado: después del
+        // reescritor porque «¿y el de Pérez?» no tiene slot que resolver hasta que se resuelve la
+        // anáfora, y antes del detector de ambigüedad porque una pregunta con todos sus slots
+        // únicos no es ambigua.
         var determinista = await enrutador.DecidirAsync(interpretada, ct);
 
         if (determinista is not null)
         {
-            // Al portador y no al resultado del turno: el registro se escribe afuera
-            // del pipeline, también en las dos ramas de `catch`, donde no hay ningún
-            // `ResultadoDelTurno` del que leerla. Y un turno que se cae después de
-            // acá conserva la decisión en su fila, igual que conserva las llamadas.
+            // Al portador y no al resultado del turno: el registro se escribe afuera del pipeline,
+            // también en las dos ramas de `catch`, donde no hay ningún `ResultadoDelTurno` del que
+            // leerla.
             decisionSombra.Anotar(determinista.Intencion.Nombre);
 
             log.LogInformation(
@@ -680,12 +471,8 @@ public sealed class CapaConversacional(
                 determinista.Intencion.Nombre);
         }
 
-        // 6 — AMBIGÜEDAD. Después del reescritor a propósito: «¿y en Análisis
-        // Matemático?» no contiene ninguna entidad ambigua hasta que se la
-        // reescribe, y la reescrita sí. Las etiquetas de las menciones de este
-        // turno se excluyen (design.md D11): el usuario ya eligió una entidad
-        // exacta en el popover, así que un homónimo suyo no tiene que volver a
-        // preguntarse.
+        // 6 — AMBIGÜEDAD. Después del reescritor a propósito: «¿y en Análisis Matemático?» no
+        // contiene ninguna entidad ambigua hasta que se la reescribe, y la reescrita sí.
         var etiquetasReferenciadas = mencionesNuevas is { Count: > 0 }
             ? mencionesNuevas.Select(m => MarcadoresDeReferencias.Etiqueta(m.Tipo, m.Entidad)).ToArray()
             : null;
@@ -697,9 +484,8 @@ public sealed class CapaConversacional(
             return FabricasDelResultado.NecesitaAclaracion(conversacion, aclaracion, interpretada, mensaje);
         }
 
-        // 7 — CARRIL SQL. Es el único paso que no puede resolverse sin modelo: sin
-        // generación no hay consulta, y sin consulta no hay nada que ejecutar. Se
-        // corta ACÁ y no antes, para que todo lo anterior haya tenido su chance.
+        // 7 — CARRIL SQL. Es el único paso que no puede resolverse sin modelo: sin generación no
+        // hay consulta, y sin consulta no hay nada que ejecutar.
         if (!hayModelo)
         {
             return FabricasDelResultado.Degradado(
@@ -713,23 +499,18 @@ public sealed class CapaConversacional(
             : interpretada;
 
         // Del SEGMENTO VIGENTE y con el mismo tope que el historial de preguntas.
-        // Se deriva de `HistorialVigente`, así que el pivote suelta las consultas
-        // por el mismo mecanismo con que suelta las preguntas: no hay una segunda
-        // regla de recorte que pueda quedar desincronizada de la primera.
         var consultasAnteriores = conversacion.ConsultasVigentes(
             valores.TopeDeTurnosDelHistorial);
 
-        // LOS MARCADORES QUE EL SEGMENTO YA TRAÍA (design.md D11), del mismo
-        // recorte que `consultasAnteriores`: para que un seguimiento que edita
-        // o anida una consulta anterior pueda reusar su marcador sin que el
-        // validador lo vea como no declarado.
+        // LOS MARCADORES QUE EL SEGMENTO YA TRAÍA (design.md D11), del mismo recorte que
+        // `consultasAnteriores`: para que un seguimiento que edita o anida una consulta anterior
+        // pueda reusar su marcador sin que el validador lo vea como no declarado.
         var referenciasHeredadas = conversacion.ReferenciasVigentes(valores.TopeDeTurnosDelHistorial);
 
-        // EL CONTEO ES DE TODA LA CONVERSACIÓN (design.md D5 de
-        // asistente-rechazos-dinamicos): se lee del hilo, nunca del cliente —
-        // el pedido sólo trae el id del hilo, y cualquier conteo en el cuerpo
-        // sería forjable y le dejaría al cliente fijar la primera variante
-        // para siempre.
+        // EL CONTEO ES DE TODA LA CONVERSACIÓN (design.md D5 de asistente-rechazos-dinamicos): se
+        // lee del hilo, nunca del cliente — el pedido sólo trae el id del hilo, y cualquier conteo
+        // en el cuerpo sería forjable y le dejaría al cliente fijar la primera variante para
+        // siempre.
         IReadOnlyList<string>? preguntasAnteriores = reescribeLaGeneracion && historial.Count > 0
             ? [.. historial.Select(turno => turno.Pregunta)]
             : null;
@@ -738,17 +519,15 @@ public sealed class CapaConversacional(
             actor, mensaje, aMostrar, ct, consultasAnteriores, mencionesNuevas, referenciasHeredadas,
             conversacion.RechazosPrevios(), preguntasAnteriores);
 
-        // Lo que queda en el hilo es la pregunta RESUELTA: con la reescritura en la
-        // generación es la que devolvió el modelo, y es la que el próximo
-        // seguimiento tiene que continuar.
+        // Lo que queda en el hilo es la pregunta RESUELTA: con la reescritura en la generación es
+        // la que devolvió el modelo, y es la que el próximo seguimiento tiene que continuar.
         if (reescribeLaGeneracion && resultado.PreguntaInterpretada is { } resuelta)
         {
             interpretada = resuelta;
         }
 
-        // La consulta que respondió, no la que se generó: con reintento el carril ya
-        // dejó en SqlEjecutado la segunda. Un turno sin filas la trae nula, y ahí se
-        // anota nula a propósito — ver TurnoDelHilo.
+        // La consulta que respondió, no la que se generó: con reintento el carril ya dejó en
+        // SqlEjecutado la segunda.
         conversacion.Agregar(
             interpretada,
             reloj.GetUtcNow(),
@@ -761,9 +540,8 @@ public sealed class CapaConversacional(
             estado: resultado.Estado);
 
         // EL PLAN COMPILADO PUEDE TERMINAR EN UNA ACLARACIÓN CON OPCIONES
-        // (asistente-plan-compilado, D5): queda pendiente igual que la del
-        // detector, para que la respuesta del usuario se reconozca como elección.
-        // El carril SQL nunca devuelve una, así que sin el plan esto no corre.
+        // (asistente-plan-compilado, D5): queda pendiente igual que la del detector, para que la
+        // respuesta del usuario se reconozca como elección.
         if (resultado is { Estado: EstadoDelTurno.NecesitaAclaracion, Opciones.Count: > 0 })
         {
             conversacion.Pendiente(new Aclaracion("la pregunta", interpretada, resultado.Opciones));
@@ -789,13 +567,7 @@ public sealed class CapaConversacional(
         };
     }
 
-    /// <summary>
-    /// Resuelve la respuesta del usuario a un menú abierto.
-    /// </summary>
-    /// <returns>
-    /// La pregunta desambiguada, o el resultado con el que el turno termina cuando
-    /// no se reconoció.
-    /// </returns>
+    /// <summary>Resuelve la respuesta del usuario a un menú abierto.</summary>
     private (string Pregunta, ResultadoDelTurno? Corte) ResolverAclaracion(
         HiloConversacional conversacion,
         Aclaracion pendiente,
@@ -837,15 +609,7 @@ public sealed class CapaConversacional(
             conversacion, pendiente, pendiente.PreguntaOriginal, mensaje));
     }
 
-    /// <summary>
-    /// El texto de la degradación, que distingue las dos causas.
-    /// </summary>
-    /// <remarks>
-    /// Distinguirlas no es cosmético. Con la cuota agotada el sistema <b>sabe</b>
-    /// cuándo vuelve el cupo; con el proveedor caído no lo sabe nadie. Decir «probá
-    /// en unos minutos» en el primer caso manda a reintentar a ciegas contra algo
-    /// que no se destraba hasta una hora fija.
-    /// </remarks>
+    /// <summary>El texto de la degradación, que distingue las dos causas.</summary>
     private async Task<string> TextoSinModeloAsync(Guid actor, MotivoSinModelo motivo, CancellationToken ct) =>
         motivo switch
         {
@@ -859,17 +623,9 @@ public sealed class CapaConversacional(
         };
 
     /// <summary>
-    /// La reescritura, o la pregunta tal cual si el proveedor falla
-    /// (asistente-proveedor-local, design.md D5).
+    /// La reescritura, o la pregunta tal cual si el proveedor falla (asistente-proveedor-local,
+    /// design.md D5).
     /// </summary>
-    /// <remarks>
-    /// La llamada del reescritor queda fuera del <c>try</c> del carril SQL, así
-    /// que una falla del proveedor acá —saturado, corte abierto, timeout,
-    /// transporte— terminaba el turno en «excepción no prevista». Se resuelve
-    /// igual que cuando no hay modelo: sin reescritura la pregunta sigue cruda, y
-    /// el carril decide después si puede o no llamar al modelo para generar.
-    /// Las cancelaciones del request y del presupuesto del turno se propagan.
-    /// </remarks>
     private async Task<string> ReescribirOCrudaAsync(
         string pregunta, IReadOnlyList<TurnoDelHilo> turnosAnteriores, CancellationToken ct)
     {

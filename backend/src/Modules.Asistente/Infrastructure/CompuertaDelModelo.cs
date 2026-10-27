@@ -63,10 +63,6 @@ internal sealed class CompuertaDelModelo
     /// <summary>
     /// Espera un lugar. <c>false</c> si no lo hubo dentro de <paramref name="espera"/>.
     /// </summary>
-    /// <remarks>
-    /// Quien recibe <c>true</c> DEBE llamar a <see cref="Salir"/> exactamente una
-    /// vez. Una cancelación del request se propaga como tal y no ocupa lugar.
-    /// </remarks>
     public async Task<bool> EntrarAsync(bool prioritaria, TimeSpan espera, CancellationToken ct)
     {
         TaskCompletionSource turno;
@@ -80,9 +76,8 @@ internal sealed class CompuertaDelModelo
                 return true;
             }
 
-            // RunContinuationsAsynchronously: quien libera un lugar lo hace
-            // adentro del candado, y la continuación de quien lo recibe no puede
-            // correr ahí adentro.
+            // RunContinuationsAsynchronously: quien libera un lugar lo hace adentro del candado, y
+            // la continuación de quien lo recibe no puede correr ahí adentro.
             turno = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             nodo = (prioritaria ? _prioritarias : _nuevas).AddLast(turno);
         }

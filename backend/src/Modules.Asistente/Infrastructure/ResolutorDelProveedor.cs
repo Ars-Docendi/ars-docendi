@@ -7,15 +7,12 @@ namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
 /// The evaluator's wrapper of the raw adapter, applied inside the ceiling and the breaker.
-/// Its presence also pins the module to the environment's adapter (see
-/// <c>ResolutorDelProveedor</c>): a wrapper is built once per container, never per turn.
 /// </summary>
 internal sealed record EnvoltorioDelProveedor(Func<IProveedorDeModelo, IProveedorDeModelo>? Envolver);
 
 /// <summary>
-/// Reads the stored runtime selection. A seam of its own so that the many tests
-/// that compose the module without a database can say "no selection" instead of
-/// reaching for one.
+/// Reads the stored runtime selection. A seam of its own so that the many tests that compose the
+/// module without a database can say "no selection" instead of reaching for one.
 /// </summary>
 internal interface ILectorDeLaSeleccion
 {
@@ -28,14 +25,7 @@ internal sealed class LectorDeLaSeleccion(RepositorioDelModelo repositorio) : IL
     public Task<SeleccionDeModelo?> LeerAsync(CancellationToken ct) => repositorio.LeerSeleccionAsync(ct);
 }
 
-/// <summary>
-/// Which adapter a turn runs on, before any adapter is built.
-/// </summary>
-/// <param name="Empresa">
-/// <c>anthropic</c>, <c>openai</c>, <c>google</c>, <c>mistral</c>, <c>ollama</c>,
-/// <c>local</c> or <c>simulado</c>; for the environment, the configured provider key.
-/// </param>
-/// <param name="DeSeleccion">True when a stored selection decided it.</param>
+/// <summary>Which adapter a turn runs on, before any adapter is built.</summary>
 internal sealed record IdentidadDelModelo(
     string Empresa,
     string Modelo,
@@ -56,19 +46,6 @@ internal sealed record IdentidadDelModelo(
 /// Resolves, ONCE per turn (scope), which model adapter the turn runs on
 /// (asistente-modelo-en-caliente, D3), and builds the chain around it.
 /// </summary>
-/// <remarks>
-/// It reads the stored selection at the first question and never again in the
-/// scope, so a turn finishes on the adapter it began with, and it keeps no
-/// process-level cache, so every Host instance applies a change from its next turn.
-/// With no stored selection it returns exactly what registration builds from the
-/// environment (<see cref="ProveedorBase"/> / <see cref="BaseDeRedaccion"/>).
-///
-/// It answers three questions in increasing cost, because the cheaper ones must not
-/// force the dearer ones: WHO the adapter is (<see cref="IdentidadAsync"/>: availability
-/// and masking only need this), and the chain itself, built the first time a call goes
-/// out. A turn answered by the deterministic lane never builds an adapter, so an
-/// incomplete provider configuration does not stop it.
-/// </remarks>
 internal sealed class ResolutorDelProveedor(
     IServiceProvider servicios,
     ILectorDeLaSeleccion lector,
@@ -146,10 +123,9 @@ internal sealed class ResolutorDelProveedor(
 
     private async Task<IdentidadDelModelo> LeerIdentidadAsync(CancellationToken ct)
     {
-        // The evaluator's wrapper (a meter that must be ONE instance for the whole run)
-        // exists only for the adapter the environment describes: a stored selection
-        // would build a raw adapter per turn and wrap it again each time, splitting the
-        // totals. The evaluator chooses by environment, so the selection is not read.
+        // The evaluator's wrapper (a meter that must be ONE instance for the whole run) exists only
+        // for the adapter the environment describes: a stored selection would build a raw adapter
+        // per turn and wrap it again each time, splitting the totals.
         if (envoltorio.Envolver is not null)
         {
             return IdentidadDelEntorno();
@@ -212,10 +188,8 @@ internal sealed class ResolutorDelProveedor(
         }
         catch (InvalidOperationException excepcion)
         {
-            // ClaveMaestraNoDisponibleException, CredencialIlegibleException and the
-            // "not configured" errors of the local builders are all this type. Only
-            // the type is logged: none of their messages carries a key, but nothing
-            // here may ever be the place one leaks from.
+            // ClaveMaestraNoDisponibleException, CredencialIlegibleException and the "not
+            // configured" errors of the local builders are all this type.
             log.LogError(
                 "No se pudo armar el modelo {Nombre} guardado como selección ({Causa}). Los turnos van a "
                 + "responder degradados hasta que se corrija la clave o la configuración del servidor, "
@@ -252,21 +226,9 @@ internal sealed class ResolutorDelProveedor(
     }
 
     /// <summary>
-    /// Wraps an adapter with the ceiling, the gate and the breaker, outermost first:
-    /// ceiling, gate (own hardware only), breaker and timeout, adapter.
+    /// Wraps an adapter with the ceiling, the gate and the breaker, outermost first: ceiling, gate
+    /// (own hardware only), breaker and timeout, adapter.
     /// </summary>
-    /// <remarks>
-    /// The order goes from cheapest to dearest. The ceiling goes first so the breaker
-    /// does not record attempts the ceiling was going to reject. The gate sits between
-    /// them: after the ceiling so a call the turn cannot make takes no place in the
-    /// queue, and before the breaker so queue time is neither part of the call's
-    /// timeout nor a provider failure. The gate protects one shared GPU, so it wraps
-    /// only <c>ollama</c> and <c>local</c>: applied to a cloud company it would
-    /// serialize every call behind a limit that does not exist there.
-    ///
-    /// The breaker is the one of <paramref name="nombre"/>, so switching model does
-    /// not inherit another model's open breaker.
-    /// </remarks>
     private IProveedorDeModelo Encadenar(IProveedorDeModelo interno, string nombre, bool conCompuerta)
     {
         var valores = opciones.Value;
@@ -299,8 +261,7 @@ internal sealed class ResolutorDelProveedor(
             : $"{proveedor}/{modelo}";
 
     /// <summary>
-    /// Runs <paramref name="crear"/> once and hands the same task to every caller of
-    /// the scope. A failed or cancelled task is dropped so a later call tries again.
+    /// Runs <paramref name="crear"/> once and hands the same task to every caller of the scope.
     /// </summary>
     private Task<T> UnaVez<T>(ref Task<T>? campo, Func<Task<T>> crear)
     {

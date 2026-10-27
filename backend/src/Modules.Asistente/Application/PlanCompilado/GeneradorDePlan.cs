@@ -5,12 +5,6 @@ namespace Modules.Asistente.Application;
 /// <summary>
 /// Le pide al modelo una muestra del plan (D5 de <c>asistente-plan-compilado</c>).
 /// </summary>
-/// <remarks>
-/// Una llamada por muestra, con salida estructurada y sin razonamiento: el plan es
-/// una sola decisión corta, y pensar antes de una llamada a herramienta empeora la
-/// abstención de los modelos chicos. El prefijo es estable byte a byte para que el
-/// servidor lo reutilice entre muestras y entre turnos.
-/// </remarks>
 internal sealed class GeneradorDePlan(IProveedorDeModelo proveedor)
 {
     /// <summary>Un plan es corto: con este techo, uno que no cierra es una muestra inválida.</summary>

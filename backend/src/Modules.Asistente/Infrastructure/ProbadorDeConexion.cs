@@ -52,21 +52,9 @@ internal static class ServidoresLocales
 }
 
 /// <summary>
-/// One minimal real call to a company and model, through the same adapter path a
-/// turn would use, that persists nothing (asistente-modelo-en-caliente, task 3.2).
+/// One minimal real call to a company and model, through the same adapter path a turn would use,
+/// that persists nothing (asistente-modelo-en-caliente, task 3.2).
 /// </summary>
-/// <remarks>
-/// Cloud companies go through <see cref="ClientesDeChat"/> and <see cref="ProveedorChat"/>
-/// over the module's named <see cref="HttpClient"/>; the local servers through
-/// <c>ArmarOllama</c> / <c>ArmarLocal</c>, which add their own server-side
-/// credentials per request. It deliberately skips the per-name breaker: a test must
-/// neither trip nor reset the breaker of a model that is serving turns. The gate
-/// of the shared GPU does apply (when configured), with NO wait: a busy service is
-/// reported as <see cref="CodigosDePrueba.Saturado"/> instead of queueing behind it.
-///
-/// A key (stored or candidate) only ever lives in a local variable here. No log call,
-/// message or result carries it, and every failure leaves as one code.
-/// </remarks>
 internal sealed class ProbadorDeConexion(
     IServiceProvider servicios,
     RepositorioDeCredenciales credenciales,

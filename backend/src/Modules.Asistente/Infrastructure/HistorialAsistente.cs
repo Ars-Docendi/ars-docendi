@@ -4,19 +4,9 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Creates <c>asistente.hilo_historico</c> and <c>asistente.turno_historico</c>
-/// on an already-migrated base.
+/// Creates <c>asistente.hilo_historico</c> and <c>asistente.turno_historico</c> on an
+/// already-migrated base.
 /// </summary>
-/// <remarks>
-/// Public and takes the connection from the outside, for the same reason as
-/// <see cref="RegistrosAsistente"/> and <see cref="RetroalimentacionAsistente"/>:
-/// the module's migrator and the test infrastructure have to run the exact
-/// same SQL. A copy of the DDL in tests would only prove the copy.
-///
-/// Needs no role GUCs, same as <see cref="RetroalimentacionAsistente"/>: the
-/// two new tables live inside the `asistente` schema, already denied
-/// wholesale to both read-only roles, so no REVOKE is issued here.
-/// </remarks>
 public static class HistorialAsistente
 {
     /// <summary>Logical resource path of the embedded DDL.</summary>

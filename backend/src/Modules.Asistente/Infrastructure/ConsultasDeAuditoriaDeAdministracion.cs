@@ -7,21 +7,8 @@ namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
 /// <see cref="IConsultasDeAuditoriaDeAdministracion"/> sobre
-/// <c>asistente.auditoria_administracion</c> (sistema-seccion-unificada,
-/// design.md D1, ARS-157).
+/// <c>asistente.auditoria_administracion</c> (sistema-seccion-unificada, design.md D1, ARS-157).
 /// </summary>
-/// <remarks>
-/// Lee con la conexión del dueño: el schema <c>asistente</c> está revocado por
-/// completo a los dos roles de solo lectura (definición §3.4 de
-/// asistente-administracion-de-uso), así que incluso leer su propia auditoría
-/// de administración exige la conexión dueña — mismo motivo que
-/// <c>ConsultasDeUso</c> y <c>PresupuestosAdministrablesReal</c>.
-///
-/// Parsea acá el JSON de <c>antes</c>/<c>despues</c>: ese formato lo escribe
-/// <c>AdministracionAsistenteController</c> y es interno del módulo — nunca
-/// cruza a Contracts sin normalizar (design.md D1, alternativa (d) rechazada:
-/// devolver el string crudo filtraría el formato privado al Host).
-/// </remarks>
 internal sealed class ConsultasDeAuditoriaDeAdministracion(CadenaDuena cadena)
     : IConsultasDeAuditoriaDeAdministracion
 {

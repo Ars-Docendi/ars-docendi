@@ -9,24 +9,9 @@ using Npgsql;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// Arma el catálogo de capacidades preguntándole a la base «¿qué puedo leer yo?».
+/// Arma el catálogo de capacidades preguntándole a la base «¿qué puedo leer yo?». Lo que es del
+/// actor, el ámbito, no toca la caché.
 /// </summary>
-/// <remarks>
-/// Reusa <see cref="LectorDeCatalogo"/>, que evalúa <c>has_column_privilege</c>
-/// contra <c>current_user</c>: los dos roles del asistente obtienen catálogos
-/// distintos sin que este código sepa nada de ellos.
-///
-/// <b>Es scoped y la caché es singleton, y la separación no es estética.</b> Esta
-/// clase depende de <see cref="IPerfilDelActor"/>, que resuelve al actor del turno y
-/// por lo tanto es scoped; un catálogo singleton que lo consumiera capturaría el
-/// perfil del primer actor que consultara y se lo devolvería a todos los demás. El
-/// contenedor rechaza esa registración al arrancar, y hace bien.
-///
-/// Lo que sí tiene que sobrevivir al request es el resultado de leer el catálogo de
-/// PostgreSQL, y eso vive en <see cref="CacheDeCapacidades"/>, indexado por
-/// <b>rol</b>: los privilegios no cambian en runtime y hay exactamente dos variantes
-/// —con y sin datos personales—. Lo que es del actor, el ámbito, no toca la caché.
-/// </remarks>
 internal sealed class CatalogoDeCapacidades(
     AperturaDeLectura apertura,
     IPerfilDelActor perfiles,
@@ -58,19 +43,17 @@ internal sealed class CatalogoDeCapacidades(
             resuelto.Ejemplos,
             PoliticaDeAbstencion.LimitesDelAsistente,
             PoliticaDeAbstencion.TextoDeAlcance(perfil.EsGlobal),
-            // Fuera de la caché a propósito: lo cacheado se indexa por rol de
-            // lectura —dos variantes— y la presentación es del actor, como el
-            // alcance. Meterla adentro le devolvería a todos la del primero.
+            // Fuera de la caché a propósito: lo cacheado se indexa por rol de lectura —dos
+            // variantes— y la presentación es del actor, como el alcance.
             PresentacionPorRol.Texto(perfil),
             await disponibilidadDelModulo.ConsultarAsync(ct),
             await CupoDeAsync(actor, ct));
     }
 
     /// <summary>
-    /// El cupo del actor, con el MISMO bypass de mantenimiento que aplica
-    /// <c>CapaConversacional</c> (design.md D8): sin él, un admin vería su
-    /// propio cupo como "bloqueado por mantenimiento" aunque en la práctica
-    /// pueda seguir consultando.
+    /// El cupo del actor, con el MISMO bypass de mantenimiento que aplica <c>CapaConversacional</c>
+    /// (design.md D8): sin él, un admin vería su propio cupo como "bloqueado por mantenimiento"
+    /// aunque en la práctica pueda seguir consultando.
     /// </summary>
     private async Task<EstadoDelCupoDelActor> CupoDeAsync(Guid actor, CancellationToken ct)
     {
@@ -122,23 +105,7 @@ internal sealed class CatalogoDeCapacidades(
         return new Resuelto(cubre, await ElegirEjemplosAsync(conexion, actor, ct));
     }
 
-    /// <summary>
-    /// Elige de cuatro a seis ejemplos que el actor <b>puede ejecutar</b>.
-    /// </summary>
-    /// <remarks>
-    /// Cada candidato se pasa por <c>EXPLAIN</c> con la conexión del actor.
-    /// <c>EXPLAIN</c> sin <c>ANALYZE</c> arranca el ejecutor —y por lo tanto chequea
-    /// privilegios— pero no lee ninguna fila: si el ejemplo toca una columna que el
-    /// rol no puede leer, el motor lo rechaza con <c>42501</c>.
-    ///
-    /// Es más caro que consultar una lista de ejemplos marcados «seguros», y es lo
-    /// correcto: una lista se desincroniza del GRANT en silencio, y el modo de falla
-    /// de esa desincronización es ofrecerle al usuario una pregunta que no puede
-    /// hacer.
-    ///
-    /// Se diversifica por categoría antes de recortar: seis ejemplos de conteo
-    /// simple no le muestran a nadie de qué es capaz el asistente.
-    /// </remarks>
+    /// <summary>Elige de cuatro a seis ejemplos que el actor <b>puede ejecutar</b>.</summary>
     private async Task<IReadOnlyList<string>> ElegirEjemplosAsync(
         NpgsqlConnection conexion, Guid actor, CancellationToken ct)
     {
@@ -180,22 +147,12 @@ internal sealed class CatalogoDeCapacidades(
         return elegidos;
     }
 
-    /// <summary>
-    /// Si el actor puede ejecutar esa consulta, según el motor.
-    /// </summary>
-    /// <remarks>
-    /// Es <c>internal</c> para que el test pueda ejercitarla con una consulta
-    /// sintética que toca una columna personal. El catálogo de ejemplos real no
-    /// tiene ninguna, así que sin eso el filtro sería un no-op no verificado — y el
-    /// día que alguien agregue un ejemplo con datos personales nadie se enteraría de
-    /// si funciona.
-    /// </remarks>
+    /// <summary>Si el actor puede ejecutar esa consulta, según el motor.</summary>
     internal static async Task<bool> EjecutableAsync(
         NpgsqlConnection conexion, Guid actor, string sql, CancellationToken ct)
     {
-        // Transacción propia por candidato: un rechazo aborta la transacción en
-        // PostgreSQL, y con una compartida el primer ejemplo denegado invalidaría
-        // todos los siguientes.
+        // Transacción propia por candidato: un rechazo aborta la transacción en PostgreSQL, y con
+        // una compartida el primer ejemplo denegado invalidaría todos los siguientes.
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);
 
@@ -223,17 +180,7 @@ internal sealed class CatalogoDeCapacidades(
         IReadOnlyList<AreaCubierta> Cubre, IReadOnlyList<string> Ejemplos);
 }
 
-/// <summary>
-/// Guarda lo que cuesta leer del catálogo de PostgreSQL, por rol.
-/// </summary>
-/// <remarks>
-/// Existe separada de <see cref="CatalogoDeCapacidades"/> porque los dos tienen
-/// alcances distintos y ninguno de los dos puede tener el del otro: el catálogo
-/// depende del perfil del actor y es del request; esto es del proceso.
-///
-/// Indexa por <b>rol</b> y no por actor: son dos variantes —con y sin datos
-/// personales—, y los privilegios no cambian en runtime.
-/// </remarks>
+/// <summary>Guarda lo que cuesta leer del catálogo de PostgreSQL, por rol.</summary>
 internal sealed class CacheDeCapacidades
 {
     private readonly ValorPerezosoPorRol<CatalogoDeCapacidades.Resuelto> _porRol = new();

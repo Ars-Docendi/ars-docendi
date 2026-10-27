@@ -3,18 +3,9 @@ using System.Globalization;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Las frases del plan: la interpretación que se muestra, la pregunta explícita de
-/// una aclaración y la respuesta por plantilla (D9 de <c>asistente-plan-compilado</c>).
+/// Las frases del plan: la interpretación que se muestra, la pregunta explícita de una aclaración y
+/// la respuesta por plantilla (D9 de <c>asistente-plan-compilado</c>).
 /// </summary>
-/// <remarks>
-/// <b>Ningún número sale del modelo.</b> La respuesta se arma con el resultado de la
-/// consulta y con el plan; si el resultado no tiene la forma que la medida promete,
-/// es un error del compilador y revienta en vez de redactar algo plausible.
-///
-/// Las frases que genera <see cref="PreguntaExplicita"/> están escritas para pasar la
-/// puerta y el anclaje: una opción de aclaración que el propio plan rechazara al
-/// volver a preguntarla dejaría al usuario en un círculo.
-/// </remarks>
 internal static class RedaccionDelPlan
 {
     private const int NombresEnElTexto = 30;

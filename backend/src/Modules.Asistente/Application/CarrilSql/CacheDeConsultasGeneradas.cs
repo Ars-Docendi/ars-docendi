@@ -4,23 +4,9 @@ using System.Text.RegularExpressions;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Las consultas ya generadas para preguntas sin contexto
-/// (asistente-optimizaciones-modelo-local, design.md D6).
+/// Las consultas ya generadas para preguntas sin contexto (asistente-optimizaciones-modelo-local,
+/// design.md D6).
 /// </summary>
-/// <remarks>
-/// <b>Guarda la consulta, nunca filas.</b> Un acierto se vuelve a validar y a
-/// ejecutar bajo el alcance de quien pregunta: RLS y GRANT deciden igual que
-/// siempre, y la consulta no trae filtros de alcance porque las instrucciones de
-/// la generación los prohíben. Lo que se ahorra es la llamada de generación —la
-/// más cara del turno—, no ninguna decisión de permisos.
-///
-/// La clave lleva la variante de rol —el prefijo de esquema es otro con datos
-/// personales— y la fecha de referencia, porque «este año» o «vigentes hoy» se
-/// generan con ella.
-///
-/// Por proceso y acotada: al pasar el tope se desaloja la entrada más vieja. Es
-/// singleton; quien la consume es el generador, que es scoped.
-/// </remarks>
 public sealed partial class CacheDeConsultasGeneradas(TimeProvider reloj)
 {
     /// <summary>Cuántas entradas guarda como mucho.</summary>
@@ -95,9 +81,8 @@ public sealed partial class CacheDeConsultasGeneradas(TimeProvider reloj)
     }
 
     /// <summary>
-    /// La pregunta normalizada: minúsculas, espacios colapsados y sin los signos
-    /// de pregunta de los extremos. No se quitan tildes: «Díaz» y «Diaz» pueden
-    /// ser dos personas distintas.
+    /// La pregunta normalizada: minúsculas, espacios colapsados y sin los signos de pregunta de los
+    /// extremos.
     /// </summary>
     internal static string Normalizar(string pregunta) =>
         Espacios().Replace(pregunta.Trim().Trim('¿', '?').Trim(), " ").ToLowerInvariant();

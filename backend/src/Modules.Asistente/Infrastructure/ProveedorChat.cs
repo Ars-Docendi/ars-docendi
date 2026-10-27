@@ -6,16 +6,9 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Infrastructure;
 
 /// <summary>
-/// What differs per cloud company around an <see cref="IChatClient"/>: how the
-/// request is built and how a provider failure is recognised
-/// (asistente-modelo-en-caliente, D10).
+/// What differs per cloud company around an <see cref="IChatClient"/>: how the request is built and
+/// how a provider failure is recognised (asistente-modelo-en-caliente, D10).
 /// </summary>
-/// <remarks>
-/// The spike showed that two things pass only through provider-specific raw types
-/// (Anthropic's <c>cache_control</c> and <c>output_config.effort</c>), so the
-/// request cannot be built portably. The implementations live in the one file that
-/// names the SDKs (<c>ClientesDeChat.cs</c>), which keeps this class free of them.
-/// </remarks>
 internal interface IConstructorDeChat
 {
     /// <summary>The messages and options for one call.</summary>
@@ -29,30 +22,16 @@ internal interface IConstructorDeChat
 }
 
 /// <summary>
-/// <see cref="IProveedorDeModelo"/> for the four cloud companies over a
-/// Microsoft.Extensions.AI <see cref="IChatClient"/> (asistente-modelo-en-caliente,
-/// D1/D2). <c>Nombre</c> is <c>"{empresa}/{modelo}"</c>.
+/// <see cref="IProveedorDeModelo"/> for the four cloud companies over a Microsoft.Extensions.AI
+/// <see cref="IChatClient"/> (asistente-modelo-en-caliente, D1/D2).
 /// </summary>
-/// <remarks>
-/// One attempt per call: the module's only retry authority is
-/// <see cref="ReintentoDeTransporte"/> in the shared transport, and the SDK retries
-/// are zeroed when the client is built.
-///
-/// It owns failure translation. Neither SDK throws <see cref="HttpRequestException"/>,
-/// and <see cref="ProveedorConBreaker"/> counts exactly two shapes of failure: a
-/// cancellation of its own token and <see cref="HttpRequestException"/>. So a
-/// provider failure leaves here as <see cref="HttpRequestException"/> with the
-/// status preserved, and with NO inner exception and no provider text: a provider
-/// can echo part of the key in a 401, and the carril logs the exception it catches.
-/// </remarks>
 internal sealed class ProveedorChat : IProveedorDeModelo, IDisposable
 {
     private const string ConteoDeCreacionDeCache = "CacheCreationInputTokens";
 
     /// <summary>
-    /// Key of <see cref="Exception.Data"/> set (to <c>true</c>) on a failure whose provider
-    /// text says the account is out of credit. The text itself never leaves this class:
-    /// only this flag does, for the administrator's connection test.
+    /// Key of <see cref="Exception.Data"/> set (to <c>true</c>) on a failure whose provider text
+    /// says the account is out of credit.
     /// </summary>
     internal const string IndicioDeSinCredito = "ars.sin-credito";
 
@@ -183,9 +162,8 @@ internal sealed class ProveedorChat : IProveedorDeModelo, IDisposable
         var uso = respuesta.Usage;
         var deCache = Acotar(uso?.CachedInputTokenCount ?? 0);
 
-        // Anthropic's adapter sums input + cache read + cache creation into
-        // InputTokenCount. The module reports input + cache read, so the creation
-        // count is taken out. Other companies expose no such count.
+        // Anthropic's adapter sums input + cache read + cache creation into InputTokenCount. The
+        // module reports input + cache read, so the creation count is taken out.
         long creacion = 0;
         _ = uso?.AdditionalCounts?.TryGetValue(ConteoDeCreacionDeCache, out creacion);
 

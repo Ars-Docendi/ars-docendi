@@ -4,8 +4,6 @@ using System.Text.Json.Serialization;
 namespace Modules.Asistente.Application;
 
 /// <summary>Un slot que una intención exige resolver.</summary>
-/// <param name="Nombre">Cómo se lo nombra en el destino.</param>
-/// <param name="Clase">Qué clase de valor del dominio admite.</param>
 public sealed record SlotExigido(string Nombre, ClaseDeSlot Clase);
 
 /// <summary>
@@ -36,30 +34,11 @@ public sealed record Intencion(
     IReadOnlyList<SlotExigido> Slots,
     string Destino);
 
-/// <summary>
-/// El catálogo está mal escrito y no se puede cargar.
-/// </summary>
-/// <remarks>
-/// El catálogo es un archivo, así que no lo protege el compilador. Sin este error
-/// una intención mal escrita no rompería nada: simplemente no se reconocería nunca,
-/// y la única señal sería que las preguntas siguen tomando el camino caro.
-/// </remarks>
+/// <summary>El catálogo está mal escrito y no se puede cargar.</summary>
 internal sealed class CatalogoDeIntencionesInvalido(string mensaje)
     : InvalidOperationException(mensaje);
 
-/// <summary>
-/// El catálogo cerrado de intenciones del carril determinista.
-/// </summary>
-/// <remarks>
-/// <b>Es un archivo declarativo y no código disperso.</b> Una intención mal
-/// reconocida se diagnostica leyendo una tabla de cinco filas; repartida en
-/// condicionales se diagnostica leyendo el módulo. Y es lo que hace barata la
-/// disciplina de «una intención nueva, un caso de prueba»: el test itera el
-/// catálogo, así que una intención sin prueba no entra.
-///
-/// Clase pura: no toca base ni red. Los valores contra los que se resuelven los
-/// slots vienen de <see cref="ICatalogoDelDominio"/>.
-/// </remarks>
+/// <summary>El catálogo cerrado de intenciones del carril determinista.</summary>
 public sealed class CatalogoDeIntenciones
 {
     private static readonly JsonSerializerOptions Formato = new()
@@ -91,13 +70,7 @@ public sealed class CatalogoDeIntenciones
         return Cargar(lector.ReadToEnd());
     }
 
-    /// <summary>
-    /// Carga el catálogo desde su JSON y lo valida.
-    /// </summary>
-    /// <exception cref="CatalogoDeIntencionesInvalido">
-    /// Si falta un campo, una clase de slot no existe o un término no está
-    /// normalizado.
-    /// </exception>
+    /// <summary>Carga el catálogo desde su JSON y lo valida.</summary>
     public static CatalogoDeIntenciones Cargar(string json)
     {
         Archivo? crudo;
@@ -108,9 +81,8 @@ public sealed class CatalogoDeIntenciones
         }
         catch (JsonException error)
         {
-            // Una clase de slot inexistente llega hasta acá: el convertidor de enums
-            // no la puede mapear. Se reescribe el mensaje porque el del serializador
-            // habla de tipos de .NET y quien edita el catálogo está mirando un JSON.
+            // Una clase de slot inexistente llega hasta acá: el convertidor de enums no la puede
+            // mapear.
             throw new CatalogoDeIntencionesInvalido(
                 "El catálogo de intenciones no se pudo leer. Revisá que cada `clase` de "
                 + $"slot sea una de: {string.Join(", ", Enum.GetNames<ClaseDeSlot>())}. "
@@ -156,9 +128,8 @@ public sealed class CatalogoDeIntenciones
 
         foreach (var termino in cruda.Terminos.Concat(cruda.Excluye ?? []))
         {
-            // El término del catálogo se compara contra la pregunta ya normalizada,
-            // así que uno acentuado o en plural nunca coincidiría con nada. Falla al
-            // cargar y no en silencio, que es la diferencia entre un error y un bug.
+            // El término del catálogo se compara contra la pregunta ya normalizada, así que uno
+            // acentuado o en plural nunca coincidiría con nada.
             var normalizado = NormalizadorLexico.Terminos(termino);
 
             if (normalizado.Count != 1 || !normalizado.Contains(termino))

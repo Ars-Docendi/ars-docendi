@@ -4,24 +4,12 @@ using System.Text;
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Pone el catálogo de capacidades en español, para la meta-pregunta.
+/// Pone el catálogo de capacidades en español, para la meta-pregunta. No nombra tablas ni schemas:
+/// son etiquetas internas (RNF-18).
 /// </summary>
-/// <remarks>
-/// Es pura y determinista: el catálogo ya viene resuelto de la base, así que
-/// redactarlo con el modelo costaría una llamada para reordenar datos que no
-/// necesitan interpretación — y le daría la oportunidad de prometer algo que el
-/// catálogo no dice.
-///
-/// No nombra tablas ni schemas: son etiquetas internas (RNF-18). Lo que se muestra
-/// son los comentarios del catálogo, que están escritos para leerse.
-/// </remarks>
 internal static class RedaccionDeCapacidades
 {
     /// <summary>Cuántas áreas se nombran antes de resumir el resto.</summary>
-    /// <remarks>
-    /// Catorce tablas en una lista no se leen. Se nombran las más grandes —las que
-    /// más columnas aportan— y el resto se cuenta.
-    /// </remarks>
     private const int AreasQueSeNombran = 6;
 
     /// <summary>Redacta el catálogo.</summary>
@@ -86,14 +74,7 @@ internal static class RedaccionDeCapacidades
             ? "un área de datos del sistema"
             : $"{capacidades.Tablas} áreas de datos del sistema";
 
-    /// <summary>
-    /// La primera oración del comentario de la tabla.
-    /// </summary>
-    /// <remarks>
-    /// Los comentarios del catálogo están escritos para el prompt del modelo y
-    /// suelen traer detalle que a una persona no le sirve. La primera oración es la
-    /// que describe qué es la tabla; el resto explica cómo consultarla.
-    /// </remarks>
+    /// <summary>La primera oración del comentario de la tabla.</summary>
     private static string Primera(string comentario)
     {
         var punto = comentario.IndexOf('.', StringComparison.Ordinal);

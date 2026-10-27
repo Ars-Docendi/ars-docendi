@@ -1,56 +1,16 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// Renderiza el texto de un rechazo declarado por el modelo, a partir de una
-/// plantilla por motivo con escalación (design.md D1/D5/D6/D11 de
-/// asistente-rechazos-dinamicos).
+/// Renderiza el texto de un rechazo declarado por el modelo, a partir de una plantilla por motivo
+/// con escalación (design.md D1/D5/D6/D11 de asistente-rechazos-dinamicos).
 /// </summary>
-/// <remarks>
-/// <b>Nunca texto del modelo.</b> Lo único que puede aparecer en el cuerpo,
-/// aparte de estas plantillas fijas, es el término ya validado por
-/// <see cref="TerminoDelRechazo"/> —los caracteres del usuario, re-copiados—.
-///
-/// <b>Ninguna variante afirma ausencia.</b> Nunca corrió una consulta: decir
-/// «no encontré nada sobre «python»» sería el mismo falso negativo que
-/// <see cref="PoliticaDeAbstencion.AlcanzaTodo"/> ya documenta para el caso de
-/// resultado vacío (design.md D6).
-///
-/// <b>La copia de acá es la aprobada por el PO en design.md D11, palabra por
-/// palabra</b> (confirmado 2026-09-26): cada rama de cada motivo/variante
-/// reproduce exactamente la celda de esa tabla, corchete por corchete —una
-/// celda sin corchete de término se renderiza igual con o sin término
-/// validado (<c>otro_sistema</c> variante 3, <c>muy_general</c> variante 3),
-/// y <c>{areas}</c> sólo aparece donde la tabla lo tiene (variante 2 de las
-/// cuatro razones, y variante 1 de <c>fuera_de_tema</c>). Los tests fijan
-/// PROPIEDADES sobre esa copia fija —distinción por razón/variante, eco del
-/// término sólo donde la celda lo admite, ninguna afirmación de ausencia,
-/// ningún nombre de esquema, el puntero de ayuda enrutado a la
-/// meta-pregunta— y no palabras sueltas; no pinnean una sentencia distinta de
-/// la de D11.
-/// </remarks>
 internal static class PlantillasDeRechazo
 {
     /// <summary>El pointer a la meta-pregunta, que resuelve el carril social a costo cero.</summary>
     internal const string Ayuda =
         "Si querés ver todo lo que puedo consultar, preguntame «¿qué podés hacer?».";
 
-    /// <summary>
-    /// El texto de un rechazo declarado por el modelo.
-    /// </summary>
-    /// <param name="motivo">El motivo declarado (o <see cref="MotivoDeRechazo.NoCubierto"/> por defecto).</param>
-    /// <param name="termino">
-    /// El término ya validado por <see cref="TerminoDelRechazo.Validar"/>, o
-    /// <c>null</c> si no hay ninguno que citar.
-    /// </param>
-    /// <param name="areas">
-    /// Las áreas consultables ya renderizadas por <see cref="EtiquetasDeAreas.Nombrar"/>,
-    /// o <c>null</c> si el catálogo no se pudo leer.
-    /// </param>
-    /// <param name="rechazosPrevios">
-    /// Cuántos rechazos anteriores tuvo esta conversación
-    /// (<see cref="HiloConversacional.RechazosPrevios"/>), <c>0</c> en el
-    /// primer rechazo o cuando no hay conversación (el evaluador).
-    /// </param>
+    /// <summary>El texto de un rechazo declarado por el modelo.</summary>
     public static string Texto(MotivoDeRechazo motivo, string? termino, string? areas, int rechazosPrevios)
     {
         var variante = Variante(rechazosPrevios);
@@ -92,16 +52,7 @@ internal static class PlantillasDeRechazo
         ? $" Solo trabajo con {areas}; si es sobre eso, reformulala y la busco."
         : $" {Ayuda}";
 
-    /// <summary>
-    /// El límite de fuentes en primera persona, como habla el resto del rechazo.
-    /// </summary>
-    /// <remarks>
-    /// No reusa <see cref="PoliticaDeAbstencion.LimitesDelAsistente"/>: esa lista
-    /// describe al asistente en tercera persona («Solo lee este sistema…») para la
-    /// ayuda, y pegada a «No puedo responder…» mezclaría las dos voces. Nombra los
-    /// mismos sistemas; el test (g) de <c>PlantillasDeRechazoTests</c> impide que
-    /// aparezca uno que no esté en esa lista.
-    /// </remarks>
+    /// <summary>El límite de fuentes en primera persona, como habla el resto del rechazo.</summary>
     internal const string LimiteDeFuentes =
         "Solo leo este sistema: no Guaraní, ni planillas, ni otras fuentes.";
 
@@ -148,11 +99,10 @@ internal static class PlantillasDeRechazo
 
     private static string NoCubierto(int variante, string? termino, string? areas) => variante switch
     {
-        // Variante 1, sin término: TEXTO GENÉRICO PREEXISTENTE, PALABRA POR
-        // PALABRA (design.md D11) — así los tests y el evaluador que ya
-        // esperaban `PoliticaDeAbstencion.TextoNoContestable` siguen viendo lo
-        // mismo, y los cassettes viejos (sin `motivo`) resuelven exactamente
-        // como resolvían antes de este cambio.
+        // Variante 1, sin término: TEXTO GENÉRICO PREEXISTENTE, PALABRA POR PALABRA (design.md D11)
+        // — así los tests y el evaluador que ya esperaban `PoliticaDeAbstencion.TextoNoContestable`
+        // siguen viendo lo mismo, y los cassettes viejos (sin `motivo`) resuelven exactamente como
+        // resolvían antes de este cambio.
         1 => termino is not null
             ? $"No puedo responder sobre «{termino}» con la información que tengo disponible."
             : PoliticaDeAbstencion.TextoNoContestable,
