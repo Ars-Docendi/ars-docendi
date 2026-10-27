@@ -4,12 +4,7 @@ using Modules.Asistente;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la validación de las perillas del módulo.
-/// </summary>
-/// <remarks>
-/// Corre en memoria: el validador es una función pura sobre un objeto de opciones.
-/// </remarks>
+/// <summary>Verifica la validación de las perillas del módulo.</summary>
 public sealed class ValidacionDeOpcionesTests
 {
     private static ValidateOptionsResult Validar(Action<OpcionesAsistente> ajustar)
@@ -54,11 +49,8 @@ public sealed class ValidacionDeOpcionesTests
     [InlineData(nameof(OpcionesAsistente.TimeoutDeComandoSegundos))]
     public void Los_dos_timeouts_en_cero_se_rechazan(string perilla)
     {
-        // ESTOS DOS SON LOS QUE IMPORTAN. Cero no es «desactivado» acá: en
-        // PostgreSQL `statement_timeout = 0` significa SIN LÍMITE, y en Npgsql
-        // `CommandTimeout = 0` es lo mismo. Un cero en la configuración de un
-        // ambiente apaga en silencio la cota que impide que una consulta generada
-        // con un producto cartesiano ocupe un backend hasta terminar.
+        // ESTOS DOS SON LOS QUE IMPORTAN. Cero no es «desactivado» acá: en PostgreSQL
+        // `statement_timeout = 0` significa SIN LÍMITE, y en Npgsql `CommandTimeout = 0` es lo mismo.
         var resultado = EnPerilla(perilla, 0);
 
         Assert.False(resultado.Succeeded);
@@ -82,13 +74,8 @@ public sealed class ValidacionDeOpcionesTests
     [Fact]
     public void Las_tres_perillas_que_apagan_con_cero_aceptan_el_cero()
     {
-        // Es el punto del renglón: `[Range(1, …)]` sobre estas tres —el reflejo
-        // obvio— rompería una capacidad que el módulo ofrece a propósito. Sin
-        // corte del proveedor, sin presupuesto de turno y sin historial para el
-        // reescritor son tres configuraciones válidas. El cupo por actor dejó de
-        // ser una perilla de OpcionesAsistente (asistente-administracion-de-uso):
-        // ahora vive en asistente.presupuesto_rol/presupuesto_usuario, con el
-        // mismo convenio de cero-desactiva, probado en CuotaPersistenteTests.
+        // Es el punto del renglón: `[Range(1, …)]` sobre estas tres —el reflejo obvio— rompería una
+        // capacidad que el módulo ofrece a propósito.
         var resultado = Validar(o =>
         {
             o.FallosParaAbrirElBreaker = 0;
@@ -230,11 +217,8 @@ public sealed class ValidacionDeOpcionesTests
     [Fact]
     public void Toda_perilla_numerica_esta_clasificada_en_algun_balde()
     {
-        // EL GUARD QUE HACE QUE ESTO NO SE PUDRA. Una perilla nueva sin regla no
-        // rompe nada visible: simplemente no se valida, y nadie se entera hasta que
-        // un ambiente la pone en cero. Se afirma sobre la REFLEXIÓN del tipo y no
-        // sobre una lista escrita, para que agregar una propiedad al options sea lo
-        // que dispare el test.
+        // EL GUARD QUE HACE QUE ESTO NO SE PUDRA. Una perilla nueva sin regla no rompe nada
+        // visible: simplemente no se valida, y nadie se entera hasta que un ambiente la pone en cero.
         var numericas = typeof(OpcionesAsistente)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.PropertyType == typeof(int))

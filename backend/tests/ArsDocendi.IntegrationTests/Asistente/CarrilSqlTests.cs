@@ -8,18 +8,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el carril SQL de punta a punta, contra una base real.
-/// </summary>
-/// <remarks>
-/// El proveedor va guionado: devuelve la consulta que se quiere ejercitar. Así se
-/// prueba todo el carril —generación, validación, ejecución acotada, guard de
-/// vacío, reintento y redacción— salvo la calidad de la traducción, que es lo que
-/// mide la épica de evaluación y lo único que necesita una clave real.
-///
-/// El gate de la épica es el primer test: una pregunta de cobertura de cátedra
-/// responde correctamente y acotada al alcance del actor.
-/// </remarks>
+/// <summary>Verifica el carril SQL de punta a punta, contra una base real.</summary>
 public sealed class CarrilSqlTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_carril")
 {
@@ -117,9 +106,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         var turno = await CarrilCon(proveedor).ResponderAsync(
             Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
 
-        // Lo que ve el usuario no cambia: mismo estado y mismo texto que una
-        // abstención (RNF-18). Lo que cambia es la categoría, que es lo que leen el
-        // registro analítico y el evaluador.
+        // Lo que ve el usuario no cambia: mismo estado y mismo texto que una abstención (RNF-18).
         Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
         Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, turno.Respuesta);
         Assert.Equal("truncado_en_generacion", turno.Categoria);
@@ -141,8 +128,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.Equal(1, proveedor.Llamadas);
 
         // El rechazo del validador NUNCA pasa por las plantillas por motivo
-        // (asistente-rechazos-dinamicos): conserva su texto fijo y no anota
-        // ningún motivo en el registro.
+        // (asistente-rechazos-dinamicos): conserva su texto fijo y no anota ningún motivo en el registro.
         Assert.Equal(PoliticaDeAbstencion.TextoRechazadaPorValidador, turno.Respuesta);
         Assert.Null(turno.MotivoDeRechazo);
     }
@@ -243,9 +229,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
 
         Assert.Contains("«python»", turnoConTermino.Respuesta, StringComparison.Ordinal);
 
-        // El mismo término, pero sólo presente en la pregunta REESCRITA — el
-        // usuario tipeó otra cosa este turno. TerminoDelRechazo.Validar mira
-        // `mensaje`, nunca la reescritura, así que se descarta.
+        // El mismo término, pero sólo presente en la pregunta REESCRITA — el usuario tipeó otra
+        // cosa este turno.
         var sinElTermino = new ProveedorGuionado(
             ProveedorGuionado.NoContestableConMotivo("no_cubierto", "python"));
         var turnoSinTermino = await CarrilCon(sinElTermino).ResponderAsync(
@@ -356,10 +341,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_reintento_apagado_un_vacio_global_no_vuelve_a_generar()
     {
-        // asistente-proveedor-local, D6: el reintento repite el prompt byte a byte,
-        // y con un modelo local a temperatura 0 devuelve la misma consulta. El
-        // perfil local lo apaga; acá se verifica que apagarlo de verdad ahorra la
-        // llamada para el único actor que la gastaba.
+        // asistente-proveedor-local, D6: el reintento repite el prompt byte a byte, y con un modelo
+        // local a temperatura 0 devuelve la misma consulta.
         await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"));
@@ -378,9 +361,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task La_generacion_declara_la_forma_de_su_respuesta()
     {
-        // D3: un proveedor que puede imponer la forma —un servidor local con
-        // decodificación restringida— la recibe en la solicitud. Las claves son
-        // las que el intérprete del generador lee.
+        // D3: un proveedor que puede imponer la forma —un servidor local con decodificación
+        // restringida— la recibe en la solicitud.
         await SembrarAsync();
         var (_, proveedor) = await PreguntarAsync(Secretaria, "¿Cuántos pedidos hay?", ContarPedidos);
 
@@ -420,9 +402,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_consulta_que_el_motor_rechaza_tiene_una_ronda_de_reparacion()
     {
-        // D4: la columna no existe, el motor la rechaza, y la segunda generación
-        // —con el error— corrige. El turno responde como si la primera hubiera
-        // estado bien.
+        // D4: la columna no existe, el motor la rechaza, y la segunda generación —con el error— corrige.
         await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"),
@@ -651,8 +631,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         await SembrarAsync();
 
         // El razonamiento que el modelo escribe ANTES de ejecutar promete filas.
-        // La consulta no devuelve ninguna. Sin el guard, el turno afirma las dos
-        // cosas a la vez y el usuario se queda con la que suena informada.
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'",
             razonamiento: "Busqué los trámites con ese número y devuelvo los tres que hay."));
@@ -686,11 +664,10 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_el_permiso_de_portal_un_vacio_de_portal_no_se_narra_como_inexistencia()
     {
-        // EL DEFECTO MEDIDO. Secretaría es global y tiene `designaciones.ver`, así
-        // que el booleano del turno daba verdadero; la RLS de portal le devuelve un
-        // solo perfil —el suyo— y a una pregunta por una habilidad que otros
-        // declararon el asistente contestaba «no encontré ningún registro». Hay
-        // gente con esa habilidad: es una afirmación falsa sobre personas reales.
+        // EL DEFECTO MEDIDO. Secretaría es global y tiene `designaciones.ver`, así que el booleano
+        // del turno daba verdadero; la RLS de portal le devuelve un solo perfil —el suyo— y a una
+        // pregunta por una habilidad que otros declararon el asistente contestaba «no encontré
+        // ningún registro».
         await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             """
@@ -713,10 +690,9 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_consulta_que_no_toca_portal_conserva_su_evaluacion()
     {
-        // LA MITAD QUE NO SE PUEDE ROMPER AL ARREGLAR LA OTRA. El permiso de portal
-        // no puede pasar a hacer falta para preguntas que no son de portal: si
-        // pasara, todo vacío de designaciones se narraría como límite de alcance y
-        // el asistente dejaría de poder decir «no hay» nunca.
+        // LA MITAD QUE NO SE PUEDE ROMPER AL ARREGLAR LA OTRA. El permiso de portal no puede pasar
+        // a hacer falta para preguntas que no son de portal: si pasara, todo vacío de designaciones
+        // se narraría como límite de alcance y el asistente dejaría de poder decir «no hay» nunca.
         await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion(
@@ -902,9 +878,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             Options.Create(new OpcionesAsistente()));
         var ct = TestContext.Current.CancellationToken;
 
-        // Un ejemplo con SQL rota le estaría enseñando al modelo a escribir
-        // consultas rotas, y como el catálogo va en el prompt de todos los turnos
-        // parecidos, el error se multiplicaría en silencio.
+        // Un ejemplo con SQL rota le estaría enseñando al modelo a escribir consultas rotas, y como
+        // el catálogo va en el prompt de todos los turnos parecidos, el error se multiplicaría en silencio.
         var fallidos = new List<string>();
 
         foreach (var ejemplo in new SelectorDeEjemplos().Catalogo)
@@ -925,10 +900,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task La_consulta_de_un_ejemplo_para_su_propia_pregunta_se_ejecuta()
     {
-        // La pregunta dice «Ingeniería Informática» y el SQL del ejemplo filtra
-        // por 'Ingeniería en Informática', el nombre real. Un control que pedía
-        // cada literal del ejemplo escrito tal cual en la pregunta abstenía este
-        // turno; se quitó porque, medido con el evaluador, no cambiaba ningún ítem.
+        // La pregunta dice «Ingeniería Informática» y el SQL del ejemplo filtra por 'Ingeniería en
+        // Informática', el nombre real.
         const string pregunta = "¿Cuántos profesores titulares hay en la carrera de Ingeniería Informática?";
         await SembrarAsync();
         var sql = new SelectorDeEjemplos().Catalogo.Single(e => e.Pregunta == pregunta).Sql;
@@ -1008,12 +981,10 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_id_referenciado_nunca_aparece_en_lo_que_se_manda_al_proveedor_en_un_turno_y_su_seguimiento()
     {
-        // ESTA ES LA PROPIEDAD DE SEGURIDAD DE D11, verificada de punta a punta
-        // contra una base real: ni el turno con la mención nueva, ni el
-        // seguimiento que hereda su marcador (vía `referenciasHeredadas`,
-        // el mismo mecanismo que usa CapaConversacional), le mandan el uuid
-        // al proveedor — ni en el mensaje del turno, ni en el prefijo, ni en
-        // ninguno de los dos turnos.
+        // ESTA ES LA PROPIEDAD DE SEGURIDAD DE D11, verificada de punta a punta contra una base
+        // real: ni el turno con la mención nueva, ni el seguimiento que hereda su marcador (vía
+        // `referenciasHeredadas`, el mismo mecanismo que usa CapaConversacional), le mandan el uuid
+        // al proveedor — ni en el mensaje del turno, ni en el prefijo, ni en ninguno de los dos turnos.
         await SembrarAsync();
 
         var materia = new ResultadoDeMencion(
@@ -1025,9 +996,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
 
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion(sqlPrimerTurno),
-            // El seguimiento anida la misma consulta, reusando `$ref1` sin que
-            // nadie se lo vuelva a explicar: es exactamente lo que el bloque
-            // "Consultas de los turnos anteriores" habilita.
+            // El seguimiento anida la misma consulta, reusando `$ref1` sin que nadie se lo vuelva a
+            // explicar: es exactamente lo que el bloque "Consultas de los turnos anteriores" habilita.
             ProveedorGuionado.Generacion(
                 sqlPrimerTurno.Replace("p.apellido", "p.apellido, p.nombre", StringComparison.Ordinal)));
 
@@ -1060,14 +1030,11 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_mencion_heredada_que_perdio_su_alcance_no_se_bindea_en_el_seguimiento()
     {
-        // EL HALLAZGO: `identity.materias` no tiene RLS propia — sólo el filtro
-        // explícito de `asistente_materias_visibles()` que compone la búsqueda—,
-        // así que un marcador heredado de un turno anterior del MISMO hilo en
-        // vivo, ligado sin volver a preguntarle a `IBuscadorDeMenciones`,
-        // seguiría devolviendo la materia aunque el alcance del actor se haya
-        // achicado entre los dos turnos. El turno 1 la referencia dentro de su
-        // alcance vigente; ANTES del turno 2 se revoca el rol de carrera del
-        // coordinador; el turno 2 reusa `$ref1` editando la consulta.
+        // EL HALLAZGO: `identity.materias` no tiene RLS propia — sólo el filtro explícito de
+        // `asistente_materias_visibles()` que compone la búsqueda—, así que un marcador heredado de
+        // un turno anterior del MISMO hilo en vivo, ligado sin volver a preguntarle a
+        // `IBuscadorDeMenciones`, seguiría devolviendo la materia aunque el alcance del actor se
+        // haya achicado entre los dos turnos.
         await SembrarAsync();
 
         var materia = new ResultadoDeMencion(
@@ -1092,9 +1059,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.Equal(EstadoDelTurno.Respondida, primero.Estado);
         Assert.NotNull(primero.ReferenciasEjecutadas);
 
-        // SE ACHICA EL ALCANCE, ENTRE LOS DOS TURNOS DEL MISMO HILO: se revoca
-        // el único rol de carrera del coordinador. `identity.asistente_materias_visibles()`
-        // le deja de devolver la materia referenciada.
+        // SE ACHICA EL ALCANCE, ENTRE LOS DOS TURNOS DEL MISMO HILO: se revoca el único rol de
+        // carrera del coordinador.
         await EjecutarAsync(
             "UPDATE identity.user_roles SET deleted_at = now() WHERE user_id = @actor AND carrera_id IS NOT NULL",
             ("actor", Coordinador));
@@ -1104,10 +1070,9 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             consultasAnteriores: [primero.SqlEjecutado!],
             referenciasHeredadas: primero.ReferenciasEjecutadas);
 
-        // NUNCA "Respondida" con filas de una materia que el actor ya no
-        // alcanza: el marcador heredado se cae de lo declarado, y el validador
-        // rechaza la consulta que lo reusa igual que a cualquier marcador
-        // inventado — la misma abstención, nunca datos fuera de alcance.
+        // NUNCA "Respondida" con filas de una materia que el actor ya no alcanza: el marcador
+        // heredado se cae de lo declarado, y el validador rechaza la consulta que lo reusa igual
+        // que a cualquier marcador inventado — la misma abstención, nunca datos fuera de alcance.
         Assert.NotEqual(EstadoDelTurno.Respondida, segundo.Estado);
         Assert.Empty(segundo.Filas);
     }
@@ -1144,9 +1109,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente { TopeDeFilas = tope });
 
-        // El proveedor va envuelto en el decorador del techo, igual que en la
-        // composición del Host: probar el carril con el proveedor pelado dejaría
-        // sin ejercitar la cota de costo.
+        // El proveedor va envuelto en el decorador del techo, igual que en la composición del Host:
+        // probar el carril con el proveedor pelado dejaría sin ejercitar la cota de costo.
         var contadorDelTurno = contador ?? new ContadorDeLlamadasDelTurno(
             new OpcionesAsistente().MaximoDeLlamadasPorTurno);
         var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contadorDelTurno);

@@ -4,12 +4,8 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Lo que se le agrega al resultado al salir: posiciones en el texto, principal y
-/// áreas de datos.
+/// Lo que se le agrega al resultado al salir: posiciones en el texto, principal y áreas de datos.
 /// </summary>
-/// <remarks>
-/// Sin base ni modelo: <c>CierreDelTurno</c> es estático y recibe lo que necesita.
-/// </remarks>
 public sealed class CierreDelTurnoTests
 {
     private static readonly IReadOnlyList<IReadOnlyList<object?>> UnaFila = [["2026-9005", "devuelto"]];

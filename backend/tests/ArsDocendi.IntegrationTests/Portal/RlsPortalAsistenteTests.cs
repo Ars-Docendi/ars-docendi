@@ -4,16 +4,9 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Portal;
 
 /// <summary>
-/// Las policies de RLS que acotan el portal para el asistente.
+/// Las policies de RLS que acotan el portal para el asistente. El rol descartable es <c>NOSUPERUSER
+/// NOBYPASSRLS</c> a propósito: sin las dos cosas, todo pasaría en verde sin que ninguna policy se evaluara.
 /// </summary>
-/// <remarks>
-/// <b>El predicado se prueba con un rol DESCARTABLE, y el estado desplegado con los
-/// roles REALES.</b> Son dos preguntas distintas: la policy se puede verificar sin
-/// depender de qué se concedió, y lo que hay que verificar del sistema tal como
-/// queda es que el GRANT no haya abierto el padrón. El rol descartable es
-/// <c>NOSUPERUSER NOBYPASSRLS</c> a propósito: sin las dos cosas, todo pasaría en
-/// verde sin que ninguna policy se evaluara.
-/// </remarks>
 public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "portal_rls")
 {
@@ -65,11 +58,8 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
 
         Assert.Equal(6, predicados.Count);
 
-        // El predicado se mudó a `identity.asistente_alcanza_a`, así que lo que cada
-        // policy tiene que nombrar es ESA función y no las dos de antes. La
-        // propiedad no cambió: la policy hija sigue invocando el predicado completo
-        // por su cuenta, y no depende de que la del padre se aplique adentro de su
-        // subconsulta.
+        // El predicado se mudó a `identity.asistente_alcanza_a`, así que lo que cada policy tiene
+        // que nombrar es ESA función y no las dos de antes.
         Assert.All(predicados, qual =>
             Assert.Contains("asistente_alcanza_a", qual, StringComparison.Ordinal));
     }
@@ -159,9 +149,8 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     [Fact]
     public async Task El_vocabulario_de_habilidades_sigue_al_alcance_de_quien_las_declaro()
     {
-        // `portal.habilidades` no tiene dueño propio: se ve un término si alguien a
-        // quien el actor ya alcanza lo declaró. Para el actor sin permiso eso son sus
-        // propias habilidades, que es coherente — el vocabulario que ve es el suyo.
+        // `portal.habilidades` no tiene dueño propio: se ve un término si alguien a quien el actor
+        // ya alcanza lo declaró.
         await PrepararAsync();
         await SembrarHabilidadDeOtroAsync();
 
@@ -196,13 +185,9 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_GRANT_puesto_el_asistente_no_ve_ningun_perfil_ajeno()
     {
-        // ES LA VERIFICACIÓN DE QUE CONCEDER PORTAL NO ABRIÓ EL PADRÓN, y va con los
-        // roles REALES del asistente y no con el descartable: acá lo que se prueba no
-        // es el predicado sino el estado del sistema tal como queda desplegado.
-        //
-        // El GRANT da acceso a las tablas; el permiso `portal.ver_trayectoria_ajena`
-        // da acceso a las filas ajenas, y está concedido A NADIE. Mientras siga así,
-        // cada actor ve exactamente su propio perfil.
+        // ES LA VERIFICACIÓN DE QUE CONCEDER PORTAL NO ABRIÓ EL PADRÓN, y va con los roles REALES
+        // del asistente y no con el descartable: acá lo que se prueba no es el predicado sino el
+        // estado del sistema tal como queda desplegado.
         await SembrarAsync();
 
         var total = await ContarComoDuenoAsync("portal.perfiles");
@@ -238,10 +223,8 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     [Fact]
     public async Task El_asistente_no_llega_a_las_tablas_que_no_se_le_conceden()
     {
-        // La otra mitad de la frontera: contacto personal, CV y proyectos no se
-        // conceden, así que el motor rechaza antes de evaluar ninguna policy. Es
-        // permission denied y no cero filas, que es la diferencia entre una tabla
-        // fuera de alcance y una vacía.
+        // La otra mitad de la frontera: contacto personal, CV y proyectos no se conceden, así que
+        // el motor rechaza antes de evaluar ninguna policy.
         await SembrarAsync();
 
         foreach (var tabla in new[] { "contactos", "cvs", "proyectos", "proyecto_documentos" })

@@ -6,15 +6,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica los comentarios de esquema y el prefijo del prompt (RNF-14).
-/// </summary>
-/// <remarks>
-/// Los <c>COMMENT ON</c> y el prefijo se prueban juntos porque son una sola cosa
-/// vista desde dos lados: los comentarios son el contenido y el prefijo es cómo
-/// llega al modelo. Un test que verificara el prefijo con comentarios de mentira
-/// diría que el renderizador funciona, no que el asistente entiende el esquema.
-/// </remarks>
+/// <summary>Verifica los comentarios de esquema y el prefijo del prompt (RNF-14).</summary>
 public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_prefijo")
 {
@@ -41,21 +33,14 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     [Fact]
     public async Task La_busqueda_de_comentarios_cubre_todo_schema_que_el_manifiesto_expone()
     {
-        // ESTE TEST CUIDA A LOS DOS DE ARRIBA. Ellos recorren las tablas concedidas y
-        // las buscan en un diccionario; si el diccionario se arma con una lista de
-        // schemas escrita a mano, una tabla concedida de un schema que la lista no
-        // nombra aparece como «sin comentario» AUNQUE LO TENGA. El mensaje manda a
-        // escribir un comentario que ya está escrito, y nadie encuentra el problema
-        // hasta que lo busca en la consulta y no en el esquema.
-        //
-        // Se afirma la cobertura y no la lista: que para cada schema expuesto con
-        // tablas comentadas en la base, el diccionario traiga alguna.
+        // ESTE TEST CUIDA A LOS DOS DE ARRIBA. Ellos recorren las tablas concedidas y las buscan en
+        // un diccionario; si el diccionario se arma con una lista de schemas escrita a mano, una
+        // tabla concedida de un schema que la lista no nombra aparece como «sin comentario» AUNQUE LO TENGA.
         var comentadas = await ComentariosDeTablaAsync();
 
-        // ITERA EL MANIFIESTO Y NO EL HELPER, a propósito. Recorrer `SchemasExpuestos()`
-        // haría el test autorreferencial: quien achicara esa lista achicaría también lo
-        // que el test verifica, y seguiría en verde. El manifiesto es la fuente contra
-        // la que hay que contrastar.
+        // ITERA EL MANIFIESTO Y NO EL HELPER, a propósito. Recorrer `SchemasExpuestos()` haría el
+        // test autorreferencial: quien achicara esa lista achicaría también lo que el test
+        // verifica, y seguiría en verde.
         foreach (var schema in Manifiesto.Cargar().SchemasExpuestos)
         {
             var enLaBase = await ContarTablasComentadasAsync(schema);
@@ -111,9 +96,8 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     [Fact]
     public async Task Los_comentarios_nombran_sinonimos_del_dominio()
     {
-        // No es cosmética: sin los sinónimos, «cuántos profesores tiene
-        // Algoritmos» no encuentra identity.personas, porque «profesor» no
-        // aparece en ningún identificador del esquema.
+        // No es cosmética: sin los sinónimos, «cuántos profesores tiene Algoritmos» no encuentra
+        // identity.personas, porque «profesor» no aparece en ningún identificador del esquema.
         var comentarios = await ComentariosDeTablaAsync();
 
         Assert.Contains("docente", comentarios["identity.personas"], StringComparison.OrdinalIgnoreCase);
@@ -124,9 +108,8 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     [Fact]
     public async Task Los_comentarios_advierten_las_colisiones_del_dominio()
     {
-        // El detector de ambigüedad —épica posterior— existe porque los nombres de
-        // materia se repiten entre carreras y los apellidos entre personas. El
-        // modelo tiene que saberlo desde el prompt, o va a resolver por su cuenta.
+        // El detector de ambigüedad —épica posterior— existe porque los nombres de materia se
+        // repiten entre carreras y los apellidos entre personas.
         var columnas = await ComentariosDeColumnaAsync();
 
         Assert.Contains("repite", columnas["identity.materias.name"], StringComparison.OrdinalIgnoreCase);
@@ -409,9 +392,8 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_bloque_del_glosario_es_el_mismo_en_el_prefijo_basico_y_en_el_de_datos_personales()
     {
-        // El glosario sólo puede nombrar columnas del rol básico, así que no hay nada
-        // que distinga un prefijo del otro en su bloque. Los prefijos SÍ difieren en
-        // las columnas personales: por eso se compara el bloque y no el prefijo.
+        // El glosario sólo puede nombrar columnas del rol básico, así que no hay nada que distinga
+        // un prefijo del otro en su bloque.
         var basico = await PrefijoConGlosarioAsync(conDatosPersonales: false);
         var personal = await PrefijoConGlosarioAsync(conDatosPersonales: true);
 
@@ -470,10 +452,9 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_codigo_que_el_prefijo_ensena_a_escribir_se_ejecuta()
     {
-        // `codigo` es SMALLINT y el prefijo lo lista como texto: '3'. PostgreSQL
-        // resuelve el literal sin tipo contra la columna, y esto lo prueba contra la
-        // base real con el rol del asistente, para que un modelo que copie la forma
-        // no aprenda un filtro que falla.
+        // `codigo` es SMALLINT y el prefijo lo lista como texto: '3'. PostgreSQL resuelve el
+        // literal sin tipo contra la columna, y esto lo prueba contra la base real con el rol del
+        // asistente, para que un modelo que copie la forma no aprenda un filtro que falla.
         var esquema = await PrefijoConGlosarioAsync(conDatosPersonales: false);
         Assert.Contains("'3'", esquema.Prefijo, StringComparison.Ordinal);
 
@@ -517,21 +498,7 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     private Task<Modules.Asistente.Application.EsquemaParaPrompt> PrefijoAsync(bool conDatosPersonales) =>
         ProveedorNuevo().ObtenerAsync(conDatosPersonales, TestContext.Current.CancellationToken);
 
-    /// <summary>
-    /// Los schemas que el manifiesto declara expuestos.
-    /// </summary>
-    /// <remarks>
-    /// SE DERIVAN, NO SE ESCRIBEN. La lista estuvo clavada como
-    /// <c>IN ('identity', 'designaciones')</c>, y eso deja a los tests que exigen
-    /// comentarios sin ver las tablas de cualquier schema nuevo: los COMMENT podrían
-    /// faltar por completo y la suite pasaría en verde. Y cuando finalmente fallara,
-    /// fallaría apuntando al lugar equivocado — alguien leería «faltan comentarios en
-    /// portal.X» teniéndolos escritos, porque el filtro los excluía de la consulta
-    /// que los busca.
-    ///
-    /// Filtrar donde habría que afirmar es lo que deja un test sin filo. Es el mismo
-    /// criterio que la cuarta dirección del manifiesto.
-    /// </remarks>
+    /// <summary>Los schemas que el manifiesto declara expuestos.</summary>
     private static string[] SchemasExpuestos() => [.. Manifiesto.Cargar().SchemasExpuestos];
 
     private async Task<IReadOnlyDictionary<string, string>> ComentariosDeTablaAsync() =>

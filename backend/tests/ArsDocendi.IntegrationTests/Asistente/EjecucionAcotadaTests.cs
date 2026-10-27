@@ -7,21 +7,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la ejecución envuelta de la consulta generada.
-/// </summary>
-/// <remarks>
-/// Tres capas independientes, y cada test mira una: el rol sin privilegios de
-/// mutación, la transacción <c>READ ONLY</c> y las policies con el actor fijado
-/// transaction-local. El validador es una cuarta que corre antes y se prueba
-/// aparte, en memoria.
-///
-/// Los conteos esperados se derivan del seed con la conexión del dueño —exenta de
-/// las policies—, no se fijan a mano: un literal ata el test a la edición de turno
-/// del seed. El actor acotado es el jefe de cátedra y no el coordinador porque el
-/// seed dejó de tener pedidos fuera de Informática: contra el coordinador el conteo
-/// acotado y el global coinciden, y entonces el test no distinguiría nada.
-/// </remarks>
+/// <summary>Verifica la ejecución envuelta de la consulta generada.</summary>
 public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_ejecucion")
 {
@@ -34,10 +20,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     private static readonly Guid MateriaIngenieriaDeSoftware = Guid.Parse("70000000-0000-4000-8000-000000000101");
 
     /// <summary>Identificador del directorio externo de la secretaria.</summary>
-    /// <remarks>
-    /// Es el par exacto del anterior: el mismo usuario, visto por el proveedor de
-    /// identidad. Los dos son UUID, así que confundirlos compila y ejecuta.
-    /// </remarks>
     private static readonly Guid OidDeAzure = Guid.Parse("a9000000-0000-4000-8000-000000000004");
 
     private const string ContarPedidos = "SELECT count(*) AS cantidad FROM designaciones.pedidos";
@@ -47,13 +29,10 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Comparar_un_nombre_sin_tilde_solo_encuentra_con_unaccent()
     {
-        // LA GARANTÍA DE LA QUE DEPENDE LA REGLA DEL PROMPT. Se le pide al modelo
-        // que compare texto libre con `public.unaccent` de los dos lados; esto fija
-        // que el rol de solo lectura del asistente REALMENTE pueda hacerlo —schema
-        // `public` alcanzable con `search_path` vacío, extensión creada, EXECUTE
-        // concedido—. Si alguna de esas tres se cayera, el prompt seguiría pidiendo
-        // una consulta que el motor rechaza, y el síntoma sería idéntico al defecto
-        // que la regla vino a arreglar.
+        // LA GARANTÍA DE LA QUE DEPENDE LA REGLA DEL PROMPT. Se le pide al modelo que compare texto
+        // libre con `public.unaccent` de los dos lados; esto fija que el rol de solo lectura del
+        // asistente REALMENTE pueda hacerlo —schema `public` alcanzable con `search_path` vacío,
+        // extensión creada, EXECUTE concedido—.
         await SembrarAsync();
 
         const string Cruda =
@@ -106,10 +85,8 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         var todos = await ContarPedidosDelSeedAsync("TRUE");
         var deLaMateria = await ContarPedidosDeLasMateriasDeAsync(Jefe);
 
-        // Con un ajuste de sesión en vez de transaction-local, el segundo turno
-        // habría heredado el actor del primero y contestado el conteo global. Ese
-        // fallo no tira error: responde con el alcance equivocado. Por eso los dos
-        // conteos tienen que ser DISTINTOS para que este test signifique algo.
+        // Con un ajuste de sesión en vez de transaction-local, el segundo turno habría heredado el
+        // actor del primero y contestado el conteo global.
         Assert.True(deLaMateria < todos);
         Assert.Equal(todos, primero.Filas[0][0]);
         Assert.Equal(deLaMateria, segundo.Filas[0][0]);
@@ -162,10 +139,9 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         var perfiles = Perfiles();
         var ct = TestContext.Current.CancellationToken;
 
-        // El coordinador no es global: aunque tuviera el permiso, no le
-        // corresponde la conexión con datos personales. identity.personas no tiene
-        // RLS, así que con esa conexión leería documento y teléfono de todo el
-        // padrón — algo que la interfaz le niega.
+        // El coordinador no es global: aunque tuviera el permiso, no le corresponde la conexión con
+        // datos personales. identity.personas no tiene RLS, así que con esa conexión leería
+        // documento y teléfono de todo el padrón — algo que la interfaz le niega.
         Assert.False((await perfiles.ObtenerAsync(Coordinador, ct)).VeDatosPersonales);
     }
 
@@ -176,17 +152,8 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        // El validador ya habría rechazado esto. Se prueba igual porque la
-        // garantía tiene que valer AUNQUE el validador falle entero.
-        //
-        // Resultado adicional que vale la pena dejar escrito: la envoltura en
-        // subconsulta hace estructuralmente imposible colar DML. PostgreSQL admite
-        // una CTE que modifica datos solo en el nivel superior de la sentencia, y
-        // acá siempre queda adentro de un SELECT ... FROM (...). Ni siquiera llega
-        // a la capa de solo lectura.
-        // La excepción sale del ejecutor ya traducida al tipo del módulo: el carril
-        // no atrapa `PostgresException`, porque la capa que decide qué contestarle
-        // a una persona no conoce el driver de la base.
+        // El validador ya habría rechazado esto. Se prueba igual porque la garantía tiene que valer
+        // AUNQUE el validador falle entero.
         await Assert.ThrowsAnyAsync<FallaDeLaConsulta>(() =>
             EjecutarAsync(
                 "SELECT 1 AS uno",
@@ -202,9 +169,8 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        // La primera capa, sin ninguna de las otras: conexión directa del rol, sin
-        // envoltura, sin transacción de solo lectura, sin validador. Si esto
-        // pasara, todo lo demás sería decoración.
+        // La primera capa, sin ninguna de las otras: conexión directa del rol, sin envoltura, sin
+        // transacción de solo lectura, sin validador.
         await using var conexion = await AbrirConexionComoAsistenteAsync(false);
         await using var comando = new NpgsqlCommand(
             "DELETE FROM designaciones.pedidos", conexion);
@@ -220,9 +186,8 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        // La segunda capa, aislada de la primera: se usa una tabla temporal, que el
-        // rol SÍ podría crear si la transacción no fuera de solo lectura. Así el
-        // rechazo lo produce READ ONLY y no la falta de privilegio.
+        // La segunda capa, aislada de la primera: se usa una tabla temporal, que el rol SÍ podría
+        // crear si la transacción no fuera de solo lectura.
         var excepcion = await Assert.ThrowsAsync<PostgresException>(async () =>
         {
             var ct = TestContext.Current.CancellationToken;
@@ -262,9 +227,8 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         var resultado = await EjecutarAsync(
             "SELECT current_setting('statement_timeout') AS tope", Secretaria);
 
-        // No el valor por omisión del servidor, que es cero: sin él, una consulta
-        // con producto cartesiano ocuparía un backend mucho después de que el
-        // cliente se haya ido.
+        // No el valor por omisión del servidor, que es cero: sin él, una consulta con producto
+        // cartesiano ocuparía un backend mucho después de que el cliente se haya ido.
         Assert.NotEqual("0", resultado.Filas[0][0]);
     }
 
@@ -290,9 +254,7 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         var resultado = await EjecutarAsync(
             "SELECT numero FROM designaciones.pedidos ORDER BY numero", Secretaria, tope: 8);
 
-        // Ocho filas y tope ocho: la fila sonda —la novena— no existe, así que no
-        // hubo recorte. Con un límite exacto este caso sería indistinguible del
-        // siguiente.
+        // Ocho filas y tope ocho: la fila sonda —la novena— no existe, así que no hubo recorte.
         Assert.Equal(8, resultado.Filas.Count);
         Assert.False(resultado.Truncado);
     }
@@ -365,8 +327,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
             Secretaria);
 
         // Ésta es la forma que no es obvia: la consulta devuelve UNA fila, no cero.
-        // Un guard que solo mirara el conteo la daría por resultado con datos y la
-        // redacción hablaría de un máximo que no existe.
         Assert.Single(resultado.Filas);
         Assert.Null(resultado.Filas[0][0]);
         Assert.True(resultado.EstaVacio);
@@ -415,9 +375,8 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     {
         var consulta = escrituraAdicional is null
             ? sql
-            // La escritura va DENTRO de la envoltura, en una CTE que el ejecutor no
-            // inspecciona: es la forma de llegar al motor sin pasar por el
-            // validador, que es justamente lo que hay que probar.
+            // La escritura va DENTRO de la envoltura, en una CTE que el ejecutor no inspecciona: es
+            // la forma de llegar al motor sin pasar por el validador, que es justamente lo que hay que probar.
             : $"""
               WITH escritura AS ({escrituraAdicional})
               {sql}
@@ -428,14 +387,9 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Cuenta pedidos con la conexión del dueño —exenta de las policies— y el
-    /// predicado de ámbito escrito acá, para usarlo como expectativa.
+    /// Cuenta pedidos con la conexión del dueño —exenta de las policies— y el predicado de ámbito
+    /// escrito acá, para usarlo como expectativa.
     /// </summary>
-    /// <remarks>
-    /// No es tautológico: el predicado se reescribe desde la definición del ámbito
-    /// en vez de pasar por <c>identity.asistente_materias_visibles()</c>, que es
-    /// justamente lo que se está probando.
-    /// </remarks>
     private async Task<long> ContarPedidosDelSeedAsync(string filtro, Guid? ambito = null)
     {
         await using var conexion = await AbrirConexionAsync();
@@ -456,14 +410,10 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Los pedidos de TODAS las materias donde el actor tiene un rol vigente.
+    /// Los pedidos de TODAS las materias donde el actor tiene un rol vigente. El seed le da al jefe
+    /// de cátedra más de una, y contar sólo la primera hacía que el test midiera menos de lo que la
+    /// policy deja ver — o sea que fallara con la RLS funcionando perfecto.
     /// </summary>
-    /// <remarks>
-    /// Reemplaza a clavar una materia. El seed le da al jefe de cátedra más de una,
-    /// y contar sólo la primera hacía que el test midiera menos de lo que la policy
-    /// deja ver — o sea que fallara con la RLS funcionando perfecto. La pregunta
-    /// correcta es la que hace la policy: «los pedidos de las materias del actor».
-    /// </remarks>
     private Task<long> ContarPedidosDeLasMateriasDeAsync(Guid actor) =>
         ContarPedidosDelSeedAsync(
             "m.id IN (SELECT ur.materia_id FROM identity.user_roles ur "
@@ -471,16 +421,7 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
             + "AND ur.deleted_at IS NULL)",
             actor);
 
-    /// <summary>
-    /// Deja al actor con UNA sola materia a cargo, dando de baja el resto.
-    /// </summary>
-    /// <remarks>
-    /// La premisa de estos tests es «un actor de ámbito de una materia ve menos que
-    /// uno global». El seed le da al jefe de cátedra varias, y con todas llega a ver
-    /// lo mismo que el global — así que la premisa se cae y el test falla SIN que
-    /// nada esté roto. Acotarlo acá hace que la premisa sea del test y no del seed,
-    /// que es lo que la vuelve confiable.
-    /// </remarks>
+    /// <summary>Deja al actor con UNA sola materia a cargo, dando de baja el resto.</summary>
     private async Task AcotarAUnaSolaMateriaAsync(Guid actor)
     {
         await EjecutarAsync(

@@ -3,13 +3,9 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica la validación del término candidato de un rechazo (design.md D3
-/// de asistente-rechazos-dinamicos).
+/// Verifica la validación del término candidato de un rechazo (design.md D3 de
+/// asistente-rechazos-dinamicos).
 /// </summary>
-/// <remarks>
-/// El modelo propone; acá se comprueba que el código re-copia — nunca la
-/// cadena del modelo tal cual, siempre un span de lo que el usuario tipeó.
-/// </remarks>
 public sealed class TerminoDelRechazoTests
 {
     [Fact]

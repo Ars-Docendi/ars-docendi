@@ -12,22 +12,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El grabador va por FUERA del reintento, y eso se puede afirmar.
-/// </summary>
-/// <remarks>
-/// En <c>AddHttpMessageHandler</c> el orden de registración es de afuera hacia
-/// adentro, así que el pipeline queda
-/// <c>adaptador → grabador → reintento → transporte</c>. Con ese orden el grabador
-/// ve <b>una solicitud por llamada lógica</b> y la respuesta que el reintento
-/// resolvió: la que el pipeline efectivamente le devolvió al adaptador.
-///
-/// Del lado de adentro grabaría también los fallos —con ellos el 429 y el 503
-/// verdaderos del proveedor—, y se descarta por tres cosas: rompe la identidad del
-/// cassette (los cuatro campos de la clave son iguales en los tres intentos),
-/// reproducir un fallo reproduciría la espera, y no cubre nada que
-/// <c>ReintentoYTechoTests</c> no cubra ya.
-/// </remarks>
+/// <summary>El grabador va por FUERA del reintento, y eso se puede afirmar.</summary>
 public sealed class OrdenDelGrabadorTests : IDisposable
 {
     private const string Fixture = "hash-del-fixture-vigente";
@@ -77,10 +62,9 @@ public sealed class OrdenDelGrabadorTests : IDisposable
 
         (await EnviarAsync(primero, regrabar: true)).Dispose();
 
-        // El segundo pipeline tiene un backoff de treinta segundos y un transporte
-        // que pide otros treinta de espera: si la reproducción llegara hasta ahí, el
-        // test tardaría media hora en vez de un instante. Una suite que duerme por
-        // un cassette es una suite que alguien va a apagar.
+        // El segundo pipeline tiene un backoff de treinta segundos y un transporte que pide otros
+        // treinta de espera: si la reproducción llegara hasta ahí, el test tardaría media hora en
+        // vez de un instante.
         using var segundo = new TransporteFalso(_ => Rechazo());
         var reloj = Stopwatch.StartNew();
 
@@ -110,14 +94,7 @@ public sealed class OrdenDelGrabadorTests : IDisposable
 
     // ------------------------------------------------------------------ apoyo
 
-    /// <summary>
-    /// Los handlers PROPIOS del cliente con nombre, de afuera hacia adentro.
-    /// </summary>
-    /// <remarks>
-    /// La fábrica intercala los suyos —seguimiento de vida útil y registro— y no
-    /// son asunto de este módulo. Lo que se afirma es el orden de los nuestros, que
-    /// es la decisión que este test cuida.
-    /// </remarks>
+    /// <summary>Los handlers PROPIOS del cliente con nombre, de afuera hacia adentro.</summary>
     internal static IReadOnlyList<Type> HandlersDelCliente(IServiceProvider raiz)
     {
         var handler = raiz.GetRequiredService<IHttpMessageHandlerFactory>()

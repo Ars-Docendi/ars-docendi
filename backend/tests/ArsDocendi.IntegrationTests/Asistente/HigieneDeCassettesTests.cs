@@ -5,20 +5,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Ningún cassette versionado lleva la credencial ni datos personales reales.
-/// </summary>
-/// <remarks>
-/// Los dos hechos quedan <b>verificados y no supuestos</b>, que es la diferencia
-/// entre una garantía y una convención. La convención se cumple hasta que alguien
-/// grabe contra su base de desarrollo con datos importados, o hasta que un cambio
-/// del formato del sobre empiece a arrastrar cabeceras.
-///
-/// Cada guard viene en par, con el mismo criterio que
-/// <c>ArquitecturaAsistenteTests</c>: uno corre sobre los cassettes reales y el
-/// otro alimenta al mismo detector con una violación sintética. Sin el segundo,
-/// un detector roto —una regex que no matchea nada— pasaría en verde para siempre.
-/// </remarks>
+/// <summary>Ningún cassette versionado lleva la credencial ni datos personales reales.</summary>
 public sealed partial class HigieneDeCassettesTests
 {
     // ------------------------------------------------------------- la credencial
@@ -28,10 +15,8 @@ public sealed partial class HigieneDeCassettesTests
     {
         var archivos = Cassettes();
 
-        // El sobre guarda el cuerpo de la RESPUESTA, y las cabeceras de la solicitud
-        // no entran nunca: que la clave no pueda filtrarse a disco es estructural. Lo
-        // que este guard cuida es que siga siéndolo — una credencial commiteada no se
-        // arregla borrándola después, porque queda en el historial para siempre.
+        // El sobre guarda el cuerpo de la RESPUESTA, y las cabeceras de la solicitud no entran
+        // nunca: que la clave no pueda filtrarse a disco es estructural.
         Assert.NotEmpty(archivos);
 
         var culpables = archivos
@@ -84,9 +69,7 @@ public sealed partial class HigieneDeCassettesTests
             .Select(cassette => cassette.Archivo)
             .ToList();
 
-        // Es lo que convierte «se graba contra el fixture sintético» de convención en
-        // chequeo. Importa sobre todo por los cassettes de redacción, que llevan filas
-        // adentro: enmascaradas, pero filas.
+        // Es lo que convierte «se graba contra el fixture sintético» de convención en chequeo.
         Assert.True(
             ajenos.Count == 0,
             $"Hay cassettes grabados contra otro fixture (el vigente es {vigente}). "
@@ -112,10 +95,9 @@ public sealed partial class HigieneDeCassettesTests
     [Fact]
     public void Las_piezas_del_mecanismo_no_nombran_el_SDK_del_proveedor()
     {
-        // El grabador ve cuerpos HTTP, no tipos de la librería. Es lo que permitió
-        // sumar el mecanismo sin ampliar la excepción del guard general
-        // —`El_SDK_del_proveedor_se_nombra_en_un_solo_archivo`—, que sigue teniendo
-        // un solo archivo eximido.
+        // El grabador ve cuerpos HTTP, no tipos de la librería. Es lo que permitió sumar el
+        // mecanismo sin ampliar la excepción del guard general
+        // —`El_SDK_del_proveedor_se_nombra_en_un_solo_archivo`—, que sigue teniendo un solo archivo eximido.
         string[] piezas =
         [
             "GrabadorDeCassettes.cs",
@@ -145,15 +127,7 @@ public sealed partial class HigieneDeCassettesTests
                 .OrderBy(ruta => ruta, StringComparer.Ordinal)
                 .Select(ruta => new Archivo(Path.GetFileName(ruta), File.ReadAllText(ruta)))];
 
-    /// <summary>
-    /// La forma de una credencial del proveedor, o de la cabecera que la lleva.
-    /// </summary>
-    /// <remarks>
-    /// Busca las tres formas en que podría aparecer: el prefijo con que el proveedor
-    /// emite sus claves, el nombre de la cabecera en que viajan, y un portador
-    /// genérico. Ninguna de las tres tiene por qué estar en un cassette, que guarda
-    /// el cuerpo de una respuesta.
-    /// </remarks>
+    /// <summary>La forma de una credencial del proveedor, o de la cabecera que la lleva.</summary>
     [GeneratedRegex(
         @"sk-ant-[A-Za-z0-9_\-]{6,}|x-api-key|\bBearer\s+[A-Za-z0-9._\-]{10,}",
         RegexOptions.IgnoreCase)]

@@ -3,8 +3,7 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// La lectura del <c>/metrics</c> del servidor local
-/// (asistente-optimizaciones-modelo-local, design.md D8).
+/// La lectura del <c>/metrics</c> del servidor local (asistente-optimizaciones-modelo-local, design.md D8).
 /// </summary>
 public sealed class TelemetriaDelServidorLocalTests
 {

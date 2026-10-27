@@ -12,18 +12,9 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica la frontera de salida contra una base real: que la clasificación se
-/// resuelva por los identificadores del motor y que ningún dato personal llegue al
-/// prompt de redacción.
+/// Verifica la frontera de salida contra una base real: que la clasificación se resuelva por los
+/// identificadores del motor y que ningún dato personal llegue al prompt de redacción.
 /// </summary>
-/// <remarks>
-/// Lo que <see cref="EnmascaradorTests"/> no puede probar en memoria es
-/// justamente lo que hace que el mecanismo funcione: que el motor reporte el
-/// origen de cada columna, y que lo siga reportando a través de la envoltura en
-/// subconsulta con la que el ejecutor impone el límite de filas. Si eso no
-/// valiera, el enmascarador estaría clasificando todo como desconocido y tapando
-/// nada.
-/// </remarks>
 public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_mascara")
 {
@@ -114,9 +105,8 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         var catalogo = new CatalogoDeSensibilidad(Apertura, ManifiestoDeSensibilidad.Cargar());
         await catalogo.PrepararAsync(TestContext.Current.CancellationToken);
 
-        // Se comprueba a través de una consulta real: pedir las cuatro columnas y
-        // ver que las cuatro salen clasificadas. Afirmar sobre el diccionario
-        // interno probaría la estructura, no el efecto.
+        // Se comprueba a través de una consulta real: pedir las cuatro columnas y ver que las
+        // cuatro salen clasificadas.
         var resultado = await EjecutarAsync(
             "SELECT documento, cuil, telefono, fecha_nacimiento FROM identity.personas",
             Secretaria,
@@ -429,9 +419,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_actor_de_ambito_acotado_resuelve_a_la_conexion_basica()
     {
-        // La política de la aplicación es la puerta; el acotamiento se aplica
-        // después, en el controller. Sin exigir alcance global ADEMÁS del permiso,
-        // el asistente heredaría la puerta sin el acotamiento.
+        // La política de la aplicación es la puerta; el acotamiento se aplica después, en el controller.
         await SembrarAsync();
 
         var perfil = await new ConsultorDeAlcance(Apertura)

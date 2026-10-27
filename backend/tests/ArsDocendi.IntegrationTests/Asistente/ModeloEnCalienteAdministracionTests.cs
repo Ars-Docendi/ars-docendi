@@ -21,8 +21,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
 /// The model administration endpoints over real HTTP and a real database
-/// (asistente-modelo-en-caliente, slice 3: tasks 3.1-3.12 and 3.14). Every provider
-/// answer comes from a stubbed transport: no network, no real keys.
+/// (asistente-modelo-en-caliente, slice 3: tasks 3.1-3.12 and 3.14).
 /// </summary>
 public sealed class ModeloEnCalienteAdministracionTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_modelo_administracion")

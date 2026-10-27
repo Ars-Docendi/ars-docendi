@@ -6,26 +6,11 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// El perfil del actor, y en particular qué significa para él un resultado vacío.
+/// El perfil del actor, y en particular qué significa para él un resultado vacío. La policy de RLS
+/// conjuga los dos —<c>asistente_tiene_permiso</c> AND <c>asistente_materias_visibles</c>—, así que
+/// un actor de ámbito global sin el permiso de dominio ve cero filas exactamente igual que uno cuyo
+/// literal no matcheó.
 /// </summary>
-/// <remarks>
-/// LO QUE ESTOS TESTS EXISTEN PARA EVITAR. El carril usaba <c>EsGlobal</c> como
-/// sinónimo de «ve todo», y con eso decidía tres cosas: si vale la pena gastar el
-/// reintento sobre un resultado vacío, qué texto se le muestra a quien preguntó, y
-/// si el redactor recibe la regla de no afirmar ausencias.
-///
-/// El ámbito y el permiso son ejes <b>independientes</b>. La policy de RLS conjuga
-/// los dos —<c>asistente_tiene_permiso</c> AND <c>asistente_materias_visibles</c>—,
-/// así que un actor de ámbito global sin el permiso de dominio ve cero filas
-/// exactamente igual que uno cuyo literal no matcheó. Con <c>EsGlobal</c> como
-/// proxy, a ése el sistema le afirma «no encontré ningún registro»: una afirmación
-/// falsa sobre los datos, dicha con toda seguridad.
-///
-/// No es hipotético. La matriz de permisos es editable desde <c>/membresia-roles</c>
-/// sin migración —la propia siembra dice que es un default «PENDIENTE DE
-/// CONFIRMACIÓN CON EL CLIENTE»—, así que alcanza con que alguien le saque
-/// <c>designaciones.ver</c> a Secretaría para que el asistente empiece a mentirle.
-/// </remarks>
 public sealed class PerfilDelActorTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_perfil")
 {
@@ -40,14 +25,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
 
     private const string PermisoDeDominio = "designaciones.ver";
 
-    /// <summary>
-    /// Un segundo rol de ámbito GLOBAL, para el actor que tiene dos.
-    /// </summary>
-    /// <remarks>
-    /// Tiene que ser global: el schema exige `materia_id` y `carrera_id` en las
-    /// asignaciones de un rol de ámbito de materia, así que sumarle «docente» a
-    /// Secretaría no es un caso que la base admita.
-    /// </remarks>
+    /// <summary>Un segundo rol de ámbito GLOBAL, para el actor que tiene dos.</summary>
     private const string RolGlobalExtra = "observador_departamento";
 
     [Fact]
@@ -67,10 +45,8 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_actor_global_sin_el_permiso_de_dominio_NO_alcanza_todo()
     {
-        // ES EL CASO QUE ROMPÍA. El ámbito sigue siendo global —eso no cambió— pero
-        // sin el permiso la policy le devuelve cero filas de las cuatro tablas del
-        // trámite. Si el perfil dijera que alcanza todo, el carril interpretaría ese
-        // vacío como «no hay datos» y se lo diría así.
+        // ES EL CASO QUE ROMPÍA. El ámbito sigue siendo global —eso no cambió— pero sin el permiso
+        // la policy le devuelve cero filas de las cuatro tablas del trámite.
         await SembrarAsync();
         await QuitarPermisoDeDominioAsync();
 
@@ -98,9 +74,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     [Fact]
     public void El_texto_del_vacio_solo_afirma_ausencia_cuando_el_actor_alcanza_todo()
     {
-        // La política es pura, así que acá se prueba la decisión sin base: dado el
-        // booleano, qué se dice. Que el booleano se calcule bien lo prueban los tres
-        // de arriba.
+        // La política es pura, así que acá se prueba la decisión sin base: dado el booleano, qué se dice.
         var alcanzaTodo = PoliticaDeAbstencion.TextoDeResultadoVacio(true);
         var noAlcanza = PoliticaDeAbstencion.TextoDeResultadoVacio(false);
 
@@ -128,10 +102,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     [Fact]
     public async Task El_actor_con_un_solo_rol_vigente_lo_devuelve()
     {
-        // LA PRECONDICIÓN DE ESTE RENGLÓN: `CodigoDeRol` no lo cubría ninguna
-        // aserción contra la base. El único test que lo nombraba construía un
-        // `PerfilDelActor` a mano, así que la consulta que lo lee nunca se ejecutó
-        // en la suite. Sin esto, reescribirla es cambiar código que nadie mira.
+        // LA PRECONDICIÓN DE ESTE RENGLÓN: `CodigoDeRol` no lo cubría ninguna aserción contra la base.
         await SembrarAsync();
 
         var perfil = await Consultor().ObtenerAsync(
@@ -143,10 +114,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_dos_roles_vigentes_distintos_no_devuelve_ninguno()
     {
-        // La pregunta que la consulta contesta es «¿tiene UNO solo?», y su `LIMIT 2`
-        // existe para eso. Con dos roles distintos el valor tiene que ser nulo:
-        // `PresentacionPorRol` cae al saludo genérico en vez de prometerle a alguien
-        // el ámbito de un rol que es sólo la mitad de lo que es.
+        // La pregunta que la consulta contesta es «¿tiene UNO solo?», y su `LIMIT 2` existe para eso.
         await SembrarAsync();
         await SumarRolAsync(Secretaria, RolGlobalExtra);
 
@@ -195,12 +163,6 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     /// <summary>
     /// Le saca a todos los roles el permiso de dominio, dejando el ámbito intacto.
     /// </summary>
-    /// <remarks>
-    /// Se borra la fila de <c>rol_permisos</c> y no se toca <c>user_roles</c>: es lo
-    /// que hace que el actor siga siendo global y deje de ver, que es justamente la
-    /// combinación que el proxy no distinguía. Y es lo que alguien puede hacer desde
-    /// la superficie de administración sin migración ninguna.
-    /// </remarks>
     private async Task QuitarPermisoDeDominioAsync()
     {
         await using var conexion = await AbrirConexionAsync();
@@ -220,13 +182,8 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     [Fact]
     public async Task Decanato_alcanza_los_datos_personales_del_padron()
     {
-        // Decanato es la autoridad de aprobación final y necesita el contacto de un
-        // docente para resolver un trámite. Es global, así que sólo le faltaba
-        // `usuarios.ver` — la conjunción que abre la conexión con datos personales.
-        //
-        // Se afirma sobre el PERFIL RESUELTO y no sobre la fila de rol_permisos: lo
-        // que importa no es que el INSERT esté, sino que el actor termine con la
-        // conexión que puede leer teléfono y mail.
+        // Decanato es la autoridad de aprobación final y necesita el contacto de un docente para
+        // resolver un trámite.
         await SembrarAsync();
 
         var perfil = await Consultor().ObtenerAsync(
@@ -239,10 +196,8 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     [Fact]
     public async Task Decanato_no_puede_administrar_usuarios()
     {
-        // LA MITAD QUE EL CAMBIO NO DEBE MOVER. `usuarios.ver` es de lectura; las
-        // escrituras van por `usuarios.administrar`. Si alguien concediera los dos
-        // «para simplificar», Decanato pasaría a poder dar de baja usuarios sin que
-        // nada lo señale.
+        // LA MITAD QUE EL CAMBIO NO DEBE MOVER. `usuarios.ver` es de lectura; las escrituras van
+        // por `usuarios.administrar`.
         await SembrarAsync();
 
         var permisos = new List<string>();

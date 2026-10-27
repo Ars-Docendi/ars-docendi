@@ -13,14 +13,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// Every failure or empty path of a turn records its cause on the analytic record
 /// (asistente-metricas-de-calidad, tasks 2.6, 2.7, 2.9 and 2.10).
 /// </summary>
-/// <remarks>
-/// One test per code, each through the real turn pipeline and the real writer
-/// against a real database: the cause has to travel as data from the path that
-/// produced it to <c>registro_analitico.causa</c>, never be re-derived from text.
-/// The <c>plan_invalido</c> path is asserted in <c>PlanCompiladoTests</c>, where the
-/// plan lane is composed; the 429/503 and runtime-selection paths, which need the
-/// real adapters, are in <c>CausasDelTurnoConAdaptadoresTests</c>.
-/// </remarks>
 public sealed class CausasDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_causas")
 {

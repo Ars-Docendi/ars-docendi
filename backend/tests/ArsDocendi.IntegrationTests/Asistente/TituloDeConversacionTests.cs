@@ -2,9 +2,7 @@ using Modules.Asistente.Application;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El auto-título de una conversación nueva, derivado de su primera pregunta.
-/// </summary>
+/// <summary>El auto-título de una conversación nueva, derivado de su primera pregunta.</summary>
 public sealed class TituloDeConversacionTests
 {
     [Fact]

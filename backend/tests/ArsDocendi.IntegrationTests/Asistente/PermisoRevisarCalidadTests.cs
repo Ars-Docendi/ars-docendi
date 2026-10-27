@@ -13,11 +13,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// <summary>
 /// The permission that lets someone review the anonymous list of problem answers.
 /// </summary>
-/// <remarks>
-/// It is seeded empty on purpose (design D5 of asistente-metricas-de-calidad):
-/// who may read question text is the Department's decision, not a seeding default.
-/// Not even <c>sys_admin</c> receives it.
-/// </remarks>
 public sealed class PermisoRevisarCalidadTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso_revisar_calidad")
 {

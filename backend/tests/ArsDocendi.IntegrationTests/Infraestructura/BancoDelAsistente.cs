@@ -8,20 +8,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Infraestructura;
 
-/// <summary>
-/// Arma la capa conversacional completa con un proveedor guionado.
-/// </summary>
-/// <remarks>
-/// Reproduce los alcances de la registración real, y esa es la única razón por la
-/// que existe en vez de tres líneas en cada test: el contador de llamadas es <b>por
-/// turno</b> y el breaker, la cuota y el almacén de hilos son <b>del proceso</b>.
-/// Un banco que compartiera el contador entre turnos haría que el segundo turno
-/// heredara el conteo del primero, y la cuota —que se cobra con ese número— cobraría
-/// de más acumulativamente.
-///
-/// Por eso <see cref="Capa"/> es una fábrica: cada llamada arma el turno de nuevo,
-/// como hace el contenedor con un request.
-/// </remarks>
+/// <summary>Arma la capa conversacional completa con un proveedor guionado.</summary>
 internal sealed class BancoDelAsistente
 {
     public required Func<CapaConversacional> Fabrica { get; init; }
@@ -63,9 +50,8 @@ internal sealed class BancoDelAsistente
     public required IRegistroDeHistorial Historial { get; init; }
 
     /// <summary>
-    /// The feedback token store, shared across turns — the same instance the
-    /// registered turn used to mint its token, so a test can build a feedback
-    /// endpoint call against a token that is actually live.
+    /// The feedback token store, shared across turns — the same instance the registered turn used
+    /// to mint its token, so a test can build a feedback endpoint call against a token that is actually live.
     /// </summary>
     public required IValidezDeRetroalimentacion ValidezDeRetroalimentacion { get; init; }
 
@@ -107,9 +93,7 @@ internal sealed class BancoDelAsistente
         var losVinculos = vinculos ?? new SinVinculos();
         var lasFichas = fichas ?? new SinFichas();
 
-        // El envoltorio permite meter un medidor entre el guionado y el pipeline. El
-        // eje social lo necesita: afirma «cero tokens de entrada», y ese número sale
-        // del transporte, no del resultado del turno.
+        // El envoltorio permite meter un medidor entre el guionado y el pipeline.
         var visto = envolver is null ? (IProveedorDeModelo)elProveedor : envolver(elProveedor);
 
         var breaker = new BreakerDelProveedor(
@@ -125,11 +109,9 @@ internal sealed class BancoDelAsistente
         var losHilos = hilos ?? new AlmacenDeHilosEnMemoria(opciones, elReloj);
         var elRegistro = registro ?? new RegistroEnMemoria();
         var elHistorial = historial ?? new HistorialEnMemoria();
-        // Reemplazo (design.md D9 de asistente-rediseno-v3): un test que
-        // verifica la revocación del token viejo necesita que las dos
-        // llamadas — la que lo mintea y la que lo reemplaza — consulten el
-        // MISMO almacén, igual que ya pasa en producción (un singleton del
-        // proceso).
+        // Reemplazo (design.md D9 de asistente-rediseno-v3): un test que verifica la revocación del
+        // token viejo necesita que las dos llamadas — la que lo mintea y la que lo reemplaza —
+        // consulten el MISMO almacén, igual que ya pasa en producción (un singleton del proceso).
         var validezDeRetroalimentacion =
             validezDeRetroalimentacionCompartida ?? new ValidezDeRetroalimentacionEnMemoria(opciones);
 
@@ -150,15 +132,8 @@ internal sealed class BancoDelAsistente
             identidad,
             NullLogger<CatalogoDeCapacidades>.Instance);
 
-        // El enrutador de dominio se comparte por el mismo motivo que el índice: su
-        // catálogo del dominio es un caché, y uno por turno no cachearía nada. Está
-        // en MODO SOMBRA —decide y el turno sigue por SQL igual—, así que agregarlo
-        // acá no cambia ninguna respuesta esperada de los tests que ya existían.
-        //
-        // El catálogo del dominio se puede sustituir: es la única forma honesta de
-        // correr la MISMA pregunta con captura y sin ella, que es como se prueba que
-        // el modo sombra no cambia ninguna respuesta. Colisionar la entidad no sirve,
-        // porque eso dispara el detector de ambigüedad y cambia el turno entero.
+        // El enrutador de dominio se comparte por el mismo motivo que el índice: su catálogo del
+        // dominio es un caché, y uno por turno no cachearía nada.
         var enrutador = new EnrutadorDeDominio(
             new ResolutorDeIntenciones(
                 CatalogoDeIntenciones.Cargar(),
@@ -236,33 +211,13 @@ internal sealed class BancoDelAsistente
     }
 
     /// <summary>
-    /// La fecha contra la que resuelven «el año pasado», «este cuatrimestre» y
-    /// demás.
+    /// La fecha contra la que resuelven «el año pasado», «este cuatrimestre» y demás.
     /// </summary>
-    /// <remarks>
-    /// Fija y compartida. Estaba escrita tres veces con dos valores distintos, y
-    /// dos tests del mismo grafo que resuelven fechas relativas de forma diferente
-    /// son dos sistemas. La del evaluador NO es ésta y no se toca: apunta
-    /// deliberadamente a <c>GeneradorDeFixture.Ancla</c>.
-    /// </remarks>
     internal static readonly DateOnly FechaDeReferencia = new(2026, 8, 25);
 
     /// <summary>
-    /// Arma el grafo del carril SQL: generador, ejecutor, alcance, redactor,
-    /// ejemplos y cobertura.
+    /// Arma el grafo del carril SQL: generador, ejecutor, alcance, redactor, ejemplos y cobertura.
     /// </summary>
-    /// <remarks>
-    /// Recibe ya construidos el ejecutor, el proveedor con techo y el contador
-    /// porque son las tres piezas que cada test necesita poder mirar o sustituir:
-    /// el contador es <b>por turno</b>, el techo es lo que se afirma cuando se
-    /// cuenta el costo, y el ejecutor lleva el clasificador de sensibilidad.
-    /// Todo el resto del grafo es igual en los tres sitios que lo armaban a mano.
-    ///
-    /// <paramref name="opcionesDelGenerador"/> va aparte a propósito: el redactor
-    /// se construye siempre con las opciones por defecto, y el generador no
-    /// —el banco le pasa las configuradas—. Unificar los dos cambiaría lo que los
-    /// tests ejercitan.
-    /// </remarks>
     internal static CarrilSql ArmarCarrilSql(
         CadenaSoloLectura basica,
         CadenaSoloLecturaPii conDatosPersonales,
@@ -292,9 +247,8 @@ internal sealed class BancoDelAsistente
             new ConsultorDeCobertura(apertura),
             new BuscadorDeMenciones(apertura),
             contador,
-            // Un catálogo real por omisión, sobre la misma base: un test que no
-            // pasa el suyo sigue pudiendo ejercitar un rechazo con áreas, en vez
-            // de forzar a cada llamador a construir uno a mano.
+            // Un catálogo real por omisión, sobre la misma base: un test que no pasa el suyo sigue
+            // pudiendo ejercitar un rechazo con áreas, en vez de forzar a cada llamador a construir uno a mano.
             capacidades ?? new CatalogoDeCapacidades(
                 apertura,
                 new ConsultorDeAlcance(apertura),

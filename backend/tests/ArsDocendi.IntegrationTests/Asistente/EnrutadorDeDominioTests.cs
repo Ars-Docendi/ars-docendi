@@ -10,24 +10,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// <summary>
 /// Verifica la decisión de carril y la tabla dorada sobre el corpus de evaluación.
 /// </summary>
-/// <remarks>
-/// <b>El corpus ajeno es la mitad que importa.</b> Que el enrutador capture lo que
-/// tiene que capturar lo prueban unos pocos casos; que no capture lo que no le
-/// corresponde no se puede probar con casos escritos a mano, porque uno escribe los
-/// que ya sabe que fallan. Por eso las preguntas salen de los datasets de
-/// evaluación: los escribió otra tarea con otro objetivo, así que son legítimas y
-/// ajenas al catálogo.
-///
-/// <b>Sobre ese corpus se fija una tabla dorada</b> —un archivo versionado con el
-/// mapeo ítem → intención capturada o nulo— en vez de un assert booleano. La
-/// diferencia no es de estilo: el booleano produce un veredicto y la tabla produce
-/// un número, que es lo que hace falta para fundamentar el pedido de los edges de
-/// ARS-46. Y ante una intención nueva legítima, el booleano sólo se podía satisfacer
-/// debilitándola; la tabla se actualiza y el diff muestra la decisión.
-///
-/// Todo esto cuesta <b>cero llamadas al modelo</b>: el enrutador es determinista y no
-/// tiene por dónde llamar.
-/// </remarks>
 public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_enrutador")
 {
@@ -96,25 +78,6 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
     public async Task El_mapeo_de_los_datasets_coincide_con_la_tabla_dorada()
     {
         // REEMPLAZA AL ASSERT BOOLEANO «ninguna se captura», y no convive con él.
-        // Los dos fallan en las mismas situaciones, pero ante un rojo piden arreglos
-        // opuestos: el booleano afirma «no captura ninguna» y ante una intención
-        // nueva legítima que DEBE capturar un ítem sólo se puede satisfacer
-        // debilitando la intención o sacando el ítem del dataset. La tabla afirma
-        // «captura exactamente esto», así que se actualiza la entrada y el diff
-        // muestra la decisión.
-        //
-        // Y produce un NÚMERO en vez de un veredicto: cuántos ítems del corpus
-        // captura el catálogo. Es la mitad del dato que fundamenta el pedido de los
-        // edges de ARS-46, y se obtiene hoy, sin tráfico real.
-        //
-        // CUESTA CERO LLAMADAS AL MODELO. No porque esta corrida no haya llamado sino
-        // porque el enrutador no tiene por dónde: lo sostiene
-        // `El_enrutador_no_recibe_por_donde_llamar_al_modelo`, sobre las dependencias.
-        //
-        // LA TABLA NO SE REGENERA COMO EFECTO DE CORRER ESTO. Se edita a mano y el
-        // diff del archivo es lo que se revisa. Si regenerar fuera automático, una
-        // intención demasiado laxa se absorbería sola en el primer commit que la
-        // causara y nada la detectaría nunca.
         await SembrarAsync();
 
         var dorada = await TablaDoradaAsync();
@@ -168,18 +131,9 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
     [Fact]
     public async Task Cada_parafrasis_decide_lo_mismo_que_su_pregunta_de_origen()
     {
-        // LA MITAD «CUÁNTAS VECES SE EQUIVOCA», Y SALE GRATIS. Cada ítem de
-        // robustez.json declara su `origen` en capacidad.json: es la MISMA pregunta
-        // dicha de otra manera —sin tildes, con un tipeo, con un sinónimo—, así que
-        // el enrutador tiene que decidir lo mismo para las dos. Capturar el fraseo
-        // canónico y no la paráfrasis, o al revés, es un error del enrutador medible
-        // hoy, sin tráfico real y sin una llamada al modelo.
-        //
-        // NO AFIRMA QUE LA INTENCIÓN CAPTURADA SEA LA CORRECTA para la pregunta. Los
-        // datasets llevan `sql_referencia`, no una intención esperada, y escribirla
-        // sería redactar la clave de respuestas de lo que se está midiendo. Lo único
-        // que se afirma acá es que las dos formas de preguntar lo mismo se deciden
-        // igual; la corrección de la elección la juzga un humano leyendo un diff.
+        // LA MITAD «CUÁNTAS VECES SE EQUIVOCA», Y SALE GRATIS. Cada ítem de robustez.json declara
+        // su `origen` en capacidad.json: es la MISMA pregunta dicha de otra manera —sin tildes, con
+        // un tipeo, con un sinónimo—, así que el enrutador tiene que decidir lo mismo para las dos.
         await SembrarAsync();
 
         var items = await ItemsDeLosDosDatasetsAsync();
@@ -195,9 +149,8 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
                 + $"{Decidido(observado[item.Origen!])}")
             .ToList();
 
-        // Los dos ítems y las dos decisiones: sin la pregunta de cada lado, quien vea
-        // el rojo no puede saber cuál de los dos fraseos es el que el catálogo no
-        // tolera.
+        // Los dos ítems y las dos decisiones: sin la pregunta de cada lado, quien vea el rojo no
+        // puede saber cuál de los dos fraseos es el que el catálogo no tolera.
         Assert.True(divergencias.Count == 0,
             "El enrutador decide distinto para dos formas de decir la misma pregunta. "
             + "Es un error del enrutador, no de los datasets:\n"
@@ -207,9 +160,8 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
     [Fact]
     public async Task Todo_origen_de_robustez_apunta_a_un_item_de_capacidad()
     {
-        // Sin esto, la consistencia de fraseo se degrada en silencio: un `origen` mal
-        // escrito no rompe nada, simplemente deja al ítem sin par y lo saca de la
-        // medición. El test de arriba lo saltearía sin decir una palabra.
+        // Sin esto, la consistencia de fraseo se degrada en silencio: un `origen` mal escrito no
+        // rompe nada, simplemente deja al ítem sin par y lo saca de la medición.
         var items = await ItemsDeLosDosDatasetsAsync();
         var conocidos = items.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
 
@@ -227,13 +179,8 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
     [Fact]
     public async Task La_cobertura_del_catalogo_esta_escrita_en_la_tabla_y_verificada()
     {
-        // EL NÚMERO, A LA VISTA Y NO DERIVADO A MANO. El pedido de los edges de
-        // ARS-46 lo tiene que citar, y una métrica que hay que recalcular cada vez se
-        // reconstruye distinta cada vez. Está escrito en el archivo —que es el
-        // artefacto que el pedido cita— y este test lo compara contra las entradas y
-        // contra los datasets, por el mismo criterio con que el repo trata a
-        // `manifiesto-privilegios.json`: un valor documentado es un dato verificado,
-        // no prosa.
+        // EL NÚMERO, A LA VISTA Y NO DERIVADO A MANO. El pedido de los edges de ARS-46 lo tiene que
+        // citar, y una métrica que hay que recalcular cada vez se reconstruye distinta cada vez.
         var (capturados, total) = await CoberturaDeclaradaAsync();
         var dorada = await TablaDoradaAsync();
         var items = await ItemsDeLosDosDatasetsAsync();
@@ -261,13 +208,7 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
     /// <summary>Un ítem de los datasets, con el origen si es una paráfrasis.</summary>
     private sealed record ItemDelCorpus(string Id, string Pregunta, string? Origen);
 
-    /// <summary>
-    /// Cómo se lee una diferencia entre lo observado y lo fijado.
-    /// </summary>
-    /// <remarks>
-    /// Las tres direcciones piden arreglos distintos, y decirlo en el mensaje es lo
-    /// que evita que la tabla se actualice a ciegas para volver el rojo verde.
-    /// </remarks>
+    /// <summary>Cómo se lee una diferencia entre lo observado y lo fijado.</summary>
     private static string Deriva(EntradaDorada fijada, string? observada) =>
         (fijada.Intencion, observada) switch
         {

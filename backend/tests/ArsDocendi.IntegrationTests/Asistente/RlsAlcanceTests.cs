@@ -5,19 +5,9 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica las policies de RLS sobre las cuatro tablas del trámite.
+/// Verifica las policies de RLS sobre las cuatro tablas del trámite. Todas las consultas de alcance
+/// corren conectadas como el rol de solo lectura del asistente, no como el dueño.
 /// </summary>
-/// <remarks>
-/// Todas las consultas de alcance corren conectadas como el rol de solo lectura
-/// del asistente, no como el dueño. Es la única forma de probar un límite que
-/// impone el motor: el dueño está exento de las policies, así que consultarlo
-/// desde su conexión no probaría nada.
-///
-/// Los conteos esperados NO se fijan a mano: se derivan del seed con la conexión
-/// del dueño —exenta de las policies— y el predicado de ámbito reescrito acá. Un
-/// literal ata el test a la edición de turno del seed y lo pone rojo cada vez que
-/// alguien mueve una materia, sin que el alcance haya cambiado en nada.
-/// </remarks>
 public sealed class RlsAlcanceTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_rls")
 {
@@ -27,11 +17,6 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
     /// <summary>Ámbito del coordinador y del jefe de cátedra en el seed.</summary>
-    /// <remarks>
-    /// Los identificadores de fixture son estables y reservados por diseño; los
-    /// conteos no lo son. Por eso acá se fija el ámbito y el número se cuenta
-    /// contra la base.
-    /// </remarks>
     private static readonly Guid CarreraInformatica = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid MateriaIngenieriaDeSoftware = Guid.Parse("70000000-0000-4000-8000-000000000101");
 
@@ -130,15 +115,10 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
             await ContarPedidosDeLasMateriasDeAsync(Jefe),
             deMateria);
 
-        // ACÁ ESTABA EL AGUJERO. La desigualdad `deMateria < global` dependía de que
-        // el seed tuviera pedidos fuera del alcance del jefe, y dejó de tenerlos
-        // cuando le dieron una tercera materia: con las tres, el jefe ve los ocho
-        // pedidos y la desigualdad se cae SIN que la RLS esté rota.
-        //
-        // Un test cuyo poder de detección depende de cuántas filas tenga el seed no
-        // detecta nada de forma confiable. Así que el pedido ajeno se fabrica acá:
-        // una materia que el jefe no dicta, un pedido en ella, y la afirmación de
-        // que no lo alcanza. Eso vale con cualquier seed.
+        // ACÁ ESTABA EL AGUJERO. La desigualdad `deMateria < global` dependía de que el seed
+        // tuviera pedidos fuera del alcance del jefe, y dejó de tenerlos cuando le dieron una
+        // tercera materia: con las tres, el jefe ve los ocho pedidos y la desigualdad se cae SIN
+        // que la RLS esté rota.
         var ajeno = await SembrarPedidoFueraDelAlcanceDeAsync(Jefe);
 
         Assert.NotEqual(Guid.Empty, ajeno);
@@ -195,11 +175,9 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
               LEFT JOIN designaciones.designaciones d ON d.materia_id = p.materia_id
              WHERE p.carrera_id <> 'c0000000-0000-4000-8000-000000000202'
             """);
-        // LA SONDA VA CONTRA designaciones.designaciones Y NO CONTRA pedidos, y el
-        // motivo importa: el seed dejó de tener pedidos fuera de Informática, así que
-        // pedirle a esta consulta filas ajenas devolvería cero aunque RLS estuviera
-        // apagada. Un test que no puede fallar es peor que uno rojo, porque no avisa.
-        // designaciones sí conserva una fila de la otra carrera.
+        // LA SONDA VA CONTRA designaciones.designaciones Y NO CONTRA pedidos, y el motivo importa:
+        // el seed dejó de tener pedidos fuera de Informática, así que pedirle a esta consulta filas
+        // ajenas devolvería cero aunque RLS estuviera apagada.
         var ajenasQueExisten = await EscalarAsync<long>(SqlAjenas);
         var ajenasVisibles = await EscalarComoActorAsync<long>(Coordinador, SqlAjenas);
 
@@ -229,9 +207,8 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         await using var conexion = new NpgsqlConnection(cadena);
         await conexion.OpenAsync(TestContext.Current.CancellationToken);
 
-        // Sin fijar ningún actor: el dueño está exento de las policies porque las
-        // tablas llevan ENABLE y no FORCE. Es la garantía de que esta migración no
-        // le saca visibilidad a la aplicación.
+        // Sin fijar ningún actor: el dueño está exento de las policies porque las tablas llevan
+        // ENABLE y no FORCE.
         await using var comando = new NpgsqlCommand(
             "SELECT count(*) FROM designaciones.pedidos", conexion);
 
@@ -275,15 +252,9 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Cuenta pedidos con la conexión del dueño —exenta de las policies— y el
-    /// predicado de ámbito escrito acá, para usarlo como expectativa.
+    /// Cuenta pedidos con la conexión del dueño —exenta de las policies— y el predicado de ámbito
+    /// escrito acá, para usarlo como expectativa.
     /// </summary>
-    /// <remarks>
-    /// No es tautológico: el predicado se reescribe desde la definición del ámbito
-    /// en vez de pasar por <c>identity.asistente_materias_visibles()</c>, que es
-    /// justamente lo que se está probando. Si alguien le cambia el ámbito al actor
-    /// en el seed, la expectativa deja de coincidir y el test lo dice.
-    /// </remarks>
     private async Task<int> ContarPedidosDelSeedAsync(string filtro, Guid? ambito = null)
     {
         await using var conexion = await AbrirConexionAsync();
@@ -324,14 +295,10 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Los pedidos de TODAS las materias donde el actor tiene un rol vigente.
+    /// Los pedidos de TODAS las materias donde el actor tiene un rol vigente. El seed le da al jefe
+    /// de cátedra más de una, y contar sólo la primera hacía que el test midiera menos de lo que la
+    /// policy deja ver — o sea que fallara con la RLS funcionando perfecto.
     /// </summary>
-    /// <remarks>
-    /// Reemplaza a clavar una materia. El seed le da al jefe de cátedra más de una,
-    /// y contar sólo la primera hacía que el test midiera menos de lo que la policy
-    /// deja ver — o sea que fallara con la RLS funcionando perfecto. La pregunta
-    /// correcta es la que hace la policy: «los pedidos de las materias del actor».
-    /// </remarks>
     private Task<int> ContarPedidosDeLasMateriasDeAsync(Guid actor) =>
         ContarPedidosDelSeedAsync(
             "m.id IN (SELECT ur.materia_id FROM identity.user_roles ur "
@@ -340,14 +307,10 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
             actor);
 
     /// <summary>
-    /// Crea un pedido en una materia que el actor NO dicta, y devuelve su id.
+    /// Crea un pedido en una materia que el actor NO dicta, y devuelve su id. Antes se apoyaba en
+    /// que el seed tuviera filas fuera del alcance; fabricarlo acá hace que la afirmación valga con
+    /// cualquier seed, que es lo único que un guard de RLS puede prometer.
     /// </summary>
-    /// <remarks>
-    /// Es lo que le devuelve al test su poder de detección. Antes se apoyaba en que
-    /// el seed tuviera filas fuera del alcance; fabricarlo acá hace que la
-    /// afirmación valga con cualquier seed, que es lo único que un guard de RLS
-    /// puede prometer.
-    /// </remarks>
     private async Task<Guid> SembrarPedidoFueraDelAlcanceDeAsync(Guid actor)
     {
         var id = Guid.NewGuid();

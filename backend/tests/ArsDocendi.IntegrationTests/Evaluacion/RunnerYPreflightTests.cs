@@ -11,15 +11,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Evaluacion;
 
-/// <summary>
-/// Verifica el preflight y el runner, incluida la trampa que los motiva.
-/// </summary>
-/// <remarks>
-/// <b>Sin crédito de API el eval no falla: miente.</b> El request devuelve una
-/// abstención con error seteado y métricas en cero, los ítems no contestables
-/// pasan espuriamente y el reporte muestra un número bajo que parece una regresión
-/// del modelo. Los tests de acá son los que impiden que eso llegue a disco.
-/// </remarks>
+/// <summary>Verifica el preflight y el runner, incluida la trampa que los motiva.</summary>
 public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_eval")
 {
@@ -63,9 +55,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_respuesta_con_metricas_en_cero_se_rechaza()
     {
-        // EL CASO QUE ENGAÑA: hay proveedor, contesta, y no cobra nada porque no
-        // procesó nada. Entrada y salida en cero con latencias de milisegundos en
-        // vez de segundos es la firma de una cuenta sin crédito.
+        // EL CASO QUE ENGAÑA: hay proveedor, contesta, y no cobra nada porque no procesó nada.
         var veredicto = await Preflight.VerificarAsync(
             new ProveedorDeCortesia { TokensDeEntrada = 0, TokensDeSalida = 0 },
             TestContext.Current.CancellationToken);
@@ -234,9 +224,8 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        // El proveedor aprueba el preflight y después se cae: es el caso en que la
-        // cuota se agota a mitad de la corrida. Los ítems infactibles NO pueden
-        // acreditarse por eso.
+        // El proveedor aprueba el preflight y después se cae: es el caso en que la cuota se agota a
+        // mitad de la corrida.
         var proveedor = new ProveedorDeCortesia { FallaDespuesDe = 1 };
 
         var corrida = await CorrerAsync(proveedor, DatasetMinimo);
@@ -251,11 +240,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        // El proveedor aprueba el preflight y después devuelve cada generación
-        // cortada por el techo de tokens. El turno resuelve «no contestable» con el
-        // mismo texto que una abstención, y el ítem infactible se acreditaría como
-        // abstención correcta sin que el modelo haya decidido nada: es la misma
-        // trampa del turno degradado, con otra causa.
+        // El proveedor aprueba el preflight y después devuelve cada generación cortada por el techo de tokens.
         var corrida = await CorrerAsync(
             new ProveedorDeCortesia { TruncaLaGeneracion = true }, DatasetMinimo);
 
@@ -338,10 +323,9 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     [Fact]
     public async Task El_fixture_generado_aplica_sobre_una_base_migrada()
     {
-        // Un fixture que no aplica es un dataset que no se puede correr, y el
-        // generador puede romperse por cosas que ningún test de texto ve: una
-        // clave foránea que no resuelve, un CHECK que rechaza un valor, un
-        // identificador de cargo que no existe.
+        // Un fixture que no aplica es un dataset que no se puede correr, y el generador puede
+        // romperse por cosas que ningún test de texto ve: una clave foránea que no resuelve, un
+        // CHECK que rechaza un valor, un identificador de cargo que no existe.
         var fixture = new ArsDocendi.Evaluacion.Nucleo.Fixture.GeneradorDeFixture().Generar();
 
         await using var conexion = await AbrirConexionAsync();
@@ -375,9 +359,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     [Fact]
     public async Task Las_colisiones_del_fixture_existen_en_la_base()
     {
-        // La verificación de texto dice que el SQL las declara; ésta dice que la
-        // base las tiene. Son cosas distintas: un ON CONFLICT mal puesto podría
-        // descartar la segunda materia repetida sin que el texto cambie.
+        // La verificación de texto dice que el SQL las declara; ésta dice que la base las tiene.
         var fixture = new ArsDocendi.Evaluacion.Nucleo.Fixture.GeneradorDeFixture().Generar();
         var ct = TestContext.Current.CancellationToken;
 
@@ -413,10 +395,9 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contador);
         var ejecutor = new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(), opciones);
 
-        // Una fábrica y no una instancia: el techo de llamadas es POR TURNO, y un
-        // carril compartido para todo el dataset lo convertiría en un techo de la
-        // corrida entera —el tercer ítem lo agotaría y todos los siguientes
-        // resolverían degradado—. El modo de falla no da error: da un número.
+        // Una fábrica y no una instancia: el techo de llamadas es POR TURNO, y un carril compartido
+        // para todo el dataset lo convertiría en un techo de la corrida entera —el tercer ítem lo
+        // agotaría y todos los siguientes resolverían degradado—.
         CarrilSql Carril() => new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(Apertura),
@@ -471,14 +452,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         };
     }
 
-    /// <summary>
-    /// Proveedor que aprueba el preflight y devuelve las generaciones guionadas.
-    /// </summary>
-    /// <remarks>
-    /// Se llama «de cortesía» y no «simulado» a propósito: el preflight rechaza
-    /// cualquier proveedor que se declare simulado, así que un doble de test que lo
-    /// hiciera no podría ejercitar el camino feliz.
-    /// </remarks>
+    /// <summary>Proveedor que aprueba el preflight y devuelve las generaciones guionadas.</summary>
     private sealed class ProveedorDeCortesia : IProveedorDeModelo
     {
         private int _llamadas;
@@ -500,18 +474,10 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         /// <summary>A partir de qué llamada empieza a fallar. Cero es «nunca».</summary>
         public int FallaDespuesDe { get; init; }
 
-        /// <summary>
-        /// Consultas a devolver, en orden. Un nulo significa abstenerse.
-        /// </summary>
+        /// <summary>Consultas a devolver, en orden. Un nulo significa abstenerse.</summary>
         public IReadOnlyList<string?> Generaciones { get; init; } = [];
 
-        /// <summary>
-        /// Si las generaciones llegan cortadas por el techo de tokens.
-        /// </summary>
-        /// <remarks>
-        /// El JSON se corta a la mitad y el proveedor lo declara, que es lo que
-        /// hace el adaptador real cuando el modelo para por presupuesto.
-        /// </remarks>
+        /// <summary>Si las generaciones llegan cortadas por el techo de tokens.</summary>
         public bool TruncaLaGeneracion { get; init; }
 
         public int Llamadas => _llamadas;
@@ -535,15 +501,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
             return Task.FromResult(Responder(solicitud));
         }
 
-        /// <summary>
-        /// Devuelve lo que corresponda según qué llamada sea.
-        /// </summary>
-        /// <remarks>
-        /// Distingue generación de redacción por el PREFIJO de la solicitud y no
-        /// contando llamadas. Contar sería frágil: el carril puede gastar un
-        /// reintento de generación ante un resultado vacío, y el guion se
-        /// desalinearía sin que el test lo dijera.
-        /// </remarks>
+        /// <summary>Devuelve lo que corresponda según qué llamada sea.</summary>
         private RespuestaDelModelo Responder(SolicitudAlModelo solicitud)
         {
             if (solicitud.PrefijoEstable == RedactorDeRespuesta.Instrucciones)

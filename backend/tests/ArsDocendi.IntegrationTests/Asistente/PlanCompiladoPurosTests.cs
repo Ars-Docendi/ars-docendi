@@ -113,9 +113,7 @@ public sealed class PlanCompiladoPurosTests
         "antiguedad_designacion", "25")]
     public void Un_numero_sin_senal_de_comparacion_es_exacto(string pregunta, string campo, string valor)
     {
-        // Decisión del 2026-10-08: «en dos carreras» es exactamente dos, y lo mismo vale
-        // para la antigüedad. Antes valían las dos lecturas y decidía el acuerdo entre
-        // muestras, que no alcanza: el modelo local escribe «>=» en las tres.
+        // Decisión del 2026-10-08: «en dos carreras» es exactamente dos, y lo mismo vale para la antigüedad.
         var texto = new TextoDeLaPregunta(pregunta);
 
         var conMayorOIgual = Validar(texto, "conteo", [("cargo", "=", "titular"), (campo, ">=", valor)]);

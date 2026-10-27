@@ -12,14 +12,8 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica el reintento de transporte (RNF-11) y el techo de llamadas por turno
-/// (RNF-10).
+/// Verifica el reintento de transporte (RNF-11) y el techo de llamadas por turno (RNF-10).
 /// </summary>
-/// <remarks>
-/// Los dos van juntos porque se multiplican: el reintento semántico del pipeline y
-/// el de transporte, uno por uno, dan hasta seis llamadas facturadas por pregunta.
-/// El techo se pone sobre el total de llamadas al modelo del turno, no por capa.
-/// </remarks>
 public sealed class ReintentoYTechoTests
 {
     private const string CadenaDelDueno =

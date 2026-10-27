@@ -11,17 +11,8 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// El permiso que gobierna presupuestos, tope organizacional y modo
-/// mantenimiento del asistente.
+/// El permiso que gobierna presupuestos, tope organizacional y modo mantenimiento del asistente.
 /// </summary>
-/// <remarks>
-/// A diferencia de <c>asistente.ver_consulta</c> y
-/// <c>asistente.leer_historial_ajeno</c> (sembrados vacíos, design.md D10/D13
-/// de sus respectivos cambios), éste se siembra directamente a
-/// <c>sys_admin</c> — es control operativo sobre disponibilidad y gasto del
-/// módulo, no superficie de diagnóstico o soporte sobre datos de terceros
-/// (design.md D13 de asistente-administracion-de-uso).
-/// </remarks>
 public sealed class PermisoAdministrarTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso_administrar")
 {

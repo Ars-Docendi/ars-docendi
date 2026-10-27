@@ -10,15 +10,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El permiso de soporte que habilita leer el historial ajeno del asistente.
-/// </summary>
-/// <remarks>
-/// Nace vacío y es deliberado (design.md D10 de
-/// asistente-historial-conversaciones): quién puede leer el historial de otro
-/// usuario es una decisión del Departamento, tomada desde /membresia-roles y
-/// no asumida al sembrar. Ni siquiera <c>sys_admin</c> lo recibe por default.
-/// </remarks>
+/// <summary>El permiso de soporte que habilita leer el historial ajeno del asistente.</summary>
 public sealed class PermisoLeerHistorialAjenoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso_historial_ajeno")
 {

@@ -6,9 +6,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El escritor del historial propio, contra la base real.
-/// </summary>
+/// <summary>El escritor del historial propio, contra la base real.</summary>
 public sealed class RegistroDeHistorialTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_registro_historial")
 {
@@ -164,9 +162,8 @@ public sealed class RegistroDeHistorialTests(PostgresFixture postgres)
                 Ancla.AddMinutes(5)),
             ct);
 
-        // El título viene de la PRIMERA pregunta que abrió la conversación, y
-        // un reemplazo no lo toca (design.md D9): la conversación no se
-        // renombra sola porque su última pregunta cambió.
+        // El título viene de la PRIMERA pregunta que abrió la conversación, y un reemplazo no lo
+        // toca (design.md D9): la conversación no se renombra sola porque su última pregunta cambió.
         Assert.Equal(
             "¿cuántos titulares hay?",
             await EscalarAsync<string>("SELECT titulo FROM asistente.hilo_historico"));
@@ -179,9 +176,8 @@ public sealed class RegistroDeHistorialTests(PostgresFixture postgres)
     [Fact]
     public async Task El_reemplazo_sin_conversacion_persistida_todavia_se_comporta_como_un_turno_nuevo()
     {
-        // La escritura del turno reemplazado había fallado y se tragó su
-        // excepción (design.md D2): no hay ninguna fila que borrar, así que
-        // esto es, en los hechos, un turno nuevo cualquiera.
+        // La escritura del turno reemplazado había fallado y se tragó su excepción (design.md D2):
+        // no hay ninguna fila que borrar, así que esto es, en los hechos, un turno nuevo cualquiera.
         var conversacion = new HiloConversacional(Guid.NewGuid(), Alguien);
         Assert.Null(conversacion.HiloHistorico);
 
@@ -197,9 +193,8 @@ public sealed class RegistroDeHistorialTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_reemplazo_que_falla_deja_la_fila_vieja_intacta()
     {
-        // La transacción entera falla al no poder ni abrir la conexión: el
-        // DELETE nunca llega a correr, así que la fila vieja sigue ahí
-        // (design.md D9, punto 3 — «una sola transacción»).
+        // La transacción entera falla al no poder ni abrir la conexión: el DELETE nunca llega a
+        // correr, así que la fila vieja sigue ahí (design.md D9, punto 3 — «una sola transacción»).
         var conversacion = new HiloConversacional(Guid.NewGuid(), Alguien);
         var ct = TestContext.Current.CancellationToken;
 
@@ -226,9 +221,8 @@ public sealed class RegistroDeHistorialTests(PostgresFixture postgres)
         new(new CadenaDuena(Cadena), NullLogger<RegistroDeHistorial>.Instance);
 
     /// <summary>
-    /// Un escritor que nunca llega a abrir conexión: para forzar, de forma
-    /// determinística, el mismo camino que un Postgres real caído — sin
-    /// depender de romper la conexión de verdad.
+    /// Un escritor que nunca llega a abrir conexión: para forzar, de forma determinística, el mismo
+    /// camino que un Postgres real caído — sin depender de romper la conexión de verdad.
     /// </summary>
     private RegistroDeHistorial RegistroRoto()
     {

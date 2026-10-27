@@ -12,12 +12,6 @@ namespace ArsDocendi.IntegrationTests.Evaluacion;
 /// <summary>
 /// Verifica los runners del eje social y del eje de diálogo contra una base real.
 /// </summary>
-/// <remarks>
-/// El proveedor va guionado, así que lo que se prueba es el <b>criterio de
-/// puntuación</b> de cada eje: qué cuenta como acierto, qué como fallo, y cuándo la
-/// corrida entera se descarta. La calidad de las respuestas es otra cosa y necesita
-/// un proveedor real.
-/// </remarks>
 public sealed class RunnersDeEjesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "eval_ejes")
 {
@@ -55,9 +49,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_negativo_que_el_enrutador_captura_falla()
     {
-        // ES EL MODO DE FALLA QUE ESTE EJE EXISTE PARA DETECTAR: comerse una pregunta
-        // legítima. Un enrutador que captura de más da un eje social perfecto y un
-        // asistente inútil.
+        // ES EL MODO DE FALLA QUE ESTE EJE EXISTE PARA DETECTAR: comerse una pregunta legítima.
         await SembrarAsync();
         var banco = Banco(out var medidor, GuionDeTurnos(2));
 
@@ -107,15 +99,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_no_contestable_que_el_modelo_responde_falla()
     {
-        // RESPONDER LO QUE NO SE PODÍA RESPONDER SIGUE SIENDO EL FALLO QUE ESTE EJE
-        // MIDE. Sin la exigencia de sugerencias, lo único que distingue acierto de
-        // fallo en este ítem es si el turno se abstuvo o contestó.
-        //
-        // SIN `ConPreflight`/`GuionDeTurnos` A PROPÓSITO: ese prefijo es para
-        // `RunnerDeCapacidad`/`RunnerDeDialogo`, que sí piden una completación
-        // trivial antes de evaluar. `RunnerSocial` no tiene preflight (ver su
-        // propio remark), así que el primer turno consume directo la primera
-        // entrada del guion.
+        // RESPONDER LO QUE NO SE PODÍA RESPONDER SIGUE SIENDO EL FALLO QUE ESTE EJE MIDE.
         await SembrarAsync();
         var banco = Banco(
             out var medidor,
@@ -144,9 +128,8 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_todos_los_turnos_a_cero_el_runner_aborta_y_no_deja_reporte()
     {
-        // LA TRAMPA, CUBIERTA. Un proveedor caído consume cero tokens en todos los
-        // ítems y la corrida daría verde perfecto. Con el corte abierto, ningún turno
-        // llega al modelo — que es exactamente la firma de no tener proveedor.
+        // LA TRAMPA, CUBIERTA. Un proveedor caído consume cero tokens en todos los ítems y la
+        // corrida daría verde perfecto.
         await SembrarAsync();
         var banco = Banco(
             out var medidor,
@@ -174,14 +157,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
     [Fact]
     public async Task El_techo_de_llamadas_es_por_item_y_no_por_corrida()
     {
-        // DEFECTO ENCONTRADO AL ESCRIBIR ESTOS TESTS, y fijado acá para que no
-        // vuelva. `ContadorDeLlamadasDelTurno` es POR TURNO: en producción vive con
-        // el alcance del request. Los runners sostenían UNA instancia del pipeline
-        // para todo el dataset, así que ese techo —cuatro llamadas— funcionaba como
-        // techo de la corrida entera: el tercer ítem ya lo había agotado, resolvía
-        // degradado, y el eje reportaba fallo casi total.
-        //
-        // El modo de falla es especialmente malo porque NO da error: da un número.
+        // DEFECTO ENCONTRADO AL ESCRIBIR ESTOS TESTS, y fijado acá para que no vuelva.
         await SembrarAsync();
 
         // Techo de dos: con una sola instancia compartida, el segundo ítem ya no
@@ -235,19 +211,17 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
         Assert.Equal(0, resultado.Codigo);
         Assert.Equal(2, resultado.Reporte!.Resultados.Count);
 
-        // El segundo turno pagó el reescritor, que es la prueba de que hubo hilo: sin
-        // historial vigente, el reescritor no se llama. Uno del preflight, dos del
-        // primer turno y tres del segundo.
+        // El segundo turno pagó el reescritor, que es la prueba de que hubo hilo: sin historial
+        // vigente, el reescritor no se llama.
         Assert.Equal(6, banco.Proveedor.Llamadas);
     }
 
     [Fact]
     public async Task Un_termino_arrastrado_hace_fallar_el_turno_aunque_el_resultado_sea_correcto()
     {
-        // EL CHEQUEO NEGATIVO VA PRIMERO, y por eso. Un turno que arrastra puede
-        // devolver el resultado correcto de casualidad —o porque el filtro arrastrado
-        // no cambiaba nada en este fixture— y contarlo como acierto escondería el
-        // defecto que el eje existe para ver.
+        // EL CHEQUEO NEGATIVO VA PRIMERO, y por eso. Un turno que arrastra puede devolver el
+        // resultado correcto de casualidad —o porque el filtro arrastrado no cambiaba nada en este
+        // fixture— y contarlo como acierto escondería el defecto que el eje existe para ver.
         await SembrarAsync();
         var banco = Banco(out _, GuionDeSeguimiento());
 
@@ -306,9 +280,8 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
             Sello,
             TestContext.Current.CancellationToken);
 
-        // El segundo turno agota el techo del turno y resuelve degradado; el diálogo
-        // se corta ahí y el tercero no se evalúa. Lo que el test fija es que el
-        // primero conserva su desenlace: un turno caído no invalida los anteriores.
+        // El segundo turno agota el techo del turno y resuelve degradado; el diálogo se corta ahí y
+        // el tercero no se evalúa.
         Assert.Equal(2, resultado.Reporte!.Resultados.Count);
         Assert.Equal(
             DesenlaceDeItem.TraduccionCorrecta,
@@ -320,16 +293,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
 
     private static string Json(string valor) => System.Text.Json.JsonSerializer.Serialize(valor);
 
-    /// <summary>
-    /// Antepone la respuesta que consume el preflight.
-    /// </summary>
-    /// <remarks>
-    /// El preflight pide una completación trivial ANTES de evaluar nada, y esa
-    /// llamada sale del mismo guion. Sin esta línea, el primer turno de cada diálogo
-    /// recibe la respuesta pensada para el segundo y termina no contestable por una
-    /// razón que no es la que el test mide — que es exactamente lo que pasó al
-    /// escribirlos.
-    /// </remarks>
+    /// <summary>Antepone la respuesta que consume el preflight.</summary>
     private static string[] ConPreflight(params string[] guion) => ["ping del preflight", .. guion];
 
     private static string[] GuionDeTurnos(int turnos) =>
@@ -362,9 +326,8 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
             ClasificadorDeSensibilidad(),
             Apertura,
             configuracion ?? new OpcionesAsistente(),
-            // No simulado: el preflight rechaza a los proveedores simulados, y lo que
-            // estos tests miden es el criterio de puntuación de cada eje. El preflight
-            // tiene sus propios tests.
+            // No simulado: el preflight rechaza a los proveedores simulados, y lo que estos tests
+            // miden es el criterio de puntuación de cada eje.
             proveedor: new ProveedorGuionado(guion) { EsSimulado = false },
             envolver: interno => capturado = new MedidorDeConsumo(interno));
 

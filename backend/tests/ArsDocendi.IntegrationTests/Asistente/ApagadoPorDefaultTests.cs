@@ -10,16 +10,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Sin configurar, el mecanismo de cassettes no existe.
-/// </summary>
-/// <remarks>
-/// El apagado no es un <c>if</c> adentro del handler: es que el handler <b>no se
-/// registra</b>. Con el directorio vacío el pipeline del cliente del proveedor
-/// queda exactamente como estaba antes de que este mecanismo existiera, así que
-/// producción no paga nada y no hay nada que se pueda misconfigurar — la única
-/// forma de encenderlo es escribir una ruta.
-/// </remarks>
+/// <summary>Sin configurar, el mecanismo de cassettes no existe.</summary>
 public sealed class ApagadoPorDefaultTests
 {
     private const string CadenaDelDueno =
@@ -64,10 +55,9 @@ public sealed class ApagadoPorDefaultTests
         });
         using var cliente = host.CreateClient();
 
-        // El invariante #3 no se negocia por una opción nueva: el ping tiene que
-        // distinguir «el módulo está cargado» de «la base responde», y una
-        // registración de más en el arranque es justamente lo que ya lo rompió una
-        // vez.
+        // El invariante #3 no se negocia por una opción nueva: el ping tiene que distinguir «el
+        // módulo está cargado» de «la base responde», y una registración de más en el arranque es
+        // justamente lo que ya lo rompió una vez.
         using var respuesta = await cliente.GetAsync("/api/asistente/ping", ct);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);

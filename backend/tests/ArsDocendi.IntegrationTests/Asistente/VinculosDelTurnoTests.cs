@@ -6,15 +6,8 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Los vínculos del resultado: de dónde salen los candidatos y qué pasa con lo que
-/// el resolutor conteste.
+/// Los vínculos del resultado: de dónde salen los candidatos y qué pasa con lo que el resolutor conteste.
 /// </summary>
-/// <remarks>
-/// LO QUE ESTOS TESTS CUIDAN es que el asistente no invente vínculos. Quién puede
-/// abrir un trámite lo decide el módulo dueño; acá sólo se toman valores de celda,
-/// se los somete a esa autoridad, y se ubica lo que haya vuelto. Un turno que
-/// ofreciera un vínculo sin haber preguntado sería un botón que responde 403.
-/// </remarks>
 public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_vinculos")
 {
@@ -42,10 +35,7 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
 
         var candidatos = BuscadorDeVinculos.Candidatos(filas);
 
-        // El texto libre queda afuera por los espacios, el número por no ser cadena,
-        // y el nulo por serlo. El asistente no sabe qué forma tiene el identificador
-        // de ningún módulo, así que el filtro es genérico y el que descarta de
-        // verdad es el dueño del recurso.
+        // El texto libre queda afuera por los espacios, el número por no ser cadena, y el nulo por serlo.
         Assert.Equal(["2026-9005", "corto"], candidatos.Order(StringComparer.Ordinal));
     }
 
@@ -64,9 +54,8 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public void El_mismo_identificador_en_dos_celdas_produce_dos_vinculos()
     {
-        // Pasa de verdad: dos filas del historial del mismo trámite. Cada celda es
-        // lo que el usuario aprieta, así que la que quedara sin enlace parecería
-        // rota.
+        // Pasa de verdad: dos filas del historial del mismo trámite. Cada celda es lo que el
+        // usuario aprieta, así que la que quedara sin enlace parecería rota.
         IReadOnlyList<IReadOnlyList<object?>> filas =
         [
             ["2026-9005", "aceptar"],
@@ -88,9 +77,8 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public void Un_candidato_que_no_resolvio_no_produce_vinculo()
     {
-        // LA MITAD QUE MUERDE. Sin ella, una implementación que enlazara todo
-        // candidato —sin mirar lo que contestó la autoridad— pasaría el test de
-        // arriba: allá los dos candidatos habían resuelto.
+        // LA MITAD QUE MUERDE. Sin ella, una implementación que enlazara todo candidato —sin mirar
+        // lo que contestó la autoridad— pasaría el test de arriba: allá los dos candidatos habían resuelto.
         IReadOnlyList<IReadOnlyList<object?>> filas = [["2026-9005", "2026-9006"]];
 
         var destinos = new Dictionary<string, DestinoDelVinculo>(StringComparer.Ordinal)
@@ -120,9 +108,8 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
         Assert.Equal("pedido-designacion", vinculo.Tipo);
         Assert.Equal("abc-123", vinculo.Id);
 
-        // El otro trámite viajó como candidato y no volvió: es una fila que se
-        // muestra y no se puede abrir, que es exactamente el caso que el vínculo
-        // no debe inventar.
+        // El otro trámite viajó como candidato y no volvió: es una fila que se muestra y no se
+        // puede abrir, que es exactamente el caso que el vínculo no debe inventar.
         Assert.Contains("2026-9002", resolutor.Pedidos);
         Assert.Equal(2, turno.Filas.Count);
     }
@@ -146,9 +133,8 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_resolutor_que_revienta_no_tumba_el_turno()
     {
-        // El vínculo es un atajo sobre la respuesta, no la respuesta. Responder sin
-        // atajo es peor que tenerlo y muchísimo mejor que un error sobre una
-        // pregunta que se contestó bien.
+        // El vínculo es un atajo sobre la respuesta, no la respuesta. Responder sin atajo es peor
+        // que tenerlo y muchísimo mejor que un error sobre una pregunta que se contestó bien.
         await SembrarAsync();
         var banco = Banco(
             new ResolutorQueRevienta(),

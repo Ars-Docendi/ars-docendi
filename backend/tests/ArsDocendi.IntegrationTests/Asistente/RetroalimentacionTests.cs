@@ -19,9 +19,8 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// The turn-level feedback flow, end to end: minting the token
-/// (asistente-contrato-de-respuesta), and <c>POST /api/asistente/retroalimentacion</c>
-/// (asistente-retroalimentacion).
+/// The turn-level feedback flow, end to end: minting the token (asistente-contrato-de-respuesta),
+/// and <c>POST /api/asistente/retroalimentacion</c> (asistente-retroalimentacion).
 /// </summary>
 public sealed class RetroalimentacionTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_retroalimentacion")
@@ -69,9 +68,8 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public void Analitico_id_is_supplied_by_the_caller_and_not_the_database_default()
     {
-        // The unit-level assertion behind 2.1: TurnoParaRegistrar carries its own
-        // caller-generated id rather than leaving it to registro_analitico's own
-        // DEFAULT gen_random_uuid().
+        // The unit-level assertion behind 2.1: TurnoParaRegistrar carries its own caller-generated
+        // id rather than leaving it to registro_analitico's own DEFAULT gen_random_uuid().
         var turno = NuevoTurnoParaRegistrar(Guid.NewGuid());
 
         Assert.NotEqual(Guid.Empty, turno.AnaliticoId);
@@ -395,9 +393,8 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         Assert.DoesNotContain(registrador.Eventos, e => e.Contains(Secretaria.ToString())
             && e.Contains(token.ToString()));
 
-        // At least one event on each side proves the assertion above is not
-        // vacuous: the turn's pipeline does log the actor, and the feedback
-        // service does log the token — just never together.
+        // At least one event on each side proves the assertion above is not vacuous: the turn's
+        // pipeline does log the actor, and the feedback service does log the token — just never together.
         Assert.Contains(registrador.Eventos, e => e.Contains(Secretaria.ToString()));
         Assert.Contains(registrador.Eventos, e => e.Contains(token.ToString()));
     }
@@ -411,10 +408,9 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
 
         return BancoDelAsistente.Armar(
             basica, pii, ClasificadorDeSensibilidad(), Apertura, opciones,
-            // The real writer and not the in-memory fake: the D3 test that passes
-            // a registrador goes on to submit feedback for the turn's token, and
-            // that INSERT has a foreign key into registro_analitico — the row has
-            // to actually exist.
+            // The real writer and not the in-memory fake: the D3 test that passes a registrador
+            // goes on to submit feedback for the turn's token, and that INSERT has a foreign key
+            // into registro_analitico — the row has to actually exist.
             registro: registrador is null
                 ? null
                 : new RegistroDelTurno(new CadenaDuena(Cadena), NullLogger<RegistroDelTurno>.Instance),
@@ -659,9 +655,8 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         public const string Otro = "otro";
 
         /// <summary>
-        /// Removed entirely by D7 of asistente-rediseno-v3 (PO-changed 2026-09-26):
-        /// nothing shipped to production, so there is no legacy row anywhere. Kept
-        /// here only to prove the API rejects it like any other unknown value.
+        /// Removed entirely by D7 of asistente-rediseno-v3 (PO-changed 2026-09-26): nothing shipped
+        /// to production, so there is no legacy row anywhere.
         /// </summary>
         public const string Lento = "lento";
     }

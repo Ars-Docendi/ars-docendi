@@ -7,10 +7,8 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// With no <c>Asistente__ClaveMaestra</c> the Host starts and the module's ping
-/// answers (asistente-modelo-en-caliente, task 1.11). Like
-/// <see cref="PingAsistenteTests"/>, it uses no database on purpose: the connection
-/// string points at a port where nobody listens, so any startup read would fail.
+/// With no <c>Asistente__ClaveMaestra</c> the Host starts and the module's ping answers
+/// (asistente-modelo-en-caliente, task 1.11).
 /// </summary>
 public sealed class ModeloEnCalienteSinClaveMaestraTests
 {

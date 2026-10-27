@@ -5,17 +5,10 @@ using ArsDocendi.IntegrationTests.Infraestructura;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Key confinement (asistente-modelo-en-caliente, D4 and task 3.13): no response, log
-/// call, exception message or audit row can carry the text of a provider key,
+/// Key confinement (asistente-modelo-en-caliente, D4 and task 3.13): no response, log call,
+/// exception message or audit row can carry the text of a provider key,
 /// <c>Inferencia__Contrasena</c> or the Cloudflare Access secret.
 /// </summary>
-/// <remarks>
-/// Like the other scans of this class, each guard comes with a synthetic violation fed
-/// to the same detector, so a broken detector cannot pass green forever. The scan is
-/// literal-aware: the TEXT of a string is not code (a log message may name
-/// <c>Inferencia__Contrasena</c> to tell an operator what to check), but the
-/// expressions interpolated into it are, so <c>$"... {clave}"</c> is caught.
-/// </remarks>
 public sealed partial class ArquitecturaAsistenteTests
 {
     /// <summary>The files that handle key text, where the stricter rules apply.</summary>

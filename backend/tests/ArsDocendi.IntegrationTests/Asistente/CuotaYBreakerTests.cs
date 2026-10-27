@@ -7,20 +7,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el circuit breaker, en memoria.
-/// </summary>
-/// <remarks>
-/// Es puro salvo por el reloj, así que se prueba sin base y sin proveedor. Que
-/// no necesite infraestructura es justamente lo que permite probarlo de
-/// verdad: un test que dependiera de una base tendería a probar la base.
-///
-/// La cuota por actor YA NO vive acá: desde asistente-administracion-de-uso es
-/// persistente (Postgres, turnos/día calendario UTC) y sus tests están en
-/// <c>CuotaPersistenteTests</c>. Este archivo conserva su nombre por el resto
-/// de lo que prueba (el breaker y el decorador del proveedor), pero ya no
-/// prueba cuota.
-/// </remarks>
+/// <summary>Verifica el circuit breaker, en memoria.</summary>
 public sealed class CuotaYBreakerTests
 {
     private static readonly DateTimeOffset Ancla = new(2026, 8, 25, 10, 0, 0, TimeSpan.Zero);
@@ -201,9 +188,7 @@ public sealed class CuotaYBreakerTests
     [Fact]
     public async Task Los_reintentos_de_transporte_no_suman_al_conteo_de_llamadas()
     {
-        // El reintento ocurre DENTRO de una llamada al modelo y tiene su propia
-        // cota. Contarlo acá haría que un turno con red inestable agotara el techo
-        // sin haber pedido nada de más.
+        // El reintento ocurre DENTRO de una llamada al modelo y tiene su propia cota.
         var (breaker, reloj) = Breaker(umbral: 5);
         var proveedor = new ProveedorConReintentoAdentro(intentosPorLlamada: 3);
         var contador = new ContadorDeLlamadasDelTurno(techo: 4);

@@ -8,15 +8,10 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica el catálogo de capacidades por actor (ARS-49).
+/// Verifica el catálogo de capacidades por actor (ARS-49). El invariante de privacidad de esta
+/// pieza es el más importante de la épica: <b>el catálogo se deriva de los GRANT efectivos y nunca
+/// del payload del prompt</b>.
 /// </summary>
-/// <remarks>
-/// El invariante de privacidad de esta pieza es el más importante de la épica:
-/// <b>el catálogo se deriva de los GRANT efectivos y nunca del payload del
-/// prompt</b>. El prefijo trae el esquema entero, columnas personales incluidas; un
-/// catálogo derivado de ahí le ofrecería a cualquiera preguntas sobre columnas que
-/// su rol no puede leer.
-/// </remarks>
 public sealed class CapacidadesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_capacidades")
 {
@@ -33,8 +28,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
 
     /// <summary>
-    /// <c>sys_admin</c>: un rol de sistema que el catálogo de presentaciones no
-    /// nombra. Es el caso «rol desconocido» con datos reales, sin fixture propia.
+    /// <c>sys_admin</c>: un rol de sistema que el catálogo de presentaciones no nombra.
     /// </summary>
     private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
 
@@ -53,12 +47,9 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task El_catalogo_de_un_rol_basico_no_cuenta_ninguna_columna_personal()
     {
-        // La primera versión de este test miraba el TEXTO redactado buscando
-        // «documento», y pasaba aunque el catálogo se armara con la conexión de datos
-        // personales: la redacción nunca nombra columnas, así que no había nada que
-        // encontrar. Ahora se mira el conteo de la tabla que tiene las columnas
-        // personales, que es lo único que se movería si el catálogo dejara de
-        // derivarse del rol del actor.
+        // La primera versión de este test miraba el TEXTO redactado buscando «documento», y pasaba
+        // aunque el catálogo se armara con la conexión de datos personales: la redacción nunca
+        // nombra columnas, así que no había nada que encontrar.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var catalogo = Catalogo();
@@ -71,9 +62,8 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var personasConPii = Assert.Single(
             conPii.Cubre, a => a.Nombre == "identity.personas");
 
-        // Cuatro de las cinco columnas personales están en `identity.personas`
-        // —documento, cuil, fecha_nacimiento y teléfono—; la quinta, `upn`, está en
-        // `identity.users`.
+        // Cuatro de las cinco columnas personales están en `identity.personas` —documento, cuil,
+        // fecha_nacimiento y teléfono—; la quinta, `upn`, está en `identity.users`.
         Assert.Equal(4, personasConPii.Columnas - personasBasica.Columnas);
 
         var usuariosBasica = Assert.Single(sinPii.Cubre, a => a.Nombre == "identity.users");
@@ -125,9 +115,8 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task El_catalogo_no_ofrece_el_schema_propio_del_asistente()
     {
-        // Los dos registros del asistente están revocados a sus propios roles. Si
-        // aparecieran acá, el catálogo estaría ofreciendo consultar el texto de las
-        // preguntas de todos los demás.
+        // Los dos registros del asistente están revocados a sus propios roles. Si aparecieran acá,
+        // el catálogo estaría ofreciendo consultar el texto de las preguntas de todos los demás.
         await SembrarAsync();
 
         var puede = await Catalogo().ObtenerAsync(
@@ -170,10 +159,9 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_consulta_con_una_columna_personal_no_es_ejecutable_por_el_rol_basico()
     {
-        // EL FILTRO, PROBADO CON UNA CONSULTA SINTÉTICA. El catálogo de ejemplos real
-        // no tiene ninguna que toque datos personales, así que sobre datos reales el
-        // filtro es hoy un no-op — y sin este test nadie sabría si funciona el día
-        // que alguien agregue el primero.
+        // EL FILTRO, PROBADO CON UNA CONSULTA SINTÉTICA. El catálogo de ejemplos real no tiene
+        // ninguna que toque datos personales, así que sobre datos reales el filtro es hoy un no-op
+        // — y sin este test nadie sabría si funciona el día que alguien agregue el primero.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var (basica, pii) = CadenasDeLectura();
@@ -195,10 +183,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public void Hoy_ningun_ejemplo_del_catalogo_toca_una_columna_personal()
     {
-        // Deja escrito el estado real: el filtro protege de algo que todavía no
-        // pasó. Si este test empieza a fallar, quiere decir que se agregó un ejemplo
-        // con datos personales, y entonces el filtro pasa a tener efecto — que es lo
-        // que el test de arriba ya verificó que funciona.
+        // Deja escrito el estado real: el filtro protege de algo que todavía no pasó.
         var conPersonales = new SelectorDeEjemplos().Catalogo
             .Where(e => ColumnasPersonales.Any(c =>
                 e.Sql.Contains(c, StringComparison.OrdinalIgnoreCase)))
@@ -266,14 +251,8 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_el_permiso_del_tramite_la_presentacion_no_lo_anuncia()
     {
-        // BR-asistente-004. El rol `docente` tiene `portal.ver` y `portal.editar`, y
-        // NADA de designaciones: la RLS le devuelve cero filas sobre las cuatro
-        // tablas del trámite. La copy vieja le prometía «preguntá por tus
-        // designaciones», que es exactamente la capacidad que no puede ejercer.
-        //
-        // Se consulta la presentación de un perfil armado a mano y no la del actor:
-        // el rol `docente` ni siquiera tiene `asistente.consultar`, así que el
-        // catálogo no llega a construirse para él.
+        // BR-asistente-004. El rol `docente` tiene `portal.ver` y `portal.editar`, y NADA de
+        // designaciones: la RLS le devuelve cero filas sobre las cuatro tablas del trámite.
         var perfil = new PerfilDelActor(
             EsGlobal: false, VeDatosPersonales: false, CodigoDeRol: "docente",
             VeDesignaciones: false);
@@ -288,10 +267,9 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_permiso_del_tramite_un_rol_acotado_si_lo_anuncia()
     {
-        // LA OTRA MITAD, y la que evita arreglar de más: un jefe de cátedra NO es
-        // global, así que `AlcanzaDesignaciones` le da falso — pero ve las
-        // designaciones de su cátedra y anunciárselas no promete nada que no pueda
-        // ejercer. Si alguien "simplificara" mirando el conjugado, este test cae.
+        // LA OTRA MITAD, y la que evita arreglar de más: un jefe de cátedra NO es global, así que
+        // `AlcanzaDesignaciones` le da falso — pero ve las designaciones de su cátedra y
+        // anunciárselas no promete nada que no pueda ejercer.
         await SembrarAsync();
 
         var puede = await Catalogo().ObtenerAsync(Jefe, TestContext.Current.CancellationToken);
@@ -326,10 +304,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_rol_que_la_tabla_no_conoce_cae_a_la_presentacion_generica()
     {
-        // `sys_admin` existe en identity.roles y no está en la tabla de
-        // presentaciones. El default correcto es el texto que no promete nada de
-        // más: acá el rol elige un saludo, no un permiso, así que no conocerlo no
-        // abre nada.
+        // `sys_admin` existe en identity.roles y no está en la tabla de presentaciones.
         await SembrarAsync();
 
         var puede = await Catalogo().ObtenerAsync(
@@ -346,16 +321,8 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_varios_roles_a_la_vez_la_presentacion_es_la_generica()
     {
-        // SIN TABLA DE PRECEDENCIA, y a propósito: elegir que «secretaria gana a
-        // jefe_catedra» sería inventar una jerarquía que nadie pidió para decidir un
-        // saludo. Un genérico correcto es mejor que un específico adivinado.
-        //
-        // EL ACTOR MULTIROL LO ARMA EL TEST, y ya no lo trae el seed compartido. El
-        // usuario «Demo Multirol» se dio de baja cuando el seed pasó a exigir que
-        // cada actor del historial tuviera de verdad el rol con el que actuó, y seis
-        // roles sobre dos materias no entraban en esa coherencia. Concederlo acá deja
-        // la condición a la vista —dos roles vigentes sobre el mismo actor— en vez de
-        // esconderla en una fila de fixture que cualquier otro cambio se lleva puesta.
+        // SIN TABLA DE PRECEDENCIA, y a propósito: elegir que «secretaria gana a jefe_catedra»
+        // sería inventar una jerarquía que nadie pidió para decidir un saludo.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         await SumarleUnSegundoRolAsync(Jefe, ct);
@@ -373,10 +340,9 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task El_rol_elige_la_presentacion_y_nada_mas()
     {
-        // ES EL GATE DE ESTA PIEZA. Docente y Jefe de Cátedra tienen los dos ámbito
-        // de materia y el mismo rol de lectura: si el rol se filtrara a los conteos
-        // o al alcance, el módulo habría empezado a decidir por rol lo que hasta
-        // ahora deriva de los GRANT y de la matriz de permisos.
+        // ES EL GATE DE ESTA PIEZA. Docente y Jefe de Cátedra tienen los dos ámbito de materia y el
+        // mismo rol de lectura: si el rol se filtrara a los conteos o al alcance, el módulo habría
+        // empezado a decidir por rol lo que hasta ahora deriva de los GRANT y de la matriz de permisos.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var catalogo = Catalogo();
@@ -499,9 +465,8 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     [Fact]
     public async Task La_presentacion_no_promete_el_contacto_ni_el_archivo_del_CV()
     {
-        // Las dos cosas que el asistente NO hace sobre portal, y que son justo las
-        // que alguien esperaría de un «perfil»: el contacto personal está denegado y
-        // del CV sólo se puede decir que existe.
+        // Las dos cosas que el asistente NO hace sobre portal, y que son justo las que alguien
+        // esperaría de un «perfil»: el contacto personal está denegado y del CV sólo se puede decir que existe.
         await SembrarAsync();
         await ConcederTrayectoriaAjenaAsync(Secretaria);
 
@@ -579,15 +544,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             configuracion ?? new OpcionesAsistente());
     }
 
-    /// <summary>
-    /// Le suma al actor una segunda asignación de rol vigente.
-    /// </summary>
-    /// <remarks>
-    /// La fila va sin materia ni carrera porque <c>secretaria</c> es de alcance
-    /// global: el trigger <c>identity.enforce_role_scope</c> rechaza cualquier otra
-    /// combinación. El id, <c>granted_at</c> y <c>created_at</c> los pone el default
-    /// de la tabla, y <c>granted_by</c> queda nulo porque acá no hay quién conceda.
-    /// </remarks>
+    /// <summary>Le suma al actor una segunda asignación de rol vigente.</summary>
     private async Task SumarleUnSegundoRolAsync(Guid actor, CancellationToken ct)
     {
         await using var conexion = await AbrirConexionAsync();

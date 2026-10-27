@@ -3,9 +3,8 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// <see cref="CalculadoraDeCosto"/>: estimación de costo por fila, versionada
-/// por precio vigente al momento en que la fila ocurrió (design.md D1/A1/D6
-/// de asistente-administracion-de-uso).
+/// <see cref="CalculadoraDeCosto"/>: estimación de costo por fila, versionada por precio vigente al
+/// momento en que la fila ocurrió (design.md D1/A1/D6 de asistente-administracion-de-uso).
 /// </summary>
 public sealed class CalculadoraDeCostoTests
 {

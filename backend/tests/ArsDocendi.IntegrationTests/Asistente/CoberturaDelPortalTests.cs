@@ -8,16 +8,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Declarar cuánta gente cargó el dato, para no confundir el vacío con el hecho.
-/// </summary>
-/// <remarks>
-/// EL MODO DE FALLA QUE ESTO EVITA no es de privacidad ni de permisos: es el sistema
-/// afirmando más de lo que sabe. «Ningún docente sabe Python» y «nadie cargó sus
-/// habilidades» son la MISMA consulta con el mismo cero, y el design spec del portal
-/// dice que el segundo caso es el normal —«el problema del Departamento es que los
-/// docentes no cargan nada»—.
-/// </remarks>
+/// <summary>Declarar cuánta gente cargó el dato, para no confundir el vacío con el hecho.</summary>
 public sealed class CoberturaDelPortalTests
 {
     // ------------------------------------------------------ qué toca la consulta
@@ -65,9 +56,8 @@ public sealed class CoberturaDelPortalTests
     [Fact]
     public void Se_declara_la_cobertura_mas_escasa_y_no_todas()
     {
-        // Es la que EXPLICA el vacío. Si la pregunta cruzó formación con
-        // certificaciones y nadie cargó certificaciones, decir además cuánta
-        // formación hay no aclara nada y alarga una mala noticia.
+        // Es la que EXPLICA el vacío. Si la pregunta cruzó formación con certificaciones y nadie
+        // cargó certificaciones, decir además cuánta formación hay no aclara nada y alarga una mala noticia.
         var elegida = CoberturaDelPortal.LaQueExplicaElVacio(
         [
             new CoberturaDeUnDato("educaciones", 14, 120),
@@ -144,9 +134,7 @@ public sealed class CoberturaDelPortalTests
     [Fact]
     public void La_regla_de_redaccion_le_prohibe_al_modelo_narrar_el_total()
     {
-        // Con filas devueltas el texto lo escribe el modelo, así que el límite tiene
-        // que viajar en el prompt. Es lo único que se puede hacer para restringir una
-        // narración, y por eso se dice explícito además de estar en el COMMENT.
+        // Con filas devueltas el texto lo escribe el modelo, así que el límite tiene que viajar en el prompt.
         var reglas = PoliticaDeAbstencion.ReglasDeRedaccion(
             alcanzaTodo: true,
             truncado: false,
@@ -180,17 +168,10 @@ public sealed class CoberturaDelPortalTests
 }
 
 /// <summary>
-/// El conteo de cobertura contra la base, con el alcance del actor.
+/// El conteo de cobertura contra la base, con el alcance del actor. <b>Con un rol DESCARTABLE y no
+/// con los del asistente</b>, que todavía no tienen <c>USAGE</c> sobre <c>portal</c>: el
+/// <c>GRANT</c> es una decisión aparte con su propio gate de finalidad.
 /// </summary>
-/// <remarks>
-/// <b>Con un rol DESCARTABLE y no con los del asistente</b>, que todavía no tienen
-/// <c>USAGE</c> sobre <c>portal</c>: el <c>GRANT</c> es una decisión aparte con su
-/// propio gate de finalidad. Probar con ellos mediría la ausencia del grant.
-///
-/// Que hoy falte ese grant es además lo que hace visible por qué el carril envuelve
-/// esta consulta en un <c>try</c>: sin él, un turno que tocara portal moriría con
-/// «permission denied for schema portal» en vez de responder sin el denominador.
-/// </remarks>
 public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_cobertura")
 {
@@ -258,9 +239,8 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_tabla_fuera_del_catalogo_no_se_interpola()
     {
-        // EL NOMBRE SE INTERPOLA porque un identificador no se puede parametrizar,
-        // así que la única defensa es que salga del catálogo cerrado. Este test es
-        // esa defensa hecha comprobable.
+        // EL NOMBRE SE INTERPOLA porque un identificador no se puede parametrizar, así que la única
+        // defensa es que salga del catálogo cerrado.
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             new ConsultorDeCobertura(AperturaQueNoSeUsa()).ObtenerAsync(
                 ["contactos; DROP TABLE portal.perfiles --"],
@@ -273,14 +253,10 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
     private AperturaDeLectura? _aperturaDelLector;
 
     /// <summary>
-    /// La apertura sobre el rol acotado que crea esta clase.
+    /// La apertura sobre el rol acotado que crea esta clase. No usa <c>Apertura</c> de la clase
+    /// base: esos son los dos roles del asistente, y lo que este test necesita es un rol propio con
+    /// RLS de portal aplicada.
     /// </summary>
-    /// <remarks>
-    /// No usa <c>Apertura</c> de la clase base: esos son los dos roles del
-    /// asistente, y lo que este test necesita es un rol propio con RLS de portal
-    /// aplicada. Los dos lados de la apertura apuntan al mismo, porque acá la
-    /// distinción entre roles no juega.
-    /// </remarks>
     private IConsultorDeCobertura Consultor()
     {
         var cadena = new NpgsqlConnectionStringBuilder(Cadena)
@@ -299,14 +275,8 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Una apertura que apunta a un host inexistente, para los casos que cortan
-    /// ANTES de abrir la conexión.
+    /// Una apertura que apunta a un host inexistente, para los casos que cortan ANTES de abrir la conexión.
     /// </summary>
-    /// <remarks>
-    /// Que estos dos tests pasen con un host que no existe es justamente lo que
-    /// prueban: sin tablas de portal —o con un nombre fuera del catálogo— el
-    /// consultor ni siquiera llega a conectarse.
-    /// </remarks>
     private static AperturaDeLectura AperturaQueNoSeUsa() =>
         new(new CadenaSoloLectura("Host=no-se-usa"),
             new CadenaSoloLecturaPii("Host=no-se-usa"),

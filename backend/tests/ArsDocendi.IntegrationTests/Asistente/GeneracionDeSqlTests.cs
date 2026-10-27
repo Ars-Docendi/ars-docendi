@@ -7,14 +7,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la primera llamada al modelo: la generación de SQL (RF-11, RF-18).
-/// </summary>
-/// <remarks>
-/// Sin base: el proveedor de esquema se sustituye por uno de guion. Lo que se
-/// prueba acá es cómo se arma la solicitud y cómo se interpreta la respuesta, y
-/// para eso una conexión real no aporta nada.
-/// </remarks>
+/// <summary>Verifica la primera llamada al modelo: la generación de SQL (RF-11, RF-18).</summary>
 public sealed class GeneracionDeSqlTests
 {
     private const string PrefijoDeGuion = "PREFIJO ESTABLE DE PRUEBA";
@@ -57,9 +50,8 @@ public sealed class GeneracionDeSqlTests
         await generador.GenerarAsync("¿Qué carreras hay?", conDatosPersonales: false, ct);
         await generador.GenerarAsync("¿Qué docentes hay en Bases de Datos?", conDatosPersonales: false, ct);
 
-        // Byte a byte: el caché del proveedor es POR PREFIJO, y una diferencia de
-        // un carácter hace que el turno siguiente pague escritura en lugar de
-        // lectura sobre el bloque más grande del prompt.
+        // Byte a byte: el caché del proveedor es POR PREFIJO, y una diferencia de un carácter hace
+        // que el turno siguiente pague escritura en lugar de lectura sobre el bloque más grande del prompt.
         Assert.Equal(proveedor.Recibidas[0].PrefijoEstable, proveedor.Recibidas[1].PrefijoEstable);
     }
 
@@ -312,9 +304,8 @@ public sealed class GeneracionDeSqlTests
     [Fact]
     public void Una_contradiccion_deja_el_motivo_nulo()
     {
-        // Contestable sin consulta es una contradicción del modelo, no una
-        // decisión sobre el motivo (design.md D2): resuelve no contestable
-        // pero el motivo queda `null`, no `NoCubierto`.
+        // Contestable sin consulta es una contradicción del modelo, no una decisión sobre el motivo
+        // (design.md D2): resuelve no contestable pero el motivo queda `null`, no `NoCubierto`.
         var generacion = GeneradorDeSql.Interpretar(
             """{"es_contestable": true, "sql": null, "razonamiento": "x", "categoria": "y", "motivo": "muy_general"}""");
 
@@ -343,10 +334,7 @@ public sealed class GeneracionDeSqlTests
     [Fact]
     public async Task Una_generacion_cortada_por_el_techo_de_tokens_no_se_confunde_con_una_abstencion()
     {
-        // El JSON llega por la mitad porque el modelo gastó el presupuesto antes de
-        // terminar de escribir. Para el usuario es lo mismo que una abstención; para
-        // el registro y el evaluador NO: una es una decisión del modelo y la otra un
-        // presupuesto corto, y contarla como abstención correcta infla la métrica.
+        // El JSON llega por la mitad porque el modelo gastó el presupuesto antes de terminar de escribir.
         var proveedor = new ProveedorGuionado(
             """{"es_contestable": true, "sql": "SELECT count(*) AS cantidad FROM designaci""")
         {
@@ -366,9 +354,8 @@ public sealed class GeneracionDeSqlTests
     [Fact]
     public async Task Si_el_JSON_llego_entero_el_corte_por_presupuesto_no_descarta_la_interpretacion()
     {
-        // El proveedor avisa que paró por presupuesto, pero el objeto está completo:
-        // lo que se cortó fue algo después —prosa, un cierre de bloque—. Descartar
-        // una consulta bien formada por el aviso sería abstenerse de más.
+        // El proveedor avisa que paró por presupuesto, pero el objeto está completo: lo que se
+        // cortó fue algo después —prosa, un cierre de bloque—.
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion("SELECT 1 FROM identity.carreras"))
         {
@@ -399,10 +386,8 @@ public sealed class GeneracionDeSqlTests
 
     // ------------------------------------------ el arrastre de la consulta
 
-    // POR QUÉ SE AFIRMA SOBRE EL MENSAJE Y NO SOBRE LA RESPUESTA. Lo que este
-    // código controla es QUÉ SE LE MANDA al modelo; verificarlo por la salida
-    // probaría al modelo, no a esto. Es el mismo criterio con que se prueba el
-    // pivote del reescritor.
+    // POR QUÉ SE AFIRMA SOBRE EL MENSAJE Y NO SOBRE LA RESPUESTA. Lo que este código controla es
+    // QUÉ SE LE MANDA al modelo; verificarlo por la salida probaría al modelo, no a esto.
 
     [Fact]
     public void Un_primer_turno_no_lleva_ninguna_consulta_anterior()
@@ -438,10 +423,8 @@ public sealed class GeneracionDeSqlTests
     [Fact]
     public void Las_consultas_van_despues_de_los_ejemplos_y_antes_de_la_pregunta()
     {
-        // Los ejemplos enseñan la FORMA del esquema y son intercambiables entre
-        // turnos; la consulta anterior es el estado de ESTA conversación. Entre los
-        // ejemplos, el modelo la lee como uno más y copia su forma en vez de
-        // continuarla.
+        // Los ejemplos enseñan la FORMA del esquema y son intercambiables entre turnos; la consulta
+        // anterior es el estado de ESTA conversación.
         var mensaje = GeneradorDeSql.ArmarMensaje(
             "¿y los profesores de esa materia?",
             [new EjemploSql("¿cuántos pedidos hay?", "SELECT count(*) FROM designaciones.pedidos", "agregacion")],
@@ -458,11 +441,10 @@ public sealed class GeneracionDeSqlTests
     [Fact]
     public void El_arrastre_no_toca_el_prefijo_estable()
     {
-        // LA PROPIEDAD QUE PROTEGE EL COSTO. El prefijo se cachea y su huella sella
-        // los reportes de evaluación: si la consulta anterior se colara ahí, cada
-        // turno pagaría escritura de caché a 1,25× sobre el bloque más grande del
-        // prompt en vez de lectura a 0,1×, y dos turnos del mismo hilo dejarían de
-        // ser comparables.
+        // LA PROPIEDAD QUE PROTEGE EL COSTO. El prefijo se cachea y su huella sella los reportes de
+        // evaluación: si la consulta anterior se colara ahí, cada turno pagaría escritura de caché
+        // a 1,25× sobre el bloque más grande del prompt en vez de lectura a 0,1×, y dos turnos del
+        // mismo hilo dejarían de ser comparables.
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion("SELECT 1"),
             ProveedorGuionado.Generacion("SELECT 2"));
@@ -514,9 +496,8 @@ public sealed class GeneracionDeSqlTests
     [Fact]
     public void Las_menciones_van_despues_de_la_pregunta()
     {
-        // La pregunta es lo primero cierto de este turno; las menciones son la
-        // última cosa cierta —lo que el usuario ya eligió al escribir—, así que
-        // van al final, después de "Pregunta del usuario".
+        // La pregunta es lo primero cierto de este turno; las menciones son la última cosa cierta
+        // —lo que el usuario ya eligió al escribir—, así que van al final, después de "Pregunta del usuario".
         var materia = new ResultadoDeMencion(Guid.NewGuid(), "Bases de Datos", Carrera: "Informática");
 
         var mensaje = GeneradorDeSql.ArmarMensaje(
@@ -531,11 +512,9 @@ public sealed class GeneracionDeSqlTests
     [Fact]
     public async Task El_id_de_la_mencion_nunca_llega_al_proveedor()
     {
-        // Prueba end-to-end de la propiedad de D11 en esta capa: cualquiera sea
-        // el camino, lo único que el ejecutor real del proveedor recibe es el
-        // texto de `SolicitudAlModelo.Mensaje`, y ESE es el que se manda por
-        // cable. Si el id no está ahí, no está en ningún lado que salga del
-        // servidor.
+        // Prueba end-to-end de la propiedad de D11 en esta capa: cualquiera sea el camino, lo único
+        // que el ejecutor real del proveedor recibe es el texto de `SolicitudAlModelo.Mensaje`, y
+        // ESE es el que se manda por cable.
         var id = Guid.Parse("70000000-0000-4000-8000-000000000102");
         var materia = new ResultadoDeMencion(id, "Algoritmos y Estructuras de Datos", Carrera: "Informática");
 

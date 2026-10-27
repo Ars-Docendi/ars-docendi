@@ -5,24 +5,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Cada consulta del catálogo de ejemplos ejecuta contra el esquema real.
-/// </summary>
-/// <remarks>
-/// LO QUE ESTE TEST EXISTE PARA EVITAR, y es peor que el caso equivalente de las
-/// referencias de evaluación. Una referencia rota hace que la MEDICIÓN mienta; un
-/// ejemplo roto se le INYECTA AL MODELO como par pregunta-SQL verificado, y le
-/// enseña un join que no existe. El modelo copia la forma: un ejemplo que nombra
-/// una columna equivocada produce consultas equivocadas para siempre, y el síntoma
-/// no es un error sino una tasa de acierto más baja que parece del modelo.
-///
-/// El catálogo se llama «de ejemplos VERIFICADOS» desde que se creó. Hasta acá esa
-/// palabra no la respaldaba nada.
-///
-/// Corre contra el seed sintético y no contra el fixture de evaluación: los
-/// ejemplos viajan al prompt en producción, así que el esquema contra el que tienen
-/// que ser válidos es el real.
-/// </remarks>
+/// <summary>Cada consulta del catálogo de ejemplos ejecuta contra el esquema real.</summary>
 public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_ejemplos")
 {
@@ -61,19 +44,13 @@ public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
             + "existe:" + Environment.NewLine + string.Join(Environment.NewLine, rotos));
     }
 
-    // ------------------------------------------------------------------
-    // What "executes" does not catch. An example can run without error and
-    // still teach the model something wrong: a column that is no longer the
-    // current one, or a literal that matches no row.
-    // ------------------------------------------------------------------
+    // ------------------------------------------------------------------ What "executes" does not catch.
 
     [Fact]
     public void No_example_reads_the_legacy_dedication_text()
     {
-        // `dedicacion` and `dedicacion_solicitada` keep the text of rows older than
-        // the catalog; the current form is `dedicacion_id` against
-        // `designaciones.dedicaciones`. An example on the text column still runs and
-        // returns NULL for every current row.
+        // `dedicacion` and `dedicacion_solicitada` keep the text of rows older than the catalog;
+        // the current form is `dedicacion_id` against `designaciones.dedicaciones`.
         var viejos = new SelectorDeEjemplos().Catalogo
             .Where(e => Regex.IsMatch(
                 e.Sql, @"\.dedicacion(_solicitada)?\b(?!_)", RegexOptions.IgnoreCase))
@@ -89,9 +66,7 @@ public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
     [Fact]
     public async Task Literals_on_closed_catalog_columns_exist_in_the_seed()
     {
-        // The prompt lists the values of the closed catalogs so the model uses the
-        // exact one. An example whose literal is not in the catalog shows the model
-        // a filter that matches nothing — and count(*) hides it behind a zero.
+        // The prompt lists the values of the closed catalogs so the model uses the exact one.
         await SembrarAsync();
 
         var cerrados = LectorDeValoresDeCatalogo.CatalogosCerrados.ToHashSet();

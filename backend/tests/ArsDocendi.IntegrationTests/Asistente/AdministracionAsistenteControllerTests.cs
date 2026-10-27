@@ -204,10 +204,9 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         await FijarCupoDeRolAsync("secretaria", 3);
         await FijarCupoDeRolAsync("decanato", 10);
         await AgregarRolAsync(Secretaria, "decanato");
-        // Turno de AYER: cuenta para el panel de uso (periodo=semana) pero NO
-        // para "hoy" — así ICuotaDelActor.CupoRestanteAsync ve cero turnos
-        // consumidos hoy y su "restante" ES el cupo efectivo completo,
-        // comparable 1:1 con lo que expone /uso sin duplicar su cómputo acá.
+        // Turno de AYER: cuenta para el panel de uso (periodo=semana) pero NO para "hoy" — así
+        // ICuotaDelActor.CupoRestanteAsync ve cero turnos consumidos hoy y su "restante" ES el cupo
+        // efectivo completo, comparable 1:1 con lo que expone /uso sin duplicar su cómputo acá.
         await SembrarTurnoDeAyerAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
 
         using var host = CrearHost();
@@ -309,9 +308,8 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task El_tope_con_decimales_se_audita_como_json_valido_en_cualquier_cultura()
     {
-        // Interpolado, un decimal sale con la coma de la cultura del proceso
-        // (es-AR: «12,5») y la fila de auditoría deja de ser JSON. El request
-        // hereda la cultura del test sólo si el servidor preserva el contexto.
+        // Interpolado, un decimal sale con la coma de la cultura del proceso (es-AR: «12,5») y la
+        // fila de auditoría deja de ser JSON.
         await SembrarAsync();
         using var host = CrearHost();
         host.Server.PreserveExecutionContext = true;

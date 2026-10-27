@@ -4,16 +4,8 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Comprueba los privilegios del asistente donde importa: conectado como los roles
-/// reales, contra la base real.
+/// Comprueba los privilegios del asistente donde importa: conectado como los roles reales, contra la base real.
 /// </summary>
-/// <remarks>
-/// El test de manifiesto compara catálogos; éste ejecuta consultas. Son dos cosas
-/// distintas: el manifiesto puede coincidir con los catálogos y aun así el límite
-/// no comportarse como se espera —por ejemplo si `SELECT *` sobre una tabla con
-/// columnas no concedidas devolviera algo en vez de fallar—. Acá se prueba el
-/// comportamiento del motor, que es el que sostiene la garantía.
-/// </remarks>
 public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_privilegios")
 {
@@ -39,8 +31,6 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
         await SembrarPersonaAsync();
 
         // La tabla tiene columnas no concedidas, así que el asterisco las alcanza.
-        // Es el comportamiento buscado: la restricción la impone el motor, y una
-        // consulta perezosa falla en vez de devolver de más.
         var error = await Assert.ThrowsAsync<PostgresException>(() =>
             ConsultarComoAsistenteAsync(false, "SELECT * FROM identity.personas"));
 
@@ -82,11 +72,8 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
         Assert.Equal(PrivilegioInsuficiente, error.SqlState);
     }
 
-    // Regression guard for TD-012: the feedback table lives inside `asistente`,
-    // already denied wholesale, and stays that way with no per-table GRANT of
-    // its own. If it ever became readable by either role, the assistant could
-    // reconstruct thumbs-up/down votes tied to an analytic row it is otherwise
-    // never allowed to read — reopening exactly the channel TD-012 closes.
+    // Regression guard for TD-012: the feedback table lives inside `asistente`, already denied
+    // wholesale, and stays that way with no per-table GRANT of its own.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -99,11 +86,10 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
         Assert.Equal(PrivilegioInsuficiente, error.SqlState);
     }
 
-    // Regression guard for asistente-historial-conversaciones: own history is
-    // actor-linked ON PURPOSE (unlike registro_analitico/registro_operativo),
-    // which is exactly why it must stay out of the assistant's own reach — the
-    // assistant cannot answer "what did fulano ask" through its own SQL carril,
-    // the same way it cannot read the existing anonymous registers.
+    // Regression guard for asistente-historial-conversaciones: own history is actor-linked ON
+    // PURPOSE (unlike registro_analitico/registro_operativo), which is exactly why it must stay out
+    // of the assistant's own reach — the assistant cannot answer "what did fulano ask" through its
+    // own SQL carril, the same way it cannot read the existing anonymous registers.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -121,10 +107,9 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
         Assert.Equal(PrivilegioInsuficiente, errorTurno.SqlState);
     }
 
-    // Regression guard for asistente-acceso-de-soporte-al-historial: the audit
-    // trail of support reads has to stay unreachable too, or the assistant's
-    // own SQL carril would become a second, unaudited path to "who read whose
-    // history".
+    // Regression guard for asistente-acceso-de-soporte-al-historial: the audit trail of support
+    // reads has to stay unreachable too, or the assistant's own SQL carril would become a second,
+    // unaudited path to "who read whose history".
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -138,12 +123,10 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
         Assert.Equal(PrivilegioInsuficiente, error.SqlState);
     }
 
-    // Regression guard for asistente-administracion-de-uso (design.md D13,
-    // AGENTS.md rule 11 unaffected): the seven new administration-of-use
-    // tables live inside `asistente`, already denied wholesale, and stay
-    // that way with no per-table GRANT — including the audit trail (task
-    // 8.4), which would otherwise become a second, unaudited path to reading
-    // who edited what budget.
+    // Regression guard for asistente-administracion-de-uso (design.md D13, AGENTS.md rule 11
+    // unaffected): the seven new administration-of-use tables live inside `asistente`, already
+    // denied wholesale, and stay that way with no per-table GRANT — including the audit trail (task
+    // 8.4), which would otherwise become a second, unaudited path to reading who edited what budget.
     [Theory]
     [InlineData(false, "presupuesto_rol")]
     [InlineData(true, "presupuesto_rol")]

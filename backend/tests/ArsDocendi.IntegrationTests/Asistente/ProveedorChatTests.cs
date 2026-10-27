@@ -12,9 +12,8 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// <c>ProveedorChat</c> over Microsoft.Extensions.AI against the wire, with no key and
-/// no network (asistente-modelo-en-caliente, tasks 2.3, 2.4, 2.12). Cassettes are not
-/// used on purpose: TD-030 leaves the whole corpus irreproducible until re-recorded.
+/// <c>ProveedorChat</c> over Microsoft.Extensions.AI against the wire, with no key and no network
+/// (asistente-modelo-en-caliente, tasks 2.3, 2.4, 2.12).
 /// </summary>
 public sealed class ProveedorChatTests
 {

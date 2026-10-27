@@ -3,14 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Manifiesto deny-by-default de los privilegios de lectura del asistente.
-///
-/// La frontera del asistente es el motor de base de datos y no una convención, pero eso
-/// solo es cierto si es FALSABLE: un GRANT que nadie re-verifica se degrada en silencio y
-/// el sistema sigue funcionando, solo deja de estar contenido. Este manifiesto es el lado
-/// declarativo de esa verificación; <see cref="ComparadorManifiesto"/> es el otro.
-/// </summary>
+/// <summary>Manifiesto deny-by-default de los privilegios de lectura del asistente.</summary>
 public sealed record Manifiesto
 {
     [JsonPropertyName("version")]
@@ -41,9 +34,7 @@ public sealed record Manifiesto
     }
 
     /// <summary>
-    /// Resuelve la ruta subiendo desde el directorio de salida hasta encontrar la raíz del
-    /// repositorio. Se busca el directorio en vez de contar niveles a propósito: contar
-    /// niveles rompe en silencio si el proyecto se mueve.
+    /// Resuelve la ruta subiendo desde el directorio de salida hasta encontrar la raíz del repositorio.
     /// </summary>
     public static string RutaPorDefecto()
     {
@@ -155,19 +146,10 @@ public sealed record Desviacion(TipoDesviacion Tipo, string Objeto, string Detal
     public override string ToString() => $"[{Tipo}] {Objeto} — {Detalle}";
 }
 
-/// <summary>
-/// Compara el manifiesto contra la realidad de la base en las TRES direcciones.
-///
-/// Verificar una sola deja las otras dos abiertas:
-/// un privilegio efectivo no declarado es una concesión que nadie decidió;
-/// un privilegio declarado que ya no existe es un manifiesto que miente y dejó de proteger;
-/// y una tabla sin clasificar es exactamente la puerta por la que entró idempotencia_comandos.
-/// </summary>
+/// <summary>Compara el manifiesto contra la realidad de la base en las TRES direcciones.</summary>
 public static class ComparadorManifiesto
 {
-    /// <summary>
-    /// Las desviaciones en un texto legible, para el mensaje de la aserción.
-    /// </summary>
+    /// <summary>Las desviaciones en un texto legible, para el mensaje de la aserción.</summary>
     public static string Describir(IReadOnlyCollection<Desviacion> desviaciones) =>
         desviaciones.Count == 0
             ? string.Empty

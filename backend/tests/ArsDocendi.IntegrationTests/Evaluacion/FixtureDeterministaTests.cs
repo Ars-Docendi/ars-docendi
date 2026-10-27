@@ -3,15 +3,7 @@ using ArsDocendi.Evaluacion.Nucleo.Fixture;
 
 namespace ArsDocendi.IntegrationTests.Evaluacion;
 
-/// <summary>
-/// Verifica el fixture sintético de evaluación.
-/// </summary>
-/// <remarks>
-/// Un fixture que no es determinista hace que dos corridas no se puedan comparar,
-/// y uno cuyo resultado esperado cambia con el calendario mide qué día lo
-/// corriste. Las dos cosas rompen la métrica sin romper ningún test, así que hacen
-/// falta tests que las miren de frente.
-/// </remarks>
+/// <summary>Verifica el fixture sintético de evaluación.</summary>
 public sealed partial class FixtureDeterministaTests
 {
     // ------------------------------------------------------- determinismo
@@ -37,10 +29,9 @@ public sealed partial class FixtureDeterministaTests
     [Fact]
     public void Un_cambio_de_seccion_no_corre_los_valores_de_las_siguientes()
     {
-        // LA TRAMPA DEL GENERADOR. Con una sola fuente de aleatoriedad, agregar una
-        // persona correría todos los valores de designaciones y pedidos, y los
-        // ítems de diálogo anclados en apellidos compartidos se romperían sin que
-        // nadie los tocara.
+        // LA TRAMPA DEL GENERADOR. Con una sola fuente de aleatoriedad, agregar una persona
+        // correría todos los valores de designaciones y pedidos, y los ítems de diálogo anclados en
+        // apellidos compartidos se romperían sin que nadie los tocara.
         var conVeinticuatro = SeccionDe(new GeneradorDeFixture(24).Generar(), "designaciones.pedidos");
         var conVeinticinco = SeccionDe(new GeneradorDeFixture(25).Generar(), "designaciones.pedidos");
 
@@ -66,9 +57,7 @@ public sealed partial class FixtureDeterministaTests
     [InlineData("gen_random_uuid")]
     public void El_fixture_no_usa_el_reloj_ni_identificadores_al_azar(string prohibido)
     {
-        // Un dataset cuyo resultado esperado cambia con el calendario mide qué día
-        // lo corriste. Y un identificador al azar hace que el archivo cambie en
-        // cada ejecución.
+        // Un dataset cuyo resultado esperado cambia con el calendario mide qué día lo corriste.
         Assert.DoesNotContain(
             prohibido, new GeneradorDeFixture().Generar(), StringComparison.OrdinalIgnoreCase);
     }
@@ -94,10 +83,8 @@ public sealed partial class FixtureDeterministaTests
     [Fact]
     public void Hay_nombres_de_materia_repetidos_entre_carreras()
     {
-        // Sin esto, el detector de ambigüedad —épica posterior— no dispara nunca y
-        // los ítems de diálogo que lo prueban dan verde sin medir nada.
-        // La materia es canónica: UNA fila en identity.materias y una pertenencia
-        // por carrera en identity.materias_plan.
+        // Sin esto, el detector de ambigüedad —épica posterior— no dispara nunca y los ítems de
+        // diálogo que lo prueban dan verde sin medir nada.
         var contenido = new GeneradorDeFixture().Generar();
         var materias = SeccionDe(contenido, "identity.materias (");
         var pertenencias = SeccionDe(contenido, "identity.materias_plan");
@@ -152,12 +139,8 @@ public sealed partial class FixtureDeterministaTests
         var designaciones = SeccionDe(
             new GeneradorDeFixture().Generar(), "designaciones.designaciones");
 
-        // Las dos hacen falta: sin abiertas no hay «actual», y sin cerradas no se
-        // puede distinguir «vigente» de «hubo».
-        //
-        // Una designación abierta lleva UNA fecha —vigente_desde— y una cerrada
-        // lleva DOS. Contar las apariciones de la fecha es más robusto que mirar
-        // cómo termina la línea, que depende de si es la última del INSERT.
+        // Las dos hacen falta: sin abiertas no hay «actual», y sin cerradas no se puede distinguir
+        // «vigente» de «hubo».
         var abiertas = designaciones.Count(fila => Apariciones(fila, "DATE '") == 1);
         var cerradas = designaciones.Count(fila => Apariciones(fila, "DATE '") == 2);
 

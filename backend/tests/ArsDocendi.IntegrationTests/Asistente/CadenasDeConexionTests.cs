@@ -7,15 +7,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica las tres cadenas de conexión tipadas.
-/// </summary>
-/// <remarks>
-/// No necesitan base: lo que se prueba es cómo se arman y qué garantiza el sistema
-/// de tipos. Se componen los servicios reales del Host —<c>AddArsDocendiShared</c>
-/// y <c>AddAsistenteModule</c>— para que sea la registración de producción la que
-/// se ejercita, no una reconstrucción.
-/// </remarks>
+/// <summary>Verifica las tres cadenas de conexión tipadas.</summary>
 public sealed class CadenasDeConexionTests
 {
     private const string CadenaDelDueno =
@@ -67,10 +59,9 @@ public sealed class CadenasDeConexionTests
     {
         Type[] tipos = [typeof(CadenaDuena), typeof(CadenaSoloLectura), typeof(CadenaSoloLecturaPii)];
 
-        // Esto es lo que hace que pasar la cadena equivocada no compile. Un test no
-        // puede afirmar «esto no compila» sin un compilador adentro; sí puede afirmar
-        // las propiedades del diseño de tipos de las que esa garantía depende: nada
-        // de herencia común, nada de conversiones.
+        // Esto es lo que hace que pasar la cadena equivocada no compile. Un test no puede afirmar
+        // «esto no compila» sin un compilador adentro; sí puede afirmar las propiedades del diseño
+        // de tipos de las que esa garantía depende: nada de herencia común, nada de conversiones.
         foreach (var tipo in tipos)
         {
             Assert.Equal(typeof(object), tipo.BaseType);
@@ -95,9 +86,7 @@ public sealed class CadenasDeConexionTests
 
         var texto = duena.ToString();
 
-        // El accidente que esto previene es interpolar la cadena en un log o en un
-        // mensaje de excepción. El valor crudo sigue disponible en Valor, que hay
-        // que pedir a propósito.
+        // El accidente que esto previene es interpolar la cadena en un log o en un mensaje de excepción.
         Assert.DoesNotContain("secreto-del-dueno", texto, StringComparison.Ordinal);
         Assert.Contains("arsdocendi_pr_123", texto, StringComparison.Ordinal);
         Assert.Contains("secreto-del-dueno", duena.Valor, StringComparison.Ordinal);

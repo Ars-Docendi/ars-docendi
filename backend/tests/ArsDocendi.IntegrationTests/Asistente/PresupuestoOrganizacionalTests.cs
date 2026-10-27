@@ -10,8 +10,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
 /// El tope organizacional de gasto mensual, persistente en Postgres
-/// (asistente-presupuesto-persistente, design.md D3/D4/D6 de
-/// asistente-administracion-de-uso).
+/// (asistente-presupuesto-persistente, design.md D3/D4/D6 de asistente-administracion-de-uso).
 /// </summary>
 public sealed class PresupuestoOrganizacionalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_tope_organizacional")
@@ -113,10 +112,8 @@ public sealed class PresupuestoOrganizacionalTests(PostgresFixture postgres)
     private async Task FijarPrecioAsync(
         string proveedor, string modelo, decimal precioPorTokenEntrada)
     {
-        // El precio tiene que regir a la vez "ahora" (el acumulador lo busca con
-        // now() del motor) y en el `ocurridoEn` del reloj fijo (la calculadora lo
-        // cruza contra esa fecha). Con `now() - 1 día` el test caducaba solo un
-        // día después de `Ancla`: el precio pasaba a empezar después del turno.
+        // El precio tiene que regir a la vez "ahora" (el acumulador lo busca con now() del motor) y
+        // en el `ocurridoEn` del reloj fijo (la calculadora lo cruza contra esa fecha).
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
             """

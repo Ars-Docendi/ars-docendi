@@ -5,16 +5,9 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
 /// La forma de <c>database/asistente/006_asistente_administracion.sql</c> (y de
-/// <c>008_asistente_presupuesto_usuario_vigente_unico.sql</c>, que la completa)
-/// contra una base migrada de verdad (asistente-administracion-de-uso, tarea
-/// 2.1/2.2).
+/// <c>008_asistente_presupuesto_usuario_vigente_unico.sql</c>, que la completa) contra una base
+/// migrada de verdad (asistente-administracion-de-uso, tarea 2.1/2.2).
 /// </summary>
-/// <remarks>
-/// Igual que <see cref="MigracionDelAsistenteTests"/> prueba el DDL contra el
-/// mismo código que corre el migrador —no una copia—, acá se apoya en que
-/// <see cref="PostgresFixture.CrearBaseMigradaAsync"/> ya corre
-/// <c>AdministracionAsistente.AplicarAsync</c> para cada base aislada.
-/// </remarks>
 public sealed class AdministracionDeUsoMigracionTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_administracion_migracion")
 {

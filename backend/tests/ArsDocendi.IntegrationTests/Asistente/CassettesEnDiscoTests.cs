@@ -3,26 +3,12 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El sobre en disco: sello arriba, cuerpo del proveedor verbatim abajo.
-/// </summary>
-/// <remarks>
-/// Lo que se guarda es el cuerpo <b>crudo</b> de la respuesta y no la respuesta ya
-/// traducida al contrato del puerto. Guardar la traducida dejaría el parseo del
-/// adaptador —que es la mitad no cubierta y el motivo entero del mecanismo— del
-/// lado de afuera del cassette.
-/// </remarks>
+/// <summary>El sobre en disco: sello arriba, cuerpo del proveedor verbatim abajo.</summary>
 public sealed class CassettesEnDiscoTests : IDisposable
 {
     /// <summary>
     /// Un cuerpo con espaciado propio, claves fuera de orden alfabético y acentos.
     /// </summary>
-    /// <remarks>
-    /// Todo eso está a propósito: un cuerpo reserializado por nuestro serializador
-    /// es un registro de <b>nuestro</b> formato, no del suyo, y taparía justo lo que
-    /// la fixture existe para no tapar —el día que el proveedor cambie el orden de
-    /// las claves, agregue un campo o mande otro escape—.
-    /// </remarks>
     private const string CuerpoCrudo =
         "{  \"type\":\"message\" ,   \"content\" : "
         + "[ {\"type\":\"text\",\"text\":\"acentuación — «así»\"} ],\n"
@@ -49,9 +35,7 @@ public sealed class CassettesEnDiscoTests : IDisposable
         var archivo = JsonDocument.Parse(File.ReadAllText(Ruta("clave-uno")));
         var raiz = archivo.RootElement;
 
-        // Los tres primeros son los que RNF-03 le exige a los reportes de
-        // evaluación. El cuarto —el fixture— es lo que vuelve mecánica la garantía
-        // de que ningún cassette lleva filas reales.
+        // Los tres primeros son los que RNF-03 le exige a los reportes de evaluación.
         Assert.Equal(Sello.Modelo, raiz.GetProperty("modelo").GetString());
         Assert.Equal(Sello.Fecha, raiz.GetProperty("fecha").GetString());
         Assert.Equal(Sello.HashDelPrefijo, raiz.GetProperty("hash_del_prefijo").GetString());
@@ -61,9 +45,8 @@ public sealed class CassettesEnDiscoTests : IDisposable
     [Fact]
     public void El_sello_va_arriba_del_cuerpo_en_el_archivo()
     {
-        // El cuerpo verbatim es un muro de texto que se revisa mal en un diff. Se
-        // acota poniendo el sello primero: lo que un revisor necesita mirar está
-        // antes del muro.
+        // El cuerpo verbatim es un muro de texto que se revisa mal en un diff. Se acota poniendo el
+        // sello primero: lo que un revisor necesita mirar está antes del muro.
         var almacen = new AlmacenDeCassettes(_directorio);
         almacen.Escribir("clave-uno", Sello, CuerpoCrudo);
 
@@ -95,9 +78,8 @@ public sealed class CassettesEnDiscoTests : IDisposable
         var almacen = new AlmacenDeCassettes(_directorio);
         almacen.Escribir("clave-uno", Sello, CuerpoCrudo);
 
-        // Distinguir «no está» de «está roto» es lo que permite que el handler
-        // decida entre grabar y fallar cerrado. Vale para una clave que falta en un
-        // directorio que existe y para el directorio entero sin crear.
+        // Distinguir «no está» de «está roto» es lo que permite que el handler decida entre grabar
+        // y fallar cerrado.
         Assert.Null(almacen.Leer("clave-que-no-existe"));
         Assert.Null(new AlmacenDeCassettes(_directorio + "-inexistente").Leer("clave-uno"));
     }

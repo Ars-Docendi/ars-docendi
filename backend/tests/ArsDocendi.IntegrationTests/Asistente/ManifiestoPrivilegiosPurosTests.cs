@@ -3,18 +3,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// <summary>
 /// Lo que se puede afirmar del manifiesto de privilegios <b>sin</b> una base de datos.
 /// </summary>
-/// <remarks>
-/// Son las aserciones sobre el texto del manifiesto y sobre el comparador, que es
-/// una función pura: no necesitan que exista ninguna tabla. Estaban en
-/// <see cref="ManifiestoPrivilegiosTests"/>, que hereda de
-/// <c>ClasePostgresAislada</c>, así que cada una provisionaba una base entera
-/// —crear, migrar tres schemas, crear dos roles, aplicar privilegios y borrar—
-/// para leer un JSON del repositorio.
-///
-/// Las que sí necesitan la base se quedan allá, y son las que importan: comparar
-/// el manifiesto contra los privilegios que la migración aplicó de verdad. El
-/// corte es ese y no un criterio de tamaño.
-/// </remarks>
 public sealed class ManifiestoPrivilegiosPurosTests
 {
     private const string RolBasico = "asistente_ro";

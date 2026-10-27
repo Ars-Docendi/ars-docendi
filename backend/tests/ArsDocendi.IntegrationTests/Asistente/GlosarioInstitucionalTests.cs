@@ -11,35 +11,13 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// Todo lo que el glosario nombra existe, es legible y no es sensible
 /// (asistente-glosario-institucional, D4).
 /// </summary>
-/// <remarks>
-/// <b>LO QUE ESTE TEST EXISTE PARA EVITAR.</b> Una línea del glosario viaja al
-/// prompt como un hecho: «aprobado → estado = 'en_lote'». Si la columna se renombra
-/// o el valor deja de existir, el modelo sigue copiando el literal y la consulta
-/// vuelve vacía con SQL válido, que se lee como «no hay datos». Es el mismo defecto
-/// que el catálogo de ejemplos verificados.
-///
-/// <b>Cada regla se prueba contra una entrada rota que vive ACÁ</b> y no en el
-/// archivo real: un verificador que dejara de verificar —una consulta que devuelve
-/// siempre «existe»— haría pasar al archivo real sin que nada lo notara. Es el
-/// mismo par que <c>PrefijoDeLosCassettesTests.El_guard_reconoce_una_huella_ajena</c>.
-///
-/// Corre contra la base migrada y sin seed: los valores que se comprueban salen de
-/// <c>CHECK</c> o de catálogos que siembra una migración.
-/// </remarks>
 public sealed partial class GlosarioInstitucionalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_glosario")
 {
     private const string Estado = "designaciones.pedidos.estado";
     private const string Propietario = "designaciones.pedidos.propietario_actual";
 
-    /// <summary>
-    /// Las tablas cuyos valores se comprueban contra sus filas.
-    /// </summary>
-    /// <remarks>
-    /// DECLARADAS, no detectadas, por el mismo motivo que la lista de catálogos
-    /// cerrados: que una tabla sirva de fuente de verdad es una decisión que se
-    /// revisa en el diff. Las tres son catálogos sembrados por migración.
-    /// </remarks>
+    /// <summary>Las tablas cuyos valores se comprueban contra sus filas.</summary>
     private static readonly string[] TablasDeCatalogo =
         ["designaciones.cargos", "designaciones.dedicaciones", "identity.roles"];
 
@@ -146,9 +124,8 @@ public sealed partial class GlosarioInstitucionalTests(PostgresFixture postgres)
     [Fact]
     public async Task La_columna_de_verificaContra_tambien_se_verifica()
     {
-        // Una fuente de verdad ilegible para el rol básico no puede serlo del
-        // glosario: el valor se verificaría contra algo que el asistente no ve.
-        // `tareas` es un schema real y denegado en el manifiesto de privilegios.
+        // Una fuente de verdad ilegible para el rol básico no puede serlo del glosario: el valor se
+        // verificaría contra algo que el asistente no ve.
         var roto = Termino("fuente ilegible", columna: Propietario, valores: ["decanato"], verificaContra: "tareas.estados_tarea.codigo");
 
         await AssertFallaAsync(roto, "fuente ilegible", "tareas.estados_tarea.codigo", "no está concedida al rol básico");
@@ -329,7 +306,6 @@ public sealed partial class GlosarioInstitucionalTests(PostgresFixture postgres)
     }
 
     /// <summary>Reglas 2, 3 y 4: existe, el rol básico la lee y es pública.</summary>
-    /// <returns>Si la columna existe y es legible, o sea, si tiene sentido mirar sus valores.</returns>
     private static async Task<bool> VerificarColumnaAsync(
         NpgsqlConnection conexion,
         Manifiesto manifiesto,
@@ -493,14 +469,7 @@ public sealed partial class GlosarioInstitucionalTests(PostgresFixture postgres)
         return await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken) is true;
     }
 
-    /// <summary>
-    /// Los literales de texto de los <c>CHECK</c> que mencionan la columna.
-    /// </summary>
-    /// <remarks>
-    /// PostgreSQL devuelve <c>IN (…)</c> como <c>ARRAY['a'::text, …]</c>, así que se
-    /// extraen los literales entre comillas y se des-escapa <c>''</c>; no se intenta
-    /// evaluar la restricción.
-    /// </remarks>
+    /// <summary>Los literales de texto de los <c>CHECK</c> que mencionan la columna.</summary>
     private static async Task<HashSet<string>> LiteralesDelCheckAsync(
         NpgsqlConnection conexion, ReferenciaDeGlosario referencia)
     {

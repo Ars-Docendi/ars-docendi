@@ -333,9 +333,7 @@ public sealed class OptimizacionesModeloLocalPurasTests
     [Fact]
     public async Task Con_la_opcion_apagada_la_solicitud_de_la_segunda_generacion_es_identica_a_la_de_siempre()
     {
-        // D4: la clave de los cassettes incluye el esfuerzo, así que un cambio acá
-        // los invalidaría. Aun con un techo sobrante y con el proveedor anthropic,
-        // la solicitud es la misma que sin el parámetro.
+        // D4: la clave de los cassettes incluye el esfuerzo, así que un cambio acá los invalidaría.
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion("SELECT 1"));
         var generador = Generador(proveedor, new OpcionesAsistente
         {

@@ -6,18 +6,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica qué sigue funcionando cuando no hay modelo, y qué cuesta un turno.
-/// </summary>
-/// <remarks>
-/// Es la épica entera dicha en una frase: <b>el modo degradado no hay que
-/// inventarlo, hay que exponerlo</b>. Cinco de los ocho pasos del pipeline no
-/// necesitan proveedor, y lo que estos tests prueban es que siguen corriendo.
-///
-/// El proveedor va guionado y el reloj es falso, así que todo lo que acá se mide
-/// —cuántas llamadas salieron, cuántas se cobraron, qué estado quedó— es
-/// determinista.
-/// </remarks>
+/// <summary>Verifica qué sigue funcionando cuando no hay modelo, y qué cuesta un turno.</summary>
 public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_degradacion")
 {
@@ -29,13 +18,9 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     private const string ContarDocentes =
         "SELECT count(*) AS cantidad FROM designaciones.designaciones";
 
-    // ------------------------------------------------------------ la cuota
-    //
-    // Desde asistente-administracion-de-uso la cuota se mide en TURNOS por día
-    // calendario UTC, no en llamadas al modelo ni en una ventana deslizante
-    // (design.md D2). `cupoDiario` acá reemplaza al viejo
-    // `OpcionesAsistente.CupoDeLlamadasPorActor`, y `banco.Cuota` es ahora
-    // asíncrono: ver ICuotaDelActor.
+    // ------------------------------------------------------------ la cuota Desde
+    // asistente-administracion-de-uso la cuota se mide en TURNOS por día calendario UTC, no en
+    // llamadas al modelo ni en una ventana deslizante (design.md D2).
 
     [Fact]
     public async Task Un_turno_con_reescritor_cobra_tres_llamadas()
@@ -72,10 +57,9 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Si_la_reescritura_falla_el_seguimiento_sigue_con_la_pregunta_cruda()
     {
-        // asistente-proveedor-local, D5: la llamada del reescritor está fuera del
-        // try del carril, y una falla del proveedor ahí —saturado, timeout,
-        // transporte— terminaba el turno en «excepción no prevista». Ahora se
-        // resuelve igual que sin modelo: la pregunta sigue cruda.
+        // asistente-proveedor-local, D5: la llamada del reescritor está fuera del try del carril, y
+        // una falla del proveedor ahí —saturado, timeout, transporte— terminaba el turno en
+        // «excepción no prevista».
         await SembrarAsync();
         var llamadas = 0;
         var proveedor = new ProveedorGuionado(
@@ -111,10 +95,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_la_reescritura_en_la_generacion_un_seguimiento_no_llama_al_reescritor()
     {
-        // asistente-optimizaciones-modelo-local, D7: el seguimiento hace DOS
-        // llamadas —generación y redacción— en vez de tres. La generación recibe
-        // la pregunta anterior y devuelve la resuelta, que queda como «así lo
-        // interpreté» y como la pregunta del hilo.
+        // asistente-optimizaciones-modelo-local, D7: el seguimiento hace DOS llamadas —generación y
+        // redacción— en vez de tres.
         await SembrarAsync();
         const string Resuelta = "¿cuántos docentes están designados en Sistemas?";
         var proveedor = new ProveedorGuionado(
@@ -237,10 +219,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_que_se_cae_a_la_mitad_paga_lo_que_gasto()
     {
-        // Si el cargo fuera solo al terminar bien, fallar sería una forma de
-        // consultar gratis: bastaría con hacer explotar el turno después de la
-        // llamada cara. Por eso se cobra en `finally`. Con cupo=1 TURNO, este
-        // turno que se cae —pero llegó a llamar al modelo— agota el cupo igual.
+        // Si el cargo fuera solo al terminar bien, fallar sería una forma de consultar gratis:
+        // bastaría con hacer explotar el turno después de la llamada cara.
         await SembrarAsync();
         var banco = BancoCon(
             new OpcionesAsistente(),
@@ -268,10 +248,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Varias_etapas_lentas_agotan_el_presupuesto_sin_que_ninguna_exceda_el_suyo()
     {
-        // ÉSTE ES EL MODO DE FALLA QUE RNF-09 NOMBRA. Cada llamada tarda 16 s con
-        // un timeout de 20, así que ninguna se pasa; entre dos suman 32 s contra un
-        // presupuesto de 30. Sin una cota global, el turno duraría lo que sumen las
-        // etapas y cada una habría respetado su límite.
+        // ÉSTE ES EL MODO DE FALLA QUE RNF-09 NOMBRA. Cada llamada tarda 16 s con un timeout de 20,
+        // así que ninguna se pasa; entre dos suman 32 s contra un presupuesto de 30.
         await SembrarAsync();
         var reloj = new RelojFijo(Ancla);
 
@@ -314,9 +292,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_cliente_que_se_va_despues_de_la_llamada_no_se_saltea_el_registro()
     {
-        // La cuota se deriva de registro_operativo: si el token cancelado del
-        // request cortaba la escritura de la fila, irse a mitad del turno era una
-        // forma de consultar sin que el cupo lo contara.
+        // La cuota se deriva de registro_operativo: si el token cancelado del request cortaba la
+        // escritura de la fila, irse a mitad del turno era una forma de consultar sin que el cupo lo contara.
         await SembrarAsync();
         var (basica, pii) = CadenasDeLectura();
         using var fuente = new CancellationTokenSource();
@@ -391,9 +368,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_breaker_abierto_una_pregunta_ambigua_devuelve_su_menu()
     {
-        // El menú sale de una consulta a la base, no del modelo. Si la falta de
-        // proveedor cortara el turno, se perdería el único estado que le dice al
-        // usuario cómo destrabar su propia pregunta.
+        // El menú sale de una consulta a la base, no del modelo. Si la falta de proveedor cortara
+        // el turno, se perdería el único estado que le dice al usuario cómo destrabar su propia pregunta.
         await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = BancoSinProveedor();
@@ -449,9 +425,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_breaker_abierto_no_se_consume_cupo_del_actor()
     {
-        // Sale del orden: el veredicto se resuelve ANTES del pipeline, así que sin
-        // modelo no hay llamadas, y sin llamadas no hay nada que cobrar. Un proveedor
-        // caído no le gasta el cupo a nadie.
+        // Sale del orden: el veredicto se resuelve ANTES del pipeline, así que sin modelo no hay
+        // llamadas, y sin llamadas no hay nada que cobrar.
         await SembrarAsync();
         var banco = BancoSinProveedor(cupoDiario: 4);
         var ct = TestContext.Current.CancellationToken;
@@ -488,9 +463,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_estado_degradado_se_distingue_del_no_contestable()
     {
-        // «No contestable» significa que la pregunta no se puede responder nunca;
-        // degradado significa que ahora no. Colapsarlos le diría al usuario que su
-        // pregunta está mal cuando lo que pasa es que el proveedor se cayó.
+        // «No contestable» significa que la pregunta no se puede responder nunca; degradado
+        // significa que ahora no.
         await SembrarAsync();
 
         var caido = BancoSinProveedor();
@@ -516,10 +490,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_que_se_cae_deja_fila_con_las_llamadas_que_alcanzo_a_hacer()
     {
-        // La cuota se cobra en un `finally` y el registro no: un turno que revienta
-        // pagaba llamadas que después no aparecían en ningún lado. El registro
-        // operativo es la única fuente para responder «cuántas veces falló», y era
-        // justo la pregunta que no podía contestar.
+        // La cuota se cobra en un `finally` y el registro no: un turno que revienta pagaba llamadas
+        // que después no aparecían en ningún lado.
         await SembrarAsync();
 
         var banco = BancoCon(
@@ -544,13 +516,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_que_se_cae_despues_de_decidir_conserva_la_intencion()
     {
-        // El paso 5 corre antes que el carril SQL, así que cuando el proveedor
-        // explota la decisión ya estaba tomada. La fila del fallo la conserva por el
-        // mismo motivo por el que conserva las llamadas: el portador tiene alcance de
-        // turno y sobrevive a la excepción.
-        //
-        // Importa justo acá: un turno que revienta después de que el catálogo lo
-        // capturó es exactamente el caso que el número de cobertura no puede perder.
+        // El paso 5 corre antes que el carril SQL, así que cuando el proveedor explota la decisión
+        // ya estaba tomada.
         await SembrarAsync();
 
         var banco = BancoCon(
@@ -655,15 +622,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         return banco;
     }
 
-    /// <summary>
-    /// El guion de <paramref name="turnos"/> turnos completos del carril SQL.
-    /// </summary>
-    /// <remarks>
-    /// Hace falta porque el proveedor guionado repite su última respuesta cuando se
-    /// le acaba el guion: un turno de más leería «Hay 4 docentes» como si fuera una
-    /// generación y el turno terminaría no contestable por una razón que no es la
-    /// que el test mide.
-    /// </remarks>
+    /// <summary>El guion de <paramref name="turnos"/> turnos completos del carril SQL.</summary>
     private static IEnumerable<string> GuionDeTurnos(int turnos) =>
         Enumerable.Range(0, turnos).SelectMany(_ => new[]
         {

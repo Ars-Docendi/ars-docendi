@@ -3,18 +3,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el selector de ejemplos por similitud léxica.
-/// </summary>
-/// <remarks>
-/// Todo corre en memoria y sin red: es exactamente lo que el diseño promete del
-/// selector, así que un test que necesitara una conexión estaría probando otra
-/// cosa.
-///
-/// La verificación de que el catálogo es <b>disjunto</b> del dataset de capacidad
-/// vive con el dataset, en el cambio de evaluación: no se puede verificar contra
-/// un archivo que todavía no existe.
-/// </remarks>
+/// <summary>Verifica el selector de ejemplos por similitud léxica.</summary>
 public sealed class SelectorDeEjemplosTests
 {
     private static readonly SelectorDeEjemplos Selector = new();
@@ -83,9 +72,8 @@ public sealed class SelectorDeEjemplosTests
     [Fact]
     public void Una_pregunta_sin_parentesco_no_arrastra_ejemplos()
     {
-        // Mandarle al modelo los ejemplos menos malos de un catálogo que no viene
-        // al caso lo empuja a forzar la pregunta dentro de una forma que no le
-        // corresponde.
+        // Mandarle al modelo los ejemplos menos malos de un catálogo que no viene al caso lo empuja
+        // a forzar la pregunta dentro de una forma que no le corresponde.
         var elegidos = Selector.Elegir("¿Cuál es la capital de Francia?");
 
         Assert.Empty(elegidos);
@@ -133,9 +121,8 @@ public sealed class SelectorDeEjemplosTests
     [Fact]
     public void La_seleccion_no_consume_llamadas_al_modelo()
     {
-        // La comprobación honesta de «cuesta cero»: con el techo del turno agotado,
-        // pedir la selección tiene que seguir funcionando. Si por dentro llamara al
-        // proveedor, acá levantaría TechoDeLlamadasSuperado.
+        // La comprobación honesta de «cuesta cero»: con el techo del turno agotado, pedir la
+        // selección tiene que seguir funcionando.
         var contador = new ContadorDeLlamadasDelTurno(1);
         contador.Reservar();
         Assert.Throws<TechoDeLlamadasSuperado>(contador.Reservar);

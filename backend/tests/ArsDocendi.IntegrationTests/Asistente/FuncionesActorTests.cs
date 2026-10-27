@@ -4,14 +4,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica las cuatro funciones de resolución del actor del asistente.
-/// </summary>
-/// <remarks>
-/// Cada llamada corre dentro de su propia transacción, con el ajuste
-/// <c>app.asistente_user_id</c> fijado como transaction-local, igual que en
-/// producción: el ajuste muere en el COMMIT y no sobrevive al pool de conexiones.
-/// </remarks>
+/// <summary>Verifica las cuatro funciones de resolución del actor del asistente.</summary>
 public sealed class FuncionesActorTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_funciones")
 {
@@ -57,9 +50,7 @@ public sealed class FuncionesActorTests(PostgresFixture postgres)
     [Fact]
     public async Task Ninguna_funcion_lleva_un_codigo_de_rol_embebido()
     {
-        // Una lista negra (`code <> 'docente'`) falla ABIERTA: cualquier rol nuevo
-        // pasaría por default. Una blanca falla cerrada pero obliga a desplegar cada
-        // vez que el cliente crea un rol. Por eso se pregunta por el permiso.
+        // Una lista negra (`code <> 'docente'`) falla ABIERTA: cualquier rol nuevo pasaría por default.
         var cuerpos = await LeerColumnaAsync(
             """
             SELECT p.proname || ' :: ' || p.prosrc
@@ -135,9 +126,8 @@ public sealed class FuncionesActorTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_UUID_que_no_es_un_usuario_activo_rompe_en_vez_de_devolver_vacio()
     {
-        // Es el caso del `oid` de Azure AD: también es un UUID válido. Devolver cero
-        // filas en silencio sería una respuesta falsa, y la métrica del asistente es
-        // corrección con abstención.
+        // Es el caso del `oid` de Azure AD: también es un UUID válido. Devolver cero filas en
+        // silencio sería una respuesta falsa, y la métrica del asistente es corrección con abstención.
         var error = await Assert.ThrowsAsync<PostgresException>(() =>
             ComoActorCrudoAsync(Guid.NewGuid().ToString(), "SELECT identity.asistente_actor()"));
 

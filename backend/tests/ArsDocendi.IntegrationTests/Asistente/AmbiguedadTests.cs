@@ -7,16 +7,8 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica el índice de entidades contra una base real y el detector de ambigüedad
-/// sobre él.
+/// Verifica el índice de entidades contra una base real y el detector de ambigüedad sobre él.
 /// </summary>
-/// <remarks>
-/// <b>El seed sintético del proyecto no tiene ninguna colisión</b>: sus seis
-/// materias tienen nombres distintos y ningún apellido se repite. Por eso los tests
-/// que ejercitan la desambiguación insertan las colisiones que necesitan, y esa
-/// inserción es también la prueba de que el índice sale de la base: si estuviera
-/// embebido en el código, filas nuevas no cambiarían nada.
-/// </remarks>
 public sealed class AmbiguedadTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_ambiguedad")
 {
@@ -112,10 +104,9 @@ public sealed class AmbiguedadTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_mencion_de_este_turno_tambien_evita_la_aclaracion()
     {
-        // Escenario "A referenced subject with a homonym does not ask for
-        // clarification" de asistente-menciones (design.md D11): el usuario ya
-        // eligió la entidad exacta en el popover, así que su etiqueta hace lo
-        // mismo que nombrar la carrera a mano.
+        // Escenario "A referenced subject with a homonym does not ask for clarification" de
+        // asistente-menciones (design.md D11): el usuario ya eligió la entidad exacta en el
+        // popover, así que su etiqueta hace lo mismo que nombrar la carrera a mano.
         await SembrarAsync();
         await AgregarColisionesAsync();
         var catalogo = await Indice().ObtenerAsync(TestContext.Current.CancellationToken);
@@ -129,9 +120,8 @@ public sealed class AmbiguedadTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_mencion_de_otro_termino_no_apaga_una_colision_distinta()
     {
-        // La supresión es por entidad, no un interruptor general: mencionar una
-        // materia no puede volver invisible una colisión de apellido en la
-        // misma pregunta.
+        // La supresión es por entidad, no un interruptor general: mencionar una materia no puede
+        // volver invisible una colisión de apellido en la misma pregunta.
         await SembrarAsync();
         await AgregarColisionesAsync();
         var catalogo = await Indice().ObtenerAsync(TestContext.Current.CancellationToken);
@@ -205,13 +195,8 @@ public sealed class AmbiguedadTests(PostgresFixture postgres)
     private IndiceDeEntidades Indice() => new(Apertura);
 
     /// <summary>
-    /// Agrega una materia con nombre repetido en otra carrera y una persona que
-    /// comparte apellido.
+    /// Agrega una materia con nombre repetido en otra carrera y una persona que comparte apellido.
     /// </summary>
-    /// <remarks>
-    /// El seed sintético no trae colisiones, así que sin esto el detector no
-    /// tendría nada que detectar y los tests pasarían sin ejercitar el camino.
-    /// </remarks>
     private async Task AgregarColisionesAsync()
     {
         await using var conexion = await AbrirConexionAsync();

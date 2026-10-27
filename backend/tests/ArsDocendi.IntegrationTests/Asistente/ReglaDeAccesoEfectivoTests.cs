@@ -2,10 +2,7 @@ using Modules.Asistente.Application;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// La regla pura de acceso efectivo (asistente-acceso-granular, design.md D2).
-/// Es la única implementación: la usan el bloqueo del turno y el panel.
-/// </summary>
+/// <summary>La regla pura de acceso efectivo (asistente-acceso-granular, design.md D2).</summary>
 public sealed class ReglaDeAccesoEfectivoTests
 {
     private static readonly Dictionary<string, bool> Todos = new() { ["docente"] = true, ["secretaria"] = true };

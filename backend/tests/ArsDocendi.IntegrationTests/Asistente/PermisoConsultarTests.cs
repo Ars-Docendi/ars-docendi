@@ -11,15 +11,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el permiso de admisión al asistente y su siembra.
-/// </summary>
-/// <remarks>
-/// El permiso es persistido —y no una lista de roles en código— porque la matriz
-/// rol → permiso se edita desde /membresia-roles sin desplegar, y porque
-/// `identity.roles` no es un catálogo cerrado: una lista embebida falla ABIERTA
-/// con cualquier rol que no conozca.
-/// </remarks>
+/// <summary>Verifica el permiso de admisión al asistente y su siembra.</summary>
 public sealed class PermisoConsultarTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso")
 {

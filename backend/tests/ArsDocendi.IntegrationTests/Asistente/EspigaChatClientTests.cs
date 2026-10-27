@@ -12,9 +12,8 @@ using OpenAI;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Spike (asistente-modelo-en-caliente, task 2.1): can Microsoft.Extensions.AI carry
-/// what the Asistente port needs? Results are recorded in design.md under D10.
-/// No network, no real keys: every answer comes from a fake handler.
+/// Spike (asistente-modelo-en-caliente, task 2.1): can Microsoft.Extensions.AI carry what the
+/// Asistente port needs?
 /// </summary>
 public sealed class EspigaChatClientTests
 {

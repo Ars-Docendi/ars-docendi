@@ -3,19 +3,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// La clave con que un cassette se busca en disco, calculada sobre el cable.
-/// </summary>
-/// <remarks>
-/// Es la pieza de la que depende que un cassette grabado hoy se encuentre dentro
-/// de un año: si la clave cambiara entre procesos, cada corrida buscaría archivos
-/// que nadie escribió y el mecanismo entero fallaría cerrado sin motivo.
-///
-/// Se calcula sobre el <b>cuerpo de la solicitud</b> y no sobre la
-/// <c>SolicitudAlModelo</c>, porque quien la necesita es un handler HTTP que ve
-/// bytes y no tipos del puerto — que es justamente lo que deja al guard del SDK
-/// en pie sin excepción nueva.
-/// </remarks>
+/// <summary>La clave con que un cassette se busca en disco, calculada sobre el cable.</summary>
 public sealed class ClaveDeCassetteTests
 {
     private const string Prefijo = "Esquema de identity y designaciones. Respondé solo con SQL.";
@@ -27,11 +15,8 @@ public sealed class ClaveDeCassetteTests
     [Fact]
     public void La_misma_solicitud_produce_la_misma_clave_en_cualquier_proceso()
     {
-        // El valor está escrito a mano y se calculó por fuera de este código
-        // —SHA-256 de los cuatro campos unidos por el separador—, no capturándolo
-        // de una corrida. Comparar contra lo que el propio código devuelve dos
-        // veces en el MISMO proceso no probaría nada: `string.GetHashCode()` está
-        // aleatorizado por proceso y también pasaría esa prueba.
+        // El valor está escrito a mano y se calculó por fuera de este código —SHA-256 de los cuatro
+        // campos unidos por el separador—, no capturándolo de una corrida.
         const string Esperada =
             "d09d348dc5e1011f1676c456b1076d557f45818ed34f17b951fce322d929e77d";
 
@@ -54,17 +39,14 @@ public sealed class ClaveDeCassetteTests
         { "prefijo", true },
         { "mensaje", true },
         { "esfuerzo", true },
-        // Omitir `output_config` es lo que el adaptador hace con esfuerzo mínimo, y
-        // no es «esfuerzo bajo»: hay modelos que rechazan el campo con 400. Dos
-        // llamadas que difieren en eso le hablan distinto al modelo y no pueden
-        // compartir cassette.
+        // Omitir `output_config` es lo que el adaptador hace con esfuerzo mínimo, y no es «esfuerzo
+        // bajo»: hay modelos que rechazan el campo con 400.
         { "esfuerzo-omitido", true },
         { "modelo", true },
         // ES EL PUNTO DE QUE LA CLAVE SEAN CUATRO CAMPOS Y NO EL CUERPO ENTERO.
-        // `MaximoDeTokensDeGeneracion` es una perilla que la propia documentación
-        // invita a mover cuando aparece el aviso de corte; hashear el cuerpo
-        // completo invalidaría todos los cassettes de golpe, y recuperarlos costaría
-        // otra corrida financiada.
+        // `MaximoDeTokensDeGeneracion` es una perilla que la propia documentación invita a mover
+        // cuando aparece el aviso de corte; hashear el cuerpo completo invalidaría todos los
+        // cassettes de golpe, y recuperarlos costaría otra corrida financiada.
         { "techo-de-tokens", false },
     };
 
@@ -135,10 +117,9 @@ public sealed class ClaveDeCassetteTests
     [Fact]
     public void El_prefijo_se_lee_del_texto_del_bloque_y_no_de_su_JSON()
     {
-        // Si la huella se calculara sobre el JSON crudo del bloque de sistema, un
-        // cambio de formato del SDK —otro orden de claves, otro espaciado— la
-        // movería sin que el prefijo hubiera cambiado, y todos los cassettes
-        // quedarían sellados con un prefijo «ajeno» que nadie tocó.
+        // Si la huella se calculara sobre el JSON crudo del bloque de sistema, un cambio de formato
+        // del SDK —otro orden de claves, otro espaciado— la movería sin que el prefijo hubiera
+        // cambiado, y todos los cassettes quedarían sellados con un prefijo «ajeno» que nadie tocó.
         var conMarca = ClaveDeCassette.Calcular(Cuerpo()).HashDelPrefijo;
         var sinMarca = ClaveDeCassette.Calcular(Cuerpo(conCacheControl: false)).HashDelPrefijo;
 

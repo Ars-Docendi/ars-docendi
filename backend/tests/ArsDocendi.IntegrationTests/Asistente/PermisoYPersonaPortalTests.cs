@@ -3,15 +3,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El permiso y la función que la RLS de portal necesita como predicado.
-/// </summary>
-/// <remarks>
-/// Las dos piezas de <c>identity</c> que hacen falta antes de que exista una sola
-/// policy sobre <c>portal</c>: el interruptor que decide quién puede leer la
-/// trayectoria ajena, y la resolución de a qué persona corresponde el actor del
-/// turno.
-/// </remarks>
+/// <summary>El permiso y la función que la RLS de portal necesita como predicado.</summary>
 public sealed class PermisoYPersonaPortalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_portal_identity")
 {
@@ -25,10 +17,8 @@ public sealed class PermisoYPersonaPortalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_permiso_existe_y_no_lo_tiene_ningun_rol()
     {
-        // NACE VACÍO Y ES DELIBERADO. Quién puede leer la trayectoria de otro es una
-        // decisión del Departamento con respaldo normativo. Un permiso concedido de
-        // arranque es difícil de quitar; uno vacío se concede en treinta segundos
-        // desde /membresia-roles y queda registrado quién lo pidió.
+        // NACE VACÍO Y ES DELIBERADO. Quién puede leer la trayectoria de otro es una decisión del
+        // Departamento con respaldo normativo.
         await SembrarAsync();
 
         Assert.Equal(1L, await EscalarAsync<long>(
@@ -48,12 +38,9 @@ public sealed class PermisoYPersonaPortalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_permiso_nuevo_no_es_portal_ver()
     {
-        // LA TRAMPA QUE ESTE PERMISO EXISTE PARA CERRAR. `portal.ver` lo tienen los
-        // siete roles y significa «acceder al portal PROPIO»: un predicado que
-        // preguntara por él sería verdadero siempre y no protegería nada.
-        //
-        // Se afirma la premisa —que `portal.ver` está repartido— para que quede
-        // claro por qué no sirve, y no sólo que no se usa.
+        // LA TRAMPA QUE ESTE PERMISO EXISTE PARA CERRAR. `portal.ver` lo tienen los siete roles y
+        // significa «acceder al portal PROPIO»: un predicado que preguntara por él sería verdadero
+        // siempre y no protegería nada.
         await SembrarAsync();
 
         var conPortalVer = await EscalarAsync<long>(
@@ -89,9 +76,8 @@ public sealed class PermisoYPersonaPortalTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_actor_fijado_la_funcion_no_devuelve_ninguna_persona()
     {
-        // Falla cerrado, igual que el resto de la resolución del actor: sin ajuste no
-        // hay actor, sin actor no hay persona, y un NULL hace falsa la comparación de
-        // la policy. El actor no ve ningún perfil propio porque no tiene ninguno.
+        // Falla cerrado, igual que el resto de la resolución del actor: sin ajuste no hay actor,
+        // sin actor no hay persona, y un NULL hace falsa la comparación de la policy.
         await SembrarAsync();
 
         await using var conexion = await AbrirConexionComoAsistenteAsync(false);

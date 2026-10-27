@@ -224,9 +224,7 @@ public sealed class ProveedorOllamaTests
     [InlineData(HttpStatusCode.ServiceUnavailable)]
     public async Task La_saturacion_del_servicio_no_es_falla_de_transporte(HttpStatusCode estado)
     {
-        // 429 de Traefik o 503 de Ollama con la cola llena: el servicio está
-        // ocupado, no caído. Si llegara como HttpRequestException, el breaker la
-        // contaría y apagaría el asistente justo cuando más se lo usa.
+        // 429 de Traefik o 503 de Ollama con la cola llena: el servicio está ocupado, no caído.
         var servidor = new ServidorFalso(_ => new HttpResponseMessage(estado));
 
         var error = await Assert.ThrowsAsync<ProveedorSaturado>(

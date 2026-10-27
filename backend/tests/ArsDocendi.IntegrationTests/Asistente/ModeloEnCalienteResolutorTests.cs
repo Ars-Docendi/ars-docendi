@@ -16,10 +16,9 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// The per-turn resolver of the runtime model selection against a real database:
-/// selection read per turn, environment fallback, redaction, masking, keyed
-/// breakers and the concurrency gate (asistente-modelo-en-caliente, tasks 2.5-2.10,
-/// 2.13-2.15, 2.17-2.21). Every provider answer comes from a fake transport.
+/// The per-turn resolver of the runtime model selection against a real database: selection read per
+/// turn, environment fallback, redaction, masking, keyed breakers and the concurrency gate
+/// (asistente-modelo-en-caliente, tasks 2.5-2.10, 2.13-2.15, 2.17-2.21).
 /// </summary>
 public sealed class ModeloEnCalienteResolutorTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_resolutor")

@@ -3,18 +3,9 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica las plantillas de rechazo contra la copia aprobada de design.md
-/// D11, palabra por palabra (confirmado por el PO, 2026-09-26).
+/// Verifica las plantillas de rechazo contra la copia aprobada de design.md D11, palabra por
+/// palabra (confirmado por el PO, 2026-09-26).
 /// </summary>
-/// <remarks>
-/// Los tests de acá pinnean PROPIEDADES sobre esa copia fija —distinción por
-/// razón/variante, eco del término sólo donde la celda de D11 tiene una forma
-/// con término, áreas sólo donde D11 tiene <c>{areas}</c>, ninguna afirmación
-/// de ausencia, el puntero de ayuda enrutado a la meta-pregunta— nunca una
-/// sentencia distinta de la de D11: una celda sin corchete de término
-/// (<c>otro_sistema</c> variante 3, <c>muy_general</c> variante 3) se
-/// renderiza IGUAL con o sin término validado, y a propósito.
-/// </remarks>
 public sealed class PlantillasDeRechazoTests
 {
     private static readonly MotivoDeRechazo[] Motivos =
@@ -139,9 +130,7 @@ public sealed class PlantillasDeRechazoTests
 
     // -------------------- las áreas, sólo donde D11 tiene {areas}
 
-    /// <summary>
-    /// Si la celda (motivo, variante) de design.md D11 tiene <c>{areas}</c>.
-    /// </summary>
+    /// <summary>Si la celda (motivo, variante) de design.md D11 tiene <c>{areas}</c>.</summary>
     public static TheoryData<MotivoDeRechazo, int, bool> CeldasPorFormaDeAreas() => new()
     {
         { MotivoDeRechazo.FueraDeTema, 0, true },
@@ -174,10 +163,9 @@ public sealed class PlantillasDeRechazoTests
         }
         else
         {
-            // Sin {areas} en D11 (design.md: "without areas the clause
-            // carrying {areas} is replaced by AYUDA" no aplica porque nunca
-            // hubo cláusula de áreas que reemplazar): la celda se renderiza
-            // IGUAL con o sin catálogo.
+            // Sin {areas} en D11 (design.md: "without areas the clause carrying {areas} is replaced
+            // by AYUDA" no aplica porque nunca hubo cláusula de áreas que reemplazar): la celda se
+            // renderiza IGUAL con o sin catálogo.
             Assert.Equal(sinAreas, conAreas);
             Assert.DoesNotContain(Areas, conAreas, StringComparison.Ordinal);
         }

@@ -3,14 +3,8 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Las posiciones, dentro del texto de la respuesta, de los valores que el resultado
-/// ya vinculó.
+/// Las posiciones, dentro del texto de la respuesta, de los valores que el resultado ya vinculó.
 /// </summary>
-/// <remarks>
-/// Función pura: no hay base ni módulo. LO QUE SE CUIDA es que el texto no invente
-/// enlaces. Un valor se señala sólo si una celda con vínculo lo tiene, como palabra
-/// completa, y con el índice exacto que el cliente va a usar para cortar el texto.
-/// </remarks>
 public sealed class UbicadorEnElTextoTests
 {
     private static readonly IReadOnlyList<IReadOnlyList<object?>> UnaFila = [["2026-9005", "devuelto"]];

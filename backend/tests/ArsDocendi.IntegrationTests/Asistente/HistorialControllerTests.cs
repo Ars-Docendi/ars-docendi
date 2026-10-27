@@ -308,8 +308,7 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         Assert.Equal(otraConversacion, lista[0].Id);
 
         // TODAVÍA EXISTE EN LA BASE — el DELETE marca, no borra. Ver
-        // «Un_borrado_fuera_de_ventana_se_purga_y_ya_no_existe» para la
-        // finalidad física.
+        // «Un_borrado_fuera_de_ventana_se_purga_y_ya_no_existe» para la finalidad física.
         Assert.Equal(1L, await EscalarAsync<long>(
             "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", unaConversacion)));
     }
@@ -484,9 +483,7 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Borrar_una_y_despues_borrar_todo_deshacer_todo_deja_la_primera_pendiente_por_su_cuenta()
     {
-        // EL CASO EXACTO DE LA SPEC: A se borra sola; dentro de su ventana se
-        // borran todas. Deshacer el lote de «todas» restaura únicamente ese
-        // lote — A sigue pendiente, en el suyo.
+        // EL CASO EXACTO DE LA SPEC: A se borra sola; dentro de su ventana se borran todas.
         await SembrarAsync();
         var a = await SembrarHiloAsync(Secretaria, "a", Ancla);
         var b = await SembrarHiloAsync(Secretaria, "b", Ancla);
@@ -587,10 +584,9 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_hilo_reanudado_cuyo_ultimo_turno_fue_rechazado_escala_el_siguiente_rechazo()
     {
-        // asistente-rechazos-dinamicos, design.md D5: `HistorialController.Reanudar`
-        // siembra `Estado: t.Estado` en cada `TurnoDelHilo`, así que
-        // `RechazosPrevios()` cuenta el rechazo persistido AUNQUE el hilo en
-        // memoria acabe de nacer — el conteo es del actor, no del proceso.
+        // asistente-rechazos-dinamicos, design.md D5: `HistorialController.Reanudar` siembra
+        // `Estado: t.Estado` en cada `TurnoDelHilo`, así que `RechazosPrevios()` cuenta el rechazo
+        // persistido AUNQUE el hilo en memoria acabe de nacer — el conteo es del actor, no del proceso.
         await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
@@ -598,11 +594,10 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
 
         const string Pregunta = "¿instalás linux en el servidor?";
 
-        // `no_cubierto` a propósito: su primera variante sin término es
-        // BYTE A BYTE `PoliticaDeAbstencion.TextoNoContestable` (design.md
-        // D11) — si `RechazosPrevios()` no contara el rechazo persistido, el
-        // texto de acá abajo sería exactamente ése, y la aserción final no
-        // detectaría nada.
+        // `no_cubierto` a propósito: su primera variante sin término es BYTE A BYTE
+        // `PoliticaDeAbstencion.TextoNoContestable` (design.md D11) — si `RechazosPrevios()` no
+        // contara el rechazo persistido, el texto de acá abajo sería exactamente ése, y la aserción
+        // final no detectaría nada.
         var guionado = new ProveedorGuionado(
             Pregunta, // reescritura no-op: hay historial vigente al reanudar
             ProveedorGuionado.NoContestableConMotivo("no_cubierto"));
@@ -643,10 +638,9 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         var turno = await SembrarTurnoAsync(
             propia, "¿cuántas designaciones hay?", "SELECT count(*) AS total FROM designaciones.designaciones");
 
-        // GUION VACÍO A PROPÓSITO: si algún camino llegara a llamar al modelo,
-        // el proveedor guionado revienta por falta de respuestas en vez de
-        // servir una cualquiera — es la prueba dura de «cero llamadas», no
-        // sólo una inspección de código.
+        // GUION VACÍO A PROPÓSITO: si algún camino llegara a llamar al modelo, el proveedor
+        // guionado revienta por falta de respuestas en vez de servir una cualquiera — es la prueba
+        // dura de «cero llamadas», no sólo una inspección de código.
         var guionado = new ProveedorGuionado();
         using var host = CrearHost(guionado);
         using var cliente = host.CreateClient();
@@ -770,11 +764,9 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reejecutar_con_una_referencia_fuera_del_alcance_actual_se_abstiene()
     {
-        // "the stored bindings are re-validated against the actor's current
-        // scope on reuse": el coordinador tiene ámbito de Ingeniería en
-        // Informática, y la referencia guardada nombra una materia de
-        // Ingeniería Industrial. La revalidación la rechaza igual que un
-        // rechazo del motor — nunca un error crudo.
+        // "the stored bindings are re-validated against the actor's current scope on reuse": el
+        // coordinador tiene ámbito de Ingeniería en Informática, y la referencia guardada nombra
+        // una materia de Ingeniería Industrial.
         await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
@@ -850,10 +842,8 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Obtener_omite_la_mencion_fuera_del_alcance_actual_sin_filtrar_nada()
     {
-        // El coordinador tiene ámbito de Ingeniería Informática; la referencia
-        // guardada nombra una materia de Ingeniería Industrial. La mención se
-        // omite —el texto de la pregunta queda plano— en vez de filtrar por
-        // qué dejó de verla (decisión 15 del PO, design.md D11).
+        // El coordinador tiene ámbito de Ingeniería Informática; la referencia guardada nombra una
+        // materia de Ingeniería Industrial.
         await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
@@ -932,10 +922,9 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
                     servicios.AddSingleton(new ProveedorBase(guionado)));
             }
 
-            // Reemplaza al `TimeProvider.System` que el módulo registra con
-            // `TryAddSingleton` — la última registración gana, mismo truco
-            // que el `ProveedorBase` de arriba — para poder adelantar la
-            // ventana de «Deshacer» sin esperarla de verdad.
+            // Reemplaza al `TimeProvider.System` que el módulo registra con `TryAddSingleton` — la
+            // última registración gana, mismo truco que el `ProveedorBase` de arriba — para poder
+            // adelantar la ventana de «Deshacer» sin esperarla de verdad.
             if (reloj is not null)
             {
                 builder.ConfigureTestServices(servicios => servicios.AddSingleton(reloj));

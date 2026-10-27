@@ -254,10 +254,9 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Leer_no_expone_menciones_aunque_el_turno_tenga_referencias_persistidas()
     {
-        // Decisión 15 del PO (design.md D11 de asistente-rediseno-v3): quien lee
-        // acá nunca es el actor cuyo alcance decide si una mención se ve, así
-        // que este endpoint no gana el campo — ni siquiera vacío — a
-        // diferencia del lado propio (`HistorialControllerTests`).
+        // Decisión 15 del PO (design.md D11 de asistente-rediseno-v3): quien lee acá nunca es el
+        // actor cuyo alcance decide si una mención se ve, así que este endpoint no gana el campo —
+        // ni siquiera vacío — a diferencia del lado propio (`HistorialControllerTests`).
         await SembrarAsync();
         await ConcederPermisoDeSoporteAAsync(Secretaria);
 
@@ -336,10 +335,9 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task El_log_de_acceso_de_soporte_nunca_combina_al_sujeto_con_la_pregunta_o_la_sql()
     {
-        // EXTIENDE LA DISCIPLINA D3 de asistente-feedback-export-seguimiento:
-        // la fila de auditoría YA es el registro completo de qué se leyó y
-        // por qué; el log es sólo observabilidad operativa, y nunca puede
-        // reconstruir "a fulano se le leyó la pregunta X".
+        // EXTIENDE LA DISCIPLINA D3 de asistente-feedback-export-seguimiento: la fila de auditoría
+        // YA es el registro completo de qué se leyó y por qué; el log es sólo observabilidad
+        // operativa, y nunca puede reconstruir "a fulano se le leyó la pregunta X".
         await SembrarAsync();
 
         var conversacion = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
@@ -416,9 +414,8 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
 
     private async Task ConcederPermisoDeSoporteAAsync(Guid actor)
     {
-        // No hay ningún rol con este permiso por default: se otorga a mano,
-        // sobre el USUARIO (vía un rol dedicado de prueba), exactamente como
-        // lo haría /membresia-roles.
+        // No hay ningún rol con este permiso por default: se otorga a mano, sobre el USUARIO (vía
+        // un rol dedicado de prueba), exactamente como lo haría /membresia-roles.
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
             """

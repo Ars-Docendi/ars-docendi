@@ -7,14 +7,9 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica que ningún turno vuelve a traer sugerencias (ARS-140, ARS-149) y la
-/// consulta detrás de permiso (ARS-47).
+/// Verifica que ningún turno vuelve a traer sugerencias (ARS-140, ARS-149) y la consulta detrás de
+/// permiso (ARS-47).
 /// </summary>
-/// <remarks>
-/// Las dos cosas comparten un mismo criterio: qué se le devuelve al usuario cuando
-/// el turno no salió como esperaba, y qué se le devuelve <b>de más</b> a quien tiene
-/// permiso para verlo.
-/// </remarks>
 public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_sugerencias")
 {
@@ -46,9 +41,8 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_aclaracion_trae_opciones()
     {
-        // La aclaración sigue siendo el único estado que bloquea el turno con un
-        // menú: eso no lo tocó ARS-149, que sólo quitó las sugerencias del rechazo
-        // y del turno respondido.
+        // La aclaración sigue siendo el único estado que bloquea el turno con un menú: eso no lo
+        // tocó ARS-149, que sólo quitó las sugerencias del rechazo y del turno respondido.
         await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = Banco();
@@ -108,10 +102,8 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     [Fact]
     public async Task La_meta_pregunta_responde_sin_llamar_al_modelo_y_sin_opciones()
     {
-        // La meta-pregunta («¿qué podés hacer?») lista sus ejemplos ejecutables
-        // ADENTRO del texto (RedaccionDeCapacidades.Texto) — no hay un segundo
-        // campo aparte desde ARS-149. Ver CapacidadesTests para la aserción sobre
-        // ese texto.
+        // La meta-pregunta («¿qué podés hacer?») lista sus ejemplos ejecutables ADENTRO del texto
+        // (RedaccionDeCapacidades.Texto) — no hay un segundo campo aparte desde ARS-149.
         await SembrarAsync();
         var banco = Banco();
 
@@ -156,9 +148,8 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     [Fact]
     public async Task Recien_migrada_ningun_rol_tiene_el_permiso()
     {
-        // No es prudencia genérica: la consulta generada es superficie de
-        // diagnóstico y su WHERE puede llevar un documento. Quién necesita verla es
-        // una decisión del Departamento, no de quien escribió la migración.
+        // No es prudencia genérica: la consulta generada es superficie de diagnóstico y su WHERE
+        // puede llevar un documento.
         var concedido = await EscalarAsync<long>(
             """
             SELECT count(*) FROM identity.rol_permisos rp
@@ -183,9 +174,8 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_rechazo_del_motor_no_nombra_tablas_ni_codigos_de_error()
     {
-        // Con un actor de ámbito acotado, el turno usa el rol de lectura SIN datos
-        // personales y el motor rechaza la consulta con 42501. Ese mensaje crudo
-        // nombra la tabla, así que va al registro y no a la respuesta.
+        // Con un actor de ámbito acotado, el turno usa el rol de lectura SIN datos personales y el
+        // motor rechaza la consulta con 42501.
         await SembrarAsync();
         var banco = Banco(
             ProveedorGuionado.Generacion("SELECT documento FROM identity.personas"));

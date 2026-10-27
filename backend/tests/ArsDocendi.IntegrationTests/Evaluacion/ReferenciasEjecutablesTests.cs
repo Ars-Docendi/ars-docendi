@@ -6,23 +6,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Evaluacion;
 
-/// <summary>
-/// Cada consulta de referencia de los datasets ejecuta contra el fixture.
-/// </summary>
-/// <remarks>
-/// LO QUE ESTE TEST EXISTE PARA EVITAR. La corrida financiada descubrió que dos
-/// turnos de <c>dia-004</c> apuntaban a <c>tipo_novedad</c>, una columna que el
-/// esquema ya no tiene: la referencia ni siquiera ejecutaba. El evaluador lo
-/// reportó como «falló el turno», que en el reporte se lee como un problema del
-/// asistente y no del dataset, y sólo aparecía después de pagar la corrida.
-///
-/// La referencia es la mitad de la medición. Una que no ejecuta no mide de menos:
-/// mide mal, y hacia el lado que hace quedar peor al asistente.
-///
-/// Corre contra el fixture de evaluación —el mismo que la corrida usa— y no contra
-/// el seed de demostración: una referencia puede ejecutar contra uno y no contra el
-/// otro, y el que importa es el que la métrica va a usar.
-/// </remarks>
+/// <summary>Cada consulta de referencia de los datasets ejecuta contra el fixture.</summary>
 public sealed class ReferenciasEjecutablesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "eval_referencias")
 {
@@ -74,12 +58,6 @@ public sealed class ReferenciasEjecutablesTests(PostgresFixture postgres)
     }
 
     /// <summary>Cada referencia de los dos ejes que las tienen, con su ítem.</summary>
-    /// <remarks>
-    /// <c>Bindings</c> es nulo salvo que el ítem declare menciones (design.md D11
-    /// de asistente-rediseno-v3, ARS-148): un ítem de capacidad puede usar
-    /// <c>$refN</c> en <c>SqlReferencia</c> igual que el turno real, y esta
-    /// consulta no ejecuta contra el fixture sin ligarlo primero.
-    /// </remarks>
     private static IEnumerable<(string Id, string Sql, IReadOnlyDictionary<string, Guid>? Bindings)> Referencias()
     {
         var capacidad = DatasetDeCapacidad.Cargar(RutaDelDataset("capacidad.json"));
@@ -114,9 +92,8 @@ public sealed class ReferenciasEjecutablesTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Los bindings <c>$refN -&gt; id</c> de un ítem, derivados del ÍNDICE del
-    /// fixture y no de un GUID escrito a mano — mismo criterio que
-    /// <c>RunnerDeCapacidad</c>.
+    /// Los bindings <c>$refN -&gt; id</c> de un ítem, derivados del ÍNDICE del fixture y no de un
+    /// GUID escrito a mano — mismo criterio que <c>RunnerDeCapacidad</c>.
     /// </summary>
     private static IReadOnlyDictionary<string, Guid>? BindingsDe(ItemDeCapacidad item) =>
         item.Referencias is { Count: > 0 } referencias

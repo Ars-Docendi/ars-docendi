@@ -6,8 +6,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
 /// El advisory lock de sesión de <see cref="CandadoDelTurno"/>
-/// (asistente-turno-exclusivo-del-actor, design.md D5 de
-/// asistente-administracion-de-uso).
+/// (asistente-turno-exclusivo-del-actor, design.md D5 de asistente-administracion-de-uso).
 /// </summary>
 public sealed class CandadoDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_candado_turno")

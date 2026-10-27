@@ -17,10 +17,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// El adaptador del modelo propio contra el cable de un servidor OpenAI-compatible
 /// (asistente-proveedor-local, design.md D2), sin GPU ni red.
 /// </summary>
-/// <remarks>
-/// Igual que <see cref="ProveedorAnthropicTests"/>: todo lo que el adaptador tiene
-/// que garantizar es observable en el JSON que sale o en lo que vuelve.
-/// </remarks>
 public sealed class ProveedorLocalTests
 {
     private const string Url = "http://arsdocendi-llm:8000/v1";
@@ -457,9 +453,7 @@ public sealed class ProveedorLocalTests
         return servicios;
     }
 
-    /// <summary>
-    /// Un servidor OpenAI-compatible falso que guarda lo que recibe.
-    /// </summary>
+    /// <summary>Un servidor OpenAI-compatible falso que guarda lo que recibe.</summary>
     private sealed class ServidorFalso(Func<int, HttpResponseMessage> responder) : HttpMessageHandler
     {
         private readonly List<(Uri Uri, string? Autorizacion, string Cuerpo)> _pedidos = [];

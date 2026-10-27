@@ -9,16 +9,9 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// El cupo diario de turnos, persistente en Postgres
-/// (asistente-presupuesto-persistente, design.md D2/D4 de
-/// asistente-administracion-de-uso).
+/// El cupo diario de turnos, persistente en Postgres (asistente-presupuesto-persistente, design.md
+/// D2/D4 de asistente-administracion-de-uso).
 /// </summary>
-/// <remarks>
-/// Tarea 3.1: un fake en memoria (<see cref="CuotaDeActorFalsa"/>) fija el
-/// contrato de <see cref="ICuotaDelActor"/> sin pagar Postgres. Tareas
-/// 3.2/3.4/3.5/3.6: <see cref="CuotaPersistente"/> contra una base real,
-/// usando el mismo <c>ConsultasIdentity</c> que el resto del sistema.
-/// </remarks>
 public sealed class CuotaPersistenteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_cuota_persistente")
 {

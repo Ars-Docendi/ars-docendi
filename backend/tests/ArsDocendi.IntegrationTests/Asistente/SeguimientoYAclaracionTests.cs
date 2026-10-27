@@ -4,14 +4,9 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica las tres piezas puras del seguimiento: el reconocedor de la respuesta a
-/// una aclaración, el detector de cambio de tema y el prompt del reescritor.
+/// Verifica las tres piezas puras del seguimiento: el reconocedor de la respuesta a una aclaración,
+/// el detector de cambio de tema y el prompt del reescritor.
 /// </summary>
-/// <remarks>
-/// Todo en memoria. El detector de cambio de tema se prueba acá <b>antes</b> que
-/// nada contra base, y es deliberado: su riesgo concreto es romper el caso canónico
-/// de seguimiento, y eso se ve con un catálogo de tres entradas.
-/// </remarks>
 public sealed class SeguimientoYAclaracionTests
 {
     private static readonly DateTimeOffset Momento = new(2026, 8, 25, 10, 0, 0, TimeSpan.Zero);
@@ -30,10 +25,8 @@ public sealed class SeguimientoYAclaracionTests
     [Fact]
     public void El_seguimiento_canonico_no_marca_cambio_de_tema()
     {
-        // EL TEST QUE PROTEGE EL CASO MÁS COMÚN. «¿y en Sistemas?» menciona un
-        // término del catálogo que no está activo, así que cumple la segunda
-        // condición del detector. La guarda del marcador anafórico es lo único que
-        // evita que se lo lea como pivote.
+        // EL TEST QUE PROTEGE EL CASO MÁS COMÚN. «¿y en Sistemas?» menciona un término del catálogo
+        // que no está activo, así que cumple la segunda condición del detector.
         var historial = Historial("¿Cuántos docentes están designados en Álgebra?");
 
         Assert.False(DetectorDeCambioDeTema.EsPivote("¿y en Sistemas?", historial, Catalogo));

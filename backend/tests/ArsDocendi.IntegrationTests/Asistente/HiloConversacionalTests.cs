@@ -6,13 +6,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el hilo conversacional y su almacén.
-/// </summary>
-/// <remarks>
-/// Todo en memoria, con un reloj movible: verificar la expiración contra el reloj
-/// real sería un test lento o mentiroso, y probablemente las dos cosas.
-/// </remarks>
+/// <summary>Verifica el hilo conversacional y su almacén.</summary>
 public sealed class HiloConversacionalTests
 {
     private static readonly Guid Ana = Guid.Parse("a0000000-0000-4000-8000-000000000001");
@@ -276,10 +270,9 @@ public sealed class HiloConversacionalTests
 
     // ------------------------------------- la consulta que respondió el turno
 
-    // EL HILO GUARDA LA CONSULTA, NUNCA LAS FILAS. La consulta se puede guardar
-    // porque sus literales salen de la pregunta del usuario —que el hilo ya
-    // guardaba—; ninguna fila leída de la base aparece en ella. Ver la enmienda a
-    // D1 en `asistente-capa-conversacional/design.md`.
+    // EL HILO GUARDA LA CONSULTA, NUNCA LAS FILAS. La consulta se puede guardar porque sus
+    // literales salen de la pregunta del usuario —que el hilo ya guardaba—; ninguna fila leída de
+    // la base aparece en ella.
 
     [Fact]
     public void Un_turno_respondido_anota_la_consulta_que_lo_respondio()
@@ -333,9 +326,7 @@ public sealed class HiloConversacionalTests
     [Fact]
     public void El_pivote_suelta_las_consultas_igual_que_suelta_las_preguntas()
     {
-        // No hay una segunda regla de recorte: `ConsultasVigentes` se deriva de
-        // `HistorialVigente`. Si alguien la reimplementara aparte, este test es el
-        // que se rompe cuando las dos se desincronicen.
+        // No hay una segunda regla de recorte: `ConsultasVigentes` se deriva de `HistorialVigente`.
         var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
         hilo.Agregar("antes del pivote", Inicio, "SELECT 1");
 
@@ -426,9 +417,8 @@ public sealed class HiloConversacionalTests
     [Fact]
     public void El_pivote_suelta_las_referencias_igual_que_las_consultas()
     {
-        // Mismo mecanismo que `ConsultasVigentes`: se deriva de
-        // `HistorialVigente`, así que el pivote las suelta a las dos juntas sin
-        // una segunda regla que pueda desincronizarse.
+        // Mismo mecanismo que `ConsultasVigentes`: se deriva de `HistorialVigente`, así que el
+        // pivote las suelta a las dos juntas sin una segunda regla que pueda desincronizarse.
         var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
 
         hilo.Agregar(
@@ -473,9 +463,8 @@ public sealed class HiloConversacionalTests
     [Fact]
     public void Sembrar_marca_como_ultimo_registrado_al_ultimo_turno_sembrado()
     {
-        // Task 6.1/coordinator fix: el último turno sembrado tiene que poder
-        // reemplazarse de entrada, sea cual sea su estado original — Reanudar
-        // no distingue por carril.
+        // Task 6.1/coordinator fix: el último turno sembrado tiene que poder reemplazarse de
+        // entrada, sea cual sea su estado original — Reanudar no distingue por carril.
         var (almacen, _) = Almacen();
         var idDelPrimero = Guid.NewGuid();
         var idDelUltimo = Guid.NewGuid();
@@ -505,9 +494,8 @@ public sealed class HiloConversacionalTests
     [Fact]
     public void QuitarUltimoParaReemplazo_deshace_el_pivote_que_causo_el_ultimo_turno()
     {
-        // La vista sin el último turno tiene que ver el mismo contexto que vio
-        // la pregunta reemplazada — design.md D9, punto 2. Si esa pregunta
-        // pivoteó, el pivote tiene que deshacerse con ella.
+        // La vista sin el último turno tiene que ver el mismo contexto que vio la pregunta
+        // reemplazada — design.md D9, punto 2.
         var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
         hilo.Agregar("t1", Inicio, "SELECT 1");
 
@@ -549,11 +537,9 @@ public sealed class HiloConversacionalTests
     [Fact]
     public void QuitarUltimoParaReemplazo_no_saca_nada_del_contexto_si_el_ultimo_registrado_nunca_entro()
     {
-        // EL BUG REAL: un saludo, una meta-pregunta, un menú de aclaración o
-        // una degradación pre-SQL nunca llegan a `Agregar` — nunca están en
-        // `Turnos` — pero SIGUEN siendo «la última pregunta» que se puede
-        // reemplazar. Acá el contexto SQL tiene un turno MÁS VIEJO (t1); el
-        // último REGISTRADO es un saludo posterior que nunca lo tocó.
+        // EL BUG REAL: un saludo, una meta-pregunta, un menú de aclaración o una degradación
+        // pre-SQL nunca llegan a `Agregar` — nunca están en `Turnos` — pero SIGUEN siendo «la
+        // última pregunta» que se puede reemplazar.
         var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
         hilo.Agregar("t1", Inicio, "SELECT 1", claveDelCliente: "clave-1");
         hilo.MarcarUltimoRegistrado("clave-2", null, null, inicioDeSegmentoAntes: 0, null);

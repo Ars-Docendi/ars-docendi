@@ -6,42 +6,14 @@ using Modules.Asistente;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// La tabla de configuración del README dice la verdad sobre los defaults.
-/// </summary>
-/// <remarks>
-/// Es el mismo criterio con que <c>ManifiestoPrivilegiosTests</c> trata a
-/// <c>manifiesto-privilegios.json</c>: la documentación de un valor operativo es un
-/// dato verificado, no prosa. Sin este test, subir un default y no tocar el README
-/// deja una cifra equivocada en el único lugar donde alguien la va a buscar —y el
-/// síntoma recién aparece cuando alguien planifica con ella.
-///
-/// Se compara contra <c>new OpcionesAsistente()</c> y no contra constantes propias:
-/// duplicar los números acá sería crear una tercera versión de la verdad.
-/// </remarks>
+/// <summary>La tabla de configuración del README dice la verdad sobre los defaults.</summary>
 public sealed partial class OpcionesDocumentadasTests
 {
-    /// <summary>
-    /// Filas de la tabla «Configuración» del README, por nombre de opción.
-    /// </summary>
-    /// <remarks>
-    /// Sólo se leen las filas cuyo default es un entero. Las opciones de texto
-    /// —proveedor, modelo, esfuerzos— se documentan en otra tabla, con su propio
-    /// formato, y no las cubre este test.
-    /// </remarks>
+    /// <summary>Filas de la tabla «Configuración» del README, por nombre de opción.</summary>
     [GeneratedRegex(@"^\|\s*`(?<opcion>\w+)`\s*\|\s*(?<default>\d+)\s*\|", RegexOptions.Multiline)]
     private static partial Regex FilaDeLaTabla();
 
-    /// <summary>
-    /// Filas que documentan una variable de ambiente con default vacío.
-    /// </summary>
-    /// <remarks>
-    /// Las opciones de texto van en las tablas de variables —con el prefijo de la
-    /// sección, que es como se escriben en un ambiente— y su default se escribe
-    /// «vacío» en vez de un valor. Una fila que dice «vacío» sobre una opción cuyo
-    /// default NO lo es manda a alguien a confiar en que el mecanismo está apagado
-    /// cuando no lo está, que es el peor de los dos errores posibles.
-    /// </remarks>
+    /// <summary>Filas que documentan una variable de ambiente con default vacío.</summary>
     [GeneratedRegex(
         @"^\|\s*`Asistente__(?<opcion>\w+)`\s*\|\s*vacío\s*\|", RegexOptions.Multiline)]
     private static partial Regex FilaVacia();
@@ -49,10 +21,6 @@ public sealed partial class OpcionesDocumentadasTests
     /// <summary>
     /// Filas cuyo default es un booleano, escrito <c>`true`</c> o <c>`false`</c>.
     /// </summary>
-    /// <remarks>
-    /// Una opción booleana documentada «apagada» que en el código está prendida es
-    /// la forma más cara de mentir: quien la lee confía en que el prompt no cambia.
-    /// </remarks>
     [GeneratedRegex(@"^\|\s*`(?<opcion>\w+)`\s*\|\s*`(?<default>true|false)`\s*\|", RegexOptions.Multiline)]
     private static partial Regex FilaBooleana();
 
@@ -76,9 +44,8 @@ public sealed partial class OpcionesDocumentadasTests
             var propiedad = typeof(OpcionesAsistente).GetProperty(
                 opcion, BindingFlags.Public | BindingFlags.Instance);
 
-            // Una fila que nombra una opción inexistente es tan mentira como una con
-            // el número cambiado: las dos mandan a alguien a configurar algo que no
-            // existe.
+            // Una fila que nombra una opción inexistente es tan mentira como una con el número
+            // cambiado: las dos mandan a alguien a configurar algo que no existe.
             if (propiedad is null || propiedad.PropertyType != typeof(int))
             {
                 derivas.Add($"{opcion}: el README la documenta y no es una opción entera del código.");
@@ -144,9 +111,7 @@ public sealed partial class OpcionesDocumentadasTests
     [Fact]
     public void El_glosario_esta_documentado_apagado()
     {
-        // La garantía del change asistente-glosario-institucional: con el default el
-        // prefijo no cambia. Se busca por nombre porque el test de arriba sólo valida
-        // las filas que existen; no exige que ésta exista.
+        // La garantía del change asistente-glosario-institucional: con el default el prefijo no cambia.
         var fila = FilaBooleana()
             .Matches(Readme())
             .SingleOrDefault(f => f.Groups["opcion"].Value == "GlosarioEnElPrefijo");

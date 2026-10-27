@@ -5,15 +5,7 @@ using ArsDocendi.IntegrationTests.Infraestructura;
 
 namespace ArsDocendi.IntegrationTests.Evaluacion;
 
-/// <summary>
-/// Verifica los datasets de los tres ejes nuevos y el gate de regresión.
-/// </summary>
-/// <remarks>
-/// Todo acá es carga de archivos y aritmética sobre resultados ya obtenidos: no hace
-/// falta base ni proveedor. Ése es justamente el motivo por el que estas piezas viven
-/// en el núcleo, que sí está en la solución — son donde un error hace que el número
-/// mienta.
-/// </remarks>
+/// <summary>Verifica los datasets de los tres ejes nuevos y el gate de regresión.</summary>
 public sealed class EjesDeEvaluacionTests
 {
     private static readonly SelloDeIdentidad Sello = new("pre", "dat", "fix");
@@ -30,9 +22,8 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void La_consulta_de_un_item_de_robustez_es_la_de_su_origen()
     {
-        // EL INVARIANTE ENTERO DEL EJE. Sin él, un fallo sería ambiguo: ¿no entendió
-        // el fraseo, o no supo escribir la consulta? Y no está vigilado por un test
-        // que compare copias: NO HAY DOS COPIAS. La consulta se deriva.
+        // EL INVARIANTE ENTERO DEL EJE. Sin él, un fallo sería ambiguo: ¿no entendió el fraseo, o
+        // no supo escribir la consulta?
         var capacidad = DatasetDeCapacidad.Interpretar(CapacidadMinima);
 
         var robustez = DatasetDeRobustez.Interpretar("""
@@ -73,9 +64,8 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void Un_item_de_robustez_que_declara_su_propia_consulta_se_rechaza()
     {
-        // El campo no existe en el contrato. Que alguien lo escriba significa que
-        // está por mantener dos copias de la misma consulta, así que se lo frena acá
-        // y no cuando ya divergieron.
+        // El campo no existe en el contrato. Que alguien lo escriba significa que está por mantener
+        // dos copias de la misma consulta, así que se lo frena acá y no cuando ya divergieron.
         var capacidad = DatasetDeCapacidad.Interpretar(CapacidadMinima);
 
         var falla = Assert.Throws<InvalidOperationException>(() => DatasetDeRobustez.Interpretar("""
@@ -244,9 +234,8 @@ public sealed class EjesDeEvaluacionTests
 
             Assert.NotEmpty(segundo.TerminosProhibidos);
 
-            // Sin anáfora: si el segundo turno dijera «¿y en ésa?», el detector de
-            // cambio de tema lo trataría como seguimiento —correctamente— y el
-            // diálogo no probaría un pivote.
+            // Sin anáfora: si el segundo turno dijera «¿y en ésa?», el detector de cambio de tema
+            // lo trataría como seguimiento —correctamente— y el diálogo no probaría un pivote.
             Assert.All(
                 new[] { " ese", " esa", " eso", " ahí", " y en ", "ésa", "ése" },
                 marcador => Assert.DoesNotContain(
@@ -259,9 +248,7 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void Un_dataset_social_sin_negativos_se_rechaza()
     {
-        // Sin negativos el eje solo puede subir: un enrutador que captura todo daría
-        // perfecto. Y son los únicos ítems que consumen tokens, que es lo que la
-        // guarda de proveedor caído necesita para funcionar.
+        // Sin negativos el eje solo puede subir: un enrutador que captura todo daría perfecto.
         var falla = Assert.Throws<InvalidOperationException>(() => DatasetSocial.Interpretar("""
             {"items": [{"id": "s1", "clase": "social", "actor": "global", "pregunta": "hola"}]}
             """));
@@ -295,12 +282,8 @@ public sealed class EjesDeEvaluacionTests
 
         var negativos = social.Items.Where(i => i.Clase == ClaseSocial.Negativo).ToList();
 
-        // Algunos negativos llevan una apertura cortés adelante —«hola, ¿cuántos…»—,
-        // que es justo el caso que el enrutador social podría comerse. Se acepta un
-        // negativo si CONTIENE una pregunta legítima.
-        //
-        // La comparación ignora mayúsculas y signos: bajar la inicial después de una
-        // apertura cortés es español normal, no otra pregunta.
+        // Algunos negativos llevan una apertura cortés adelante —«hola, ¿cuántos…»—, que es justo
+        // el caso que el enrutador social podría comerse.
         var normalizadas = legitimas.Select(Comparable).ToList();
 
         Assert.All(negativos, negativo =>
@@ -325,9 +308,8 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void Un_item_roto_hace_fallar_el_gate_aunque_el_promedio_suba()
     {
-        // EL MOTIVO ARITMÉTICO DEL LOCK POR ÍTEM: tres que se rompen y tres que se
-        // arreglan dan delta cero y pasan cualquier umbral, mientras el asistente
-        // cambió de comportamiento.
+        // EL MOTIVO ARITMÉTICO DEL LOCK POR ÍTEM: tres que se rompen y tres que se arreglan dan
+        // delta cero y pasan cualquier umbral, mientras el asistente cambió de comportamiento.
         var linea = Linea(
             ("i1", DesenlaceDeItem.TraduccionCorrecta),
             ("i2", DesenlaceDeItem.TraduccionIncorrecta),
@@ -373,9 +355,8 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void Pasar_de_traducir_bien_a_abstenerse_ES_una_regresion()
     {
-        // La abstención sobre algo contestable no resta puntos —es una falta de
-        // capacidad, no una mentira—, pero tampoco es pasar. Un gate que la contara
-        // como neutral dejaría que el asistente se volviera mudo sin avisar.
+        // La abstención sobre algo contestable no resta puntos —es una falta de capacidad, no una
+        // mentira—, pero tampoco es pasar.
         var linea = Linea(("i1", DesenlaceDeItem.TraduccionCorrecta));
         var reporte = Reporte(("i1", DesenlaceDeItem.AbstencionSobreloFactible));
 
@@ -440,13 +421,8 @@ public sealed class EjesDeEvaluacionTests
     [InlineData("social")]
     public void Cada_eje_tiene_su_linea_de_base_versionada_y_legible(string eje)
     {
-        // ANTES ESTE TEST AFIRMABA LO CONTRARIO —que no había ninguna— porque no
-        // había proveedor real con qué generarlas. Ya lo hay, y las cuatro se
-        // congelaron reproduciendo los cassettes, sin gastar una corrida.
-        //
-        // Que el archivo exista no alcanza: se interpreta, porque una línea de base
-        // corrupta hace que el gate se niegue a comparar, y un gate que no compara
-        // se ve igual que uno que pasa.
+        // ANTES ESTE TEST AFIRMABA LO CONTRARIO —que no había ninguna— porque no había proveedor
+        // real con qué generarlas.
         var ruta = Path.Combine(
             RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", $"{eje}.json");
 
@@ -465,11 +441,8 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void Las_cuatro_lineas_de_base_se_midieron_contra_el_mismo_prefijo_y_fixture()
     {
-        // Los datasets son distintos por eje —cada uno se sella con el suyo— pero el
-        // prefijo del prompt y el fixture son del sistema, no del eje. Cuatro líneas
-        // con prefijos distintos significan que se congelaron en momentos distintos,
-        // y entonces no se pueden leer juntas: una diría que portal existe y otra que
-        // no, sin que nada lo delate.
+        // Los datasets son distintos por eje —cada uno se sella con el suyo— pero el prefijo del
+        // prompt y el fixture son del sistema, no del eje.
         var sellos = new[] { "capacidad", "robustez", "dialogo", "social" }
             .Select(eje => LineaDeBase.Cargar(Path.Combine(
                 RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", $"{eje}.json")))

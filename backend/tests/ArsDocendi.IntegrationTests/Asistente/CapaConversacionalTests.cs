@@ -8,15 +8,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la capa conversacional de punta a punta, contra una base real.
-/// </summary>
-/// <remarks>
-/// El proveedor va guionado, así que lo que se prueba es el <b>cableado</b>: qué
-/// pieza corre, en qué orden, cuántas llamadas al modelo cuesta cada camino y qué
-/// se le manda. La calidad de la reescritura es lo que mide el eje conversacional
-/// de la evaluación, y necesita un proveedor real.
-/// </remarks>
+/// <summary>Verifica la capa conversacional de punta a punta, contra una base real.</summary>
 public sealed class CapaConversacionalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_conversacion")
 {
@@ -109,9 +101,7 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task En_el_pivote_no_se_le_manda_ningun_turno_anterior()
     {
-        // EL TEST DEL CAMBIO DE TEMA. No mira la salida del modelo: mira qué se le
-        // mandó. El pivote se fuerza vaciando el historial, así que la reescritura
-        // ni siquiera ocurre — y por eso es imposible que arrastre.
+        // EL TEST DEL CAMBIO DE TEMA. No mira la salida del modelo: mira qué se le mandó.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
@@ -266,9 +256,8 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_hilo_no_guarda_ningun_valor_de_las_filas()
     {
-        // La misma restricción que el enmascarador impuso en la salida, sostenida
-        // en el historial: si el hilo guardara filas, los datos personales
-        // volverían al prompt por la puerta del historial.
+        // La misma restricción que el enmascarador impuso en la salida, sostenida en el historial:
+        // si el hilo guardara filas, los datos personales volverían al prompt por la puerta del historial.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
@@ -331,10 +320,8 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_seguimiento_recibe_la_consulta_del_turno_anterior()
     {
-        // EL CASO QUE MOTIVÓ EL CAMBIO. «esa materia» se refiere a algo que apareció
-        // en la RESPUESTA, nunca en una pregunta: con sólo preguntas en el hilo no
-        // hay forma de resolverlo. Se afirma sobre lo que se le MANDÓ al modelo,
-        // no sobre su salida, igual que el test del pivote del reescritor.
+        // EL CASO QUE MOTIVÓ EL CAMBIO. «esa materia» se refiere a algo que apareció en la
+        // RESPUESTA, nunca en una pregunta: con sólo preguntas en el hilo no hay forma de resolverlo.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
@@ -350,11 +337,7 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         await banco.Capa().ResponderAsync(
             Secretaria, primero.Hilo, "¿y los profesores de esa materia?", ct);
 
-        // La generación del segundo turno tiene que haber visto la consulta del
-        // primero. Es la última generación del guion.
-        // Por «Fecha de referencia» y no por «Pregunta del usuario»: los mensajes de
-        // REDACCIÓN también llevan esa segunda frase, así que filtrar por ella
-        // seleccionaba la redacción del último turno en vez de su generación.
+        // La generación del segundo turno tiene que haber visto la consulta del primero.
         var generaciones = banco.Proveedor.Recibidas
             .Where(s => s.Mensaje.Contains("Fecha de referencia", StringComparison.Ordinal))
             .ToList();
@@ -369,10 +352,8 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_seguimiento_sin_resolver_dice_que_no_entendio_a_que_se_referia()
     {
-        // El reescritor promete «una pregunta que se entienda sola» y a veces
-        // devuelve algo que no se entiende solo. El generador se abstiene, que es
-        // correcto; lo que estaba mal era decir «no puedo responder eso con la
-        // información que tengo disponible», que es una afirmación sobre los DATOS.
+        // El reescritor promete «una pregunta que se entienda sola» y a veces devuelve algo que no
+        // se entiende solo.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
@@ -394,10 +375,9 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_rechazo_sin_demostrativo_conserva_el_texto_generico()
     {
-        // LA CONDICIÓN QUE EVITA LA EXPLICACIÓN FALSA. Un seguimiento que se rechaza
-        // por estar fuera del esquema no tiene ningún problema de referencia, y
-        // decirle al usuario que nombre algo lo manda a corregir lo que no estaba
-        // mal.
+        // LA CONDICIÓN QUE EVITA LA EXPLICACIÓN FALSA. Un seguimiento que se rechaza por estar
+        // fuera del esquema no tiene ningún problema de referencia, y decirle al usuario que nombre
+        // algo lo manda a corregir lo que no estaba mal.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
@@ -516,10 +496,9 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_edicion_que_se_rechaza_de_nuevo_reusa_la_variante_del_turno_reemplazado()
     {
-        // El turno reemplazado se saca del hilo ANTES de resolver la edición
-        // (design.md D9 de asistente-rediseno-v3), así que `RechazosPrevios()`
-        // vuelve a cero para ella: no cuenta el turno que reemplaza, cuenta el
-        // que reemplazó.
+        // El turno reemplazado se saca del hilo ANTES de resolver la edición (design.md D9 de
+        // asistente-rediseno-v3), así que `RechazosPrevios()` vuelve a cero para ella: no cuenta el
+        // turno que reemplaza, cuenta el que reemplazó.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.NoContestable(), ProveedorGuionado.NoContestable());
@@ -585,9 +564,7 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_pregunta_que_el_carril_determinista_capturaria_responde_igual_que_antes()
     {
-        // La propiedad que hace seguro al modo sombra: la decisión se toma y la
-        // respuesta no cambia. Mientras no haya a dónde enrutar, cualquier otra cosa
-        // sería un carril a medio conectar, que es peor que ninguno.
+        // La propiedad que hace seguro al modo sombra: la decisión se toma y la respuesta no cambia.
         await SembrarAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -622,13 +599,9 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_capturado_que_pide_aclaracion_registra_el_carril_de_aclaracion()
     {
-        // Las dos columnas son dos hechos distintos y ninguno implica al otro. Acá se
-        // ven separadas: el enrutador captura —«Gómez» resuelve el único slot que la
-        // intención exige— y el turno igual termina en el menú, porque la pregunta
-        // nombra ADEMÁS una materia que colisiona.
-        //
-        // `carril` tiene que decir «aclaración», que es lo que pasó de verdad, y no
-        // el carril determinista, que no resolvió nada.
+        // Las dos columnas son dos hechos distintos y ninguno implica al otro. Acá se ven
+        // separadas: el enrutador captura —«Gómez» resuelve el único slot que la intención exige— y
+        // el turno igual termina en el menú, porque la pregunta nombra ADEMÁS una materia que colisiona.
         await SembrarAsync();
         await AgregarColisionesAsync();
 
@@ -650,14 +623,8 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task La_respuesta_al_usuario_es_la_misma_con_captura_y_sin_ella()
     {
-        // LA PROPIEDAD QUE HACE SEGURO AL MODO SOMBRA, probada contra sí misma: la
-        // MISMA pregunta, el MISMO guion, y la única diferencia es si el catálogo la
-        // capturó o no.
-        //
-        // Se la hace no capturar vaciando el catálogo del DOMINIO —ningún slot
-        // resuelve, ninguna intención queda reconocida— y no colisionando la entidad,
-        // que dispararía el detector de ambigüedad y cambiaría el turno entero en vez
-        // de cambiar solamente la decisión sombra.
+        // LA PROPIEDAD QUE HACE SEGURO AL MODO SOMBRA, probada contra sí misma: la MISMA pregunta,
+        // el MISMO guion, y la única diferencia es si el catálogo la capturó o no.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         const string pregunta = "¿en qué estado está el pedido de Gómez?";
@@ -688,11 +655,7 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_colision_termina_en_aclaracion_y_no_en_el_carril_determinista()
     {
-        // El enrutador corre ANTES del detector de ambigüedad, así que hay que
-        // probar que no le roba el turno. La pregunta lo tienta a propósito: dice
-        // «plantel», que es el término exacto de una intención del catálogo. Con dos
-        // «Bases de Datos» el slot no resuelve, el enrutador no captura, y el menú
-        // de aclaración llega igual.
+        // El enrutador corre ANTES del detector de ambigüedad, así que hay que probar que no le roba el turno.
         await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
@@ -843,10 +806,9 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_seguimiento_tras_el_reemplazo_usa_el_contexto_reemplazado()
     {
-        // design.md D9: «un seguimiento tras un reemplazo usa el contexto
-        // reemplazado» — la pregunta con anáfora que sigue al reemplazo tiene
-        // que ver, en la reescritura, la pregunta y la consulta NUEVAS, nunca
-        // las reemplazadas.
+        // design.md D9: «un seguimiento tras un reemplazo usa el contexto reemplazado» — la
+        // pregunta con anáfora que sigue al reemplazo tiene que ver, en la reescritura, la pregunta
+        // y la consulta NUEVAS, nunca las reemplazadas.
         await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
@@ -869,10 +831,9 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         Assert.DoesNotContain("Bases de Datos", reescritura, StringComparison.Ordinal);
     }
 
-    // ----------------------- reemplazo sobre un último turno de otro carril
-    // (bug real: sólo el carril SQL agrega al contexto vía `Agregar`, pero
-    // «Editar y reenviar» tiene que poder nombrar CUALQUIER último turno
-    // registrado, sea cual sea su carril — design.md D9, fix del coordinador).
+    // ----------------------- reemplazo sobre un último turno de otro carril (bug real: sólo el
+    // carril SQL agrega al contexto vía `Agregar`, pero «Editar y reenviar» tiene que poder nombrar
+    // CUALQUIER último turno registrado, sea cual sea su carril — design.md D9, fix del coordinador).
 
     [Fact]
     public async Task Reemplazar_la_pregunta_que_sigue_a_un_saludo_funciona()
@@ -1002,11 +963,10 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Un banco que continúa un hilo EXISTENTE y comparte además su historial
-    /// y su almacén de tokens de retroalimentación — los tres, en vez de sólo
-    /// el hilo, para poder verificar un reemplazo de punta a punta: «sólo
-    /// queda la versión final» y «el token viejo se revoca» necesitan que la
-    /// segunda llamada escriba sobre el MISMO historial y consulte el MISMO
+    /// Un banco que continúa un hilo EXISTENTE y comparte además su historial y su almacén de
+    /// tokens de retroalimentación — los tres, en vez de sólo el hilo, para poder verificar un
+    /// reemplazo de punta a punta: «sólo queda la versión final» y «el token viejo se revoca»
+    /// necesitan que la segunda llamada escriba sobre el MISMO historial y consulte el MISMO
     /// almacén de tokens que la primera.
     /// </summary>
     private BancoDelAsistente Banco(
@@ -1031,12 +991,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
             Options.Create(new OpcionesAsistente()), TimeProvider.System);
 
     /// <summary>Un banco cuyo enrutador no puede capturar nada.</summary>
-    /// <remarks>
-    /// El catálogo del dominio vacío deja a todos los slots sin resolver, así que
-    /// ninguna intención queda reconocida. Sólo lo consume el resolutor: el detector
-    /// de ambigüedad y el de cambio de tema leen el índice de entidades, que sigue
-    /// completo, y por eso el resto del turno corre idéntico.
-    /// </remarks>
     private BancoDelAsistente BancoSinDominio(params string[] guion)
     {
         var (basica, pii) = CadenasDeLectura();

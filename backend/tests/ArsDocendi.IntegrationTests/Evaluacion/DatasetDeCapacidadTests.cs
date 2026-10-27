@@ -6,14 +6,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Evaluacion;
 
-/// <summary>
-/// Verifica el dataset del eje de capacidad.
-/// </summary>
-/// <remarks>
-/// El dataset es el instrumento de medición. Un instrumento mal calibrado no da un
-/// error: da un número, y ese número se usa para tomar decisiones. Por eso hay más
-/// tests sobre el dataset que sobre casi cualquier otra cosa del evaluador.
-/// </remarks>
+/// <summary>Verifica el dataset del eje de capacidad.</summary>
 public sealed class DatasetDeCapacidadTests
 {
     private static readonly DatasetDeCapacidad Dataset = Cargar();
@@ -91,12 +84,8 @@ public sealed class DatasetDeCapacidadTests
     [Fact]
     public void Toda_consulta_de_referencia_pasa_el_validador()
     {
-        // Una referencia que el propio validador rechazaría nunca podría empatar
-        // con una respuesta del asistente: el ítem sería imposible de acertar.
-        //
-        // Los marcadores declarados del ítem viajan como "declarados" y
-        // "requeridos" — mismo criterio que `CarrilSql`: una referencia de D11
-        // que la consulta de referencia no use sería un ítem mal escrito.
+        // Una referencia que el propio validador rechazaría nunca podría empatar con una respuesta
+        // del asistente: el ítem sería imposible de acertar.
         var rechazadas = Dataset.Items
             .Where(item => item.SqlReferencia is not null)
             .Select(item =>
@@ -116,13 +105,8 @@ public sealed class DatasetDeCapacidadTests
     [Fact]
     public void El_dataset_es_disjunto_del_catalogo_de_ejemplos()
     {
-        // ESTA ES LA TAREA que el cambio del carril dejó abierta a propósito: no se
-        // podía verificar contra un archivo que no existía.
-        //
-        // Si se solaparan, la métrica mediría cuán bien el sistema reproduce
-        // ejemplos que ya vio. Y como el catálogo de capacidades deriva sus
-        // sugerencias de esos ejemplos, el asistente estaría proponiendo las
-        // preguntas con las que se lo evalúa.
+        // ESTA ES LA TAREA que el cambio del carril dejó abierta a propósito: no se podía verificar
+        // contra un archivo que no existía.
         var delCatalogo = new SelectorDeEjemplos().Catalogo
             .ToDictionary(
                 ejemplo => Normalizar(ejemplo.Pregunta),
@@ -297,10 +281,9 @@ public sealed class DatasetDeCapacidadTests
     [Fact]
     public void La_mencion_de_materia_nombra_una_de_las_compartidas_del_fixture()
     {
-        // Homónimo real: "Algoritmos y Estructuras de Datos" es una de las tres
-        // entradas de `MateriasCompartidas`, así que hay más de una fila con ese
-        // nombre — exactamente el caso que D10 dice que un id exacto por fila
-        // desambigua.
+        // Homónimo real: "Algoritmos y Estructuras de Datos" es una de las tres entradas de
+        // `MateriasCompartidas`, así que hay más de una fila con ese nombre — exactamente el caso
+        // que D10 dice que un id exacto por fila desambigua.
         var nombresCompartidos = GeneradorDeFixture.MateriasCompartidas.Select(m => m.Nombre).ToHashSet();
 
         var referencias = Dataset.Items
@@ -339,15 +322,8 @@ public sealed class DatasetDeCapacidadTests
         Path.Combine(RaizRepositorio.Ruta(), "backend", "eval", "datasets", "capacidad.json");
 
     /// <summary>
-    /// Normaliza una pregunta con el mismo criterio con que el selector de ejemplos
-    /// decide qué se parece a qué.
+    /// Normaliza una pregunta con el mismo criterio con que el selector de ejemplos decide qué se parece a qué.
     /// </summary>
-    /// <remarks>
-    /// Se usa el normalizador del módulo y no uno propio a propósito: si acá
-    /// hubiera una copia, la disjunción se verificaría contra un criterio distinto
-    /// del que el selector aplica en producción, y dos preguntas que el selector
-    /// considera la misma pasarían el test.
-    /// </remarks>
     private static IReadOnlySet<string> Normalizar(string pregunta) =>
         NormalizadorLexico.Terminos(pregunta);
 }

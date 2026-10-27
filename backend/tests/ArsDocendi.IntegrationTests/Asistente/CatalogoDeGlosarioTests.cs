@@ -4,14 +4,8 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// El cargador del glosario institucional, sin base de datos
-/// (asistente-glosario-institucional, D3 y D4 regla 1).
+/// El cargador del glosario institucional, sin base de datos (asistente-glosario-institucional, D3 y D4 regla 1).
 /// </summary>
-/// <remarks>
-/// Cada caso roto vive ACÁ y nunca en <c>glosario.json</c>: un archivo real con una
-/// entrada rota haría fallar el arranque con la opción prendida, y un test que la
-/// necesita para probar el detector no prueba nada si alguien la «arregla».
-/// </remarks>
 public sealed class CatalogoDeGlosarioTests
 {
     private const string Estado = "designaciones.pedidos.estado";

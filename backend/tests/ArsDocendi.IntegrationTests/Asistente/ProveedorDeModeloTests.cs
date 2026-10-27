@@ -12,13 +12,7 @@ using Modules.Asistente.Application;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la abstracción del proveedor de modelo y su cliente simulado.
-/// </summary>
-/// <remarks>
-/// No necesitan base ni red: lo que se prueba es que el default sea el simulado,
-/// que sea determinista y que se identifique como tal.
-/// </remarks>
+/// <summary>Verifica la abstracción del proveedor de modelo y su cliente simulado.</summary>
 public sealed partial class ProveedorDeModeloTests
 {
     private const string CadenaDelDueno =
@@ -41,9 +35,8 @@ public sealed partial class ProveedorDeModeloTests
         using var turno = servicios.CreateScope();
         var proveedor = turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>();
 
-        // Usar un proveedor real tiene que exigir configuración explícita. Si el
-        // default fuese el real, un ambiente mal configurado gastaría plata —o
-        // fallaría— sin que nadie lo hubiera pedido.
+        // Usar un proveedor real tiene que exigir configuración explícita. Si el default fuese el
+        // real, un ambiente mal configurado gastaría plata —o fallaría— sin que nadie lo hubiera pedido.
         Assert.Equal("simulado", proveedor.Nombre);
         Assert.True(proveedor.EsSimulado);
     }
@@ -109,10 +102,8 @@ public sealed partial class ProveedorDeModeloTests
         var fuente = File.ReadAllText(Path.Combine(
             RaizRepositorio.BackendSrc(), "Modules.Asistente", "Infrastructure", "ProveedorSimulado.cs"));
 
-        // La garantía «no hace ninguna llamada de red» no se puede probar
-        // ejecutándolo: un test que no ve tráfico no distingue «no llamó» de «no
-        // miré». Lo que sí se puede afirmar es que el tipo no nombra nada con lo
-        // que se pueda salir a la red.
+        // La garantía «no hace ninguna llamada de red» no se puede probar ejecutándolo: un test que
+        // no ve tráfico no distingue «no llamó» de «no miré».
         Assert.False(TiposDeRed().IsMatch(fuente), "El cliente simulado no debe usar tipos de red.");
     }
 
@@ -134,9 +125,7 @@ public sealed partial class ProveedorDeModeloTests
     [Fact]
     public void Un_proveedor_desconocido_no_impide_componer_el_resto_del_modulo()
     {
-        // Contrapartida del test anterior: la configuración del proveedor no puede
-        // ser condición de arranque. El módulo carga igual y el error llega recién a
-        // quien pide el proveedor.
+        // Contrapartida del test anterior: la configuración del proveedor no puede ser condición de arranque.
         using var servicios = Componer("openai-de-verdad").BuildServiceProvider();
 
         var duena = servicios.GetRequiredService<CadenaDuena>();

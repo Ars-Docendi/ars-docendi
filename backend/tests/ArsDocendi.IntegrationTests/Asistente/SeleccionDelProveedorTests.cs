@@ -13,15 +13,9 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica que el adaptador real se elija por ambiente y quede enchufado a la
-/// cadena de decoradores que ya existía.
+/// Verifica que el adaptador real se elija por ambiente y quede enchufado a la cadena de
+/// decoradores que ya existía.
 /// </summary>
-/// <remarks>
-/// Lo que se prueba acá no es el adaptador —eso es
-/// <see cref="ProveedorAnthropicTests"/>— sino el cableado: que el
-/// <c>switch</c> lo alcance, que consuma el cliente HTTP con el reintento del
-/// módulo y que sus fallas lleguen al corte. Nada de esto necesita clave ni red.
-/// </remarks>
 public sealed class SeleccionDelProveedorTests
 {
     private const string CadenaDelDueno =
@@ -71,10 +65,8 @@ public sealed class SeleccionDelProveedorTests
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // Contrapartida del test anterior, y es la que importa: la configuración
-        // del proveedor NO puede ser condición de arranque. Un ambiente a medio
-        // configurar tiene que levantar igual, porque el ping es el smoke test que
-        // dice si el módulo está vivo.
+        // Contrapartida del test anterior, y es la que importa: la configuración del proveedor NO
+        // puede ser condición de arranque.
         using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
@@ -105,9 +97,8 @@ public sealed class SeleccionDelProveedorTests
             () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
                 .CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
 
-        // Falla en vez de caer al default en silencio: alguien que escribió
-        // «altisimo» quiere enterarse al arrancar, no correr un mes con un esfuerzo
-        // que no eligió.
+        // Falla en vez de caer al default en silencio: alguien que escribió «altisimo» quiere
+        // enterarse al arrancar, no correr un mes con un esfuerzo que no eligió.
         Assert.Contains("altisimo", error.Message, StringComparison.Ordinal);
 
         // Y el mensaje enumera los aceptados y nombra CUÁL de los tres valores está
@@ -131,9 +122,7 @@ public sealed class SeleccionDelProveedorTests
         await Assert.ThrowsAsync<HttpRequestException>(
             () => proveedor.CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
 
-        // Tres intentos, y ni uno más: el adaptador no reintenta y el handler del
-        // módulo sí. Es la otra mitad del test que verifica que el SDK está en
-        // cero — juntos fijan que hay exactamente UNA autoridad de reintento.
+        // Tres intentos, y ni uno más: el adaptador no reintenta y el handler del módulo sí.
         Assert.Equal(3, transporte.Intentos);
     }
 
@@ -161,11 +150,7 @@ public sealed class SeleccionDelProveedorTests
             () => tercero.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
                 .CompletarAsync(Solicitud, ct));
 
-        // Es la prueba de que la traducción de fallas del adaptador LLEGA al
-        // breaker. Si dejara escapar un tipo del SDK, el corte no contaría nada y
-        // esta tercera llamada saldría a la red igual que las dos anteriores: un
-        // proveedor caído al cien por ciento seguiría recibiendo llamadas y la
-        // degradación no se activaría nunca.
+        // Es la prueba de que la traducción de fallas del adaptador LLEGA al breaker.
         Assert.Equal(antes, transporte.Intentos);
     }
 
@@ -178,10 +163,9 @@ public sealed class SeleccionDelProveedorTests
     [Fact]
     public void El_adaptador_crudo_es_un_servicio_del_contenedor()
     {
-        // ES LO QUE HACE QUE SE DISPONGA. El contenedor libera lo que él construyó
-        // y registró; un adaptador guardado adentro de un record marcador —que no
-        // es IDisposable— nunca recibe Dispose(), y su cliente HTTP queda vivo
-        // hasta que el proceso muera. Así estaba antes.
+        // ES LO QUE HACE QUE SE DISPONGA. El contenedor libera lo que él construyó y registró; un
+        // adaptador guardado adentro de un record marcador —que no es IDisposable— nunca recibe
+        // Dispose(), y su cliente HTTP queda vivo hasta que el proceso muera.
         using var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
 
         var crudo = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
@@ -200,13 +184,8 @@ public sealed class SeleccionDelProveedorTests
     [Fact]
     public void Sin_modelo_de_redaccion_propio_las_dos_cadenas_comparten_una_instancia()
     {
-        // LA VARIANTE QUE HARÍA DOBLE UNA DISPOSICIÓN INGENUA. Con
-        // `ModeloDeRedaccion` vacío —el default— redactar usa el mismo adaptador
-        // que generar. Si cada cadena hubiera sido dueña de lo suyo, el mismo
-        // objeto se dispondría dos veces.
-        //
-        // El adaptador de redacción no se resuelve, así que no se construye: no hay
-        // segundo objeto ni segunda disposición.
+        // LA VARIANTE QUE HARÍA DOBLE UNA DISPOSICIÓN INGENUA. Con `ModeloDeRedaccion` vacío —el
+        // default— redactar usa el mismo adaptador que generar.
         using var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
 
         var generacion = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
@@ -238,9 +217,8 @@ public sealed class SeleccionDelProveedorTests
     [Fact]
     public void Disponer_el_adaptador_dos_veces_no_falla()
     {
-        // El contenedor lo dispone una sola vez, pero la idempotencia es lo que
-        // hace que un cambio futuro en la registración no se pague con una
-        // excepción al apagar el proceso.
+        // El contenedor lo dispone una sola vez, pero la idempotencia es lo que hace que un cambio
+        // futuro en la registración no se pague con una excepción al apagar el proceso.
         var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
         var crudo = (IDisposable)servicios.GetRequiredKeyedService<IProveedorDeModelo>(
             ModuleExtensions.AdaptadorDeGeneracion);

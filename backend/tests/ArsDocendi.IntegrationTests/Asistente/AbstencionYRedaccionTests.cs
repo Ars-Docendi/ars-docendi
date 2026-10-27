@@ -3,15 +3,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la política de abstención y la redacción (RF-17, §3.3).
-/// </summary>
-/// <remarks>
-/// En memoria: la política es un conjunto de funciones puras sobre un resultado
-/// ya obtenido, y el prompt de redacción se arma sin llamar a nadie. Verificar las
-/// reglas de abstención a través de la respuesta del modelo probaría al modelo, no
-/// a este código.
-/// </remarks>
+/// <summary>Verifica la política de abstención y la redacción (RF-17, §3.3).</summary>
 public sealed class AbstencionYRedaccionTests
 {
     // ------------------------------------------------------ cuota agotada
@@ -33,9 +25,7 @@ public sealed class AbstencionYRedaccionTests
     public static TheoryData<IReadOnlyList<IReadOnlyList<object?>>, bool> CasosDeVacio => new()
     {
         { [], true },
-        // Una agregación sobre cero filas devuelve UNA fila con nulos, no cero
-        // filas. Un guard que solo mirara el conteo la daría por resultado con
-        // datos y la redacción hablaría de un máximo que no existe.
+        // Una agregación sobre cero filas devuelve UNA fila con nulos, no cero filas.
         { [[null, null]], true },
         // count(*) sobre nada devuelve cero, y cero SÍ dice algo.
         { [[0L]], false },
@@ -58,9 +48,7 @@ public sealed class AbstencionYRedaccionTests
     /// <summary>Qué resultado justifica gastar el único reintento.</summary>
     public static TheoryData<IReadOnlyList<IReadOnlyList<object?>>, bool, bool> CasosDeReintento => new()
     {
-        // RLS convierte «no tenés permiso» en cero filas, que es la MISMA firma
-        // que «el literal no matcheó». Reintentar acá gasta el único reintento en
-        // un caso donde ningún reintento puede ayudar.
+        // RLS convierte «no tenés permiso» en cero filas, que es la MISMA firma que «el literal no matcheó».
         { [], false, false },
         // Para un actor global, cero filas sí significa cero filas: el
         // comportamiento no cambia respecto del caso base.
@@ -111,9 +99,8 @@ public sealed class AbstencionYRedaccionTests
     [InlineData("designaciones.")]
     public void Ningun_texto_de_abstencion_habla_de_esquema_ni_de_sql(string prohibida)
     {
-        // La razón de un rechazo la lee el usuario final. Un mensaje que diga «no
-        // existe la columna personas.salario» le confirma qué columnas SÍ existen:
-        // es enumeración por mensaje de error.
+        // La razón de un rechazo la lee el usuario final. Un mensaje que diga «no existe la columna
+        // personas.salario» le confirma qué columnas SÍ existen: es enumeración por mensaje de error.
         string[] textos =
         [
             PoliticaDeAbstencion.TextoNoContestable,
@@ -121,9 +108,8 @@ public sealed class AbstencionYRedaccionTests
             PoliticaDeAbstencion.TextoServicioDegradado,
             PoliticaDeAbstencion.TextoDeResultadoVacio(true),
             PoliticaDeAbstencion.TextoDeResultadoVacio(false),
-            // asistente-rechazos-dinamicos: las plantillas de rechazo, con
-            // áreas realistas —las mismas etiquetas que EtiquetasDeAreas
-            // deriva del catálogo, nunca un nombre de esquema o tabla—.
+            // asistente-rechazos-dinamicos: las plantillas de rechazo, con áreas realistas —las
+            // mismas etiquetas que EtiquetasDeAreas deriva del catálogo, nunca un nombre de esquema o tabla—.
             .. TodasLasPlantillasDeRechazo(),
         ];
 
@@ -300,9 +286,8 @@ public sealed class AbstencionYRedaccionTests
     [Fact]
     public void Las_instrucciones_de_redaccion_prohiben_inventar_valores()
     {
-        // Una consulta correcta narrada mal es tan falsa como una consulta
-        // incorrecta, y el dataset de capacidad compara conjuntos de resultados:
-        // no ve la redacción.
+        // Una consulta correcta narrada mal es tan falsa como una consulta incorrecta, y el dataset
+        // de capacidad compara conjuntos de resultados: no ve la redacción.
         Assert.Contains(
             "No agregues datos", RedactorDeRespuesta.Instrucciones, StringComparison.Ordinal);
         Assert.Contains(
@@ -311,16 +296,8 @@ public sealed class AbstencionYRedaccionTests
 
     // ------------------------------- el razonamiento de un turno sin filas
 
-    // EL RAZONAMIENTO SE ESCRIBE ANTES DE EJECUTAR LA CONSULTA, así que sólo puede
-    // hablar de lo que el modelo BUSCÓ. Cuando además promete lo que va a devolver
-    // —«y devuelvo tres materias distintas»— y la consulta vuelve vacía, el turno
-    // afirma dos cosas contradictorias: el texto principal dice que no encontró
-    // nada y la explicación dice que devolvió tres. Quien lee se queda con la que
-    // suena informada.
-    //
-    // Pasó de verdad: una consulta cuyo literal decía «Ingeniería Informática»
-    // contra una carrera llamada «Ingeniería en Informática» volvió vacía, y la
-    // explicación siguió prometiendo tres materias.
+    // EL RAZONAMIENTO SE ESCRIBE ANTES DE EJECUTAR LA CONSULTA, así que sólo puede hablar de lo que
+    // el modelo BUSCÓ.
 
     [Fact]
     public void El_razonamiento_de_un_turno_vacio_aclara_que_no_hubo_filas()
@@ -335,9 +312,8 @@ public sealed class AbstencionYRedaccionTests
     [Fact]
     public void La_aclaracion_conserva_como_se_interpreto_la_pregunta()
     {
-        // No se descarta el texto del modelo: es lo único que deja ver que el
-        // literal estaba mal escrito, y fue lo que permitió diagnosticar el caso
-        // real. Se le quita la promesa, no la información.
+        // No se descarta el texto del modelo: es lo único que deja ver que el literal estaba mal
+        // escrito, y fue lo que permitió diagnosticar el caso real.
         const string Original = "Interpreté 'profesores' como los cargos de jerarquía.";
 
         Assert.StartsWith(
@@ -370,9 +346,8 @@ public sealed class AbstencionYRedaccionTests
     [Fact]
     public void El_prompt_de_generacion_prohibe_prometer_resultados()
     {
-        // El arreglo mecánico de arriba es la garantía; esto es la fuente. Sin
-        // esta regla el modelo sigue escribiendo la promesa y la aclaración queda
-        // contradiciéndola en cada turno vacío.
+        // El arreglo mecánico de arriba es la garantía; esto es la fuente. Sin esta regla el modelo
+        // sigue escribiendo la promesa y la aclaración queda contradiciéndola en cada turno vacío.
         Assert.Contains(
             "todavía no se ejecutó",
             InstruccionesDeGeneracion.Instrucciones,
@@ -381,12 +356,10 @@ public sealed class AbstencionYRedaccionTests
 
     // ----------------------------- la referencia que la reescritura no resolvió
 
-    // EL CONTRATO QUE NADIE VERIFICABA. El reescritor promete «una pregunta que se
-    // entienda sola» y a veces devuelve algo que no se entiende solo: expande la
-    // anáfora sin resolverla —«los profesores de esa materia mencionada entre las 3
-    // materias»— y el generador se abstiene, que es correcto sobre una pregunta que
-    // no se entiende. Lo que estaba mal era el mensaje: «no puedo responder eso con
-    // la información que tengo disponible» hace pensar que el dato no existe.
+    // EL CONTRATO QUE NADIE VERIFICABA. El reescritor promete «una pregunta que se entienda sola» y
+    // a veces devuelve algo que no se entiende solo: expande la anáfora sin resolverla —«los
+    // profesores de esa materia mencionada entre las 3 materias»— y el generador se abstiene, que
+    // es correcto sobre una pregunta que no se entiende.
 
     [Theory]
     [InlineData("¿y los profesores de esa materia?")]
@@ -404,12 +377,8 @@ public sealed class AbstencionYRedaccionTests
     [InlineData("dame las materias de la carrera de Informática")]
     public void Una_pregunta_autocontenida_no_se_marca(string pregunta)
     {
-        // ESTE ES EL TEST QUE IMPORTA, y el que se rompe si alguien «deduplica» esta
-        // lista contra la de DetectorDeCambioDeTema. Aquélla incluye `el`, `los` y
-        // `las` a propósito —le sirve para NO pivotar ante cualquier atadura al
-        // contexto—, y como detector de referencia sin resolver marcaría casi toda
-        // frase en español. Son dos listas parecidas que responden preguntas
-        // distintas.
+        // ESTE ES EL TEST QUE IMPORTA, y el que se rompe si alguien «deduplica» esta lista contra
+        // la de DetectorDeCambioDeTema.
         Assert.False(PoliticaDeAbstencion.HayReferenciaSinResolver(pregunta));
     }
 
@@ -434,16 +403,10 @@ public sealed class AbstencionYRedaccionTests
 
     // ------------------------------------------- el alcance por dominio
 
-    // EL DEFECTO QUE ESTO CIERRA, medido contra el padrón sintético. El actor de
-    // Decanato es global y tiene `designaciones.ver`, así que el booleano del turno
-    // daba verdadero; la RLS de portal le devolvía un solo perfil —el suyo— y a
-    // «¿qué docentes saben Python?» —que tres personas declararon— el asistente
-    // contestaba «no encontré ningún registro». Es la violación de BR-asistente-003
-    // sobre el dominio que esa regla no cubría.
-    //
-    // El propio ConsultorDeAlcance lo había anticipado: «es UN permiso porque hoy
-    // hay UN dominio con policies. Cuando haya un segundo —portal es el candidato
-    // inmediato— esto deja de ser un booleano».
+    // EL DEFECTO QUE ESTO CIERRA, medido contra el padrón sintético. El actor de Decanato es global
+    // y tiene `designaciones.ver`, así que el booleano del turno daba verdadero; la RLS de portal
+    // le devolvía un solo perfil —el suyo— y a «¿qué docentes saben Python?» —que tres personas
+    // declararon— el asistente contestaba «no encontré ningún registro».
 
     [Theory]
     // Global con designaciones pero SIN el permiso de portal: es el defecto.

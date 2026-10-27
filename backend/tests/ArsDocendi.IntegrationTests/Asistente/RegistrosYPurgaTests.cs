@@ -9,29 +9,11 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica los dos registros desvinculados y la purga que los acota.
-/// </summary>
-/// <remarks>
-/// Va contra una base real porque lo que se prueba es una <b>propiedad del
-/// esquema</b>: que las dos tablas no compartan ninguna columna que permita
-/// cruzarlas, que ninguna tenga disparador de auditoría, y que el rol de solo
-/// lectura del asistente no pueda leerlas. Nada de eso se puede afirmar mirando
-/// código.
-/// </remarks>
+/// <summary>Verifica los dos registros desvinculados y la purga que los acota.</summary>
 public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_registros")
 {
-    /// <summary>
-    /// El ancla del reloj falso, deliberadamente lejos de la fecha real.
-    /// </summary>
-    /// <remarks>
-    /// No es un detalle. Con un ancla cercana a hoy, una purga que usara el reloj
-    /// del sistema en lugar del inyectado daría verde igual, y el test no probaría
-    /// nada de lo que dice probar. Con el ancla en el futuro, las filas «viejas» del
-    /// reloj falso todavía no ocurrieron para el reloj real, así que confundirlos
-    /// hace fallar el test.
-    /// </remarks>
+    /// <summary>El ancla del reloj falso, deliberadamente lejos de la fecha real.</summary>
     private static readonly DateTimeOffset Ancla = new(2027, 6, 15, 14, 37, 12, TimeSpan.Zero);
     private static readonly Guid Alguien = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Otro = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -52,10 +34,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_operativo_guarda_el_nombre_del_proveedor_y_ninguna_credencial()
     {
-        // El nombre del proveedor es lo que hace atribuible el costo: sin él, un
-        // cambio de modelo mezcla dos series de precios distintos en la misma tabla.
-        // La credencial es lo contrario —no aporta nada y todo lo que puede hacer es
-        // filtrarse—, y la única forma de que no esté es que nunca llegue hasta acá.
+        // El nombre del proveedor es lo que hace atribuible el costo: sin él, un cambio de modelo
+        // mezcla dos series de precios distintos en la misma tabla.
         await RegistrarAsync(Turno());
 
         var proveedores = await LeerAsync<string>(
@@ -63,9 +43,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
 
         Assert.Equal(["anthropic/claude-sonnet-5"], proveedores);
 
-        // Ninguna de las dos tablas guarda nada con forma de credencial. Se busca la
-        // forma y no un valor concreto: un test contra la clave de un ambiente daría
-        // verde en cualquier otro.
+        // Ninguna de las dos tablas guarda nada con forma de credencial. Se busca la forma y no un
+        // valor concreto: un test contra la clave de un ambiente daría verde en cualquier otro.
         foreach (var tabla in (string[])["registro_operativo", "registro_analitico"])
         {
             Assert.Empty(await BuscarTextoAsync(tabla, "sk-ant"));
@@ -83,7 +62,6 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
 
         // `modelo` is the named, accepted exception (design D3 of asistente-metricas-de-calidad,
         // noted in TD-012): a coarse attribute for comparing models, with a small closed catalog.
-        // What stays out is the `proveedor` column of the operational record, and any actor or time.
         Assert.DoesNotContain("proveedor", await ColumnasDeAsync("registro_analitico"));
     }
 
@@ -115,9 +93,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_rechazo_del_validador_o_una_generacion_truncada_tambien_escriben_null()
     {
-        // `MotivoDeRechazo` es `null` en la generación para las dos: la
-        // contradicción y el corte por presupuesto nunca fueron una decisión
-        // del modelo sobre el motivo (design.md D2).
+        // `MotivoDeRechazo` es `null` en la generación para las dos: la contradicción y el corte
+        // por presupuesto nunca fueron una decisión del modelo sobre el motivo (design.md D2).
         await RegistrarAsync(Turno(
             estado: EstadoDelTurno.NoContestable, motivoDeRechazo: null));
 
@@ -148,9 +125,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_registro_analitico_no_tiene_ninguna_columna_para_el_motivo_del_rechazo()
     {
-        // Mismo guard que el de `intencion_sombra`, y en verde desde el primer
-        // día por el mismo motivo: lo que sostiene la desvinculación es la
-        // AUSENCIA de la columna, no una convención de escritura.
+        // Mismo guard que el de `intencion_sombra`, y en verde desde el primer día por el mismo
+        // motivo: lo que sostiene la desvinculación es la AUSENCIA de la columna, no una convención de escritura.
         var columnas = await ColumnasDeAsync("registro_analitico");
 
         Assert.DoesNotContain("motivo_rechazo", columnas);
@@ -219,10 +195,9 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task La_clave_del_analitico_es_aleatoria_y_no_secuencial()
     {
-        // ÉSTA ES LA TRAMPA QUE HABÍA QUE EVITAR. Con una identidad autoincremental
-        // en las dos tablas, la fila n de una y la fila n de la otra serían el mismo
-        // turno: el orden de inserción sería, él mismo, la clave del join que quitar
-        // la hora existe para impedir.
+        // ÉSTA ES LA TRAMPA QUE HABÍA QUE EVITAR. Con una identidad autoincremental en las dos
+        // tablas, la fila n de una y la fila n de la otra serían el mismo turno: el orden de
+        // inserción sería, él mismo, la clave del join que quitar la hora existe para impedir.
         var tipo = await EscalarAsync<string>(
             """
             SELECT data_type FROM information_schema.columns
@@ -252,9 +227,7 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task Ningun_registro_guarda_filas_ni_consultas()
     {
-        // La consulta y las filas ni siquiera llegan al escritor: no están en el
-        // tipo que recibe. Este test cierra la otra mitad —que tampoco haya dónde
-        // ponerlas— mirando el esquema.
+        // La consulta y las filas ni siquiera llegan al escritor: no están en el tipo que recibe.
         var columnas = (await ColumnasDeAsync("registro_operativo"))
             .Concat(await ColumnasDeAsync("registro_analitico"))
             .ToList();
@@ -288,10 +261,7 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task Ninguna_de_las_dos_tablas_tiene_disparador_de_auditoria()
     {
-        // Todas las tablas de identity y designaciones llaman a audit.attach al
-        // final de su archivo. Acá NO, porque audit.change_log guarda la fila entera
-        // en JSON y no tiene retención: el texto de cada pregunta sobreviviría a la
-        // purga en otro lado.
+        // Todas las tablas de identity y designaciones llaman a audit.attach al final de su archivo.
         var disparadores = await LeerAsync<string>(
             """
             SELECT tgname FROM pg_catalog.pg_trigger t
@@ -425,9 +395,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_con_filas_sensibles_no_deja_ningun_valor_en_ningun_registro()
     {
-        // Son exactamente los datos que el enmascaramiento acaba de sacar del camino
-        // de salida hacia el proveedor. Volver a escribirlos acá los devolvería por
-        // la puerta de la observabilidad, y sin retención en la bitácora.
+        // Son exactamente los datos que el enmascaramiento acaba de sacar del camino de salida
+        // hacia el proveedor.
         await SembrarAsync();
 
         await Capa(
@@ -484,9 +453,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_pregunta_que_ninguna_intencion_cubre_deja_la_columna_en_nulo()
     {
-        // Nulo es el caso NORMAL, no un dato faltante ni un error: un catálogo de
-        // cinco intenciones no cubre la mayoría de las preguntas y no pretende
-        // hacerlo. El turno se resuelve igual.
+        // Nulo es el caso NORMAL, no un dato faltante ni un error: un catálogo de cinco intenciones
+        // no cubre la mayoría de las preguntas y no pretende hacerlo.
         await SembrarAsync();
 
         var turno = await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
@@ -505,9 +473,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_que_termina_antes_del_enrutador_deja_la_columna_en_nulo()
     {
-        // Un saludo corta en el paso 1 y nunca llega al paso 5. No hubo decisión que
-        // registrar, así que la columna queda nula por la misma razón que la anterior
-        // y no por una distinta.
+        // Un saludo corta en el paso 1 y nunca llega al paso 5. No hubo decisión que registrar, así
+        // que la columna queda nula por la misma razón que la anterior y no por una distinta.
         await SembrarAsync();
 
         await Capa().ResponderAsync(
@@ -524,9 +491,6 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     public async Task Un_turno_capturado_que_responde_por_SQL_registra_las_dos_cosas()
     {
         // Las dos columnas en la MISMA fila, que es donde se ve que no se pisan.
-        // `carril` dice por dónde se resolvió el turno de verdad —SQL, porque el
-        // carril determinista todavía no resuelve ninguno— y `intencion_sombra` por
-        // dónde se habría resuelto.
         await SembrarAsync();
 
         await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
@@ -546,11 +510,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_registro_analitico_no_tiene_ninguna_columna_para_la_intencion()
     {
-        // EN VERDE DESDE EL PRIMER DÍA, A PROPÓSITO. Su valor no es lo que prueba hoy
-        // sino cuándo se pone en rojo: el día que alguien agregue la columna acá por
-        // simetría con el operativo. La desvinculación de los dos registros no se
-        // sostiene con una convención de escritura sino con la AUSENCIA de columnas
-        // con las que cruzarlos.
+        // EN VERDE DESDE EL PRIMER DÍA, A PROPÓSITO. Su valor no es lo que prueba hoy sino cuándo
+        // se pone en rojo: el día que alguien agregue la columna acá por simetría con el operativo.
         var columnas = await ColumnasDeAsync("registro_analitico");
 
         Assert.DoesNotContain("intencion_sombra", columnas);
@@ -572,8 +533,7 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
 
         // The three extra columns are the quality attributes of asistente-metricas-de-calidad
         // (010): a closed failure code, the model name (the one attribute shared with the
-        // operational record, accepted in design D3 and noted in TD-012) and the replaced
-        // flag. None of them is the intention, an actor or a precise time.
+        // operational record, accepted in design D3 and noted in TD-012) and the replaced flag.
         Assert.Equal(
             ["categoria", "causa", "dia", "estado", "id", "modelo", "pregunta", "reemplazado"],
             await ColumnasDeAsync("registro_analitico"));

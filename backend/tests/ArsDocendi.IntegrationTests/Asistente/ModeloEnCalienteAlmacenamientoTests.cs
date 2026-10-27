@@ -6,9 +6,8 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Storage of the runtime model: the three tables, the repositories and the
-/// encrypted key lifecycle against a real database (asistente-modelo-en-caliente,
-/// slice 1: tasks 1.1-1.3, 1.6, 1.7, 1.10, 1.11).
+/// Storage of the runtime model: the three tables, the repositories and the encrypted key lifecycle
+/// against a real database (asistente-modelo-en-caliente, slice 1: tasks 1.1-1.3, 1.6, 1.7, 1.10, 1.11).
 /// </summary>
 public sealed class ModeloEnCalienteAlmacenamientoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_modelo_en_caliente")

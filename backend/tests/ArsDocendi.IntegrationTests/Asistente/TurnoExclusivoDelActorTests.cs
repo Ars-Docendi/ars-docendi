@@ -5,15 +5,9 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Un turno en curso por actor rechaza al segundo (asistente-turno-exclusivo-del-actor,
-/// design.md D5 de asistente-administracion-de-uso).
+/// Un turno en curso por actor rechaza al segundo (asistente-turno-exclusivo-del-actor, design.md
+/// D5 de asistente-administracion-de-uso).
 /// </summary>
-/// <remarks>
-/// Contra el fake de <see cref="ICandadoDelTurno"/> (<c>CandadoDelTurnoFalso</c>),
-/// que reproduce la exclusión mutua sin pagar Postgres — el mecanismo real
-/// está en <see cref="CandadoDelTurnoTests"/>. Lo que importa acá es que
-/// <c>CapaConversacional</c> lo consulta primero y lo libera siempre.
-/// </remarks>
 public sealed class TurnoExclusivoDelActorTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_turno_exclusivo")
 {
@@ -28,9 +22,8 @@ public sealed class TurnoExclusivoDelActorTests(PostgresFixture postgres)
         var banco = Banco();
         var ct = TestContext.Current.CancellationToken;
 
-        // Simula el primer turno "en curso" tomando el candado a mano, sin
-        // liberarlo, en lugar de correr un ResponderAsync real que se
-        // resolvería antes de poder verificar el rechazo.
+        // Simula el primer turno "en curso" tomando el candado a mano, sin liberarlo, en lugar de
+        // correr un ResponderAsync real que se resolvería antes de poder verificar el rechazo.
         var enCurso = await banco.CandadoDelTurno.IntentarAsync(Secretaria, ct);
         Assert.NotNull(enCurso);
 

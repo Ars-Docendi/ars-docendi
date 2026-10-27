@@ -3,18 +3,8 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica el manifiesto de sensibilidad, que gobierna qué sale hacia el
-/// proveedor externo del modelo.
+/// Verifica el manifiesto de sensibilidad, que gobierna qué sale hacia el proveedor externo del modelo.
 /// </summary>
-/// <remarks>
-/// No necesita base ni proveedor: compara dos archivos versionados y el tipo que
-/// los lee. La comparación contra los identificadores reales del motor —que es la
-/// otra mitad— vive en los tests de integración del ejecutor.
-///
-/// Se carga el manifiesto por la <b>misma vía que producción</b>, desde el recurso
-/// embebido. Leerlo del disco acá probaría un archivo que el assembly podría no
-/// estar llevando.
-/// </remarks>
 public sealed class ManifiestoSensibilidadTests
 {
     private static readonly ManifiestoDeSensibilidad Sensibilidad =
@@ -54,9 +44,8 @@ public sealed class ManifiestoSensibilidadTests
     [Fact]
     public void Una_columna_concedida_sin_clasificar_se_detecta()
     {
-        // Verifica el detector, no el manifiesto: se pregunta por una columna que
-        // el manifiesto no nombra y se comprueba que da Desconocida en vez de
-        // degradarse a pública.
+        // Verifica el detector, no el manifiesto: se pregunta por una columna que el manifiesto no
+        // nombra y se comprueba que da Desconocida en vez de degradarse a pública.
         Assert.Equal(
             ClasificacionDeSensibilidad.Desconocida,
             Sensibilidad.Clasificacion("identity", "personas", "columna_que_no_existe"));
@@ -109,9 +98,8 @@ public sealed class ManifiestoSensibilidadTests
     [InlineData("designaciones", "pedidos", "tipo_baja_detalle")]
     public void El_texto_libre_del_tramite_no_viaja(string schema, string tabla, string columna)
     {
-        // Las tres son texto libre que puede nombrar a cualquiera. El manifiesto de
-        // privilegios ya las señalaba como el mismo riesgo; acá se las clasifica en
-        // consecuencia.
+        // Las tres son texto libre que puede nombrar a cualquiera. El manifiesto de privilegios ya
+        // las señalaba como el mismo riesgo; acá se las clasifica en consecuencia.
         Assert.Equal(
             ClasificacionDeSensibilidad.SensibleTexto,
             Sensibilidad.Clasificacion(schema, tabla, columna));
@@ -120,9 +108,8 @@ public sealed class ManifiestoSensibilidadTests
     [Fact]
     public void Nombre_apellido_y_legajo_son_publicos()
     {
-        // Decisión heredada del riesgo residual ya aceptado: son datos que circulan
-        // en cualquier listado de cátedra. Se fija en un test para que cambiarlo sea
-        // deliberado.
+        // Decisión heredada del riesgo residual ya aceptado: son datos que circulan en cualquier
+        // listado de cátedra.
         Assert.All(
             new[] { "nombre", "apellido", "legajo" },
             columna => Assert.Equal(

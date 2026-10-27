@@ -5,16 +5,9 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// El buscador de menciones «@materia»/«#docente» (design.md D10 de
-/// asistente-rediseno-v3, ARS-148): alcance, sin columnas <c>sensible-*</c>, y el
-/// tope de resultados.
+/// El buscador de menciones «@materia»/«#docente» (design.md D10 de asistente-rediseno-v3,
+/// ARS-148): alcance, sin columnas <c>sensible-*</c>, y el tope de resultados.
 /// </summary>
-/// <remarks>
-/// Igual criterio que <see cref="RlsAlcanceTests"/>: corre con el rol básico de
-/// sólo lectura y el actor fijado —nunca la conexión dueña, nunca un filtro de
-/// C# como única guardia—, así que lo que se prueba es el límite que impone el
-/// motor.
-/// </remarks>
 public sealed class MencionesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_menciones")
 {
@@ -29,11 +22,10 @@ public sealed class MencionesTests(PostgresFixture postgres)
     private static readonly Guid MateriaDeIndustrial = Guid.Parse("70000000-0000-4000-8000-000000000201");
 
     /// <summary>
-    /// La única persona del seed cuya ÚNICA designación cae en una materia de
-    /// Industrial: fuera del ámbito del coordinador, sea cual sea el seed del
-    /// día (ver el comentario de <c>RlsAlcanceTests</c> sobre por qué los
-    /// conteos no se fijan a mano — el id sí se puede fijar: es de fixture,
-    /// no un conteo).
+    /// La única persona del seed cuya ÚNICA designación cae en una materia de Industrial: fuera del
+    /// ámbito del coordinador, sea cual sea el seed del día (ver el comentario de
+    /// <c>RlsAlcanceTests</c> sobre por qué los conteos no se fijan a mano — el id sí se puede
+    /// fijar: es de fixture, no un conteo).
     /// </summary>
     private static readonly Guid DocenteDeIndustrial = Guid.Parse("d0000000-0000-4000-8000-000000000010");
 
@@ -101,9 +93,8 @@ public sealed class MencionesTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        // "Estructuras" es la segunda palabra de "Algoritmos y Estructuras de
-        // Datos": el prefijo por PALABRA tiene que alcanzarla igual que si
-        // fuera la primera.
+        // "Estructuras" es la segunda palabra de "Algoritmos y Estructuras de Datos": el prefijo
+        // por PALABRA tiene que alcanzarla igual que si fuera la primera.
         var resultado = await Buscador().BuscarAsync(
             Secretaria, TipoDeMencion.Materia, "estruct", TestContext.Current.CancellationToken);
 
@@ -242,9 +233,7 @@ public sealed class MencionesTests(PostgresFixture postgres)
     {
         // Chequeo ESTÁTICO contra el manifiesto: `identity.materias.name/code`,
         // `identity.carreras.name`, `identity.personas.nombre/apellido` y
-        // `designaciones.cargos.nombre` tienen que seguir siendo `publica`. Si
-        // alguien reclasificara una de éstas a `sensible-*`, este test cae antes
-        // de que el buscador la devuelva.
+        // `designaciones.cargos.nombre` tienen que seguir siendo `publica`.
         var manifiesto = ManifiestoDeSensibilidad.Cargar();
 
         void AssertPublica(string schema, string tabla, string columna) =>

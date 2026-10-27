@@ -3,10 +3,9 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// La regla pura de cupo efectivo por usuario (tarea «rol y cupo efectivo por
-/// usuario» de sistema-seccion-unificada) — mismos casos que
-/// <c>CuotaPersistenteTests</c> documenta para la aplicación real del cupo,
-/// para que las dos reglas no puedan divergir sin que un test lo note.
+/// La regla pura de cupo efectivo por usuario (tarea «rol y cupo efectivo por usuario» de
+/// sistema-seccion-unificada) — mismos casos que <c>CuotaPersistenteTests</c> documenta para la
+/// aplicación real del cupo, para que las dos reglas no puedan divergir sin que un test lo note.
 /// </summary>
 public sealed class ReglaDeCupoEfectivoTests
 {

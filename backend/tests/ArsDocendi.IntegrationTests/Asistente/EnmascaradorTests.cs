@@ -2,15 +2,7 @@ using Modules.Asistente.Application;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la frontera de salida: qué del resultado puede viajar al proveedor.
-/// </summary>
-/// <remarks>
-/// Todo en memoria, sin base y sin proveedor: el enmascarador es una función pura
-/// sobre un resultado ya clasificado. Eso es a propósito — la pieza que decide qué
-/// datos personales salen del sistema tiene que poder ejercitarse exhaustivamente
-/// y barato.
-/// </remarks>
+/// <summary>Verifica la frontera de salida: qué del resultado puede viajar al proveedor.</summary>
 public sealed class EnmascaradorTests
 {
     private const string Documento = "30111222";
@@ -287,9 +279,8 @@ public sealed class EnmascaradorTests
         new(columnas, filas, Truncado: false, sensibilidad);
 
     /// <summary>
-    /// El prompt tal como lo vería el proveedor: es el texto sobre el que hay que
-    /// afirmar, porque afirmar sobre las filas dejaría pasar un valor que se colara
-    /// por el nombre de una columna.
+    /// El prompt tal como lo vería el proveedor: es el texto sobre el que hay que afirmar, porque
+    /// afirmar sobre las filas dejaría pasar un valor que se colara por el nombre de una columna.
     /// </summary>
     private static string Texto(ResultadoDeConsulta resultado) =>
         RedactorDeRespuesta.ArmarMensaje("¿Quiénes son?", resultado, alcanzaTodo: true);

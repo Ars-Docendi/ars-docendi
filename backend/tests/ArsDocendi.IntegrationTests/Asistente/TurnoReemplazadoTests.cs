@@ -15,13 +15,9 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Replacing a turn by editing and resending it is recorded as implicit
-/// dissatisfaction (asistente-metricas-de-calidad, design D4, task 2.8).
+/// Replacing a turn by editing and resending it is recorded as implicit dissatisfaction
+/// (asistente-metricas-de-calidad, design D4, task 2.8).
 /// </summary>
-/// <remarks>
-/// Goes through the real host and the real writer: the flag is set by an UPDATE from the
-/// registration step, and what matters is which row it lands on.
-/// </remarks>
 public sealed class TurnoReemplazadoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_turno_reemplazado")
 {

@@ -2,18 +2,7 @@ using Modules.Asistente.Application;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el validador de la SQL generada (RNF-08, RNF-23).
-/// </summary>
-/// <remarks>
-/// Todo acá corre en memoria: el validador es una función pura sobre texto. Los
-/// tests que verifican que la <b>otra</b> capa —el motor— también rechaza están
-/// en <see cref="RlsAlcanceTests"/> y en <see cref="EjecucionAcotadaTests"/>.
-///
-/// El ataque de los tres primeros tests está verificado sobre una base real en el
-/// prototipo previo: fijándose otro actor con <c>"set_config"</c> entre comillas
-/// dobles, una consulta que debía devolver 26 filas devolvía 138.
-/// </remarks>
+/// <summary>Verifica el validador de la SQL generada (RNF-08, RNF-23).</summary>
 public sealed class ValidadorDeSqlTests
 {
     // ------------------------------------------- identificadores entrecomillados
@@ -72,9 +61,7 @@ public sealed class ValidadorDeSqlTests
     [InlineData("""SELECT "set_config"/* nada que ver */('a','b',true)""")]
     public void Ni_las_mayusculas_ni_el_espacio_intercalado_evaden(string sql)
     {
-        // El chequeo no exige que el paréntesis siga al nombre: alcanza con que el
-        // nombre aparezca. Por eso ni el espacio, ni el salto de línea, ni un
-        // comentario intercalado abren una vía.
+        // El chequeo no exige que el paréntesis siga al nombre: alcanza con que el nombre aparezca.
         Assert.False(ValidadorDeSql.Validar(sql).EsValida);
     }
 
@@ -90,12 +77,8 @@ public sealed class ValidadorDeSqlTests
     [InlineData("""SELECT u&"\0073ET_CONFIG"('a','b',true)""")]
     public void Los_escapes_unicode_del_identificador_no_evaden(string sql)
     {
-        // PostgreSQL resuelve los escapes ANTES de resolver el nombre: las cuatro
-        // formas de acá son la función set_config para el motor. Un tokenizador
-        // que emita el texto crudo se las pasa enteras a una lista negra que
-        // busca «set_config», y no encuentra nada.
-        //
-        // Verificadas contra PostgreSQL 18: las cuatro ejecutan la función.
+        // PostgreSQL resuelve los escapes ANTES de resolver el nombre: las cuatro formas de acá son
+        // la función set_config para el motor.
         Assert.False(ValidadorDeSql.Validar(sql).EsValida);
     }
 
@@ -124,9 +107,8 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Acepta_un_alias_entrecomillado_que_coincide_con_palabra_clave()
     {
-        // Un identificador NO es una palabra clave. Chequear los entrecomillados
-        // contra palabras clave rompería consultas correctas sin cerrar ningún
-        // agujero: el agujero eran las FUNCIONES.
+        // Un identificador NO es una palabra clave. Chequear los entrecomillados contra palabras
+        // clave rompería consultas correctas sin cerrar ningún agujero: el agujero eran las FUNCIONES.
         var veredicto = ValidadorDeSql.Validar(
             """SELECT c.name AS "update", c.code AS "grant" FROM identity.carreras c""");
 
@@ -152,10 +134,9 @@ public sealed class ValidadorDeSqlTests
     [InlineData("SELECT column_name FROM information_schema.column_privileges")]
     public void Rechaza_el_catalogo_del_motor(string sql)
     {
-        // El catálogo describe el esquema entero, los roles y los privilegios:
-        // material que la política de redacción prohíbe que salga del turno, y el
-        // mapa que hace falta para escribir el próximo intento. Ninguna pregunta
-        // del catálogo de capacidades lo necesita.
+        // El catálogo describe el esquema entero, los roles y los privilegios: material que la
+        // política de redacción prohíbe que salga del turno, y el mapa que hace falta para escribir
+        // el próximo intento.
         Assert.False(ValidadorDeSql.Validar(sql).EsValida);
     }
 
@@ -321,9 +302,8 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Los_comentarios_de_bloque_anidados_no_dejan_codigo_afuera()
     {
-        // PostgreSQL anida los comentarios de bloque. Un tokenizador que buscara
-        // el primer cierre daría por terminado el comentario en el cierre interno
-        // y leería el resto como código.
+        // PostgreSQL anida los comentarios de bloque. Un tokenizador que buscara el primer cierre
+        // daría por terminado el comentario en el cierre interno y leería el resto como código.
         var veredicto = ValidadorDeSql.Validar(
             "SELECT /* uno /* dos */ tres */ code FROM identity.carreras");
 
@@ -333,9 +313,8 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Un_literal_de_signo_pesos_no_esconde_una_funcion_prohibida()
     {
-        // Adentro de $$...$$ el contenido es texto, no código: no se ejecuta. Lo
-        // que importa es que el tokenizador no pierda la sincronización y siga
-        // leyendo bien lo que viene después.
+        // Adentro de $$...$$ el contenido es texto, no código: no se ejecuta. Lo que importa es que
+        // el tokenizador no pierda la sincronización y siga leyendo bien lo que viene después.
         var veredicto = ValidadorDeSql.Validar(
             "SELECT $marca$set_config$marca$ AS texto, \"set_config\"('a','b',true)");
 
@@ -435,10 +414,8 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Rechaza_un_marcador_declarado_pero_sin_usar()
     {
-        // Escenario "A query that ignores a reference is not executed" de
-        // asistente-menciones: la mención está declarada, pero el generado no
-        // filtra por ella. Se rechaza en vez de ejecutarse contra la entidad
-        // equivocada.
+        // Escenario "A query that ignores a reference is not executed" de asistente-menciones: la
+        // mención está declarada, pero el generado no filtra por ella.
         var veredicto = ValidadorDeSql.Validar(
             "SELECT m.name FROM identity.materias m",
             new HashSet<string> { "$ref1" },
@@ -451,10 +428,8 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Un_marcador_heredado_sin_usar_no_se_exige()
     {
-        // `$ref1` viene de un turno anterior del segmento (declarado, pero no
-        // "que deba usarse" — sólo `$ref2` es nuevo este turno). Un seguimiento
-        // que ya no lo necesita puede editarlo afuera sin que el validador lo
-        // rechace por eso.
+        // `$ref1` viene de un turno anterior del segmento (declarado, pero no "que deba usarse" —
+        // sólo `$ref2` es nuevo este turno).
         var veredicto = ValidadorDeSql.Validar(
             "SELECT m.name FROM identity.materias m WHERE m.id = $ref2",
             new HashSet<string> { "$ref1", "$ref2" },
@@ -466,9 +441,8 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Sin_menciones_cualquier_marcador_es_rechazado()
     {
-        // Comportamiento por defecto (sin declarar nada): un `$refN` que
-        // aparezca de la nada se trata igual que antes de que existieran las
-        // menciones — la consulta se rechaza.
+        // Comportamiento por defecto (sin declarar nada): un `$refN` que aparezca de la nada se
+        // trata igual que antes de que existieran las menciones — la consulta se rechaza.
         var veredicto = ValidadorDeSql.Validar(
             "SELECT m.name FROM identity.materias m WHERE m.id = $ref1");
 
@@ -493,10 +467,7 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Un_marcador_dentro_de_un_literal_con_escapes_no_cuenta()
     {
-        // "it\'s $ref1": la comilla escapada con barra invertida NO cierra el
-        // literal. Un escáner que sólo entendiera la comilla doblada cerraría
-        // acá mismo y volvería a leer "s $ref1" como código, exponiendo el
-        // marcador como si el modelo lo hubiera escrito de verdad.
+        // "it\'s $ref1": la comilla escapada con barra invertida NO cierra el literal.
         var veredicto = ValidadorDeSql.Validar(
             """SELECT E'it\'s $ref1' FROM identity.materias m""",
             new HashSet<string>(),
@@ -508,9 +479,7 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Una_barra_invertida_escapada_cierra_el_literal_en_su_comilla()
     {
-        // "a\\": una barra invertida literal (el par \\ la representa), seguida
-        // de la comilla de cierre real. El escáner tiene que saltear el par
-        // completo y cerrar justo en esa comilla, sin desalinearse.
+        // "a\\": una barra invertida literal (el par \\ la representa), seguida de la comilla de cierre real.
         var veredicto = ValidadorDeSql.Validar(
             """SELECT E'a\\' FROM identity.materias m""");
 
@@ -520,10 +489,7 @@ public sealed class ValidadorDeSqlTests
     [Fact]
     public void Una_palabra_prohibida_escondida_tras_una_comilla_escapada_es_texto_inerte()
     {
-        // Lo que Postgres ve: UN SOLO literal —"a' drop table b -- z"—, nunca
-        // código. Antes del fix, el escáner cerraba en el `\'` y volvía a leer
-        // "drop table" como palabra clave prohibida, rechazando una consulta
-        // que el motor aceptaría sin problema.
+        // Lo que Postgres ve: UN SOLO literal —"a' drop table b -- z"—, nunca código.
         var veredicto = ValidadorDeSql.Validar(
             """SELECT m.name FROM identity.materias m WHERE m.name = E'a\' drop table b -- z'""");
 

@@ -8,27 +8,10 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// <summary>
 /// Verifica el catálogo del dominio y la resolución de slots contra una base real.
 /// </summary>
-/// <remarks>
-/// Va contra base porque lo que se prueba es justamente que los valores salgan de
-/// ahí: el vocabulario del trámite se deriva de las restricciones que lo declaran y
-/// los cargos de su tabla. Un test con listas escritas a mano probaría las listas.
-///
-/// <b>El seed sintético no trae colisiones de apellido</b>, así que los casos que
-/// ejercitan «no resuelve» insertan la suya. Esa inserción es también la prueba de
-/// que el catálogo sale de la base: si estuviera embebido, la fila nueva no
-/// cambiaría nada.
-/// </remarks>
 public sealed class ResolucionDeSlotsTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_slots")
 {
-    /// <summary>
-    /// Las intenciones que este archivo cubre.
-    /// </summary>
-    /// <remarks>
-    /// La lee <see cref="CatalogoDeIntencionesTests"/> para fallar si el catálogo
-    /// crece sin que crezca la cobertura. Se declara a mano a propósito: derivarla
-    /// del catálogo haría que el control se cumpliera solo.
-    /// </remarks>
+    /// <summary>Las intenciones que este archivo cubre.</summary>
     internal static readonly string[] IntencionesConCaso =
     [
         "estado-del-pedido-de-una-persona",
@@ -109,9 +92,8 @@ public sealed class ResolucionDeSlotsTests(PostgresFixture postgres)
             LectorDeVocabulario.VocabulariosAsync(
                 conexion, "designaciones", "pedidos", ["pedidos_prueba_sin_literales"], ct));
 
-        // Nombrarla es la mitad del punto. La otra mitad es no devolver una lista
-        // vacía: un vocabulario vacío no rompe nada y deja el carril barato apagado
-        // sin que nadie se entere.
+        // Nombrarla es la mitad del punto. La otra mitad es no devolver una lista vacía: un
+        // vocabulario vacío no rompe nada y deja el carril barato apagado sin que nadie se entere.
         Assert.Contains("pedidos_prueba_sin_literales", error.Message, StringComparison.Ordinal);
     }
 
@@ -211,9 +193,8 @@ public sealed class ResolucionDeSlotsTests(PostgresFixture postgres)
         await SembrarAsync();
         await AgregarColisionAsync();
 
-        // Con dos López, enrutar con uno devuelve las filas del otro, y para quien
-        // preguntó esa respuesta es indistinguible de la correcta. No resolver manda
-        // la pregunta al carril que sí puede responderla o pedir la aclaración.
+        // Con dos López, enrutar con uno devuelve las filas del otro, y para quien preguntó esa
+        // respuesta es indistinguible de la correcta.
         var resuelta = await Resolutor().ResolverAsync(
             "¿en qué estado está el pedido de López?", TestContext.Current.CancellationToken);
 
@@ -296,10 +277,9 @@ public sealed class ResolucionDeSlotsTests(PostgresFixture postgres)
     [Fact]
     public void Ni_el_resolutor_ni_el_catalogo_pueden_llamar_al_modelo()
     {
-        // Se verifica sobre las DEPENDENCIAS y no contando llamadas. Un contador en
-        // cero solo dice que esta vez no llamó; que el tipo no reciba por dónde
-        // llamar dice que no puede, y sigue diciéndolo cuando alguien agregue una
-        // rama nueva.
+        // Se verifica sobre las DEPENDENCIAS y no contando llamadas. Un contador en cero solo dice
+        // que esta vez no llamó; que el tipo no reciba por dónde llamar dice que no puede, y sigue
+        // diciéndolo cuando alguien agregue una rama nueva.
         Type[] piezas = [typeof(ResolutorDeIntenciones), typeof(CatalogoDeIntenciones)];
 
         foreach (var pieza in piezas)

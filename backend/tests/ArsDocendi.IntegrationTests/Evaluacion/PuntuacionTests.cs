@@ -3,14 +3,7 @@ using Modules.Asistente.Application;
 
 namespace ArsDocendi.IntegrationTests.Evaluacion;
 
-/// <summary>
-/// Verifica la puntuación con penalización y el comparador de resultados.
-/// </summary>
-/// <remarks>
-/// Es la métrica primaria del proyecto hecha número, y todo acá es aritmética pura
-/// sobre datos ya obtenidos: no hace falta base ni proveedor. Ese es justamente el
-/// motivo por el que estas piezas viven en el núcleo, que sí está en la solución.
-/// </remarks>
+/// <summary>Verifica la puntuación con penalización y el comparador de resultados.</summary>
 public sealed class PuntuacionTests
 {
     // ------------------------------------------------------ los desenlaces
@@ -69,9 +62,7 @@ public sealed class PuntuacionTests
     [Fact]
     public void Una_generacion_truncada_no_acredita_ni_castiga()
     {
-        // Resolvió «no contestable» sin que el modelo decidiera nada: es un
-        // presupuesto corto, no una abstención. Acreditarla inflaría justo la
-        // métrica primaria; castigarla culparía al modelo de un techo que no eligió.
+        // Resolvió «no contestable» sin que el modelo decidiera nada: es un presupuesto corto, no una abstención.
         Assert.Equal(
             0m, PuntuacionConPenalizacion.Puntuar(DesenlaceDeItem.GeneracionTruncada, 2m));
     }
@@ -81,11 +72,8 @@ public sealed class PuntuacionTests
     [Fact]
     public void Una_abstencion_con_error_no_se_cuenta_como_abstencion()
     {
-        // ÉSTA ES LA TRAMPA. Sin crédito de API, todos los ítems infactibles
-        // devuelven «no contestable» —porque el turno falló— y un scoring que solo
-        // mirara el booleano los daría por acertados. El eje de abstención, que es
-        // la métrica primaria, sería el que MÁS se infla cuando el sistema no
-        // funciona.
+        // ÉSTA ES LA TRAMPA. Sin crédito de API, todos los ítems infactibles devuelven «no
+        // contestable» —porque el turno falló— y un scoring que solo mirara el booleano los daría por acertados.
         var conFallo = Resultados(
             (DesenlaceDeItem.Fallo, 8));
 
@@ -134,9 +122,7 @@ public sealed class PuntuacionTests
         var puntajes = PuntuacionConPenalizacion.Puntuar(corrida);
         var conteos = PuntuacionConPenalizacion.Conteos(corrida);
 
-        // 9 aciertos, 3 errores. Con penalización 0,5 da 7,5; con 1,0 da 6; con
-        // 2,0 da 3. Cuánto castiga mentir es una decisión de producto, y por eso
-        // el reporte muestra las tres en vez de esconder la elección.
+        // 9 aciertos, 3 errores. Con penalización 0,5 da 7,5; con 1,0 da 6; con 2,0 da 3.
         Assert.Equal([7.5m, 6.0m, 3.0m], puntajes.Select(p => p.Puntaje));
         Assert.All(puntajes, puntaje => Assert.Equal(12m, puntaje.PuntajeMaximo));
 
@@ -259,11 +245,9 @@ public sealed class PuntuacionTests
     [Fact]
     public void Una_columna_de_mas_no_es_un_error_de_traduccion()
     {
-        // EL CASO QUE LA PRIMERA CORRIDA FINANCIADA EXPUSO. Las referencias del
-        // dataset proyectan una sola columna —`SELECT nombre FROM cargos`— y el
-        // asistente devuelve tablas ricas a propósito, porque la interfaz muestra
-        // una tabla. Nueve de once «traducciones incorrectas» eran esto: mismo
-        // conteo de filas, misma respuesta, una columna de contexto de más.
+        // EL CASO QUE LA PRIMERA CORRIDA FINANCIADA EXPUSO. Las referencias del dataset proyectan
+        // una sola columna —`SELECT nombre FROM cargos`— y el asistente devuelve tablas ricas a
+        // propósito, porque la interfaz muestra una tabla.
         var respuesta = Resultado(
             [["Profesor Titular", 1], ["Profesor Adjunto", 3]], ["cargo", "orden"]);
         var referencia = Resultado([["Profesor Titular"], ["Profesor Adjunto"]], ["nombre"]);

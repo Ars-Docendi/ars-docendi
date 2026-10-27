@@ -6,9 +6,8 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Cupo diario y mantenimiento, tal como se le muestran al usuario
-/// (asistente-cupo-visible, grupo 7 de asistente-administracion-de-uso, y
-/// tarea 6.5).
+/// Cupo diario y mantenimiento, tal como se le muestran al usuario (asistente-cupo-visible, grupo 7
+/// de asistente-administracion-de-uso, y tarea 6.5).
 /// </summary>
 public sealed class CupoVisibleTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_cupo_visible")

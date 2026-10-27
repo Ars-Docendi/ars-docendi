@@ -14,14 +14,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica la puerta del turno: permiso, idempotencia y forma de la respuesta.
-/// </summary>
-/// <remarks>
-/// Va por HTTP de verdad y no llamando al servicio: lo que se prueba acá es
-/// exactamente lo que el borde agrega —autorización, cabeceras, códigos de estado y
-/// la traducción al contrato— y nada de eso se ejercita invocando la capa.
-/// </remarks>
+/// <summary>Verifica la puerta del turno: permiso, idempotencia y forma de la respuesta.</summary>
 public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_endpoint")
 {
@@ -52,8 +45,7 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     public async Task Sin_el_permiso_del_asistente_el_endpoint_rechaza()
     {
         // `docente` es el único rol de sistema al que la siembra NO le concede
-        // `asistente.consultar`. La exclusión es provisional y se revierte desde
-        // /membresia-roles, sin migración.
+        // `asistente.consultar`.
         await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
@@ -101,10 +93,7 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task El_pedido_repetido_devuelve_lo_mismo_sin_volver_a_llamar_al_proveedor()
     {
-        // Cada turno cuesta dos o tres llamadas al modelo: un doble submit se factura
-        // completo dos veces. Se cuenta contra el proveedor y no contra el cuerpo de
-        // la respuesta, porque devolver lo mismo habiendo gastado igual no resuelve
-        // nada de lo que este requisito existe para resolver.
+        // Cada turno cuesta dos o tres llamadas al modelo: un doble submit se factura completo dos veces.
         await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
@@ -141,10 +130,9 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task La_clave_de_un_actor_no_le_sirve_a_otro()
     {
-        // Sin acotar por actor, la clave de un usuario le devolvería a otro una
-        // respuesta calculada con el alcance del primero: una fuga trivial de
-        // disparar y difícil de notar, porque el segundo recibe algo que parece
-        // correcto.
+        // Sin acotar por actor, la clave de un usuario le devolvería a otro una respuesta calculada
+        // con el alcance del primero: una fuga trivial de disparar y difícil de notar, porque el
+        // segundo recibe algo que parece correcto.
         await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         var clave = Guid.NewGuid().ToString();
@@ -223,16 +211,10 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task La_consulta_que_el_hilo_arrastra_no_sale_por_la_API()
     {
-        // `ResultadoDelTurno` lleva DOS campos con el mismo texto y distinta
-        // pregunta: `Sql` es «¿esto se le puede MOSTRAR?» y depende de
-        // `asistente.ver_consulta`; `SqlEjecutado` es «¿esto sirve para continuar la
-        // conversación?» y no depende de ningún permiso porque nunca sale del
-        // servidor.
-        //
-        // El día que alguien mapee el segundo al DTO «por simetría», la consulta
-        // generada se le publica a todo actor sin el permiso, y nada más falla. Se
-        // afirma sobre el JSON CRUDO y no sobre el DTO tipado: un campo nuevo en el
-        // contrato aparece en el JSON aunque el DTO del test no lo declare.
+        // `ResultadoDelTurno` lleva DOS campos con el mismo texto y distinta pregunta: `Sql` es
+        // «¿esto se le puede MOSTRAR?» y depende de `asistente.ver_consulta`; `SqlEjecutado` es
+        // «¿esto sirve para continuar la conversación?» y no depende de ningún permiso porque nunca
+        // sale del servidor.
         await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
@@ -419,12 +401,11 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Si_la_escritura_del_historial_falla_la_respuesta_no_nombra_ninguna_conversacion()
     {
-        // Se reemplaza `IRegistroDeHistorial` por uno que nunca escribe, en vez
-        // de forzar un error real de Postgres: `RegistroDeHistorial` ya se
-        // traga esa excepción y simplemente no fija `HiloHistorico` (ver su
-        // propio catch), así que un doble que no lo fija reproduce EXACTAMENTE
-        // el mismo estado que ve `CapaConversacional` cuando la escritura
-        // falla, sin acoplar este test a cómo se rompe una conexión.
+        // Se reemplaza `IRegistroDeHistorial` por uno que nunca escribe, en vez de forzar un error
+        // real de Postgres: `RegistroDeHistorial` ya se traga esa excepción y simplemente no fija
+        // `HiloHistorico` (ver su propio catch), así que un doble que no lo fija reproduce
+        // EXACTAMENTE el mismo estado que ve `CapaConversacional` cuando la escritura falla, sin
+        // acoplar este test a cómo se rompe una conexión.
         await SembrarAsync();
         using var host = CrearHost(out _, historialQueNuncaEscribe: true);
         using var cliente = host.CreateClient();
@@ -439,11 +420,10 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task La_conversacion_no_se_guarda_junto_al_registro_analitico_ni_a_la_retroalimentacion()
     {
-        // asistente.registro_analitico y asistente.retroalimentacion_turno son,
-        // a propósito, las dos tablas que TD-012 mantiene sin nada que las
-        // vincule a una conversación o a un actor identificable — agregarle
-        // una columna a cualquiera de las dos reabriría exactamente el cruce
-        // que design.md D13 promete no crear.
+        // asistente.registro_analitico y asistente.retroalimentacion_turno son, a propósito, las
+        // dos tablas que TD-012 mantiene sin nada que las vincule a una conversación o a un actor
+        // identificable — agregarle una columna a cualquiera de las dos reabriría exactamente el
+        // cruce que design.md D13 promete no crear.
         await SembrarAsync();
 
         var columnas = await EscalarAsync<long>(
@@ -733,12 +713,11 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_con_mencion_que_termina_no_contestable_persiste_sus_referencias()
     {
-        // Decisión 15 del PO (design.md D11 de asistente-rediseno-v3, 2026-09-26):
-        // el carril SQL nunca corrió —el modelo se abstuvo—, así que
-        // `sql_resuelto` queda null, pero el pedido SÍ declaró una mención
-        // válida y el controller ya la revalidó antes del candado; esa mención
-        // tiene que sobrevivir al historial igual que la pregunta misma, para
-        // que un turno reanudado o revisitado la muestre como chip.
+        // Decisión 15 del PO (design.md D11 de asistente-rediseno-v3, 2026-09-26): el carril SQL
+        // nunca corrió —el modelo se abstuvo—, así que `sql_resuelto` queda null, pero el pedido SÍ
+        // declaró una mención válida y el controller ya la revalidó antes del candado; esa mención
+        // tiene que sobrevivir al historial igual que la pregunta misma, para que un turno
+        // reanudado o revisitado la muestre como chip.
         await SembrarAsync();
         using var host = CrearHost(out _, guionPropio: [ProveedorGuionado.NoContestable()]);
         using var cliente = host.CreateClient();
@@ -760,10 +739,9 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task El_cuerpo_de_un_rechazo_no_expone_el_motivo_ni_sugerencias()
     {
-        // `ResultadoDelTurno.MotivoDeRechazo` (asistente-rechazos-dinamicos,
-        // design.md D8) y `Sugerencias` (eliminado, ARS-149) son campos de
-        // servidor: `RespuestaDelAsistente.De` los deja afuera del DTO a
-        // propósito, así que ninguna clave del JSON puede nombrarlos —el
+        // `ResultadoDelTurno.MotivoDeRechazo` (asistente-rechazos-dinamicos, design.md D8) y
+        // `Sugerencias` (eliminado, ARS-149) son campos de servidor: `RespuestaDelAsistente.De` los
+        // deja afuera del DTO a propósito, así que ninguna clave del JSON puede nombrarlos —el
         // rechazo se explica por su texto solo.
         await SembrarAsync();
         using var host = CrearHost(out _, guionPropio: [ProveedorGuionado.NoContestable()]);
@@ -782,12 +760,11 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_con_mencion_que_termina_en_aclaracion_persiste_sus_referencias()
     {
-        // Mismo motivo que el de arriba, pero con el otro carril que nunca
-        // llega al contexto SQL: el detector de ambigüedad corta ANTES de
-        // generar nada (design.md D11: las etiquetas de las menciones propias
-        // se excluyen de la ambigüedad, así que «Bases de Datos» —sembrada acá
-        // como homónimo— sigue pidiendo aclaración aunque la pregunta también
-        // mencione @Algoritmos y Estructuras de Datos).
+        // Mismo motivo que el de arriba, pero con el otro carril que nunca llega al contexto SQL:
+        // el detector de ambigüedad corta ANTES de generar nada (design.md D11: las etiquetas de
+        // las menciones propias se excluyen de la ambigüedad, así que «Bases de Datos» —sembrada
+        // acá como homónimo— sigue pidiendo aclaración aunque la pregunta también mencione
+        // @Algoritmos y Estructuras de Datos).
         await SembrarAsync();
         await AgregarUnHomonimoAsync();
         using var host = CrearHost(out _, guionPropio: []);
@@ -943,10 +920,8 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         string[]? guionPropio = null,
         bool enFlujo = false)
     {
-        // Guion largo: cada turno del carril consume generación + redacción, y el
-        // proveedor guionado repite su última respuesta al agotarse. Un guion corto
-        // haría que un turno de más terminara no contestable por una razón que no es
-        // la que el test mide.
+        // Guion largo: cada turno del carril consume generación + redacción, y el proveedor
+        // guionado repite su última respuesta al agotarse.
         var guion = guionPropio ?? Enumerable.Range(0, 12).SelectMany(_ => new[]
         {
             ProveedorGuionado.Generacion(ContarDocentes),
@@ -986,10 +961,9 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
 
                 if (historialQueNuncaEscribe)
                 {
-                    // Registrado DESPUÉS del `AddScoped<IRegistroDeHistorial,
-                    // RegistroDeHistorial>` del módulo: el contenedor resuelve
-                    // la última registración, así que esto lo reemplaza sin
-                    // tocar `ModuleExtensions`.
+                    // Registrado DESPUÉS del `AddScoped<IRegistroDeHistorial, RegistroDeHistorial>`
+                    // del módulo: el contenedor resuelve la última registración, así que esto lo
+                    // reemplaza sin tocar `ModuleExtensions`.
                     servicios.AddScoped<
                         Modules.Asistente.Application.IRegistroDeHistorial, HistorialQueNuncaEscribe>();
                 }
@@ -998,11 +972,10 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     }
 
     /// <summary>
-    /// Un <see cref="Modules.Asistente.Application.IRegistroDeHistorial"/> que
-    /// nunca escribe nada — el mismo estado observable que el real deja cuando
-    /// la escritura falla y se traga la excepción (nunca fija
-    /// <c>HiloConversacional.HiloHistorico</c>), sin depender de reproducir un
-    /// error real de Postgres.
+    /// Un <see cref="Modules.Asistente.Application.IRegistroDeHistorial"/> que nunca escribe nada —
+    /// el mismo estado observable que el real deja cuando la escritura falla y se traga la
+    /// excepción (nunca fija <c>HiloConversacional.HiloHistorico</c>), sin depender de reproducir
+    /// un error real de Postgres.
     /// </summary>
     private sealed class HistorialQueNuncaEscribe : Modules.Asistente.Application.IRegistroDeHistorial
     {

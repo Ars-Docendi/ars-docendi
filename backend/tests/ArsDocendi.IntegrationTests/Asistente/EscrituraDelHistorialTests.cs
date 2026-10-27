@@ -8,14 +8,9 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// El gancho de escritura del historial dentro de <c>CapaConversacional</c>,
-/// de punta a punta contra la base real.
+/// El gancho de escritura del historial dentro de <c>CapaConversacional</c>, de punta a punta
+/// contra la base real.
 /// </summary>
-/// <remarks>
-/// Va contra la base real y no contra <c>HistorialEnMemoria</c> porque lo que
-/// se prueba es justamente que el gancho persiste — cuatro estados sí, uno no
-/// — y que un fallo de esa escritura no le llega al usuario.
-/// </remarks>
 public sealed class EscrituraDelHistorialTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_escritura_historial")
 {
@@ -81,10 +76,9 @@ public sealed class EscrituraDelHistorialTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_fallo_real_al_escribir_el_historial_no_le_llega_al_usuario()
     {
-        // LA CADENA APUNTA A UNA BASE INALCANZABLE, a propósito: lo que se
-        // prueba es el mismo camino de producción (RegistroDeHistorial real,
-        // con su propio try/catch), no un doble que viole el contrato. Es el
-        // mismo criterio con que RegistroDelTurno se traga NpgsqlException.
+        // LA CADENA APUNTA A UNA BASE INALCANZABLE, a propósito: lo que se prueba es el mismo
+        // camino de producción (RegistroDeHistorial real, con su propio try/catch), no un doble que
+        // viole el contrato.
         await SembrarAsync();
 
         var (basica, pii) = CadenasDeLectura();

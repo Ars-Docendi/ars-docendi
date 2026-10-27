@@ -2,14 +2,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El sello se compara contra lo vigente antes de servir cualquier cosa.
-/// </summary>
-/// <remarks>
-/// Un cassette es una respuesta grabada contra <b>un</b> esquema y <b>un</b>
-/// fixture. Servirlo contra otros dos no es reproducir: es contestar una pregunta
-/// que ya no es la misma, y con la ventaja de que nada falla mientras tanto.
-/// </remarks>
+/// <summary>El sello se compara contra lo vigente antes de servir cualquier cosa.</summary>
 public sealed class SelloVigenteDeCassetteTests : IDisposable
 {
     private const string PrefijoVigente = "hash-del-prefijo-vigente";
@@ -48,9 +41,7 @@ public sealed class SelloVigenteDeCassetteTests : IDisposable
         var falla = Assert.Throws<InvalidOperationException>(
             () => almacen.Reproducir("clave-uno", PrefijoVigente, FixtureVigente));
 
-        // Servirlo igual sería contestar con una respuesta que el modelo dio sobre
-        // otro esquema. El prefijo se deriva de los privilegios efectivos: uno
-        // distinto significa que las columnas visibles cambiaron.
+        // Servirlo igual sería contestar con una respuesta que el modelo dio sobre otro esquema.
         Assert.Contains("prefijo", falla.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("clave-uno.json", falla.Message, StringComparison.Ordinal);
     }
@@ -64,10 +55,8 @@ public sealed class SelloVigenteDeCassetteTests : IDisposable
 
         var mensaje = almacen.ExplicarAusencia("clave-que-falta", PrefijoVigente);
 
-        // «Falta el cassette» y «los cassettes son de otro prefijo» mandan a hacer
-        // cosas distintas: la primera, a grabar esa pregunta; la segunda, a
-        // regrabarlas todas. Sin la distinción, el segundo caso se ve como el
-        // primero y alguien graba de a una para siempre.
+        // «Falta el cassette» y «los cassettes son de otro prefijo» mandan a hacer cosas distintas:
+        // la primera, a grabar esa pregunta; la segunda, a regrabarlas todas.
         Assert.Contains("clave-que-falta", mensaje, StringComparison.Ordinal);
         Assert.Contains(_directorio, mensaje, StringComparison.Ordinal);
         Assert.Contains("otro prefijo", mensaje, StringComparison.OrdinalIgnoreCase);
@@ -108,9 +97,8 @@ public sealed class SelloVigenteDeCassetteTests : IDisposable
         var almacen = new AlmacenDeCassettes(_directorio);
         almacen.Escribir("clave-uno", Sello, Cuerpo);
 
-        // Un cassette que no se puede verificar es indistinguible de uno grabado
-        // contra una base de desarrollo con datos importados. Sin con qué comparar,
-        // la respuesta correcta es no servirlo.
+        // Un cassette que no se puede verificar es indistinguible de uno grabado contra una base de
+        // desarrollo con datos importados.
         var falla = Assert.Throws<InvalidOperationException>(
             () => almacen.Reproducir("clave-uno", PrefijoVigente, string.Empty));
 

@@ -9,16 +9,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el smoke test del módulo del asistente (invariante #3).
-/// </summary>
-/// <remarks>
-/// Estos tests NO usan la colección de PostgreSQL a propósito. El Host se compone
-/// con una cadena de conexión que apunta a un puerto donde no escucha nadie: si
-/// el camino de ejecución del ping tocara la base, la respuesta sería un error y
-/// no un 200. Es la forma de comprobar «no toca la base» sin poder demostrar una
-/// negativa por inspección.
-/// </remarks>
+/// <summary>Verifica el smoke test del módulo del asistente (invariante #3).</summary>
 public sealed class PingAsistenteTests
 {
     /// <summary>
@@ -93,10 +84,7 @@ public sealed class PingAsistenteTests
                     .Build()));
         using var cliente = host.CreateClient();
 
-        // Contraprueba: con esa política global, un ping SIN [AllowAnonymous] deja
-        // de responder 200. Hoy los pings de los otros módulos no llevan el
-        // atributo, así que sirven de control — y el contraste deja anotado que el
-        // invariante #3 no se cumple del todo fuera de este módulo.
+        // Contraprueba: con esa política global, un ping SIN [AllowAnonymous] deja de responder 200.
         using var sinAtributo = await cliente.GetAsync("/api/designaciones/ping", ct);
         Assert.NotEqual(HttpStatusCode.OK, sinAtributo.StatusCode);
 

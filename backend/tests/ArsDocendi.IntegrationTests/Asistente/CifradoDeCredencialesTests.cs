@@ -6,7 +6,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
 /// AES-GCM envelope for per-company API keys (asistente-modelo-en-caliente, tasks 1.5, 1.9, 1.10).
-/// Pure: no database.
 /// </summary>
 public sealed class CifradoDeCredencialesTests
 {

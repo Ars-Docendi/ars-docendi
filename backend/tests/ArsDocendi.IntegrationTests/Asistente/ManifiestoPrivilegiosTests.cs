@@ -5,15 +5,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
 /// Verificación del manifiesto de privilegios del asistente en las tres direcciones.
-///
-/// La dirección 3 —tablas y columnas sin clasificar— corre contra el esquema real y es
-/// la que hace que una tabla nueva rompa el CI en vez de quedar concedida en silencio.
-/// Las direcciones 1 y 2 comparan el manifiesto contra los privilegios efectivos: se
-/// ejercitan primero sobre el comparador, con desviaciones sintéticas, y después contra
-/// los GRANT que aplicó de verdad la migración del módulo sobre la base de prueba.
-///
-/// Los roles reales llevan sufijo por ambiente (y en los tests, uno por base), así que
-/// hay que traducirlos a los nombres lógicos del manifiesto antes de comparar.
 /// </summary>
 public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_manifiesto")
@@ -71,21 +62,8 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
     [Fact]
     public async Task Todo_schema_de_la_base_esta_clasificado_en_el_manifiesto()
     {
-        // LA DIRECCIÓN QUE FALTABA, y el agujero que tapa es de schema entero.
-        //
-        // Las otras tres recorren SOLO los schemas que el manifiesto marca como
-        // expuestos, o miran privilegios efectivos. Entre las dos cosas queda un
-        // hueco: un schema nuevo, sin ningún GRANT todavía y sin entrada en el
-        // manifiesto, es invisible para las cuatro. La suite pasa en verde y la
-        // decisión de exponerlo o no queda registrada únicamente en la cabeza de
-        // quien escribió el PR.
-        //
-        // Pasó con `portal`, que entró con un merge y estuvo sin clasificar. Va a
-        // volver a pasar con `tareas` y con `aulas`.
-        //
-        // Se exige la ENTRADA, no un estado en particular: `denegado` con motivo es
-        // una respuesta perfectamente válida, y es la que corresponde casi siempre.
-        // Lo que no se acepta es el silencio.
+        // LA DIRECCIÓN QUE FALTABA, y el agujero que tapa es de schema entero. Las otras tres
+        // recorren SOLO los schemas que el manifiesto marca como expuestos, o miran privilegios efectivos.
         var manifiesto = Manifiesto.Cargar();
         var declarados = manifiesto.Schemas
             .Select(schema => schema.Nombre)
@@ -145,15 +123,7 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------------------ lectura
 
-    /// <summary>
-    /// Los schemas de usuario que la base tiene realmente.
-    /// </summary>
-    /// <remarks>
-    /// Se excluyen los del motor —<c>pg_*</c> e <c>information_schema</c>— porque no
-    /// son decisiones nuestras y clasificarlos no diría nada. Todo lo demás es algo
-    /// que alguien de este repositorio creó, y entonces alguien tiene que haber
-    /// decidido si el asistente lo ve.
-    /// </remarks>
+    /// <summary>Los schemas de usuario que la base tiene realmente.</summary>
     private async Task<List<string>> LeerSchemasRealesAsync()
     {
         await using var conexion = await AbrirConexionAsync();

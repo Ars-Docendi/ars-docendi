@@ -4,20 +4,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Evaluacion;
 
-/// <summary>
-/// El guard que mantiene al evaluador fuera del CI (RNF-16).
-/// </summary>
-/// <remarks>
-/// <b>El costo del olvido es asimétrico.</b> El CI corre los tests de la solución
-/// sin filtro. Un proyecto que ejecuta la API real adentro correría decenas de
-/// veces por semana, y el síntoma no es un test rojo: es una factura, que se
-/// descubre a fin de mes.
-///
-/// Un filtro en el archivo del CI se descartó por eso mismo: vive en el YAML, y un
-/// identificador mal escrito o un merge que revierta el flag cuesta dinero sin que
-/// nadie lo note. La exclusión tiene que ser estructural y el guard tiene que
-/// vivir del lado que sí se ejecuta.
-/// </remarks>
+/// <summary>El guard que mantiene al evaluador fuera del CI (RNF-16).</summary>
 public sealed class ExclusionDelEvaluadorTests
 {
     /// <summary>Nombre del proyecto que instancia un proveedor real.</summary>
@@ -57,10 +44,9 @@ public sealed class ExclusionDelEvaluadorTests
     [Fact]
     public void El_nucleo_si_esta_en_la_solucion()
     {
-        // La otra mitad de la decisión: lo que NO cuesta dinero tiene que estar
-        // adentro, o el generador del fixture, la puntuación y el preflight se
-        // quedarían sin tests en el CI — y son justo las piezas donde un error
-        // hace que el número mienta.
+        // La otra mitad de la decisión: lo que NO cuesta dinero tiene que estar adentro, o el
+        // generador del fixture, la puntuación y el preflight se quedarían sin tests en el CI — y
+        // son justo las piezas donde un error hace que el número mienta.
         var proyectos = ProyectosDeLaSolucion();
 
         Assert.Contains(proyectos, proyecto => NombreDeProyecto(proyecto) == ProyectoDelNucleo);
@@ -118,14 +104,7 @@ public sealed class ExclusionDelEvaluadorTests
         ];
     }
 
-    /// <summary>
-    /// El nombre del proyecto a partir de su ruta.
-    /// </summary>
-    /// <remarks>
-    /// Las rutas del archivo de solución usan barra invertida. En Linux,
-    /// <c>Path.GetFileNameWithoutExtension</c> no la trata como separador, así que
-    /// hay que normalizarla primero o el nombre sale con el directorio pegado.
-    /// </remarks>
+    /// <summary>El nombre del proyecto a partir de su ruta.</summary>
     private static string NombreDeProyecto(string ruta) =>
         Path.GetFileNameWithoutExtension(ruta.Replace('\\', '/'));
 }

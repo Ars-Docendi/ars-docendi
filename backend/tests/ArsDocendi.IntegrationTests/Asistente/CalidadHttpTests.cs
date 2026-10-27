@@ -15,13 +15,8 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// The quality endpoints over real HTTP and a real database
-/// (asistente-metricas-de-calidad, section 3).
+/// The quality endpoints over real HTTP and a real database (asistente-metricas-de-calidad, section 3).
 /// </summary>
-/// <remarks>
-/// The clock is fixed so a period boundary is the same on every run. Turns are seeded straight
-/// into the analytic record and the vote table, because the readers only ever see those two.
-/// </remarks>
 public sealed class CalidadHttpTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_calidad_http")
 {

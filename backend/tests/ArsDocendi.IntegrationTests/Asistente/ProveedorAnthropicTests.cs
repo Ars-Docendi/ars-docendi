@@ -9,13 +9,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// Verifica el adaptador real del proveedor contra el cable, sin clave ni red.
-/// </summary>
-/// <remarks>
-/// Todo lo que el adaptador tiene que garantizar es observable en el JSON que sale
-/// o en la excepción que entra. Nada de esto necesita una cuenta ni gasta un token.
-/// </remarks>
+/// <summary>Verifica el adaptador real del proveedor contra el cable, sin clave ni red.</summary>
 public sealed class ProveedorAnthropicTests
 {
     private const string Prefijo = "Esquema de identity y designaciones. Respondé solo con SQL.";
@@ -40,9 +34,8 @@ public sealed class ProveedorAnthropicTests
 
         var sistema = Cuerpo(transporte).GetProperty("system");
 
-        // Sin la marca, el diseño sigue siendo correcto y el ahorro simplemente no
-        // ocurre: el esquema es el bloque más grande del prompt y se repite idéntico
-        // turno a turno. Nada falla, y la diferencia aparece solo en la factura.
+        // Sin la marca, el diseño sigue siendo correcto y el ahorro simplemente no ocurre: el
+        // esquema es el bloque más grande del prompt y se repite idéntico turno a turno.
         Assert.Equal(Prefijo, sistema[0].GetProperty("text").GetString());
         Assert.Equal(
             "ephemeral", sistema[0].GetProperty("cache_control").GetProperty("type").GetString());
@@ -61,9 +54,8 @@ public sealed class ProveedorAnthropicTests
         var primero = Cuerpo(transporte, 0);
         var segundo = Cuerpo(transporte, 1);
 
-        // La caché es un match de prefijo: un solo byte distinto en el bloque de
-        // sistema invalida todo lo que viene después. Que la pregunta se filtre ahí
-        // adentro rompería el ahorro sin romper ninguna respuesta.
+        // La caché es un match de prefijo: un solo byte distinto en el bloque de sistema invalida
+        // todo lo que viene después.
         Assert.Equal(
             primero.GetProperty("system").GetRawText(), segundo.GetProperty("system").GetRawText());
         Assert.NotEqual(
@@ -76,9 +68,7 @@ public sealed class ProveedorAnthropicTests
     {
         using var transporte = TransporteFalso.QueResponde();
 
-        // La solicitud SÍ declara temperatura: el puerto la conserva porque otros
-        // proveedores la usan. Lo que se afirma es que este adaptador la absorbe,
-        // porque los modelos Claude actuales la rechazan con 400.
+        // La solicitud SÍ declara temperatura: el puerto la conserva porque otros proveedores la usan.
         await Armar(transporte).CompletarAsync(
             Solicitud with { Temperatura = 0.7m }, TestContext.Current.CancellationToken);
 
@@ -108,12 +98,9 @@ public sealed class ProveedorAnthropicTests
     [Fact]
     public async Task El_esfuerzo_minimo_no_manda_el_campo()
     {
-        // NO es «esfuerzo bajo»: es no mandar `output_config`. Hay modelos que no
-        // deliberan y lo rechazan con 400 —Haiku 4.5 es uno—, y pedirle «poco
-        // esfuerzo» a un modelo que no razona es pedirle algo que no entiende.
-        //
-        // Es lo que permite usar un modelo chico y rápido para redactar sin que el
-        // pipeline sepa qué modelo le tocó.
+        // NO es «esfuerzo bajo»: es no mandar `output_config`. Hay modelos que no deliberan y lo
+        // rechazan con 400 —Haiku 4.5 es uno—, y pedirle «poco esfuerzo» a un modelo que no razona
+        // es pedirle algo que no entiende.
         using var transporte = TransporteFalso.QueResponde();
 
         await Armar(transporte).CompletarAsync(
@@ -126,10 +113,9 @@ public sealed class ProveedorAnthropicTests
     [Fact]
     public async Task Dos_llamadas_del_mismo_turno_pueden_pedir_esfuerzos_distintos()
     {
-        // LA RAZÓN DE QUE EL ESFUERZO SEA POR SOLICITUD Y NO POR PROVEEDOR. Generar
-        // la consulta se beneficia de deliberar; convertir filas ya obtenidas en una
-        // oración no, y cada nivel de más ahí es espera pura para quien preguntó.
-        // Con un valor de instancia esto era imposible sin dos proveedores.
+        // LA RAZÓN DE QUE EL ESFUERZO SEA POR SOLICITUD Y NO POR PROVEEDOR. Generar la consulta se
+        // beneficia de deliberar; convertir filas ya obtenidas en una oración no, y cada nivel de
+        // más ahí es espera pura para quien preguntó.
         var ct = TestContext.Current.CancellationToken;
         using var transporte = TransporteFalso.QueResponde();
         var proveedor = Armar(transporte);
@@ -156,10 +142,7 @@ public sealed class ProveedorAnthropicTests
         var respuesta = await Armar(transporte).CompletarAsync(
             Solicitud, TestContext.Current.CancellationToken);
 
-        // Los servidos desde caché suman: son tokens de prompt reales y lo único
-        // distinto es lo que cuestan. Contar solo los no cacheados haría que, el día
-        // que la caché empiece a funcionar, el prefijo del esquema desapareciera del
-        // registro y pareciera que los prompts se achicaron.
+        // Los servidos desde caché suman: son tokens de prompt reales y lo único distinto es lo que cuestan.
         Assert.Equal(4120, respuesta.TokensDeEntrada);
         Assert.Equal(37, respuesta.TokensDeSalida);
         Assert.False(respuesta.EsSimulada);
@@ -173,10 +156,9 @@ public sealed class ProveedorAnthropicTests
         var respuesta = await Armar(transporte).CompletarAsync(
             Solicitud, TestContext.Current.CancellationToken);
 
-        // No es una caída: el modelo contestó. Tratarlo como falla de transporte
-        // abriría el corte por algo que no es una falla de servicio y le diría al
-        // usuario «servicio degradado» cuando el servicio anduvo. Con texto vacío el
-        // validador rechaza la SQL y el turno abstiene, que es lo correcto.
+        // No es una caída: el modelo contestó. Tratarlo como falla de transporte abriría el corte
+        // por algo que no es una falla de servicio y le diría al usuario «servicio degradado»
+        // cuando el servicio anduvo.
         Assert.Equal(string.Empty, respuesta.Texto);
     }
 
@@ -211,10 +193,7 @@ public sealed class ProveedorAnthropicTests
     {
         using var transporte = TransporteFalso.QueFalla(estado);
 
-        // HttpRequestException es una de las DOS formas de fallo que
-        // ProveedorConBreaker cuenta. Cualquier otro tipo lo atraviesa sin contarse,
-        // así que dejar escapar una excepción del SDK haría que el corte no abriera
-        // nunca: un proveedor caído al cien por ciento seguiría recibiendo llamadas.
+        // HttpRequestException es una de las DOS formas de fallo que ProveedorConBreaker cuenta.
         await Assert.ThrowsAsync<HttpRequestException>(
             () => Armar(transporte).CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
     }
@@ -227,11 +206,8 @@ public sealed class ProveedorAnthropicTests
         await Assert.ThrowsAsync<HttpRequestException>(
             () => Armar(transporte).CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
 
-        // El SDK reintenta por defecto ante 5xx. El módulo YA reintenta, en
-        // ReintentoDeTransporte, y documenta el peor caso de un turno como
-        // llamadas × intentos = 4 × 3 = 12 requests. Con los dos reintentos
-        // encendidos ese número pasa a 36 y nada falla: el sistema hace el triple de
-        // requests que su propia documentación declara, en silencio.
+        // El SDK reintenta por defecto ante 5xx. El módulo YA reintenta, en ReintentoDeTransporte,
+        // y documenta el peor caso de un turno como llamadas × intentos = 4 × 3 = 12 requests.
         Assert.Equal(1, transporte.Intentos);
     }
 
@@ -244,9 +220,7 @@ public sealed class ProveedorAnthropicTests
         using var transporte = TransporteFalso.QueFalla(estado);
         var registro = new RegistroDeCapturas();
 
-        // Se degrada —el usuario ve lo que el contrato promete, no un 500— y además
-        // se grita. Como falla de transporte a secas parecería intermitencia normal
-        // del proveedor, y una clave mal cargada podría quedar así días.
+        // Se degrada —el usuario ve lo que el contrato promete, no un 500— y además se grita.
         await Assert.ThrowsAsync<HttpRequestException>(
             () => Armar(transporte, registro: registro).CompletarAsync(
                 Solicitud, TestContext.Current.CancellationToken));
@@ -261,11 +235,8 @@ public sealed class ProveedorAnthropicTests
     [Fact]
     public async Task Quedarse_sin_credito_no_se_reporta_como_defecto_del_codigo()
     {
-        // PASÓ DE VERDAD: una corrida de evaluación se quedó sin saldo a la mitad y
-        // el log decía «es un defecto del adaptador», que manda a alguien a buscar
-        // un bug que no existe. Las dos cosas llegan como el mismo 400 y la reacción
-        // de quien lee el log no se parece en nada: una es arreglar código, la otra
-        // es pagar.
+        // PASÓ DE VERDAD: una corrida de evaluación se quedó sin saldo a la mitad y el log decía
+        // «es un defecto del adaptador», que manda a alguien a buscar un bug que no existe.
         var ct = TestContext.Current.CancellationToken;
         var registro = new RegistroDeCapturas();
 
@@ -316,10 +287,8 @@ public sealed class ProveedorAnthropicTests
 
         using var transporte = TransporteFalso.QueResponde();
 
-        // Es lo que hace que el timeout por llamada funcione: ProveedorConBreaker
-        // reconoce la cancelación de su propio token y la convierte en
-        // TimeoutDelProveedor. Traducirla a HttpRequestException le sacaría el
-        // fallo de las manos y el corte nunca abriría por timeout.
+        // Es lo que hace que el timeout por llamada funcione: ProveedorConBreaker reconoce la
+        // cancelación de su propio token y la convierte en TimeoutDelProveedor.
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => Armar(transporte).CompletarAsync(Solicitud, cancelado.Token));
     }
@@ -329,11 +298,9 @@ public sealed class ProveedorAnthropicTests
     [Fact]
     public async Task Los_tokens_servidos_por_cache_se_informan_aparte()
     {
-        // SIN ESTE NÚMERO NO SE PUEDE SABER SI LA CACHÉ PEGA. Un prefijo cacheado y
-        // uno reprocesado entero producen exactamente el mismo total de entrada, y
-        // la diferencia es un orden de magnitud en costo y en tiempo de proceso del
-        // prompt. Con el esquema pesando unos 9.000 tokens por llamada, eso separa
-        // una factura razonable de una que no lo es.
+        // SIN ESTE NÚMERO NO SE PUEDE SABER SI LA CACHÉ PEGA. Un prefijo cacheado y uno reprocesado
+        // entero producen exactamente el mismo total de entrada, y la diferencia es un orden de
+        // magnitud en costo y en tiempo de proceso del prompt.
         var ct = TestContext.Current.CancellationToken;
         using var transporte = new TransporteFalso(
             _ => TransporteFalso.Exito("SELECT 1", tokensDeEntrada: 120, tokensDeCache: 8000));
@@ -363,12 +330,9 @@ public sealed class ProveedorAnthropicTests
     [Fact]
     public async Task Una_respuesta_cortada_por_presupuesto_se_informa_y_se_grita()
     {
-        // EL MODO DE FALLAR MÁS CARO DEL MÓDULO, si no se hace visible. Una
-        // generación cortada deja un JSON incompleto, el intérprete no lo puede
-        // leer, y el turno responde «no pude interpretar la pregunta» — palabra por
-        // palabra lo que devuelve una pregunta genuinamente incontestable. Sin este
-        // dato, un presupuesto mal dimensionado se ve igual que un asistente
-        // prudente, y no hay nada en la respuesta que permita distinguirlos.
+        // EL MODO DE FALLAR MÁS CARO DEL MÓDULO, si no se hace visible. Una generación cortada deja
+        // un JSON incompleto, el intérprete no lo puede leer, y el turno responde «no pude
+        // interpretar la pregunta» — palabra por palabra lo que devuelve una pregunta genuinamente incontestable.
         var ct = TestContext.Current.CancellationToken;
         using var transporte = new TransporteFalso(
             _ => TransporteFalso.Exito("""{"sql": "SELECT * FROM""", motivoDeCorte: "max_tokens"));

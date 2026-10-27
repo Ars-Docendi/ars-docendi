@@ -9,16 +9,9 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// La purga extendida: historial propio (por última actividad de la
-/// conversación) y auditoría de soporte (con su propia ventana, independiente).
+/// La purga extendida: historial propio (por última actividad de la conversación) y auditoría de
+/// soporte (con su propia ventana, independiente).
 /// </summary>
-/// <remarks>
-/// Siembra directamente por SQL, con la conexión dueña, y no a través de
-/// <c>IRegistroDeHistorial</c>: lo que se prueba acá es el tercer y cuarto
-/// barrido de <see cref="PurgaDeRegistros"/>, no el camino de escritura, que
-/// tiene su propia suite. Mismo criterio que <c>RegistrosYPurgaTests</c> usa
-/// para los dos registros existentes.
-/// </remarks>
 public sealed class HistorialYAuditoriaPurgaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_purga_historial")
 {
@@ -92,9 +85,7 @@ public sealed class HistorialYAuditoriaPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_conversacion_archivada_sigue_la_misma_retencion_y_se_purga()
     {
-        // design.md D3 de asistente-rediseno-v3: archivar no es una segunda
-        // política de retención. Vencida su ventana de 180 días igual que
-        // cualquier otra, se purga igual — archivada_en no la protege.
+        // design.md D3 de asistente-rediseno-v3: archivar no es una segunda política de retención.
         var reloj = new RelojFijo(Ancla);
 
         var archivadaVieja = await SembrarHiloAsync(
@@ -138,8 +129,7 @@ public sealed class HistorialYAuditoriaPurgaTests(PostgresFixture postgres)
     public async Task Una_auditoria_sobrevive_a_que_su_conversacion_ya_haya_sido_purgada()
     {
         // EL PUNTO DE D10: sin clave foránea, borrar hilo_historico no toca
-        // auditoria_acceso_historial en absoluto — ni por cascada, ni por
-        // error de "no existe la referencia".
+        // auditoria_acceso_historial en absoluto — ni por cascada, ni por error de "no existe la referencia".
         var reloj = new RelojFijo(Ancla);
 
         var hilo = await SembrarHiloAsync(

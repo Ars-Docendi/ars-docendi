@@ -9,20 +9,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El migrador del asistente contra bases que NO están vacías.
-/// </summary>
-/// <remarks>
-/// Es el hueco que dejaba pasar el defecto: Testcontainers arranca siempre de una
-/// base vacía, así que todo el resto de la suite ejercita el único caso en que un
-/// <c>CREATE TABLE IF NOT EXISTS</c> alcanza. La promesa de
-/// <see cref="IMigradorModulo"/> —«re-ejecutar sobre una base ya migrada no produce
-/// cambios ni error»— y la del encabezado del DDL hablan del otro caso, que hasta
-/// ahora nadie corría.
-///
-/// Los tres escenarios de acá son los tres estados en que una base real puede
-/// llegar al arranque: al día, vieja de una versión, y rota a mano.
-/// </remarks>
+/// <summary>El migrador del asistente contra bases que NO están vacías.</summary>
 public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_migracion")
 {
@@ -57,9 +44,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
     [Fact]
     public async Task Correr_el_migrador_dos_veces_sobre_la_misma_base_no_falla_ni_cambia_nada()
     {
-        // Es el test que el contrato pide con todas las letras y que nadie había
-        // escrito. La base del fixture ya viene migrada, así que estas dos corridas
-        // son la segunda y la tercera.
+        // Es el test que el contrato pide con todas las letras y que nadie había escrito.
         var antes = await FormaDelSchemaAsync();
 
         await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
@@ -72,19 +57,11 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         Assert.Equal(antes, despuesDeDos);
     }
 
-    // --------------------------- D7 (asistente-rediseno-v3, PO-changed 2026-09-26):
-    // `razon` (single value) becomes `razones` (list) + `comentario`, and `lento` is
-    // removed entirely. The only real "old base" is one provisioned with just
-    // `razon` and its original CHECK — `arsdocendi_pr_140` — which the migrator has
-    // to reach without a DROP (ArquitecturaAsistenteTests). The old `razon` column
-    // and its CHECK are left exactly as they are: nothing reads or writes them
-    // anymore.
+    // --------------------------- D7 (asistente-rediseno-v3, PO-changed 2026-09-26): `razon`
+    // (single value) becomes `razones` (list) + `comentario`, and `lento` is removed entirely.
 
     /// <summary>
-    /// La forma exacta de <c>retroalimentacion_turno</c> en una base provisionada
-    /// antes de este cambio (p. ej. <c>arsdocendi_pr_140</c>): sólo <c>razon</c>,
-    /// con su CHECK original (de una ronda anterior, ya incluía <c>faltan_datos</c>
-    /// y el hoy retirado <c>lento</c>), sin <c>razones</c> ni <c>comentario</c>.
+    /// La forma exacta de <c>retroalimentacion_turno</c> en una base provisionada antes de este cambio (p. ej.
     /// </summary>
     private const string TablaViejaDeRetroalimentacion =
         """
@@ -207,10 +184,8 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
     [Fact]
     public async Task La_fila_vieja_sobrevive_y_sobre_la_base_migrada_el_registro_vuelve_a_guardar()
     {
-        // LA MITAD QUE IMPORTA. Un `ADD COLUMN ... NOT NULL` sin `DEFAULT` sobre una
-        // tabla VACÍA pasa; sobre una con filas, PostgreSQL lo rechaza. Sin esta
-        // fila, el test daría verde con una migración que en producción —donde la
-        // tabla tiene noventa días de registros— aborta.
+        // LA MITAD QUE IMPORTA. Un `ADD COLUMN ... NOT NULL` sin `DEFAULT` sobre una tabla VACÍA
+        // pasa; sobre una con filas, PostgreSQL lo rechaza.
         await RehacerLaBaseViejaAsync();
         await SembrarFilaViejaAsync();
 
@@ -219,10 +194,9 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         Assert.Equal(1L, await EscalarAsync<long>(
             "SELECT count(*) FROM asistente.registro_operativo"));
 
-        // Y el modo de falla que este change cierra, que no era el ruidoso: con la
-        // columna faltante el INSERT reventaba, el fallo se tragaba, el endpoint
-        // devolvía 200 y el registro dejaba de guardar sin que nada avisara. La única
-        // forma de afirmar que eso se terminó es contar filas después de escribir una.
+        // Y el modo de falla que este change cierra, que no era el ruidoso: con la columna faltante
+        // el INSERT reventaba, el fallo se tragaba, el endpoint devolvía 200 y el registro dejaba
+        // de guardar sin que nada avisara.
         var registro = new RegistroDelTurno(
             new CadenaDuena(Cadena), NullLogger<RegistroDelTurno>.Instance);
         await registro.RegistrarAsync(Turno(), TestContext.Current.CancellationToken);
@@ -241,10 +215,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
     public async Task El_migrador_no_deja_arrancar_si_falta_una_columna_que_el_modulo_escribe(
         string tabla, string columna)
     {
-        // Las dos columnas de acá NO las repone ningún `ADD COLUMN IF NOT EXISTS`:
-        // son originales de sus tablas. Es a propósito — lo que se prueba es la red
-        // que hay DEBAJO de los ALTER, para el día en que alguien agregue una columna
-        // al `CREATE TABLE` y se olvide del ALTER.
+        // Las dos columnas de acá NO las repone ningún `ADD COLUMN IF NOT EXISTS`: son originales de sus tablas.
         await EjecutarAsync($"ALTER TABLE asistente.{tabla} DROP COLUMN {columna}");
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -308,9 +279,8 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
     [Fact]
     public async Task The_migrator_refuses_to_start_without_a_column_of_the_quality_audit_table()
     {
-        // No ADD COLUMN repairs it: the table is created whole. `id` is the one column
-        // the DDL does not comment, so the DDL itself cannot trip first. This is the net
-        // below the DDL, for the day someone adds a column to the CREATE TABLE and forgets the ALTER.
+        // No ADD COLUMN repairs it: the table is created whole. `id` is the one column the DDL does
+        // not comment, so the DDL itself cannot trip first.
         const string columna = "id";
         await EjecutarAsync($"ALTER TABLE asistente.auditoria_revision_de_calidad DROP COLUMN {columna}");
 
@@ -373,14 +343,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
             Proveedor: "anthropic/claude-sonnet-5",
             IntencionSombra: null);
 
-    /// <summary>
-    /// Columnas, índices y privilegios del schema, en una lista comparable.
-    /// </summary>
-    /// <remarks>
-    /// «No produce cambios» se afirma contra el catálogo y no contra la ausencia de
-    /// excepción: una segunda corrida que agregara un default o revocara de más
-    /// terminaría sin error igual.
-    /// </remarks>
+    /// <summary>Columnas, índices y privilegios del schema, en una lista comparable.</summary>
     private Task<List<string>> FormaDelSchemaAsync() =>
         LeerAsync<string>(
             """

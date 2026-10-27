@@ -3,14 +3,9 @@ using Modules.Asistente.Application;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica el catálogo cerrado de intenciones: su forma, su validación y la
-/// disciplina de que ninguna entre sin caso de prueba.
+/// Verifica el catálogo cerrado de intenciones: su forma, su validación y la disciplina de que
+/// ninguna entre sin caso de prueba.
 /// </summary>
-/// <remarks>
-/// Todo en memoria: el catálogo es un archivo embebido y no toca la base. Lo que sí
-/// necesita base es resolver los slots, y eso vive en
-/// <see cref="ResolucionDeSlotsTests"/>.
-/// </remarks>
 public sealed class CatalogoDeIntencionesTests
 {
     // ------------------------------------------------------ la forma del catálogo
@@ -30,9 +25,8 @@ public sealed class CatalogoDeIntencionesTests
     [Fact]
     public void Los_terminos_del_catalogo_ya_estan_normalizados()
     {
-        // Se comparan contra la pregunta YA normalizada, así que un término
-        // acentuado o en plural no coincidiría nunca con nada. Sin este test el
-        // error no rompe: la intención simplemente no se reconoce jamás.
+        // Se comparan contra la pregunta YA normalizada, así que un término acentuado o en plural
+        // no coincidiría nunca con nada.
         foreach (var intencion in CatalogoDeIntenciones.Cargar().Intenciones)
         {
             foreach (var termino in intencion.Terminos)
@@ -150,10 +144,8 @@ public sealed class CatalogoDeIntencionesTests
     [Fact]
     public void Toda_intencion_del_catalogo_tiene_caso_de_prueba()
     {
-        // La disciplina que sostiene al catálogo. Crece de a una intención, y cada
-        // una amplía la superficie donde un reconocimiento incorrecto manda una
-        // pregunta al carril que no la responde. El archivo hace barato el control:
-        // el test lo itera y falla nombrando lo que falta.
+        // La disciplina que sostiene al catálogo. Crece de a una intención, y cada una amplía la
+        // superficie donde un reconocimiento incorrecto manda una pregunta al carril que no la responde.
         var declaradas = CatalogoDeIntenciones.Cargar().Intenciones.Select(i => i.Nombre);
 
         var sinCaso = declaradas.Except(ResolucionDeSlotsTests.IntencionesConCaso, StringComparer.Ordinal);

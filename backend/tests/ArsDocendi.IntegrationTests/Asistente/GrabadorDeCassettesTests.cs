@@ -7,21 +7,7 @@ using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
-/// <summary>
-/// El grabador en el pipeline: reproducir, grabar o fallar cerrado.
-/// </summary>
-/// <remarks>
-/// Va como <see cref="DelegatingHandler"/> del cliente HTTP con nombre y no como
-/// decorador del puerto. Un decorador grabaría la respuesta <b>ya traducida</b>, y
-/// entonces el parseo del adaptador —que es la mitad no cubierta y el motivo
-/// entero del mecanismo— quedaría del lado de afuera del cassette.
-///
-/// Se verifica en dos niveles con el mismo directorio y el mismo sello: el handler
-/// solo —contra un <c>HttpMessageInvoker</c>, que es donde se afirma sobre la clave,
-/// el sobre y el registro— y el pipeline entero del módulo —adaptador sobre grabador
-/// sobre reintento—, que es donde se afirma que el <b>parseo</b> sobrevive al viaje a
-/// disco. El segundo nivel vivía aparte y repetía el andamio del primero.
-/// </remarks>
+/// <summary>El grabador en el pipeline: reproducir, grabar o fallar cerrado.</summary>
 public sealed class GrabadorDeCassettesTests : IDisposable
 {
     private const string Fixture = "hash-del-fixture-vigente";
@@ -51,10 +37,9 @@ public sealed class GrabadorDeCassettesTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => EnviarAsync(transporte, regrabar: false));
 
-        // ES LA PROPIEDAD ENTERA DE «NUNCA UNA LLAMADA DE RED EN CI». El handler
-        // lanza SIN invocar hacia adentro: contar los intentos del transporte y
-        // exigir cero es la única forma de que sea una propiedad del código y no una
-        // promesa.
+        // ES LA PROPIEDAD ENTERA DE «NUNCA UNA LLAMADA DE RED EN CI». El handler lanza SIN invocar
+        // hacia adentro: contar los intentos del transporte y exigir cero es la única forma de que
+        // sea una propiedad del código y no una promesa.
         Assert.Equal(0, transporte.Intentos);
     }
 
@@ -169,9 +154,8 @@ public sealed class GrabadorDeCassettesTests : IDisposable
         var archivo = File.ReadAllText(
             Path.Combine(_directorio, ClaveEsperada() + ".json"));
 
-        // No hace falta filtrar nada: el sobre guarda el cuerpo de la RESPUESTA, y
-        // las cabeceras de la solicitud nunca entran. Que la clave no pueda filtrarse
-        // a disco es estructural y no una lista de exclusiones que hay que mantener.
+        // No hace falta filtrar nada: el sobre guarda el cuerpo de la RESPUESTA, y las cabeceras de
+        // la solicitud nunca entran.
         Assert.DoesNotContain("sk-ant-", archivo, StringComparison.Ordinal);
         Assert.DoesNotContain("x-api-key", archivo, StringComparison.OrdinalIgnoreCase);
     }
@@ -212,16 +196,8 @@ public sealed class GrabadorDeCassettesTests : IDisposable
 
     // ------------------------------------- el pipeline entero, ida y vuelta
 
-    // ARMA EL MISMO PIPELINE QUE EL MÓDULO —grabador más reintento— con un terminal
-    // que responde con la forma exacta de la API de mensajes. La vuelta usa un
-    // terminal que REVIENTA si alguien lo llama: es lo que convierte «se leyó el
-    // cassette» en algo verificable, porque un terminal que respondiera bien haría
-    // pasar el test sin haber leído nada.
-    //
-    // La alternativa era levantar un servidor local que impersonara la API. Se
-    // descarta por lo que arrastra: una opción de configuración cuyo único consumidor
-    // son los tests, un puerto que ligar en CI, y una perilla que redirige a dónde
-    // viaja la credencial.
+    // ARMA EL MISMO PIPELINE QUE EL MÓDULO —grabador más reintento— con un terminal que responde
+    // con la forma exacta de la API de mensajes.
 
     [Fact]
     public async Task Grabar_contra_un_transporte_que_impersona_la_API_deja_el_cassette()
@@ -255,9 +231,8 @@ public sealed class GrabadorDeCassettesTests : IDisposable
     [Fact]
     public async Task El_corte_por_techo_de_tokens_sobrevive_el_viaje_a_disco()
     {
-        // Es el dato que distingue «el modelo se abstuvo» de «el presupuesto quedó
-        // corto», y sin él las dos cosas se ven exactamente igual —en el registro y,
-        // peor, en la métrica—.
+        // Es el dato que distingue «el modelo se abstuvo» de «el presupuesto quedó corto», y sin él
+        // las dos cosas se ven exactamente igual —en el registro y, peor, en la métrica—.
         using var transporte = new TransporteFalso(
             _ => TransporteFalso.Exito("""{"sql": "SELECT * FROM""", motivoDeCorte: "max_tokens"));
 
