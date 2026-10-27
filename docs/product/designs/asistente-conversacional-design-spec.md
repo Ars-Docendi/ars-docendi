@@ -1,7 +1,7 @@
 ---
 status: review
 owner: "Equipo Ars Docendi"
-feature: "openspec/changes/asistente-rediseno-v3/"
+feature: "openspec/changes/archive/2026-10-26-asistente-rediseno-v3/"
 last_updated: 2026-09-26
 ---
 
@@ -649,11 +649,11 @@ CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fue
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)
-- Spec funcional: [`openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md`](../../../openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md)
-- Respuestas con vínculos: [`openspec/changes/asistente-respuestas-con-vinculos/`](../../../openspec/changes/asistente-respuestas-con-vinculos/) y el prototipo [Asistente: rediseño](https://claude.ai/artifact/Srtyn2Mrc6TauhYLaMT1Jn)
-- Rediseño v3: [`openspec/changes/asistente-rediseno-v3/`](../../../openspec/changes/asistente-rediseno-v3/) y épica ARS-140
+- Spec funcional: [`openspec/changes/archive/2026-10-26-asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md`](../../../openspec/changes/archive/2026-10-26-asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md)
+- Respuestas con vínculos: [`openspec/changes/archive/2026-10-26-asistente-respuestas-con-vinculos/`](../../../openspec/changes/archive/2026-10-26-asistente-respuestas-con-vinculos/) y el prototipo [Asistente: rediseño](https://claude.ai/artifact/Srtyn2Mrc6TauhYLaMT1Jn)
+- Rediseño v3: [`openspec/changes/archive/2026-10-26-asistente-rediseno-v3/`](../../../openspec/changes/archive/2026-10-26-asistente-rediseno-v3/) y épica ARS-140
 - [Definición del asistente](./asistente-conversacional-definicion.md) §3.1, §3.2, §4.6, §4.7
-- Change previo: `openspec/changes/asistente-frontend/` (D1-D8)
+- Change previo: `openspec/changes/archive/2026-10-26-asistente-frontend/` (D1-D8)
 - Ticket ARS-79 (razonamiento / RF-11)
 - Commit `c38ebc8` (modal, burbujas, campo de una línea)
 

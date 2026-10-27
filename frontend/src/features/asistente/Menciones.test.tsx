@@ -15,7 +15,7 @@ import type { ConversacionResumen, ResultadoDeMencion } from "./types";
 // (asistente-menciones, design.md D10/D11 de asistente-rediseno-v3).
 //
 // Cada `describe` cubre uno de los escenarios del spec funcional
-// (openspec/changes/asistente-rediseno-v3/specs/asistente-menciones/spec.md,
+// (openspec/changes/archive/2026-10-26-asistente-rediseno-v3/specs/asistente-menciones/spec.md,
 // requisitos «The composer offers…», «Choosing a mention…» y «The mention
 // popover is an accessible combobox»). Los escenarios del lado del backend
 // —alcance por carrera, RLS de designaciones, el carril SQL, el historial—

@@ -30,7 +30,7 @@ sólo publica lo que el Host lee del módulo (`IConsultasDeAuditoriaDeAdministra
 `IConsultaDeMantenimiento`), nada del carril determinista, y el enrutador corre
 **en modo sombra**: decide y registra su decisión, pero el turno sigue por el
 carril SQL igual. Está declarado
-y argumentado en `openspec/changes/asistente-enrutador-de-dominio/design.md` (D2).
+y argumentado en `openspec/changes/archive/2026-10-26-asistente-enrutador-de-dominio/design.md` (D2).
 
 No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
 tiene entidades propias — lee las de otros schemas y orquesta. Si algún día

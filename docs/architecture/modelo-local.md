@@ -2,7 +2,7 @@
 
 Investigación y dimensionamiento para correr el asistente contra un modelo propio en **una NVIDIA GeForce RTX 5070** (12 GB GDDR7, ~672 GB/s, Blackwell de consumo `sm_120`, tensor cores FP8/FP4) con un **Intel Core i9**, atendiendo **entre 2 y 30 usuarios**.
 
-Las decisiones están en los changes [`asistente-proveedor-local`](../../openspec/changes/asistente-proveedor-local/design.md) y [`asistente-optimizaciones-modelo-local`](../../openspec/changes/asistente-optimizaciones-modelo-local/design.md). Este documento junta la evidencia que las sostiene, lo que se dejó para después y cómo probarlo en una RTX 3070 (§8).
+Las decisiones están en los changes [`asistente-proveedor-local`](../../openspec/changes/archive/2026-10-26-asistente-proveedor-local/design.md) y [`asistente-optimizaciones-modelo-local`](../../openspec/changes/archive/2026-10-26-asistente-optimizaciones-modelo-local/design.md). Este documento junta la evidencia que las sostiene, lo que se dejó para después y cómo probarlo en una RTX 3070 (§8).
 
 > **Cómo leer los números.** La investigación se hizo el 2026-10-02 desde un entorno cuyo proxy bloqueaba HuggingFace, arXiv, la documentación de vLLM y la mayoría de los blogs. Por eso solo se leyeron completas las fuentes de GitHub (issues, PRs, READMEs). El resto proviene de extractos de búsqueda.
 >

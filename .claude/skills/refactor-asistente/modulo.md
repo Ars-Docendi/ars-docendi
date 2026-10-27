@@ -93,7 +93,7 @@ Evaluador: `backend/src/ArsDocendi.Evaluacion.Nucleo/` (en la solución) +
   `Infrastructure/ProveedorAnthropic.cs` y un test de arquitectura verifica que un solo
   archivo lo nombre. Sumar un proveedor = una clase + un brazo del `switch`. La temperatura
   se conserva en el puerto aunque el adaptador no la soporte, con el motivo escrito en
-  `openspec/changes/asistente-proveedor-anthropic/design.md:37`: _"sacarla porque un
+  `openspec/changes/archive/2026-10-26-asistente-proveedor-anthropic/design.md:37`: _"sacarla porque un
   adaptador no la soporta convertiría al puerto en la forma de ese adaptador"_.
 - **La cadena de decoradores y su orden.** `ProveedorConTechoDeLlamadas → ProveedorConBreaker
 → ProveedorAnthropic|Simulado`, compuesta en `ModuleExtensions.cs:361`, con el motivo en
@@ -130,7 +130,7 @@ nueva. Esta lista existe para que no vuelvan cada seis meses.
    `AmbiguedadTests` 10, `EnrutadorDeDominioTests` 9 = **75 atributos**; tres de esos cinco
    archivos son puros, dos derivan de `ClasePostgresAislada`). Lo que queda en `ResolverAsync`
    es **composición, no lógica**, y el orden ya está declarado fuera del código en
-   `openspec/changes/asistente-capa-conversacional/design.md:7-17`. Peor: el objeto de request
+   `openspec/changes/archive/2026-10-26-asistente-capa-conversacional/design.md:7-17`. Peor: el objeto de request
    mutable que el patrón exige **ya fue rechazado por escrito** en `README.md:586-589`
    ("exigiría un objeto de request mutable con el actor adentro, leído por capas que no lo
    declaran"). El remedio proporcional es **partir el archivo** (renglón E4), no montar un motor.
@@ -158,7 +158,7 @@ nueva. Esta lista existe para que no vuelvan cada seis meses.
    `ICatalogoDelDominio`, `EnrutadorDeDominio`, `LectorDeVocabulario`, `CatalogoDelDominioReal`
    — 838 LOC). Está **desconectado a propósito**: decide, anota telemetría y descarta. Es un
    compromiso registrado con ARS-46, argumentado en
-   `openspec/changes/asistente-enrutador-de-dominio/design.md`. Es reversible, pero se revierte
+   `openspec/changes/archive/2026-10-26-asistente-enrutador-de-dominio/design.md`. Es reversible, pero se revierte
    por decisión del equipo, no de paso en un refactor.
 6. **Mover `NormalizadorLexico` a `ArsDocendi.Shared`.** No pasa el invariante #4: lleva el
    diccionario de sinónimos del dominio del asistente (profesor→docente, tramite→pedido,

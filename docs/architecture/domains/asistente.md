@@ -1494,21 +1494,21 @@ viven en el manifiesto de privilegios y en las policies RLS.
 
 - `openspec/changes/asistente-fundaciones/` — roles, manifiesto, permiso, funciones
   del actor, RLS, cadenas tipadas y módulo base
-- `openspec/changes/asistente-carril-sql/` — este carril
-- `openspec/changes/asistente-evaluacion/` — el eje de capacidad y la exclusión del CI
-- `openspec/changes/asistente-enmascaramiento/` — el manifiesto de sensibilidad y la frontera de salida
-- `openspec/changes/asistente-capa-conversacional/` — el hilo, lo social, la aclaración y el seguimiento
-- `openspec/changes/asistente-presupuesto-degradacion/` — cuota, topes, breaker y los dos registros
-- `openspec/changes/asistente-superficie-api/` — el contrato de respuesta, los endpoints y el catálogo de capacidades
-- `openspec/changes/asistente-frontend/` — la feature, sus dos montajes y la accesibilidad
-- `openspec/changes/asistente-proveedor-anthropic/` — el primer adaptador real del puerto
-- `openspec/changes/asistente-rediseno-conversacion/` — la conversación: reintento con la misma clave, «Dejar de esperar», conversación nueva y que sobrevive al cierre del modal, foco, columnas sensibles marcadas y el aspecto con tokens del tema
-- `openspec/changes/asistente-catalogo-de-intenciones/` — el catálogo cerrado y el vocabulario del trámite
-- `openspec/changes/asistente-enrutador-de-dominio/` — la decisión de carril en modo sombra
-- `openspec/changes/asistente-registro-de-la-decision-sombra/` — la decisión al registro operativo y la tabla dorada del corpus
-- `openspec/changes/asistente-feedback-export-seguimiento/` — el token de retroalimentación, la exportación CSV y las sugerencias de seguimiento
-- `openspec/changes/asistente-historial-conversaciones/` — el historial propio, reanudar, «volver a consultar» y el acceso de soporte auditado
-- `openspec/changes/asistente-rediseno-v3/` — un solo montaje, el rail, archivar, borrado diferido con deshacer, editar y reenviar la última pregunta, menciones «@materia»/«#docente» y el fin de las sugerencias fuera de la bienvenida
+- `openspec/changes/archive/2026-10-26-asistente-carril-sql/` — este carril
+- `openspec/changes/archive/2026-10-26-asistente-evaluacion/` — el eje de capacidad y la exclusión del CI
+- `openspec/changes/archive/2026-10-26-asistente-enmascaramiento/` — el manifiesto de sensibilidad y la frontera de salida
+- `openspec/changes/archive/2026-10-26-asistente-capa-conversacional/` — el hilo, lo social, la aclaración y el seguimiento
+- `openspec/changes/archive/2026-10-26-asistente-presupuesto-degradacion/` — cuota, topes, breaker y los dos registros
+- `openspec/changes/archive/2026-10-26-asistente-superficie-api/` — el contrato de respuesta, los endpoints y el catálogo de capacidades
+- `openspec/changes/archive/2026-10-26-asistente-frontend/` — la feature, sus dos montajes y la accesibilidad
+- `openspec/changes/archive/2026-10-26-asistente-proveedor-anthropic/` — el primer adaptador real del puerto
+- `openspec/changes/archive/2026-10-26-asistente-rediseno-conversacion/` — la conversación: reintento con la misma clave, «Dejar de esperar», conversación nueva y que sobrevive al cierre del modal, foco, columnas sensibles marcadas y el aspecto con tokens del tema
+- `openspec/changes/archive/2026-10-26-asistente-catalogo-de-intenciones/` — el catálogo cerrado y el vocabulario del trámite
+- `openspec/changes/archive/2026-10-26-asistente-enrutador-de-dominio/` — la decisión de carril en modo sombra
+- `openspec/changes/archive/2026-10-26-asistente-registro-de-la-decision-sombra/` — la decisión al registro operativo y la tabla dorada del corpus
+- `openspec/changes/archive/2026-10-26-asistente-feedback-export-seguimiento/` — el token de retroalimentación, la exportación CSV y las sugerencias de seguimiento
+- `openspec/changes/archive/2026-10-26-asistente-historial-conversaciones/` — el historial propio, reanudar, «volver a consultar» y el acceso de soporte auditado
+- `openspec/changes/archive/2026-10-26-asistente-rediseno-v3/` — un solo montaje, el rail, archivar, borrado diferido con deshacer, editar y reenviar la última pregunta, menciones «@materia»/«#docente» y el fin de las sugerencias fuera de la bienvenida
 
 ## Evaluación
 
