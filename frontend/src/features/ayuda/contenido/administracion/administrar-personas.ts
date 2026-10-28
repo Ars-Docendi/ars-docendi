@@ -34,6 +34,10 @@ export const administrarPersonas: ArticuloAyuda = {
       etiquetaIndice: "Abrir Personas",
       cuerpo:
         "En el menú, grupo Configuración, elegí Personas. El título es «Administrar personas» e indica cuántas hay y cuántas están activas. La tabla muestra Nombre (Apellido, Nombre), Documento, Legajo, Rol, Asignaciones y Estado.",
+      captura: {
+        src: "/ayuda/administracion/administrar-personas-paso-1.webp",
+        alt: "Tabla Administrar personas con nombre, documento, legajo, rol, asignaciones, estado y acciones.",
+      },
       nota: {
         tipo: "info",
         titulo: "Si sos Jefe de Cátedra",
@@ -58,6 +62,10 @@ export const administrarPersonas: ArticuloAyuda = {
       etiquetaIndice: "Nueva persona",
       cuerpo:
         "Pulsá Nueva persona. En la pestaña Datos personales son obligatorios Nombre, Apellido, Documento (DNI), Legajo, Fecha de nacimiento y UPN / Email institucional; CUIL y Teléfono son opcionales. Si el DNI ya existe, el formulario muestra a quién pertenece y no deja guardar.",
+      captura: {
+        src: "/ayuda/administracion/administrar-personas-paso-4.webp",
+        alt: "Formulario Nueva persona en la pestaña Datos personales, con los datos personales y la sección Roles y ámbitos.",
+      },
     },
     {
       titulo: "Asigná roles con su ámbito",
@@ -71,10 +79,24 @@ export const administrarPersonas: ArticuloAyuda = {
       },
     },
     {
-      titulo: "Cargá los datos docentes",
-      etiquetaIndice: "Datos docentes",
+      titulo: "Cargá las asignaciones",
+      etiquetaIndice: "Asignaciones",
       cuerpo:
-        "En la pestaña Datos docentes, Asignaciones describe su designación: cada fila lleva Materia, Carrera, Cargo, Dedicación y horas. Perfil en Mi Portal muestra el perfil que completa la propia persona; una persona nueva lo completa al ingresar. Si una pestaña tiene datos incompletos, se marca y el formulario avisa.",
+        "En la pestaña Datos docentes, Asignaciones describe su designación: cada fila lleva la materia y la carrera, el Cargo, la Dedicación y las Horas. Cambiar elige otra materia, × quita la fila y + Agregar asignación suma otra. Si una pestaña tiene datos incompletos, se marca y el formulario avisa.",
+      captura: {
+        src: "/ayuda/administracion/administrar-personas-paso-6.webp",
+        alt: "Pestaña Datos docentes con una asignación: materia y carrera, cargo, dedicación y horas.",
+      },
+    },
+    {
+      titulo: "Consultá su perfil en Mi Portal",
+      etiquetaIndice: "Perfil en Mi Portal",
+      cuerpo:
+        "Debajo de las asignaciones, Perfil en Mi Portal muestra el perfil docente de la persona: contacto, CV, experiencia, educación, certificaciones, proyectos y habilidades. Lo completa la propia persona desde Mi portal; una persona nueva lo completa al ingresar.",
+      captura: {
+        src: "/ayuda/administracion/administrar-personas-paso-7.webp",
+        alt: "Sección Perfil en Mi Portal con contacto, CV y las secciones de experiencia, educación, certificaciones, proyectos y habilidades.",
+      },
     },
     {
       titulo: "Guardá",
@@ -87,6 +109,10 @@ export const administrarPersonas: ArticuloAyuda = {
       etiquetaIndice: "Desactivar y activar",
       cuerpo:
         "En la fila, Desactivar abre la confirmación «Desactivar persona»: la persona deja de poder ingresar al sistema. Activar la revierte y le devuelve el acceso. Los datos no se borran.",
+      captura: {
+        src: "/ayuda/administracion/administrar-personas-paso-9.webp",
+        alt: "Confirmación Desactivar persona: la persona no va a poder ingresar al sistema y sus datos se conservan.",
+      },
     },
   ],
   despues: {

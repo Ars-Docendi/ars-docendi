@@ -56,10 +56,6 @@ export const ingresarAlSistema: ArticuloAyuda = {
       etiquetaIndice: "Si no te deja",
       cuerpo:
         "Hay dos avisos posibles sobre el botón. «No pudimos confirmar tu identidad» significa que Microsoft devolvió un error o cancelaste el proceso: probá de nuevo. «No pudimos iniciar tu sesión» significa que tu cuenta no puede acceder al sistema: comunicate con Secretaría Académica. Si el error de Microsoft se repite, también comunicate con Secretaría Académica.",
-      captura: {
-        src: "/ayuda/primeros-pasos/ingresar-al-sistema-paso-4.webp",
-        alt: "Formulario «Ingresá a tu cuenta» con el aviso «No pudimos iniciar tu sesión» (estado de acceso denegado).",
-      },
       nota: {
         tipo: "info",
         cuerpo:
