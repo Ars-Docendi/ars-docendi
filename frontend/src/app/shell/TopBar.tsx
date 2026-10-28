@@ -109,7 +109,6 @@ export function TopBar({ collapsed, onToggleCollapse, user }: TopBarProps) {
           <IsotipoArsDocendi className="mark" />
           <span>Ars Docendi</span>
         </Link>
-        <span className="sub">Ingeniería · UNLaM</span>
       </div>
 
       <div className="adoc-topbar-right">

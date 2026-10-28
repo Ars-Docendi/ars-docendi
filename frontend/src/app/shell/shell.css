@@ -17,6 +17,9 @@
     "topbar topbar"
     "sidebar main";
   height: calc(100vh / var(--ui-zoom, 1));
+  /* En el teléfono 100vh no descuenta la barra del navegador y cortaba el final
+     de la página; dvh es el alto visible real. */
+  height: calc(100dvh / var(--ui-zoom, 1));
   background: var(--color-bg-canvas);
   font-family: var(--font-sans);
 }
@@ -60,14 +63,6 @@
   height: auto;
   flex-shrink: 0;
   color: var(--color-accent);
-}
-.adoc-brand .sub {
-  font-weight: var(--weight-regular);
-  font-family: var(--font-mono);
-  letter-spacing: 0.03em;
-  color: var(--color-text-tertiary);
-  padding-left: 12px;
-  border-left: 1px solid var(--color-border-subtle);
 }
 
 .adoc-topbar-right {
@@ -374,12 +369,10 @@ a.adoc-sidebar-help {
   .adoc-brand .mark {
     width: 28px;
   }
-  .adoc-brand .sub {
-    display: none;
-  }
-  /* El nombre no entra junto a la marca: quedan iniciales, rol y menú.
-     El nombre completo sigue en la pantalla (p. ej. la identidad del portal). */
-  .adoc-topbar .adoc-role-badge > span:not(.avatar):not(.role) {
+  /* Nombre y rol no entran junto a la marca (hay roles largos como
+     "Administrador del sistema"): quedan iniciales y menú. Ambos siguen en la
+     pantalla de escritorio y en la identidad del portal. */
+  .adoc-topbar .adoc-role-badge > span:not(.avatar) {
     display: none;
   }
   .adoc-main {

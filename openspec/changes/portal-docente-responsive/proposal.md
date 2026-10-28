@@ -6,7 +6,7 @@
 
 ## What Changes
 
-- **Shell en pantallas angostas**: por debajo de 768 px de ancho la barra lateral fija desaparece y el contenido ocupa todo el ancho. La navegación se abre como un panel lateral desde el botón "Menú" de la barra superior. La barra superior conserva la marca y el menú de usuario. La línea "Ingeniería · UNLaM" se oculta para dejar lugar.
+- **Shell en pantallas angostas**: por debajo de 768 px de ancho la barra lateral fija desaparece y el contenido ocupa todo el ancho. La navegación se abre como un panel lateral desde el botón "Menú" de la barra superior. La barra superior conserva la marca y el menú de usuario. La línea "Ingeniería · UNLaM" se quita en todos los anchos: no aportaba y ocupaba lugar.
 - **Portal en pantallas angostas**: por debajo de 560 px se reduce el padding de página y de sección, el aviso de guardado ocupa el ancho disponible y los controles táctiles chicos (quitar tag, menú ⋮) tienen un área de toque mínima de 24 × 24 px. Los modales de alta y edición entran en el ancho del teléfono sin scroll horizontal.
 - **Botón "Menú" también en escritorio**: el mismo botón colapsa la barra lateral a íconos y la vuelve a expandir. Retoma la versión colapsada que ya existía y cuyo botón estaba comentado. La preferencia se recuerda en el navegador. En el Centro de ayuda la barra arranca en íconos, pero el botón la puede desplegar.
 - Fuera del botón, el escritorio no cambia.

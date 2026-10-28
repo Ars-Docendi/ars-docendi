@@ -64,10 +64,12 @@ _Alternativa_: ocultar o deshabilitar el botón en `/ayuda`. Se descartó para q
 
 ## Risks / Trade-offs
 
-- [El `RoleBadge` con nombres largos desborda la barra superior en 360 px] → Debajo de 768 px se ocultan la línea "Ingeniería · UNLaM" y el nombre dentro del badge, que conserva iniciales, rol y menú. El nombre completo sigue en la página (por ejemplo, en la identidad del Portal). Se hace desde `shell.css`, sin tocar la librería.
+- [El `RoleBadge` con nombres o roles largos ("Administrador del sistema") desborda la barra superior en 360 px] → La línea "Ingeniería · UNLaM" se quitó de la barra superior en todos los anchos, porque no aportaba y ocupaba lugar. Debajo de 768 px se ocultan, dentro del badge, el nombre y el rol: quedan las iniciales y el menú. Achicar la letra no alcanzaba para los roles largos. Nombre y rol siguen visibles en escritorio y en la identidad del Portal. Se hace desde `shell.css`, sin tocar la librería.
 - [El cambio del shell también se ve en pantallas que no se adaptaron] → Con contenido a ancho completo quedan mejor que hoy. Fuera del Portal no se promete que sean usables.
 - [Personas hereda los ajustes de `portal.css`] → Se verifica también el editor de Personas a 375 px.
 - [Tres changes en curso (`centro-de-ayuda`, `rediseno-pantalla-ingreso` y este) modifican el mismo requisito de `barra-superior`, y el que se archive último pisa a los demás] → El delta de este change incluye el texto y los escenarios de los otros dos.
+
+- [Los escenarios de `Modal` y `Drawer` de la librería, y `.adoc-app`, miden `100vh`, que en el navegador móvil no descuenta la barra de direcciones ni el teclado: el pie con "Guardar" quedaba fuera de lo visible y el overlay bloquea el scroll de la página] → Se usa `100dvh` (override en `index.css`, registrado como TD-010 para subirlo a ui-lib). La emulación de escritorio no tiene barra de direcciones, así que esto sólo se confirma en un teléfono real.
 
 ## Migration Plan
 

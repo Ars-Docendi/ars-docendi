@@ -27,7 +27,7 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       titulo: "Mirá la barra superior",
       etiquetaIndice: "Barra superior",
       cuerpo:
-        "A la izquierda está la marca Ars Docendi · Ingeniería · UNLaM. A la derecha ves tu nombre, tus iniciales y tu rol, que indican con qué usuario estás trabajando.",
+        "A la izquierda está la marca Ars Docendi. A la derecha ves tu nombre, tus iniciales y tu rol, que indican con qué usuario estás trabajando.",
       captura: {
         src: "/ayuda/primeros-pasos/recorrer-la-pantalla-paso-1.webp",
         alt: "Barra superior completa con la marca a la izquierda y el nombre, las iniciales y el rol a la derecha.",

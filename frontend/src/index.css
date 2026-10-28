@@ -47,3 +47,27 @@ a {
   color: var(--danger-700);
   border-color: var(--danger-500);
 }
+
+/* ============================================================
+   Override del design system: alto de los overlays en el teléfono.
+   ------------------------------------------------------------
+   `@ars-docendi/ui` fija el escenario de `Modal` y `Drawer` en `100vh`. En
+   los navegadores móviles `100vh` es el alto SIN la barra de direcciones ni
+   el teclado, así que el diálogo queda más alto que lo visible: el pie con
+   "Guardar" cae fuera de la pantalla y, con el scroll de la página
+   bloqueado por el overlay, no hay forma de alcanzarlo. `100dvh` es el alto
+   visible real. `overscroll-behavior` evita que el scroll del cuerpo del
+   diálogo arrastre la página de atrás.
+
+   Registrado como TD-010: corresponde subirlo a ui-lib.
+   ============================================================ */
+@supports (height: 100dvh) {
+  .adoc-modal-stage,
+  .adoc-drawer-stage {
+    height: calc(100dvh / var(--ui-zoom, 1));
+  }
+}
+.adoc-modal > .body,
+.adoc-drawer > .body {
+  overscroll-behavior: contain;
+}
