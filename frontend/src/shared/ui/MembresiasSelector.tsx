@@ -1,4 +1,5 @@
 import { Button, Field, Select } from "@ars-docendi/ui";
+import { SelectorMateria } from "./SelectorMateria";
 import type { MembresiaFila, RolMembresiaOpcion } from "./membresias";
 
 export type { MembresiaFila, RolMembresiaOpcion } from "./membresias";
@@ -9,6 +10,7 @@ interface OpcionCatalogo {
   nombre: string;
   carreraId?: string | null;
   carreraNombre?: string | null;
+  carreraCodigo?: string | null;
 }
 
 interface MembresiasSelectorProps {
@@ -24,6 +26,8 @@ interface MembresiasSelectorProps {
   materiasPlan?: OpcionCatalogo[];
   carreras?: OpcionCatalogo[];
   error?: string;
+  /** Muestra los roles sin poder cambiarlos. */
+  soloLectura?: boolean;
 }
 
 export function MembresiasSelector({
@@ -34,14 +38,19 @@ export function MembresiasSelector({
   materiasPlan = [],
   carreras = [],
   error,
+  soloLectura = false,
 }: MembresiasSelectorProps) {
   function actualizar(i: number, cambios: Partial<MembresiaFila>) {
     onChange(filas.map((fila, indice) => (indice === i ? { ...fila, ...cambios } : fila)));
   }
 
+  // Cambiar el rol cambia el tipo de ámbito: la materia o carrera elegida deja de valer.
   function cambiarRol(i: number, rolId: string) {
     actualizar(i, { rolId, materiaId: "", carreraId: "" });
   }
+
+  // Jefe de Cátedra elige la materia canónica: se ofrecen también las que no tienen carrera.
+  const opcionesJefe = [...materiasPlan, ...materias];
 
   return (
     <Field label="Membresías de rol (rol y ámbito)" required error={error}>
@@ -49,27 +58,17 @@ export function MembresiasSelector({
         {filas.map((fila, i) => {
           const rol = roles.find((opcion) => opcion.id === fila.rolId);
           const esDocente = rol?.codigo === "docente";
-          // Para Docente, las carreras ofrecidas son las que de verdad dictan la materia
-          // elegida (catálogo informativo materia–plan); para Coordinador, todas.
-          const opcionesCarrera =
-            rol?.ambito === "carrera"
-              ? carreras
-              : esDocente
-                ? materiasPlan
-                    .filter((mp) => mp.id === fila.materiaId && mp.carreraId)
-                    .map((mp) => ({
-                      id: mp.carreraId!,
-                      codigo: "",
-                      nombre: mp.carreraNombre ?? "",
-                    }))
-                : [];
+          const porMateria = rol?.ambito === "materia";
+          // Sin duplicados: la misma membresía (rol y ámbito) en otra fila no se puede elegir.
+          const otras = filas.filter((otra, indice) => indice !== i && otra.rolId === fila.rolId);
           return (
             <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <Select
                 value={fila.rolId}
                 onChange={(e) => cambiarRol(i, e.target.value)}
                 aria-label={`Rol de membresía ${i + 1}`}
-                style={{ flex: "1" }}
+                disabled={soloLectura}
+                style={{ flex: "0 0 13rem" }}
               >
                 <option value="">Rol…</option>
                 {roles.map((opcion) => (
@@ -79,36 +78,57 @@ export function MembresiasSelector({
                 ))}
               </Select>
 
-              {rol?.ambito === "materia" && (
-                <Select
-                  value={fila.materiaId}
-                  onChange={(e) =>
-                    actualizar(i, {
-                      materiaId: e.target.value,
-                      ...(esDocente ? { carreraId: "" } : {}),
-                    })
-                  }
-                  aria-label={`Materia de membresía ${i + 1}`}
-                  style={{ flex: "1.4" }}
-                >
-                  <option value="">Materia…</option>
-                  {materias.map((materia) => (
-                    <option key={materia.id} value={materia.id}>
-                      {materia.codigo} – {materia.nombre}
-                    </option>
-                  ))}
-                </Select>
+              {porMateria && (
+                <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+                  <SelectorMateria
+                    modo={esDocente ? "par" : "materia"}
+                    opciones={esDocente ? materiasPlan : opcionesJefe}
+                    seleccion={
+                      fila.materiaId
+                        ? { materiaId: fila.materiaId, carreraId: fila.carreraId || null }
+                        : null
+                    }
+                    onChange={(resultado) =>
+                      actualizar(i, {
+                        materiaId: resultado.materiaId,
+                        carreraId: esDocente ? (resultado.carrera?.id ?? "") : "",
+                      })
+                    }
+                    contexto={
+                      esDocente
+                        ? `Membresía ${i + 1} · Docente: elegí la materia y la carrera`
+                        : `Membresía ${i + 1} · ${rol.nombre}: la materia vale en todas sus carreras`
+                    }
+                    motivoNoElegible={(resultado) =>
+                      otras.some(
+                        (otra) =>
+                          otra.materiaId === resultado.materiaId &&
+                          (!esDocente || otra.carreraId === resultado.carrera?.id),
+                      )
+                        ? "Ya tiene esta membresía"
+                        : undefined
+                    }
+                    ariaLabel={`Materia de membresía ${i + 1}`}
+                    soloLectura={soloLectura}
+                    placeholder={
+                      esDocente
+                        ? "Ninguna materia y carrera seleccionada"
+                        : "Ninguna materia seleccionada"
+                    }
+                  />
+                </div>
               )}
 
-              {(rol?.ambito === "carrera" || esDocente) && (
+              {rol?.ambito === "carrera" && (
                 <Select
                   value={fila.carreraId}
                   onChange={(e) => actualizar(i, { carreraId: e.target.value })}
                   aria-label={`Carrera de membresía ${i + 1}`}
-                  style={{ flex: "1.4" }}
+                  disabled={soloLectura}
+                  style={{ flex: "1" }}
                 >
                   <option value="">Carrera…</option>
-                  {opcionesCarrera.map((carrera) => (
+                  {carreras.map((carrera) => (
                     <option key={carrera.id} value={carrera.id}>
                       {carrera.codigo ? `${carrera.codigo} – ` : ""}
                       {carrera.nombre}
@@ -117,7 +137,7 @@ export function MembresiasSelector({
                 </Select>
               )}
 
-              {filas.length > 1 && (
+              {filas.length > 1 && !soloLectura && (
                 <button
                   type="button"
                   onClick={() => onChange(filas.filter((_, indice) => indice !== i))}
@@ -137,14 +157,16 @@ export function MembresiasSelector({
             </div>
           );
         })}
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => onChange([...filas, { rolId: "", materiaId: "", carreraId: "" }])}
-        >
-          + Agregar membresía
-        </Button>
+        {!soloLectura && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => onChange([...filas, { rolId: "", materiaId: "", carreraId: "" }])}
+          >
+            + Agregar membresía
+          </Button>
+        )}
       </div>
     </Field>
   );

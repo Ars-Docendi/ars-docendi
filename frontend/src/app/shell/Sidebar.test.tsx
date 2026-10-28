@@ -48,8 +48,7 @@ describe("Sidebar — sector Designaciones", () => {
       "portal.ver",
       "aulas.ver",
       "tareas.ver",
-      "usuarios.ver",
-      "docentes.ver",
+      "personas.ver",
       "roles.ver",
       "designaciones.gestionar",
       "designaciones.revisar",
@@ -58,6 +57,6 @@ describe("Sidebar — sector Designaciones", () => {
 
     expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Revisión" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Docentes" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Personas" })).toBeInTheDocument();
   });
 });

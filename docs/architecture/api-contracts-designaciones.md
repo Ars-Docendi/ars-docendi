@@ -39,16 +39,16 @@ por haber registrado la persona en un Alta.
 
 ## Períodos y catálogos
 
-| Método | Ruta                                          | Permiso                                         | Entrada / salida                       |
-| ------ | --------------------------------------------- | ----------------------------------------------- | -------------------------------------- |
-| GET    | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `PeriodoDto[]`                         |
-| GET    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `PeriodoDto`                           |
-| POST   | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `GuardarPeriodoDto` → `201 PeriodoDto` |
-| PUT    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `GuardarPeriodoDto` → `PeriodoDto`     |
-| POST   | `/api/designaciones/periodos/{id}/activar`    | `periodos.administrar`                          | `PeriodoDto`                           |
-| POST   | `/api/designaciones/periodos/{id}/desactivar` | `periodos.administrar`                          | `PeriodoDto`                           |
-| DELETE | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `204`                                  |
-| GET    | `/api/designaciones/catalogos`                | `designaciones.ver` o `designaciones.gestionar` | `CatalogosDto` acotado al actor        |
+| Método | Ruta                                          | Permiso                                         | Entrada / salida                                                                                     |
+| ------ | --------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| GET    | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `PeriodoDto[]`                                                                                       |
+| GET    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `PeriodoDto`                                                                                         |
+| POST   | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `GuardarPeriodoDto` → `201 PeriodoDto`                                                               |
+| PUT    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `GuardarPeriodoDto` → `PeriodoDto`                                                                   |
+| POST   | `/api/designaciones/periodos/{id}/activar`    | `periodos.administrar`                          | `PeriodoDto`                                                                                         |
+| POST   | `/api/designaciones/periodos/{id}/desactivar` | `periodos.administrar`                          | `PeriodoDto`                                                                                         |
+| DELETE | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `204`                                                                                                |
+| GET    | `/api/designaciones/catalogos`                | `designaciones.ver` o `designaciones.gestionar` | `CatalogosDto` acotado al actor; `?pedidoId=` (edición) mantiene elegible a la persona de ese pedido |
 
 ## Exportación del lote
 

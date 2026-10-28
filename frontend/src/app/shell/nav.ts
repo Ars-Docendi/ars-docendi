@@ -4,7 +4,8 @@ export interface NavItem {
   to: string;
   icon: NavIconKey;
   label: string;
-  permiso: string;
+  /** Con uno de los permisos alcanza. */
+  permiso: string | string[];
   children?: NavItem[];
 }
 
@@ -74,8 +75,12 @@ export const NAVEGACION: NavGroup[] = [
   {
     label: "Configuración",
     items: [
-      { to: "/usuarios", icon: "usuarios", label: "Usuarios", permiso: "usuarios.ver" },
-      { to: "/docentes", icon: "docentes", label: "Docentes", permiso: "docentes.ver" },
+      {
+        to: "/personas",
+        icon: "usuarios",
+        label: "Personas",
+        permiso: ["personas.ver", "personas.ver_ambito"],
+      },
       { to: "/roles", icon: "roles", label: "Roles", permiso: "roles.ver" },
     ],
   },
@@ -85,6 +90,8 @@ export function filtrarNavegacion(permisos: readonly string[]): NavGroup[] {
   const efectivos = new Set(permisos);
   return NAVEGACION.map((grupo) => ({
     ...grupo,
-    items: grupo.items.filter((item) => efectivos.has(item.permiso)),
+    items: grupo.items.filter((item) =>
+      (Array.isArray(item.permiso) ? item.permiso : [item.permiso]).some((p) => efectivos.has(p)),
+    ),
   })).filter((grupo) => grupo.items.length > 0);
 }

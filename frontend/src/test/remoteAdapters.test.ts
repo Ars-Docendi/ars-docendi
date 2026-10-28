@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../shared/api/client";
-import {
-  cambiarEstadoUsuario,
-  crearUsuario,
-  listarUsuarios,
-} from "../features/usuarios/api/usuariosApi";
 import { crearRol, listarPermisos, reemplazarPermisos } from "../features/roles/api/rolesApi";
-import { crearDocente, listarDocentes } from "../features/docentes/api/docentesApi";
 import {
   crearPeriodo,
   editarPeriodo,
@@ -19,7 +13,7 @@ import {
   crearProyecto,
   editarProyecto,
   guardarCv,
-} from "../features/portal/api/portalApi";
+} from "../shared/perfil/api/portalApi";
 
 vi.mock("../shared/api/client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -28,77 +22,6 @@ vi.mock("../shared/api/client", () => ({
 beforeEach(() => vi.clearAllMocks());
 
 describe("adapters HTTP administrativos", () => {
-  it("usuarios lista, crea con IDs de rol/ámbito y cambia estado con versión", async () => {
-    const dto = {
-      id: "u1",
-      personaId: "p1",
-      nombre: "Ana",
-      apellido: "Pérez",
-      documento: "1",
-      legajo: "7",
-      cuil: null,
-      fechaNacimiento: null,
-      telefono: null,
-      upn: "ana@test",
-      activo: true,
-      version: 3,
-      perfilDocente: { esDocente: true, cantidadMaterias: 3 },
-      roles: [{ id: "r1", codigo: "jefe_catedra", nombre: "Jefe de Cátedra" }],
-      membresias: ["m1", "m2", "m3"].map((materiaId, indice) => ({
-        id: `ur${indice + 1}`,
-        rolId: "r1",
-        codigo: "jefe_catedra",
-        nombre: "Jefe de Cátedra",
-        ambito: "materia",
-        materiaId,
-        carreraId: "c1",
-      })),
-    };
-    vi.mocked(apiClient.get).mockResolvedValue({ data: [dto] });
-    expect((await listarUsuarios())[0]).toMatchObject({
-      id: "u1",
-      roles: ["Jefe de Cátedra"],
-      membresias: expect.arrayContaining([
-        expect.objectContaining({ id: "ur1", rolId: "r1", materiaId: "m1", carreraId: "c1" }),
-        expect.objectContaining({ id: "ur2", rolId: "r1", materiaId: "m2", carreraId: "c1" }),
-        expect.objectContaining({ id: "ur3", rolId: "r1", materiaId: "m3", carreraId: "c1" }),
-      ]),
-      version: 3,
-    });
-
-    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
-    const formulario = {
-      nombre: "Ana",
-      apellido: "Pérez",
-      documento: "1",
-      legajo: "7",
-      cuil: "",
-      fecha_nacimiento: "",
-      telefono: "",
-      upn: "ana@test",
-      membresias: [
-        { rolId: "r1", materiaId: "m1", carreraId: "c1" },
-        { rolId: "r1", materiaId: "m2", carreraId: "c1" },
-        { rolId: "r1", materiaId: "m3", carreraId: "c1" },
-      ],
-    };
-    await crearUsuario(formulario);
-    expect(apiClient.post).toHaveBeenCalledWith(
-      "/api/administracion/usuarios",
-      expect.objectContaining({
-        membresias: [
-          { rolId: "r1", materiaId: "m1", carreraId: "c1" },
-          { rolId: "r1", materiaId: "m2", carreraId: "c1" },
-          { rolId: "r1", materiaId: "m3", carreraId: "c1" },
-        ],
-      }),
-    );
-    await cambiarEstadoUsuario((await listarUsuarios())[0], false);
-    expect(apiClient.post).toHaveBeenLastCalledWith("/api/administracion/usuarios/u1/desactivar", {
-      version: 3,
-    });
-  });
-
   it("roles consulta catálogo, copia base y reemplaza membresía sólo al guardar", async () => {
     const rol = {
       id: "r1",
@@ -128,111 +51,6 @@ describe("adapters HTTP administrativos", () => {
       permisoIds: ["p1"],
       version: 4,
     });
-  });
-
-  it("docentes usa IDs canónicos de materia, cargo y dedicación", async () => {
-    const dto = {
-      personaId: "p1",
-      nombre: "Ana",
-      apellido: "Pérez",
-      documento: "1",
-      legajo: "7",
-      cuil: null,
-      fechaNacimiento: null,
-      telefono: null,
-      upn: "ana@test",
-      activo: true,
-      version: 2,
-      tieneCuenta: true,
-      roles: [{ id: "r1", codigo: "docente", nombre: "Docente" }],
-      membresias: [
-        {
-          id: "ur1",
-          rolId: "r1",
-          codigo: "docente",
-          nombre: "Docente",
-          ambito: "materia",
-          materiaId: "m1",
-          carreraId: "c1",
-        },
-      ],
-      asignaciones: [
-        {
-          id: "d1",
-          materiaId: "m1",
-          materiaCodigo: "03500",
-          materiaNombre: "Software",
-          carreraId: "c1",
-          cargoId: "c1",
-          cargoNombre: "Adjunto",
-          cargoAbreviatura: "Adj.",
-          dedicacion: "Categoría 2",
-          dedicacionId: "ded-2",
-          horas: 10,
-        },
-      ],
-    };
-    vi.mocked(apiClient.get).mockResolvedValue({ data: [dto] });
-    expect((await listarDocentes())[0].asignaciones[0].materiaCodigo).toBe("03500");
-    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
-    await crearDocente(
-      {
-        nombre: "Ana",
-        apellido: "Pérez",
-        documento: "1",
-        legajo: "7",
-        cuil: "",
-        fecha_nacimiento: "",
-        telefono: "",
-        upn: "ana@test",
-        persona_id: "p1",
-        tieneCuenta: true,
-        roles: [],
-        membresias: [
-          {
-            id: "",
-            rolId: "r1",
-            codigo: "",
-            nombre: "",
-            ambito: "materia",
-            materiaId: "m1",
-            carreraId: "c1",
-          },
-        ],
-        asignaciones: [
-          {
-            materiaId: "m1",
-            materiaCodigo: "03500",
-            materiaNombre: "Software",
-            carreraId: "c1",
-            cargo: "Adjunto",
-            dedicacionId: "ded-2",
-            horas: 10,
-          },
-        ],
-      },
-      {
-        roles: [{ id: "r1", codigo: "docente", nombre: "Docente", ambito: "materia" }],
-        materias: [{ id: "m1", codigo: "03500", nombre: "Software" }],
-        materiasPlan: [{ id: "m1", codigo: "03500", nombre: "Software", carreraId: "c1" }],
-        cargos: [{ id: "c1", codigo: "adjunto", nombre: "Adjunto", abreviatura: "Adj." }],
-        personasElegibles: [],
-        dedicaciones: [{ id: "ded-2", nombre: "Categoría 2", activo: true }],
-      },
-    );
-    expect(apiClient.post).toHaveBeenCalledWith(
-      "/api/administracion/docentes",
-      expect.objectContaining({
-        designaciones: [
-          expect.objectContaining({
-            materiaId: "m1",
-            carreraId: "c1",
-            cargoId: "c1",
-            dedicacionId: "ded-2",
-          }),
-        ],
-      }),
-    );
   });
 
   it("períodos consulta y muta las rutas persistentes", async () => {
