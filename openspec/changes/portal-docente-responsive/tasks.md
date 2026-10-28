@@ -37,11 +37,19 @@
 
 - [x] 5.3 Quitar la línea "Ingeniería · UNLaM" de la barra superior en todos los anchos, con su CSS, y la mención en el artículo de ayuda "Cómo recorrer la pantalla". Verificar a 1280 y 360 px.
 
-## 6. Verificación integral
+## 6. Shell sin barra superior en escritorio
 
-- [x] 6.1 Correr `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build` y `pnpm exec openspec validate --all`, todos en verde.
-- [x] 6.2 Revisar a 360 px la barra superior con un nombre de usuario largo. Desbordaba, así que debajo de 768 px se ocultan el nombre y el rol dentro del `RoleBadge` (ver design). Verificado también con el rol "Administrador del sistema".
+- [x] 6.1 Extraer la marca a `MarcaArsDocendi` y crear `MenuUsuario`: tarjeta con avatar, nombre corto, rol y chevron que abre hacia arriba "Cerrar sesión" (cierra con clic afuera y Escape). Verificar en el browser a 1280 px.
+- [x] 6.2 En `Sidebar.tsx`, cabecera con botón "Menú" y marca, lista scrolleable y pie fijo con `EnlaceAyuda` y `MenuUsuario`. En `TopBar.tsx`, dejar sólo botón, marca y `Drawer`, con `MenuUsuario` al pie del panel. Verificar plegada a 64 px y con un usuario con todos los permisos.
+- [x] 6.3 En `shell.css`, grilla sin fila de barra superior con 768 px o más y barra fina de 48 px debajo. Quitar el CSS del `RoleBadge` en la barra. Verificar a 360, 767, 768 y 1280 px.
+- [x] 6.4 Reescribir `TopBar.test.tsx` y `Sidebar.test.tsx` para los flujos nuevos (plegar desde la barra lateral, cerrar sesión desde la tarjeta) y verificar con `pnpm --filter frontend test:run`.
+- [x] 6.5 Actualizar `portal-docente-design-spec.md`, `centro-de-ayuda-design-spec.md` y el artículo de ayuda que ubica el menú de usuario.
+
+## 7. Verificación integral
+
+- [x] 7.1 Correr `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build` y `pnpm exec openspec validate --all`, todos en verde.
+- [x] 7.2 Revisar a 360 px la barra superior con un nombre de usuario largo. Desbordaba; se resolvió primero ocultando nombre y rol en el `RoleBadge` y después sacando el usuario de la barra (D9). Verificado también con el rol "Administrador del sistema".
 
 ## Workflow follow-up
 
-- Archivar el change una vez mergeada la PR a `develop`.
+- Archivar el change una vez mergeada la PR a `develop`, después de `rediseno-pantalla-ingreso` y `centro-de-ayuda`.

@@ -5,13 +5,12 @@ export const recorrerLaPantalla: ArticuloAyuda = {
   moduloSlug: "primeros-pasos",
   grupo: "Moverte por el sistema",
   titulo: "Cómo recorrer la pantalla",
-  resumen: "Barra superior, menú lateral, migas de pan y cierre de sesión.",
+  resumen: "Menú lateral, migas de pan y cierre de sesión.",
   introduccion:
-    "Todas las pantallas del sistema comparten la misma estructura: una barra arriba, un menú a la izquierda y el contenido de la pantalla en el centro.",
+    "Todas las pantallas del sistema comparten la misma estructura: un menú a la izquierda y el contenido de la pantalla a la derecha. En el celular el menú se abre desde el botón ☰ de la barra de arriba.",
   permisos: [],
   palabrasClave: [
     "menú",
-    "barra superior",
     "sidebar",
     "navegación",
     "migas de pan",
@@ -24,20 +23,16 @@ export const recorrerLaPantalla: ArticuloAyuda = {
   ],
   pasos: [
     {
-      titulo: "Mirá la barra superior",
-      etiquetaIndice: "Barra superior",
+      titulo: "Ubicá tu usuario",
+      etiquetaIndice: "Tu usuario",
       cuerpo:
-        "A la izquierda está la marca Ars Docendi. A la derecha ves tu nombre, tus iniciales y tu rol, que indican con qué usuario estás trabajando.",
-      captura: {
-        src: "/ayuda/primeros-pasos/recorrer-la-pantalla-paso-1.webp",
-        alt: "Barra superior completa con la marca a la izquierda y el nombre, las iniciales y el rol a la derecha.",
-      },
+        "Arriba del menú lateral están el botón ☰ y la marca Ars Docendi, que te lleva a Mi portal. Al pie del menú ves tus iniciales, tu nombre y tu rol, que indican con qué usuario estás trabajando.",
     },
     {
       titulo: "Usá el menú lateral",
       etiquetaIndice: "Menú lateral",
       cuerpo:
-        "El menú está agrupado en Personal, Trabajo, Designaciones, Sistema y Configuración. Solo aparecen los grupos y las pantallas que tu rol puede usar. La pantalla donde estás queda resaltada. Al pie del menú encontrás el acceso al Centro de ayuda.",
+        "El menú está agrupado en Personal, Trabajo, Designaciones, Sistema y Configuración. Solo aparecen los grupos y las pantallas que tu rol puede usar. La pantalla donde estás queda resaltada. Al pie del menú encontrás el acceso al Centro de ayuda. Con el botón ☰ podés achicar el menú a solo íconos y volver a desplegarlo.",
       captura: {
         src: "/ayuda/primeros-pasos/recorrer-la-pantalla-paso-2.webp",
         alt: "Menú lateral de un usuario con varios grupos, con una pantalla resaltada y el enlace Centro de ayuda al pie.",
@@ -57,11 +52,7 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       titulo: "Cerrá la sesión",
       etiquetaIndice: "Cerrar sesión",
       cuerpo:
-        "Hacé clic sobre tu nombre y rol, en la barra superior, para abrir el menú de usuario. Elegí Cerrar sesión y el sistema te lleva a la pantalla de ingreso.",
-      captura: {
-        src: "/ayuda/primeros-pasos/recorrer-la-pantalla-paso-4.webp",
-        alt: "Menú de usuario desplegado con la opción Cerrar sesión.",
-      },
+        "Hacé clic sobre tu nombre y rol, al pie del menú lateral, para abrir el menú de usuario. Elegí Cerrar sesión y el sistema te lleva a la pantalla de ingreso. En el celular, abrí el menú con el botón ☰ y tu usuario aparece al final.",
       nota: {
         tipo: "consejo",
         cuerpo:
@@ -78,7 +69,7 @@ export const recorrerLaPantalla: ArticuloAyuda = {
     {
       pregunta: "¿Por qué el menú lateral se achica cuando entro al Centro de ayuda?",
       respuesta:
-        "Dentro del Centro de ayuda el menú se reduce a íconos para dejar lugar al índice de la documentación. Al salir de la ayuda vuelve a mostrarse completo.",
+        "Dentro del Centro de ayuda el menú se reduce a íconos para dejar lugar al índice de la documentación. Podés desplegarlo con el botón ☰, y al salir de la ayuda vuelve a mostrarse como lo tenías.",
     },
   ],
   relacionados: [

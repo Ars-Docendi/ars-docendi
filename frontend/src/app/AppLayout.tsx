@@ -26,7 +26,8 @@ function guardarColapsada(colapsada: boolean) {
 }
 
 /**
- * App shell (design 04a): top bar + role-aware sidebar + scrolling main.
+ * App shell (design 04a): barra lateral por permisos + main con scroll; la barra
+ * superior fina sólo aparece en pantallas angostas.
  * Wraps every authenticated route; the active page renders into <Outlet>.
  *
  */
@@ -73,8 +74,8 @@ export default function AppLayout() {
 
   return (
     <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
-      <TopBar collapsed={colapsado} onToggleCollapse={alternarColapsada} user={user} />
-      <Sidebar collapsed={colapsado} permissions={user.permissions} />
+      <TopBar user={user} />
+      <Sidebar collapsed={colapsado} onToggleCollapse={alternarColapsada} user={user} />
       <main className="adoc-main">
         <Outlet />
       </main>

@@ -9,7 +9,7 @@ last_updated: 2026-10-21
 
 ## Resumen
 
-Se diseña el **Centro de ayuda** (`/ayuda`): documentación dentro de la app, organizada por módulo, con artículos de pasos y capturas, búsqueda local y visibilidad según los permisos de la sesión. Es contenido estático del frontend; no hay backend. Se accede desde el ítem "Centro de ayuda" al pie del menú lateral (no hay botón "Ayuda" en la barra superior).
+Se diseña el **Centro de ayuda** (`/ayuda`): documentación dentro de la app, organizada por módulo, con artículos de pasos y capturas, búsqueda local y visibilidad según los permisos de la sesión. Es contenido estático del frontend; no hay backend. Se accede desde el ítem "Centro de ayuda" al pie del menú lateral (no hay barra superior en escritorio).
 
 ## Roles que ven esta surface
 
@@ -31,7 +31,7 @@ Se diseña el **Centro de ayuda** (`/ayuda`): documentación dentro de la app, o
 
 ## Layout / IA
 
-- **Dos sidebars**: el menú de la app (arranca contraído a íconos en cada entrada a `/ayuda`; el botón ☰ de la barra superior lo puede desplegar durante esa visita, y al salir vuelve la preferencia guardada) y la sidebar de documentación de 264 px, sticky y con scroll propio, a la izquierda del contenido dentro de `main`.
+- **Dos sidebars**: el menú de la app (arranca contraído a íconos en cada entrada a `/ayuda`; el botón ☰ de su cabecera lo puede desplegar durante esa visita, y al salir vuelve la preferencia guardada) y la sidebar de documentación de 264 px, sticky y con scroll propio, a la izquierda del contenido dentro de `main`.
 - La sidebar de documentación contiene el buscador, los módulos visibles (colapsables) con sus artículos y, en un artículo, el índice de pasos.
 - El contenido muestra breadcrumb desde "Inicio" (`MigasAyuda`, con `Link` del router; el `Breadcrumbs` de la librería recarga la página) y `PageHeader`, sin pretitle.
 - Rutas: `/ayuda`, `/ayuda/buscar?q=`, `/ayuda/:modulo`, `/ayuda/:modulo/:articulo`.
@@ -66,7 +66,7 @@ Por debajo de 900 px la sidebar de documentación se apila sobre el contenido; n
 
 ## Anti-patterns a evitar (específicos de esta feature)
 
-- Botón "Ayuda" en la barra superior (lo prohíbe `barra-superior`).
+- Botón "Ayuda" fuera del pie del menú lateral: en escritorio no hay barra superior y en el teléfono la barra fina sólo tiene el botón ☰ y la marca (`barra-superior`).
 - Mostrar o buscar artículos que la sesión no puede ver.
 - Capturas con PII o datos reales: sólo datos sintéticos.
 

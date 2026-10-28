@@ -25,7 +25,7 @@ Con un viewport de menos de 768 px de ancho, el shell MUST NOT reservar una colu
 
 ### Requirement: Navegación en panel lateral
 
-Con un viewport de menos de 768 px, la navegación principal SHALL estar disponible en un panel lateral que se abre desde la barra superior. El panel MUST mostrar los mismos ítems que la barra lateral, filtrados por los permisos del usuario, y al final el acceso al Centro de ayuda. El panel SHALL cerrarse al elegir un destino, con Escape o al tocar fuera de él.
+Con un viewport de menos de 768 px, la navegación principal SHALL estar disponible en un panel lateral que se abre desde la barra superior. El panel MUST mostrar los mismos ítems que la barra lateral, filtrados por los permisos del usuario, y al final el acceso al Centro de ayuda y la tarjeta de usuario con el menú "Cerrar sesión". El panel SHALL cerrarse al elegir un destino, con Escape o al tocar fuera de él.
 
 #### Scenario: Abrir el menú y navegar
 
@@ -51,3 +51,9 @@ Con un viewport de menos de 768 px, la navegación principal SHALL estar disponi
 - **GIVEN** un usuario autenticado en un viewport angosto
 - **WHEN** abre el panel de navegación
 - **THEN** el panel ofrece "Centro de ayuda", que lleva a `/ayuda` y cierra el panel
+
+#### Scenario: Cerrar sesión desde el teléfono
+
+- **GIVEN** un usuario autenticado en un viewport angosto
+- **WHEN** abre el panel de navegación y toca su tarjeta de usuario al pie
+- **THEN** se abre el menú de usuario con la opción "Cerrar sesión"

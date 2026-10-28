@@ -17,16 +17,12 @@ const usuario: CurrentUser = {
   permissions: [],
 };
 
-function renderTopBar(
-  user: CurrentUser = usuario,
-  ruta = "/",
-  { collapsed = false, onToggleCollapse = () => {} } = {},
-) {
+function renderTopBar(user: CurrentUser = usuario, ruta = "/") {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={cliente}>
       <MemoryRouter initialEntries={[ruta]}>
-        <TopBar collapsed={collapsed} onToggleCollapse={onToggleCollapse} user={user} />
+        <TopBar user={user} />
         <Routes>
           <Route path="/aulas" element={<p>Pantalla de aulas</p>} />
           <Route path="/portal" element={<p>Pantalla del portal</p>} />
@@ -54,14 +50,6 @@ afterEach(() => {
 });
 
 describe("TopBar", () => {
-  it("mantiene el menú de usuario con Cerrar sesión", async () => {
-    renderTopBar();
-
-    await userEvent.click(screen.getByRole("button", { name: "Abrir menú de usuario" }));
-
-    expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
-  });
-
   it("en pantallas angostas navega desde el panel y lo cierra", async () => {
     simularPantallaAngosta();
     renderTopBar({ ...usuario, permissions: ["portal.ver", "aulas.ver"] }, "/aulas");
@@ -72,19 +60,11 @@ describe("TopBar", () => {
       "href",
       "/ayuda",
     );
+    await userEvent.click(within(panel).getByRole("button", { name: /Menú de usuario/ }));
+    expect(within(panel).getByRole("menuitem", { name: "Cerrar sesión" })).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole("link", { name: "Mi portal" }));
 
     expect(screen.getByText("Pantalla del portal")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Menú" })).not.toBeInTheDocument();
-  });
-
-  it("en escritorio colapsa la barra lateral sin abrir el panel", async () => {
-    const onToggleCollapse = vi.fn();
-    renderTopBar(usuario, "/", { onToggleCollapse });
-
-    await userEvent.click(screen.getByRole("button", { name: "Colapsar menú lateral" }));
-
-    expect(onToggleCollapse).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog", { name: "Menú" })).not.toBeInTheDocument();
   });
 

@@ -1,16 +1,48 @@
-import { describe, it, expect } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
+import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { Sidebar } from "./Sidebar";
+
+const cerrarSesion = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("../../shared/auth/auth", () => ({ useCerrarSesion: () => cerrarSesion }));
+
+const usuario: CurrentUser = {
+  id: "00000000-0000-4000-8000-000000000001",
+  name: "Fernández Castellanos, María Guadalupe",
+  initials: "FC",
+  upn: "mgfernandez@unlam.edu.ar",
+  role: "Docente",
+  roleCode: "docente",
+  permissions: [],
+};
+
 function renderSidebar(
   permissions: string[],
-  { collapsed = false, route = "/designaciones" }: { collapsed?: boolean; route?: string } = {},
+  {
+    collapsed = false,
+    route = "/designaciones",
+    onToggleCollapse = () => {},
+  }: { collapsed?: boolean; route?: string; onToggleCollapse?: () => void } = {},
 ) {
+  const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <MemoryRouter initialEntries={[route]}>
-      <Sidebar collapsed={collapsed} permissions={permissions} />
-    </MemoryRouter>,
+    <QueryClientProvider client={cliente}>
+      <MemoryRouter initialEntries={[route]}>
+        <Sidebar
+          collapsed={collapsed}
+          onToggleCollapse={onToggleCollapse}
+          user={{ ...usuario, permissions }}
+        />
+        <Routes>
+          <Route path="/login" element={<p>Pantalla de ingreso</p>} />
+          <Route path="*" element={null} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -77,5 +109,37 @@ describe("Sidebar — Centro de ayuda", () => {
     expect(enlace).toHaveAttribute("title", "Centro de ayuda");
     expect(enlace).toHaveAttribute("aria-label", "Centro de ayuda");
     expect(enlace).not.toHaveTextContent("Centro de ayuda");
+  });
+});
+
+describe("Sidebar — cabecera y usuario", () => {
+  it("el botón Menú pliega la barra lateral", async () => {
+    const onToggleCollapse = vi.fn();
+    renderSidebar([], { onToggleCollapse });
+
+    await userEvent.click(screen.getByRole("button", { name: "Colapsar menú lateral" }));
+
+    expect(onToggleCollapse).toHaveBeenCalledOnce();
+  });
+
+  it("la tarjeta muestra el nombre corto y cierra la sesión desde su menú", async () => {
+    renderSidebar([]);
+
+    const tarjeta = screen.getByRole("button", { name: /Menú de usuario/ });
+    expect(tarjeta).toHaveTextContent("María Fernández");
+    expect(tarjeta).toHaveAttribute("title", "Fernández Castellanos, María Guadalupe · Docente");
+    await userEvent.click(tarjeta);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Cerrar sesión" }));
+
+    expect(cerrarSesion).toHaveBeenCalledOnce();
+    expect(await screen.findByText("Pantalla de ingreso")).toBeInTheDocument();
+  });
+
+  it("plegada conserva el menú de usuario en el avatar", async () => {
+    renderSidebar([], { collapsed: true });
+
+    await userEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+
+    expect(screen.getByRole("menuitem", { name: "Cerrar sesión" })).toBeInTheDocument();
   });
 });
