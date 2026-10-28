@@ -25,15 +25,15 @@ primero) y "Datos docentes", y pie fijo con Cancelar y Guardar.
 
 - Datos personales: Nombre, Apellido, Documento, Legajo, CUIL, Fecha de nacimiento, UPN y Teléfono.
   El DNI repetido se avisa mientras se escribe, nombrando a la persona que lo tiene.
-- Roles y ámbitos: cada fila con su rol y lo que pide (Docente: materia y carrera; Jefe de Cátedra:
+- Roles y ámbitos (en Datos personales, debajo de los datos): cada fila con su rol y lo que pide (Docente: materia y carrera; Jefe de Cátedra:
   materia; Coordinador: carrera; roles de departamento: nada). Siempre queda al menos una fila.
 - Asignaciones: la materia y la carrera completas en un renglón y debajo Cargo, Dedicación y Horas.
   Obligatorias con rol Docente o Jefe de Cátedra.
 - Perfil en Mi Portal: las mismas secciones y componentes que la pantalla Mi Portal, a todo el
   ancho, con descarga de CV y documentos. Editable con `portal.administrar`; si no, sin acciones.
 - Si al guardar hay errores en la pestaña oculta, se marca con un punto y se avisa.
-- Sin `personas.administrar`: datos bloqueados, sin Nueva persona ni Activar/Desactivar, un aviso
-  con lo que puede hacer el rol y "Volver al listado" en lugar de Guardar.
+- Sin `personas.administrar`: campos deshabilitados con el fondo gris común (sin aviso aparte), sin
+  Nueva persona ni Activar/Desactivar y "Volver al listado" en lugar de Guardar.
 
 ## Buscador de materias
 

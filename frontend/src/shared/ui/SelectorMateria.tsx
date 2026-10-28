@@ -48,6 +48,7 @@ export function SelectorMateria({
       <div className="adoc-selector-materia">
         <Input
           readOnly
+          disabled={soloLectura}
           value={texto}
           placeholder={placeholder}
           aria-label={ariaLabel}

@@ -150,13 +150,6 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
         }
       />
 
-      {soloLectura && (
-        <InlineAlert severity="info" title="Sólo lectura">
-          {administrarPortal
-            ? "Podés ver los datos personales, roles y asignaciones, y corregir sólo el perfil de Mi Portal (pestaña Datos docentes)."
-            : "Podés ver esta persona. Los cambios los hacen Administrativo, Secretaría Académica, Decanato o Administrador de Sistemas."}
-        </InlineAlert>
-      )}
       {guardar.isError && (
         <InlineAlert
           severity="danger"
@@ -181,41 +174,38 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
       )}
 
       {pestana === "personales" && (
-        <section className="adoc-personas-tarjeta" role="tabpanel" aria-label="Datos personales">
-          <h2>Datos personales</h2>
-          <div className="adoc-personas-grilla">
-            {CAMPOS.map((c) => {
-              const error =
-                c.campo === "documento" && errorDni
-                  ? errorDni
-                  : enviado
-                    ? errores.campos[c.campo]
-                    : undefined;
-              return (
-                <div key={c.campo} style={c.ancho ? { gridColumn: "span 2" } : undefined}>
-                  <Field label={c.etiqueta} required={c.requerido} error={error}>
-                    <Input
-                      type={c.tipo ?? "text"}
-                      value={form.datos[c.campo]}
-                      placeholder={c.placeholder}
-                      readOnly={soloLectura}
-                      invalid={Boolean(error)}
-                      onChange={(e) => setDatos(c.campo, e.target.value)}
-                    />
-                  </Field>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {pestana === "docentes" && (
         <div
           role="tabpanel"
-          aria-label="Datos docentes"
+          aria-label="Datos personales"
           style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}
         >
+          <section className="adoc-personas-tarjeta">
+            <h2>Datos personales</h2>
+            <div className="adoc-personas-grilla">
+              {CAMPOS.map((c) => {
+                const error =
+                  c.campo === "documento" && errorDni
+                    ? errorDni
+                    : enviado
+                      ? errores.campos[c.campo]
+                      : undefined;
+                return (
+                  <div key={c.campo} style={c.ancho ? { gridColumn: "span 2" } : undefined}>
+                    <Field label={c.etiqueta} required={c.requerido} error={error}>
+                      <Input
+                        type={c.tipo ?? "text"}
+                        value={form.datos[c.campo]}
+                        placeholder={c.placeholder}
+                        disabled={soloLectura}
+                        invalid={Boolean(error)}
+                        onChange={(e) => setDatos(c.campo, e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
           <section className="adoc-personas-tarjeta">
             <h2>Roles y ámbitos</h2>
             <MembresiasSelector
@@ -229,6 +219,15 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
               soloLectura={soloLectura}
             />
           </section>
+        </div>
+      )}
+
+      {pestana === "docentes" && (
+        <div
+          role="tabpanel"
+          aria-label="Datos docentes"
+          style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}
+        >
           <section className="adoc-personas-tarjeta">
             <h2>Asignaciones</h2>
             <AsignacionesPersona

@@ -133,8 +133,9 @@ export function validar(f: FormularioPersona, catalogos: CatalogosPersonas): Err
   };
 }
 
-export const hayErroresPersonales = (e: ErroresFormulario) => Object.keys(e.campos).length > 0;
-export const hayErroresDocentes = (e: ErroresFormulario) => Boolean(e.membresias || e.asignaciones);
+export const hayErroresPersonales = (e: ErroresFormulario) =>
+  Object.keys(e.campos).length > 0 || Boolean(e.membresias);
+export const hayErroresDocentes = (e: ErroresFormulario) => Boolean(e.asignaciones);
 
 export function aGuardar(
   f: FormularioPersona,

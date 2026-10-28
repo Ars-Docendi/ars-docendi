@@ -32,7 +32,7 @@ El listado SHALL mostrar, por persona, Nombre (apellido, nombre), Documento, Leg
 
 ### Requirement: Alta y edición a pantalla completa
 
-La alta (`/personas/nueva`) y la edición (`/personas/:personaId`) SHALL ser pantallas completas con dos pestañas: **Datos personales**, que se abre primero, y **Datos docentes**. Datos personales SHALL contener Nombre, Apellido, Documento, Legajo, CUIL, Fecha de nacimiento, UPN y Teléfono. Datos docentes SHALL contener los roles con su ámbito (Docente: materia y carrera; Jefe de Cátedra: materia; Coordinador de Carrera: carrera; roles de departamento: sin ámbito), las asignaciones y el perfil de Mi Portal. Cada asignación SHALL mostrar la materia y la carrera completas en un renglón y debajo Cargo, Dedicación y Horas. Las materias SHALL elegirse con el buscador de materias. Si al guardar hay errores en la pestaña no visible, la pestaña SHALL marcarse y un aviso SHALL indicarlo.
+La alta (`/personas/nueva`) y la edición (`/personas/:personaId`) SHALL ser pantallas completas con dos pestañas: **Datos personales**, que se abre primero, y **Datos docentes**. Datos personales SHALL contener Nombre, Apellido, Documento, Legajo, CUIL, Fecha de nacimiento, UPN y Teléfono, y los roles con su ámbito (Docente: materia y carrera; Jefe de Cátedra: materia; Coordinador de Carrera: carrera; roles de departamento: sin ámbito). Datos docentes SHALL contener las asignaciones y el perfil de Mi Portal. Cada asignación SHALL mostrar la materia y la carrera completas en un renglón y debajo Cargo, Dedicación y Horas. Las materias SHALL elegirse con el buscador de materias. Si al guardar hay errores en la pestaña no visible, la pestaña SHALL marcarse y un aviso SHALL indicarlo.
 
 #### Scenario: Abrir una persona
 
@@ -41,7 +41,7 @@ La alta (`/personas/nueva`) y la edición (`/personas/:personaId`) SHALL ser pan
 
 #### Scenario: Error en la otra pestaña
 
-- **GIVEN** el operador está en Datos personales y falta un rol completo
+- **GIVEN** el operador está en Datos personales y falta una asignación completa de una persona con rol Docente
 - **WHEN** hace clic en "Guardar cambios"
 - **THEN** no se guarda, la pestaña Datos docentes queda marcada y se avisa que hay datos incompletos en ella
 
@@ -71,7 +71,7 @@ El documento MUST ser único entre personas, comparando sólo sus dígitos. El e
 
 ### Requirement: Permisos por rol del operador
 
-`personas.ver` SHALL habilitar el listado y el detalle de todas las personas en sólo lectura; `personas.ver_ambito`, sólo de las personas del ámbito del Jefe de Cátedra. `personas.administrar` SHALL habilitar crear personas, editar datos personales, roles y asignaciones, y activar o desactivar. `portal.administrar` SHALL habilitar corregir el perfil de Mi Portal de otra persona. La migración SHALL asignar `personas.administrar` a Administrativo, Secretaría Académica, Decanato y Administrador de Sistemas; `portal.administrar` a esos cuatro y a Jefe de Cátedra; `personas.ver` a quienes tenían `usuarios.ver` y a Decanato; `personas.ver_ambito` a Jefe de Cátedra. Sin `personas.administrar` la pantalla SHALL mostrar los datos bloqueados, ocultar Nueva persona, Activar/Desactivar y los controles de edición, mostrar "Ver" en lugar de "Editar", reemplazar Guardar por "Volver al listado" e informar qué puede hacer el rol. El backend MUST validar cada permiso en cada operación.
+`personas.ver` SHALL habilitar el listado y el detalle de todas las personas en sólo lectura; `personas.ver_ambito`, sólo de las personas del ámbito del Jefe de Cátedra. `personas.administrar` SHALL habilitar crear personas, editar datos personales, roles y asignaciones, y activar o desactivar. `portal.administrar` SHALL habilitar corregir el perfil de Mi Portal de otra persona. La migración SHALL asignar `personas.administrar` a Administrativo, Secretaría Académica, Decanato y Administrador de Sistemas; `portal.administrar` a esos cuatro y a Jefe de Cátedra; `personas.ver` a quienes tenían `usuarios.ver` y a Decanato; `personas.ver_ambito` a Jefe de Cátedra. Sin `personas.administrar` la pantalla SHALL mostrar los datos bloqueados, ocultar Nueva persona, Activar/Desactivar y los controles de edición, mostrar "Ver" en lugar de "Editar", y reemplazar Guardar por "Volver al listado"; los campos no editables SHALL verse deshabilitados (fondo gris), sin aviso aparte. El backend MUST validar cada permiso en cada operación.
 
 #### Scenario: Jefe de Cátedra
 

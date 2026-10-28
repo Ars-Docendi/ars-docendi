@@ -99,7 +99,7 @@ export function AsignacionesPersona({
                   min="1"
                   placeholder="Hs"
                   value={fila.horas}
-                  readOnly={soloLectura}
+                  disabled={soloLectura}
                   onChange={(e) => actualizar(i, { horas: e.target.value })}
                   style={{ width: 88 }}
                 />
