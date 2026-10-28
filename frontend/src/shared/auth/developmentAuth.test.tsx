@@ -43,9 +43,7 @@ describe("autenticación sembrada configurable", () => {
       </QueryClientProvider>,
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Iniciar sesión con cuenta institucional" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Ingresar con Microsoft" }));
 
     expect(await screen.findByRole("dialog")).toHaveTextContent("Selector de identidades");
   });

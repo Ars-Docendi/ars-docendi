@@ -10,7 +10,7 @@
 ## 2. Copy, ayuda y condiciones de uso
 
 - [x] 2.1 Aplicar en `LoginPage.tsx` el copy de la tabla de `design.md` (crest, bajada, título, botón, error y condiciones de uso) y eliminar el bloque de ayuda con el `mailto` de soporte; verificar que la pantalla no contiene "cuenta institucional", "Soporte", direcciones de mail ni enlaces a términos
-- [ ] 2.2 Actualizar `sesionMicrosoft.test.tsx` y `developmentAuth.test.tsx` al rótulo "Ingresar con Microsoft" y cubrir con tests de render los escenarios de `specs/pantalla-ingreso/spec.md`; verificar con `pnpm --filter frontend test:run`
+- [x] 2.2 Actualizar `sesionMicrosoft.test.tsx` y `developmentAuth.test.tsx` al rótulo "Ingresar con Microsoft" y cubrir en `pantallaIngreso.test.tsx` los escenarios de `specs/pantalla-ingreso/spec.md`; verificar con `pnpm --filter frontend test:run`
 
 ## 3. Términos de uso y privacidad
 
@@ -20,5 +20,5 @@
 
 ## 4. Verificación
 
-- [ ] 4.1 Correr `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check` y `pnpm exec openspec validate --all --strict`, y verificar que pasan
+- [x] 4.1 Correr `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check` y `pnpm exec openspec validate --all --strict`, y verificar que pasan
 - [ ] 4.2 Revisar la pantalla en el navegador (escritorio y ancho móvil) en los estados normal, error, acceso denegado y redirigiendo, y adjuntar capturas al PR
