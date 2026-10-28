@@ -42,7 +42,7 @@ export const permisosYPantallasVisibles: ArticuloAyuda = {
       titulo: "Pedí el acceso que te falta",
       etiquetaIndice: "Pedir acceso",
       cuerpo:
-        "Los permisos se asignan por rol y los administra la institución. Si necesitás una pantalla que no ves, pedí a Secretaría Académica que revise tu rol, o escribí a soporte.adocendi@unlam.edu.ar indicando tu legajo o DNI y qué necesitás hacer.",
+        "Los permisos se asignan por rol y los administra la institución. Si necesitás una pantalla que no ves, pedí a Secretaría Académica que revise tu rol, indicando qué necesitás hacer.",
     },
     {
       titulo: "Volvé a entrar si te cambiaron el rol",

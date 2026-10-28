@@ -17,9 +17,9 @@ describe("integridad del contenido de ayuda", () => {
       modulos: MODULOS,
       articulos: ARTICULOS,
       permisosNavegacion: new Set(
-        NAVEGACION.flatMap((grupo) => grupo.items.flatMap((i) => [i, ...(i.children ?? [])])).map(
-          (item) => item.permiso,
-        ),
+        NAVEGACION.flatMap((grupo) =>
+          grupo.items.flatMap((i) => [i, ...(i.children ?? [])]),
+        ).flatMap((item) => item.permiso),
       ),
       existeArchivo: existeEnPublic,
     });
