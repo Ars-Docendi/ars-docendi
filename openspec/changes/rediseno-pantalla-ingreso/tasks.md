@@ -12,6 +12,8 @@
 
 - [x] 2.1 Aplicar en `LoginPage.tsx` el copy de la tabla de `design.md` (crest, bajada, título, botón, error y condiciones de uso) y eliminar el bloque de ayuda con el `mailto` de soporte; verificar que la pantalla no contiene "cuenta institucional", "Soporte", direcciones de mail ni enlaces a términos
 - [x] 2.2 Actualizar `sesionMicrosoft.test.tsx` y `developmentAuth.test.tsx` al rótulo "Ingresar con Microsoft" y cubrir en `pantallaIngreso.test.tsx` los escenarios de `specs/pantalla-ingreso/spec.md`; verificar con `pnpm --filter frontend test:run`
+- [x] 2.3 Actualizar el Centro de ayuda: «Cómo ingresar al sistema» describe la pantalla nueva y ningún artículo menciona el mail de soporte inexistente; verificar con `integridad.test.ts`
+- [ ] 2.4 Reemplazar las capturas `ingresar-al-sistema-paso-1.webp` y `-paso-4.webp` por la pantalla nueva y sumar las de «Cómo administrar personas»
 
 ## 3. Términos de uso y privacidad
 

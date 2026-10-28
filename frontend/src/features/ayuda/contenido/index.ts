@@ -24,8 +24,7 @@ import { revisarElTablero } from "./designaciones/revisar-el-tablero";
 import { resolverUnPedido } from "./designaciones/resolver-un-pedido";
 import { descargarElLoteDeFinalizados } from "./designaciones/descargar-el-lote-de-finalizados";
 import { gestionarPeriodos } from "./designaciones/gestionar-periodos";
-import { administrarUsuarios } from "./administracion/administrar-usuarios";
-import { administrarDocentes } from "./administracion/administrar-docentes";
+import { administrarPersonas } from "./administracion/administrar-personas";
 import { administrarRolesYPermisos } from "./administracion/administrar-roles-y-permisos";
 import { leerElDashboardDelSistema } from "./administracion/leer-el-dashboard-del-sistema";
 import { consultarLaAuditoria } from "./administracion/consultar-la-auditoria";
@@ -67,9 +66,15 @@ export const MODULOS: readonly ModuloAyuda[] = [
   {
     slug: "administracion",
     titulo: "Configuración y sistema",
-    descripcion: "Usuarios, docentes, roles, estado del sistema y auditoría.",
+    descripcion: "Personas, roles, estado del sistema y auditoría.",
     grupos: ["Personas", "Roles y permisos", "Sistema"],
-    permisos: ["usuarios.ver", "docentes.ver", "roles.ver", "sistema.estado.ver", "auditoria.ver"],
+    permisos: [
+      "personas.ver",
+      "personas.ver_ambito",
+      "roles.ver",
+      "sistema.estado.ver",
+      "auditoria.ver",
+    ],
   },
 ];
 
@@ -108,8 +113,7 @@ export const ARTICULOS: readonly ArticuloAyuda[] = [
   descargarElLoteDeFinalizados,
   gestionarPeriodos,
   // Configuración y sistema
-  administrarUsuarios,
-  administrarDocentes,
+  administrarPersonas,
   administrarRolesYPermisos,
   leerElDashboardDelSistema,
   consultarLaAuditoria,

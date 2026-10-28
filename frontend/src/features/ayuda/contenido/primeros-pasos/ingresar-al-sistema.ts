@@ -5,9 +5,9 @@ export const ingresarAlSistema: ArticuloAyuda = {
   moduloSlug: "primeros-pasos",
   grupo: "Empezar",
   titulo: "Cómo ingresar al sistema",
-  resumen: "Entrá con tu cuenta institucional de Microsoft y qué hacer si no te deja.",
+  resumen: "Entrá con tu cuenta institucional @docentes.unlam.edu.ar y qué hacer si no te deja.",
   introduccion:
-    "Ars Docendi usa tu cuenta institucional de Microsoft: no hay usuario ni contraseña propios del sistema. Para entrar, tu cuenta tiene que estar dada de alta por la administración.",
+    "Ars Docendi usa tu cuenta institucional @docentes.unlam.edu.ar, que es una cuenta de Microsoft: no hay usuario ni contraseña propios del sistema. Para entrar, tu cuenta tiene que estar dada de alta por la administración.",
   permisos: [],
   palabrasClave: [
     "login",
@@ -20,22 +20,23 @@ export const ingresarAlSistema: ArticuloAyuda = {
     "contraseña",
     "no puedo entrar",
     "acceso denegado",
-    "soporte",
+    "docentes.unlam.edu.ar",
+    "términos y condiciones",
   ],
   pasos: [
     {
       titulo: "Abrí la pantalla de ingreso",
       etiquetaIndice: "Pantalla de ingreso",
       cuerpo:
-        "Cuando abrís Ars Docendi sin una sesión iniciada, el sistema te lleva a la pantalla Iniciá sesión. Si habías intentado abrir una pantalla en particular, al ingresar vas a volver a ella; si no, llegás a Mi portal.",
+        "Cuando abrís Ars Docendi sin una sesión iniciada, el sistema te lleva a la pantalla de ingreso, con el formulario «Ingresá a tu cuenta». Si habías intentado abrir una pantalla en particular, al ingresar vas a volver a ella; si no, llegás a Mi portal.",
       captura: {
         src: "/ayuda/primeros-pasos/ingresar-al-sistema-paso-1.webp",
-        alt: "Pantalla Iniciá sesión en su estado inicial, con el botón «Iniciar sesión con cuenta institucional» y el texto «¿Problemas para ingresar?» visibles.",
+        alt: "Pantalla de ingreso en su estado inicial: a la izquierda, la bienvenida a Ars Docendi; a la derecha, el formulario «Ingresá a tu cuenta» con el botón «Ingresar con Microsoft».",
       },
     },
     {
-      titulo: "Pulsá Iniciar sesión con cuenta institucional",
-      etiquetaIndice: "Iniciar sesión",
+      titulo: "Pulsá Ingresar con Microsoft",
+      etiquetaIndice: "Ingresar con Microsoft",
       cuerpo:
         "El botón dice «Redirigiendo a Microsoft…» mientras el sistema te lleva a la página de Microsoft. Si tenés más de una cuenta abierta en el navegador, Microsoft te pide elegir con cuál querés ingresar.",
     },
@@ -43,7 +44,7 @@ export const ingresarAlSistema: ArticuloAyuda = {
       titulo: "Elegí tu cuenta y confirmá",
       etiquetaIndice: "Elegir la cuenta",
       cuerpo:
-        "Usá la cuenta cuyo mail dio de alta la administración. Si Microsoft termina bien, volvés al sistema con la sesión iniciada. En el primer ingreso, el sistema vincula tu cuenta de Microsoft con tu usuario.",
+        "Usá tu cuenta @docentes.unlam.edu.ar, la que dio de alta la administración. Si Microsoft termina bien, volvés al sistema con la sesión iniciada. En el primer ingreso, el sistema vincula tu cuenta de Microsoft con tu usuario.",
       nota: {
         tipo: "importante",
         cuerpo:
@@ -54,10 +55,10 @@ export const ingresarAlSistema: ArticuloAyuda = {
       titulo: "Si no te deja ingresar",
       etiquetaIndice: "Si no te deja",
       cuerpo:
-        "Hay dos avisos posibles sobre el botón. «No pudimos confirmar tu identidad» significa que Microsoft devolvió un error o cancelaste el proceso: probá de nuevo. «No pudimos iniciar tu sesión» significa que tu cuenta no puede acceder al sistema: comunicate con Secretaría Académica. Para otros problemas, escribí a soporte.adocendi@unlam.edu.ar indicando tu legajo o DNI.",
+        "Hay dos avisos posibles sobre el botón. «No pudimos confirmar tu identidad» significa que Microsoft devolvió un error o cancelaste el proceso: probá de nuevo. «No pudimos iniciar tu sesión» significa que tu cuenta no puede acceder al sistema: comunicate con Secretaría Académica. Si el error de Microsoft se repite, también comunicate con Secretaría Académica.",
       captura: {
         src: "/ayuda/primeros-pasos/ingresar-al-sistema-paso-4.webp",
-        alt: "Pantalla Iniciá sesión con el aviso «No pudimos iniciar tu sesión» (estado de acceso denegado).",
+        alt: "Formulario «Ingresá a tu cuenta» con el aviso «No pudimos iniciar tu sesión» (estado de acceso denegado).",
       },
       nota: {
         tipo: "info",
@@ -72,6 +73,11 @@ export const ingresarAlSistema: ArticuloAyuda = {
       "Entrás al sistema y ves el menú lateral con las pantallas que tu rol puede usar. La sesión vence si pasa un tiempo sin actividad o al llegar a su duración máxima; en ese caso, el sistema te devuelve a la pantalla de ingreso y tenés que iniciar sesión de nuevo.",
   },
   preguntas: [
+    {
+      pregunta: "¿Qué acepto al ingresar?",
+      respuesta:
+        "Al ingresar aceptás los Términos de uso y la Política de privacidad, enlazados al pie de la pantalla de ingreso. Ahí se explica qué datos guarda el sistema, para qué se usan y cómo ejercer tus derechos sobre ellos.",
+    },
     {
       pregunta: "Mi cuenta de Microsoft funciona, pero el sistema no me deja entrar. ¿Por qué?",
       respuesta:
