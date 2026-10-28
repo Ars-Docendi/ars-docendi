@@ -6,11 +6,10 @@
 // ============================================================
 import type { ReactNode } from "react";
 
-/* Topbar + chrome */
-export const collapseIcon: ReactNode = (
+/* Botón "Menú" (☰): abre el panel en pantallas angostas y pliega la barra lateral en escritorio. */
+export const menuIcon: ReactNode = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <path d="M11 4L6 9l5 5" />
-    <rect x="2" y="3" width="14" height="12" />
+    <path d="M3 5h12M3 9h12M3 13h12" />
   </svg>
 );
 

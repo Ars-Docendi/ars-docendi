@@ -6,6 +6,25 @@ import { Sidebar } from "./shell/Sidebar";
 import { TopBar } from "./shell/TopBar";
 import "./shell/shell.css";
 
+/** Preferencia de barra lateral colapsada, por navegador. */
+const CLAVE_COLAPSADA = "ars-docendi:barra-lateral-colapsada";
+
+function leerColapsada(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_COLAPSADA) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function guardarColapsada(colapsada: boolean) {
+  try {
+    localStorage.setItem(CLAVE_COLAPSADA, String(colapsada));
+  } catch {
+    // Sin almacenamiento (modo privado, bloqueado): la preferencia dura la sesión.
+  }
+}
+
 /**
  * App shell (design 04a): top bar + role-aware sidebar + scrolling main.
  * Wraps every authenticated route; the active page renders into <Outlet>.
@@ -13,7 +32,13 @@ import "./shell/shell.css";
  */
 export default function AppLayout() {
   const usuarioActual = useCurrentUser();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(leerColapsada);
+
+  function alternarColapsada() {
+    const nueva = !collapsed;
+    setCollapsed(nueva);
+    guardarColapsada(nueva);
+  }
 
   if (usuarioActual.isLoading) return <main role="status">Cargando sesión…</main>;
   if (usuarioActual.error || !usuarioActual.user) {
@@ -30,7 +55,7 @@ export default function AppLayout() {
 
   return (
     <div className={`adoc-ui adoc-app${collapsed ? " collapsed" : ""}`}>
-      <TopBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} user={user} />
+      <TopBar collapsed={collapsed} onToggleCollapse={alternarColapsada} user={user} />
       <Sidebar collapsed={collapsed} permissions={user.permissions} />
       <main className="adoc-main">
         <Outlet />

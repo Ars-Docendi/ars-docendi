@@ -107,6 +107,15 @@ Mi portal
 - **Períodos de un ítem** (Experiencia, Educación, Proyectos): `MonthYearPicker` de la librería, con mes opcional + año. El mes y el año se eligen en cualquier orden; un mes sin año muestra "Completá el año." en el campo y no deja guardar el ítem.
 - **Tags**: selector compuesto a nivel feature (no existe en la librería), con `Select` del vocabulario, lista de tags con "×" y opción de sugerir un término nuevo.
 
+### Pantallas angostas
+
+El Portal se usa también desde el teléfono, para corregir un dato puntual. Es el mismo perfil, con las mismas secciones y en el mismo orden. Sólo cambian el shell y el aire. Funciona desde 360 px sin scroll horizontal.
+
+- **Botón "Menú" (☰)**: está siempre a la izquierda de la marca. En escritorio colapsa la barra lateral a íconos y la vuelve a expandir, y la preferencia se recuerda en el navegador. El ícono es siempre ☰, y la barra anima su ancho al plegarse, salvo con "reducir movimiento". En pantallas angostas abre la navegación.
+- **Shell (menos de 768 px)**: la barra lateral fija desaparece y el contenido ocupa todo el ancho. La navegación se abre como `Drawer` a la izquierda desde el botón "Menú". Tiene los mismos ítems filtrados por permisos y se cierra al elegir un destino. En la barra superior se ocultan la línea "Ingeniería · UNLaM" y el nombre dentro del `RoleBadge`, que conserva iniciales, rol y menú.
+- **Portal (menos de 560 px)**: paddings de sección y fila más chicos, y el `Toast` de guardado ocupa el ancho disponible. En la fila de un archivo (CV, documento de proyecto), el tamaño baja debajo del nombre. El "×" para quitar un tag tiene un área de toque de al menos 24 × 24 px.
+- **Diálogos**: el `Modal` de la librería ya entra en el ancho del teléfono y la grilla de campos pasa sola a una columna.
+
 ## Estados a diseñar
 
 | Estado            | Descripción                                                             | Cuándo se muestra                         |

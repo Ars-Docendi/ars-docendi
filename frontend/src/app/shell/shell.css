@@ -65,31 +65,6 @@
   border-left: 1px solid var(--color-border-subtle);
 }
 
-/* Collapse toggle button (sits between brand and search) */
-.adoc-collapse-btn {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.adoc-collapse-btn:hover {
-  background: var(--neutral-200);
-}
-.adoc-collapse-btn .ico {
-  width: 18px;
-  height: 18px;
-}
-.adoc-app.collapsed .adoc-collapse-btn .ico {
-  transform: scaleX(-1);
-}
-
 .adoc-topbar-right {
   margin-left: auto;
   display: flex;
@@ -275,6 +250,85 @@
   grid-area: main;
   overflow: auto;
   padding: 24px 28px 48px;
+}
+
+/* ====================== BOTÓN MENÚ ========================== */
+/* En escritorio colapsa la barra lateral a íconos; en pantallas
+   angostas abre el panel de navegación. */
+.adoc-menu-btn {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+.adoc-menu-btn:hover {
+  background: var(--neutral-200);
+}
+.adoc-menu-btn:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+.adoc-menu-btn .ico {
+  display: flex;
+  width: 18px;
+  height: 18px;
+}
+
+/* Plegado y desplegado: la barra cambia de ancho con una transición. */
+@media (prefers-reduced-motion: no-preference) {
+  .adoc-app {
+    transition: grid-template-columns var(--motion-base) var(--ease-standard);
+  }
+}
+
+/* Panel de navegación: angosto como la barra lateral y con los enlaces
+   a sangre, igual que en ella. */
+.adoc-drawer.adoc-nav-drawer {
+  width: 280px;
+}
+.adoc-drawer.adoc-nav-drawer .body {
+  padding: var(--space-2) 0;
+}
+
+/* ====================== PANTALLAS ANGOSTAS ================== */
+@media (max-width: 767px) {
+  .adoc-app,
+  .adoc-app.collapsed {
+    /* minmax(0, …): sin esto la columna no achica por debajo del
+       min-content del contenido y estira la página más allá del viewport. */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "topbar"
+      "main";
+  }
+  .adoc-sidebar {
+    display: none;
+  }
+  .adoc-topbar {
+    padding: var(--space-0) var(--space-3);
+    gap: var(--space-3);
+  }
+  .adoc-brand {
+    white-space: nowrap;
+  }
+  .adoc-brand .sub {
+    display: none;
+  }
+  /* El nombre no entra junto a la marca: quedan iniciales, rol y menú.
+     El nombre completo sigue en la pantalla (p. ej. la identidad del portal). */
+  .adoc-topbar .adoc-role-badge > span:not(.avatar):not(.role) {
+    display: none;
+  }
+  .adoc-main {
+    padding: 16px 16px 40px;
+  }
 }
 
 /* ====================== PAGE HEADER ========================= */
