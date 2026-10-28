@@ -10,153 +10,131 @@
   min-height: calc(100vh / var(--ui-zoom, 1));
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: var(--color-bg-canvas);
+  background: var(--color-bg-raised);
   color: var(--color-text-primary);
 }
 
-/* ---- Left marquee (dark institutional panel) ---- */
+/* ---- Panel de bienvenida (verde de marca) ----
+   Degradé de --accent-500 a --accent-800. La escala accent se invierte en
+   tema oscuro, donde los mismos verdes son --accent-400 y --accent-100. */
 .login-marquee {
-  background: var(--neutral-900);
-  color: var(--color-bg-raised);
-  padding: 48px 56px 40px;
+  --marquee-from: var(--accent-500);
+  --marquee-to: var(--accent-800);
+  --marquee-accent: var(--accent-200);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  position: relative;
-  overflow: hidden;
+  padding: var(--space-12) var(--space-16) var(--space-10);
+  color: #fff;
+  background: linear-gradient(160deg, var(--marquee-from), var(--marquee-to));
 }
-.login-marquee::before {
-  /* Subtle institutional motif: diagonal hairlines */
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.018) 0 1px,
-    transparent 1px 16px
-  );
-  pointer-events: none;
-}
-.login-marquee .crest {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-family: var(--font-sans);
-  font-size: var(--text-caption-size);
-  color: rgba(255, 255, 255, 0.65);
-  letter-spacing: 0.04em;
-}
-.login-marquee .crest .mark {
-  width: 48px;
-  height: 48px;
-  border: 1.5px solid rgba(255, 255, 255, 0.85);
-  color: var(--color-bg-raised);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-weight: var(--weight-medium);
-  font-size: var(--text-body-sm-size);
-  letter-spacing: 0.02em;
-  line-height: 1;
-}
-.login-marquee .crest small {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.5);
-  display: block;
-  margin-top: 2px;
+.login-marquee .mark {
+  width: 96px;
+  height: auto;
+  color: #fff;
 }
 .login-marquee .title-area {
-  position: relative;
-  z-index: 1;
+  margin-block: auto;
+  max-width: 480px;
 }
 .login-marquee h1 {
+  margin: var(--space-0) var(--space-0) var(--space-5);
   font-family: var(--font-sans);
   font-size: 48px;
   font-weight: var(--weight-semibold);
-  line-height: 1.05;
-  margin: 0 0 14px;
+  line-height: 1.08;
   letter-spacing: -0.025em;
 }
+/* "Ars Docendi" en su propio renglón, para no cortar la marca. */
 .login-marquee h1 .accent {
-  color: var(--accent-300);
+  display: block;
+  color: var(--marquee-accent);
 }
 .login-marquee .pitch {
-  max-width: 380px;
-  font-size: 15px;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.75);
   margin: var(--space-0);
+  font-size: 17px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
 }
 .login-marquee .foot {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 0.04em;
+  margin: var(--space-0);
+  font-size: var(--text-caption-size);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-/* ---- Right form side ---- */
+[data-theme="dark"] .login-marquee {
+  --marquee-from: var(--accent-400);
+  --marquee-to: var(--accent-100);
+  --marquee-accent: var(--accent-700);
+}
+
+/* ---- Lado del formulario ---- */
 .login-form-side {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: var(--space-12);
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-12) var(--space-8);
+}
+.login-brand,
+.login-card,
+.login-legal {
+  width: 100%;
+  max-width: 400px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 20px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+.login-brand-mark {
+  width: 44px;
+  height: auto;
+  color: var(--color-accent);
+}
+.login-brand .accent {
+  color: var(--color-accent);
+}
+.login-form-side .login-card {
+  margin-block: auto;
 }
 .login-card {
-  width: 100%;
-  max-width: 380px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: var(--space-8);
 }
 .login-card .head h2 {
   margin: var(--space-0) var(--space-0) var(--space-2);
-  font-size: 22px;
+  font-size: 32px;
   font-weight: var(--weight-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   color: var(--color-text-primary);
-  letter-spacing: -0.01em;
 }
 .login-card .head p {
   margin: var(--space-0);
-  font-size: var(--text-body-sm-size);
+  font-size: var(--text-body-size, 15px);
   color: var(--color-text-secondary);
   line-height: 1.55;
 }
 .login-card .cta {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 .login-card .cta .adoc-btn {
   width: 100%;
 }
-.login-card .helper {
+.login-legal {
   font-size: var(--text-caption-size);
   color: var(--color-text-tertiary);
   line-height: 1.55;
 }
-.login-card .helper a {
+.login-legal a {
   color: var(--color-text-link);
-}
-.login-card .divider {
-  height: 1px;
-  background: var(--color-border-subtle);
-  margin: var(--space-1) var(--space-0);
-}
-.login-card .footnote-tiny {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-  line-height: 1.55;
 }
 /* MS-style logo glyph for the SSO button.
    `grid` (not inline-grid) so it fills the button's 16x16 icon slot with no
@@ -186,16 +164,69 @@
   background: #ffb900;
 }
 
-/* Stack to a single column on narrow viewports (tablet/mobile) */
-@media (max-width: 720px) {
+/* Tablet: una columna. El panel pasa a banda superior con isotipo y
+   bienvenida; la marca del formulario sobra porque la banda ya la muestra. */
+@media (max-width: 960px) {
   .login-page {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
   .login-marquee {
-    padding: 32px 28px;
-    gap: 28px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    column-gap: var(--space-5);
+    padding: var(--space-8);
+  }
+  .login-marquee .mark {
+    width: 64px;
+  }
+  .login-marquee .title-area {
+    margin: var(--space-0);
+    max-width: 560px;
   }
   .login-marquee h1 {
-    font-size: 36px;
+    margin-bottom: var(--space-2);
+    font-size: 30px;
+  }
+  .login-marquee h1 .accent {
+    display: inline;
+  }
+  .login-marquee .pitch {
+    font-size: 15px;
+  }
+  .login-marquee .foot,
+  .login-brand {
+    display: none;
+  }
+  .login-form-side {
+    padding: var(--space-10) var(--space-8) var(--space-6);
+  }
+  .login-form-side .login-card {
+    margin-block: 0 auto;
+  }
+}
+
+/* Celular: banda mínima para que el botón de ingreso quede a la vista. */
+@media (max-width: 480px) {
+  .login-marquee {
+    column-gap: var(--space-4);
+    padding: var(--space-6) var(--space-4);
+  }
+  .login-marquee .mark {
+    width: 48px;
+  }
+  .login-marquee h1 {
+    margin: var(--space-0);
+    font-size: 22px;
+  }
+  .login-marquee .pitch {
+    display: none;
+  }
+  .login-card .head h2 {
+    font-size: 26px;
+  }
+  .login-form-side {
+    padding: var(--space-8) var(--space-4) var(--space-6);
   }
 }

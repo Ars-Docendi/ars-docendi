@@ -1,0 +1,92 @@
+/* Términos de uso y privacidad — página pública fuera del shell. */
+
+.terminos-page {
+  min-height: calc(100vh / var(--ui-zoom, 1));
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+}
+
+.terminos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.terminos-marca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+.terminos-marca span {
+  color: var(--color-text-primary);
+}
+.terminos-isotipo {
+  width: 40px;
+  height: auto;
+}
+.terminos-volver {
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-link);
+}
+
+.terminos-contenido {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-12) var(--space-6);
+  font-size: var(--text-body-sm-size);
+  line-height: 1.65;
+  color: var(--color-text-secondary);
+}
+.terminos-contenido h1 {
+  margin: var(--space-0) var(--space-0) var(--space-2);
+  font-size: 28px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.015em;
+  color: var(--color-text-primary);
+}
+.terminos-vigencia {
+  margin: var(--space-0) var(--space-0) var(--space-8);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+.terminos-contenido section + section {
+  margin-top: var(--space-8);
+}
+.terminos-contenido h2 {
+  margin: var(--space-0) var(--space-0) var(--space-2);
+  font-size: 16px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.terminos-contenido p {
+  margin: var(--space-0) var(--space-0) var(--space-3);
+}
+.terminos-contenido ul {
+  margin: var(--space-0);
+  padding-left: var(--space-5);
+}
+.terminos-contenido li + li {
+  margin-top: var(--space-1);
+}
+.terminos-leyenda {
+  padding: var(--space-4);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-bg-raised);
+  font-size: var(--text-caption-size);
+}
+
+@media (max-width: 720px) {
+  .terminos-header,
+  .terminos-contenido {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .terminos-contenido {
+    padding-top: var(--space-8);
+  }
+}
