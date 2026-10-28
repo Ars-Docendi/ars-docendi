@@ -23,7 +23,7 @@ Este rediseño se resuelve sólo en código, sin pasar por los `.pen`, por pedid
 
 ### Layout y color: panel de bienvenida en verde de marca
 
-La pantalla sigue la estructura de una referencia que eligió el equipo. A la izquierda va un panel de bienvenida: degradé liso de `--accent-500` a `--accent-800`, sin motivos decorativos, el isotipo grande en blanco, el título "Te damos la bienvenida a Ars Docendi" (la marca en `--accent-200`, en su propio renglón), qué se puede hacer en el sistema y el departamento al pie. A la derecha, fondo `--color-bg-raised`, la marca (isotipo y "Ars Docendi") arriba, el formulario "Ingresá a tu cuenta" con el botón primario y el pie legal.
+La pantalla sigue la estructura de una referencia que eligió el equipo. A la izquierda va un panel de bienvenida: degradé liso de `--accent-500` a `--accent-800`, sin motivos decorativos, el isotipo grande en blanco, el título "Te damos la bienvenida a Ars Docendi" (la marca en `--accent-200`, en su propio renglón), qué se puede hacer en el sistema y el departamento al pie. A la derecha, fondo `--color-bg-canvas`, la marca (isotipo y "Ars Docendi") arriba, el formulario "Ingresá a tu cuenta" con el botón primario dentro de una caja y el pie legal. La caja usa `--color-bg-raised`, `--radius-sm` y la elevación por borde `--elev-2` del sistema de diseño, sin sombras, para que el formulario no quede suelto sobre el fondo.
 
 El botón de Microsoft usa el primario verde de la librería, igual que las acciones principales del resto del sistema. La escala accent se invierte en tema oscuro, así que el degradé usa `--accent-400` a `--accent-100`, que son los mismos verdes.
 
@@ -33,7 +33,7 @@ El botón de Microsoft usa el primario verde de la librería, igual que las acci
 
 ### Responsive
 
-Hay tres rangos. En escritorio, dos columnas. Hasta 960 px, una columna: el panel pasa a ser una banda superior con el isotipo a la izquierda y, a su derecha, la bienvenida y la descripción. El pie del panel y la marca del formulario se ocultan, porque la banda ya identifica el sistema. Hasta 480 px, la banda muestra sólo el isotipo y la bienvenida, para que el botón de ingreso se vea sin scroll en un celular de 375 × 812. No hay scroll horizontal en ningún rango.
+Hay tres rangos. En escritorio, dos columnas. Hasta 960 px, una columna: el panel pasa a ser una banda superior con el isotipo a la izquierda y, a su derecha, la bienvenida y la descripción. El pie del panel y la marca del formulario se ocultan, porque la banda ya identifica el sistema. La caja queda arriba, con el pie legal justo debajo. Hasta 480 px, la banda muestra sólo el isotipo y la bienvenida, para que el botón de ingreso se vea sin scroll en un celular de 375 × 812. No hay scroll horizontal en ningún rango.
 
 ### Marca: isotipo vectorizado en un componente y en el favicon
 

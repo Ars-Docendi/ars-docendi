@@ -10,7 +10,7 @@
   min-height: calc(100vh / var(--ui-zoom, 1));
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: var(--color-bg-raised);
+  background: var(--color-bg-canvas);
   color: var(--color-text-primary);
 }
 
@@ -101,10 +101,15 @@
 .login-form-side .login-card {
   margin-block: auto;
 }
+/* Caja del formulario: elevación por borde, como el resto del sistema. */
 .login-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
+  padding: var(--space-10) var(--space-8);
+  background: var(--color-bg-raised);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-2);
 }
 .login-card .head h2 {
   margin: var(--space-0) var(--space-0) var(--space-2);
@@ -203,7 +208,7 @@
     padding: var(--space-10) var(--space-8) var(--space-6);
   }
   .login-form-side .login-card {
-    margin-block: 0 auto;
+    margin-block: 0;
   }
 }
 
@@ -222,6 +227,10 @@
   }
   .login-marquee .pitch {
     display: none;
+  }
+  .login-card {
+    padding: var(--space-6) var(--space-5);
+    gap: var(--space-6);
   }
   .login-card .head h2 {
     font-size: 26px;
