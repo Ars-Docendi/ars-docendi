@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 import { PedidoForm } from "../components/PedidoForm";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
@@ -25,6 +25,7 @@ export function PedidoFormPage() {
   const { id } = useParams();
   const esEdicion = Boolean(id);
   const navegar = useNavigate();
+  const estadoNavegacion = useLocation().state;
 
   const { data: pedidos } = useMisPedidos();
   const catalogos = useCatalogosDesignaciones(id);
@@ -36,7 +37,7 @@ export function PedidoFormPage() {
   const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : RUTA_MIS_PEDIDOS;
 
   function volver() {
-    navegar(rutaRetorno);
+    navegar(rutaRetorno, { state: estadoNavegacion });
   }
 
   function handleGuardar(datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) {

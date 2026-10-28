@@ -160,6 +160,9 @@ function DetalleCargado({
   const etapas = derivarCadena(pedido, actor);
   const periodoNombre = pedido.periodoNombre;
   const navegar = useNavigate();
+  const estadoNavegacion = useLocation().state;
+  const { user } = useCurrentUser();
+  const origen = resolverOrigen(estadoNavegacion, user?.permissions ?? []);
 
   // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.
   const [accionPendiente, setAccionPendiente] = useState<AccionRevision | null>(null);
@@ -204,7 +207,7 @@ function DetalleCargado({
             <Button
               variant="secondary"
               leadingIcon={<IconoArrowLeft />}
-              onClick={() => navegar(-1)}
+              onClick={() => navegar(origen.ruta)}
             >
               Volver
             </Button>
@@ -212,7 +215,11 @@ function DetalleCargado({
               <Button
                 variant="secondary"
                 leadingIcon={<IconoSquarePen />}
-                onClick={() => navegar(`/designaciones/pedidos/${pedido.id}/editar`)}
+                onClick={() =>
+                  // El origen viaja a la edición para que, al volver al detalle, su "Volver"
+                  // siga llevando a Mis pedidos o Revisión y no de nuevo a la edición.
+                  navegar(`/designaciones/pedidos/${pedido.id}/editar`, { state: estadoNavegacion })
+                }
               >
                 Editar
               </Button>

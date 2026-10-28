@@ -102,7 +102,11 @@ export function MisPedidosPage() {
               onVerDetalle={(p) =>
                 navegar(`/designaciones/pedidos/${p.id}`, { state: estadoOrigen("mis-pedidos") })
               }
-              onEditar={(p) => navegar(`/designaciones/pedidos/${p.id}/editar`)}
+              onEditar={(p) =>
+                navegar(`/designaciones/pedidos/${p.id}/editar`, {
+                  state: estadoOrigen("mis-pedidos"),
+                })
+              }
               onEliminar={(p) => setPedidoAEliminar(p)}
             />
           </>
