@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, RouterProvider, createMemoryRouter } from "react-router-dom";
@@ -55,6 +55,9 @@ function renderEn(ruta: string) {
 }
 
 describe("AppLayout — contracción por ruta", () => {
+  // La preferencia de sidebar colapsada vive en localStorage: cada test arranca sin ella.
+  beforeEach(() => localStorage.clear());
+
   it("fuera de /ayuda el shell queda expandido", () => {
     expect(renderEn("/portal")).not.toHaveClass("collapsed");
     expect(screen.getByText("Mi portal")).toBeInTheDocument();
@@ -64,7 +67,6 @@ describe("AppLayout — contracción por ruta", () => {
     "bajo %s la sidebar principal queda en íconos",
     (ruta) => {
       expect(renderEn(ruta)).toHaveClass("collapsed");
-      expect(screen.queryByText("Versión 1.0.0 · Ars Docendi")).not.toBeInTheDocument();
       expect(screen.getByRole("link", { name: "Centro de ayuda" })).toHaveAttribute(
         "title",
         "Centro de ayuda",
@@ -81,6 +83,21 @@ describe("AppLayout — contracción por ruta", () => {
 
     await user.click(screen.getByRole("link", { name: "ir al portal" }));
     expect(app).not.toHaveClass("collapsed");
+  });
+
+  it("en /ayuda el botón Menú despliega la sidebar sin cambiar la preferencia", async () => {
+    const user = userEvent.setup();
+    const app = renderEn("/portal");
+
+    await user.click(screen.getByRole("link", { name: "ir a ayuda" }));
+    await user.click(screen.getByRole("button", { name: "Expandir menú lateral" }));
+    expect(app).not.toHaveClass("collapsed");
+
+    // Salir y volver: la preferencia sigue expandida y /ayuda arranca contraída otra vez.
+    await user.click(screen.getByRole("link", { name: "ir al portal" }));
+    expect(app).not.toHaveClass("collapsed");
+    await user.click(screen.getByRole("link", { name: "ir a ayuda" }));
+    expect(app).toHaveClass("collapsed");
   });
 
   it("una ruta que solo empieza igual que /ayuda no contrae", async () => {

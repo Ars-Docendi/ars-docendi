@@ -1,158 +1,42 @@
-import { Fragment, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-
-import { chevronIcon, helpIcon, navIcons } from "./icons";
-import { filtrarNavegacion, type NavItem } from "./nav";
+import type { CurrentUser } from "../../shared/auth/useCurrentUser";
+import { menuIcon } from "./icons";
+import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
+import { MarcaArsDocendi } from "./MarcaArsDocendi";
+import { MenuUsuario } from "./MenuUsuario";
 
 interface SidebarProps {
   collapsed: boolean;
-  permissions: readonly string[];
+  onToggleCollapse: () => void;
+  user: CurrentUser;
 }
 
-export function Sidebar({ collapsed, permissions }: SidebarProps) {
-  const groups = filtrarNavegacion(permissions);
-
+/** Barra lateral de escritorio: menú y marca arriba, ayuda y usuario abajo. */
+export function Sidebar({ collapsed, onToggleCollapse, user }: SidebarProps) {
   return (
-    <nav className="adoc-sidebar" aria-label="Navegación principal">
-      <ul className="adoc-nav">
-        {groups.map((group) => (
-          <Fragment key={group.label}>
-            {!collapsed && <li className="adoc-nav-section">{group.label}</li>}
-            {group.items.map((item) =>
-              item.children && item.children.length > 0 ? (
-                <GrupoColapsable
-                  key={`${group.label}:${item.to}`}
-                  item={item}
-                  collapsed={collapsed}
-                />
-              ) : (
-                <li key={`${group.label}:${item.to}:${item.label}`}>
-                  <EnlaceNav item={item} collapsed={collapsed} />
-                </li>
-              ),
-            )}
-          </Fragment>
-        ))}
-      </ul>
+    <aside className="adoc-sidebar">
+      <div className="adoc-sidebar-head">
+        <button
+          type="button"
+          className="adoc-menu-btn"
+          onClick={onToggleCollapse}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
+        >
+          <span className="ico">{menuIcon}</span>
+        </button>
+        <div className="adoc-brand">
+          <MarcaArsDocendi collapsed={collapsed} />
+        </div>
+      </div>
+
+      <nav className="adoc-sidebar-nav" aria-label="Navegación principal">
+        <ListaNavegacion permissions={user.permissions} collapsed={collapsed} />
+      </nav>
 
       <div className="adoc-sidebar-foot">
         <EnlaceAyuda collapsed={collapsed} />
-        {collapsed ? (
-          "AD"
-        ) : (
-          <>
-            Versión 1.0.0 · Ars Docendi
-            <br />
-            <i>El arte de enseñar</i>
-          </>
-        )}
+        <MenuUsuario user={user} collapsed={collapsed} />
       </div>
-    </nav>
-  );
-}
-
-/**
- * Acceso al Centro de ayuda. Vive en el pie y no en `NAVEGACION` porque no
- * depende de permisos: lo ve todo usuario autenticado.
- */
-function EnlaceAyuda({ collapsed }: { collapsed: boolean }) {
-  return (
-    <NavLink
-      to="/ayuda"
-      className={({ isActive }) => `adoc-sidebar-help${isActive ? " current" : ""}`}
-      title={collapsed ? "Centro de ayuda" : undefined}
-      aria-label={collapsed ? "Centro de ayuda" : undefined}
-    >
-      <span className="ico">{helpIcon}</span>
-      {!collapsed && <span className="label">Centro de ayuda</span>}
-    </NavLink>
-  );
-}
-
-/** Enlace de navegación hoja (ítem sin hijos, o un hijo dentro de un grupo). */
-function EnlaceNav({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
-  return (
-    <NavLink
-      to={item.to}
-      end
-      className={({ isActive }) => (isActive ? "current" : undefined)}
-      title={collapsed ? item.label : undefined}
-    >
-      <span className="ico">{navIcons[item.icon]}</span>
-      <span className="label">{item.label}</span>
-    </NavLink>
-  );
-}
-
-/** Indica si la ruta actual cae dentro de alguno de los hijos del grupo. */
-function usarHijoActivo(item: NavItem, pathname: string): boolean {
-  return (item.children ?? []).some(
-    (hijo) => pathname === hijo.to || pathname.startsWith(`${hijo.to}/`),
-  );
-}
-
-/**
- * Ítem padre colapsable: el label navega a su ruta (NavLink) y un botón
- * chevron aparte expande/colapsa los hijos. Arranca abierto y se reabre solo
- * cuando una sub-ruta queda activa. En modo sidebar colapsado (solo iconos)
- * cae a una lista plana de iconos para mantener todas las rutas alcanzables.
- */
-function GrupoColapsable({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
-  const { pathname } = useLocation();
-  const hijoActivo = usarHijoActivo(item, pathname);
-
-  // Auto-expand al entrar a una sub-ruta activa, sin useEffect: ajuste de
-  // estado en render comparando contra el valor previo (patrón recomendado por
-  // React, "You Might Not Need an Effect"). Permite colapsar manualmente y
-  // reabre solo cuando la ruta activa cambia hacia un hijo.
-  const [abierto, setAbierto] = useState(true);
-  const [hijoActivoPrevio, setHijoActivoPrevio] = useState(hijoActivo);
-  if (hijoActivo !== hijoActivoPrevio) {
-    setHijoActivoPrevio(hijoActivo);
-    if (hijoActivo) setAbierto(true);
-  }
-
-  if (collapsed) {
-    return (
-      <>
-        <li>
-          <EnlaceNav item={item} collapsed />
-        </li>
-        {item.children?.map((hijo) => (
-          <li key={hijo.to}>
-            <EnlaceNav item={hijo} collapsed />
-          </li>
-        ))}
-      </>
-    );
-  }
-
-  const idHijos = `nav-grupo-${item.to}`;
-
-  return (
-    <li className="adoc-nav-group">
-      <div className="adoc-nav-grouprow">
-        <EnlaceNav item={item} collapsed={false} />
-        <button
-          type="button"
-          className="adoc-nav-chevron"
-          aria-expanded={abierto}
-          aria-controls={idHijos}
-          aria-label={`${abierto ? "Colapsar" : "Expandir"} ${item.label}`}
-          onClick={() => setAbierto((previo) => !previo)}
-        >
-          <span className={`chev${abierto ? "" : " collapsed"}`}>{chevronIcon}</span>
-        </button>
-      </div>
-      {abierto && (
-        <ul className="adoc-nav-children" id={idHijos}>
-          {item.children?.map((hijo) => (
-            <li key={hijo.to}>
-              <EnlaceNav item={hijo} collapsed={false} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </li>
+    </aside>
   );
 }
