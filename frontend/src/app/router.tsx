@@ -10,6 +10,7 @@ import { routes as tareasRoutes } from "../features/tareas/routes";
 import { routes as personasRoutes, redireccionesAnteriores } from "../features/personas/routes";
 import { routes as rolesRoutes } from "../features/roles/routes";
 import { routes as sistemaRoutes } from "../features/sistema/routes";
+import { routes as ayudaRoutes } from "../features/ayuda/routes";
 
 export const router = createBrowserRouter([
   // Full-bleed split-pane login — public, rendered outside the App shell (no header/nav).
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
           ...redireccionesAnteriores,
           rolesRoutes,
           ...sistemaRoutes,
+          ayudaRoutes,
           { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
         ],
       },

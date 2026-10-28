@@ -139,6 +139,14 @@ Más comandos en [ONBOARDING.md → Flujos comunes](ONBOARDING.md#4-flujos-comun
 
 `frontend/src/test/contratos/` guarda respuestas reales de la API que el frontend usa en sus tests. Si un cambio intencional altera la forma de una respuesta, el test de backend falla; regeneralo con `ACTUALIZAR_CONTRATOS=1 dotnet test backend/ArsDocendi.slnx` y adaptá el mapper del frontend.
 
+## Centro de ayuda
+
+La app incluye un Centro de ayuda en `/ayuda` (ítem al pie del menú lateral). Es contenido estático del frontend, sin backend, filtrado por los permisos de la sesión.
+
+- Los artículos viven en `frontend/src/features/ayuda/contenido/<modulo>/<articulo>.ts` y se registran en `contenido/index.ts`.
+- Las capturas van en `frontend/public/ayuda/<modulo>/`, en WebP calidad 85 y hasta 150 KB, tomadas solo con datos sintéticos (nunca `sga.sql` ni PII real).
+- Al cambiar una pantalla o un permiso, actualizá en el mismo diff el artículo que lo documenta. El test de integridad (`contenido/integridad.test.ts`) valida permisos, enlaces, capturas y pesos.
+
 ## Estructura
 
 Monorepo con `backend/` (.NET 10, monolito modular: `src/` y `tests/`), `frontend/` (Vite + React 19), `database/` (SQL versionado por contexto), `openspec/` (specs vigentes y changes activos), `docs/` (arquitectura, calidad, reglas de negocio, workflows), `infra/` (Compose, Traefik, scripts de despliegue), `scripts/` (setup local y tooling de docs/migraciones/seed) y `.github/workflows/` (CI, CodeQL y deploys). La organización interna de cada módulo está en [docs/architecture/module-anatomy.md](docs/architecture/module-anatomy.md) y los edges permitidos en [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md).
