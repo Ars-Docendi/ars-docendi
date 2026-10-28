@@ -4,18 +4,18 @@ Complementa [api-contracts.md](./api-contracts.md). Todas las rutas administrati
 
 ## Permisos
 
-| Recurso               | Lectura                                    | Escritura                   |
-| --------------------- | ------------------------------------------ | --------------------------- |
-| Usuarios              | `usuarios.ver`                             | `usuarios.administrar`      |
-| Docentes              | `docentes.ver` o JdC con ámbito de materia | `usuarios.administrar`      |
-| Roles                 | `roles.ver`                                | `roles.administrar`         |
-| Membresía de permisos | `roles.ver`                                | `roles.gestionar_membresia` |
-| Revisión de pedidos   | `designaciones.revisar`                    | —                           |
-| Estado del sistema    | `sistema.estado.ver`                       | —                           |
-| Auditoría             | `auditoria.ver`                            | —                           |
-| Catálogos             | permiso de lectura del recurso consumidor  | —                           |
+| Recurso               | Lectura                                   | Escritura                   |
+| --------------------- | ----------------------------------------- | --------------------------- |
+| Personas              | `personas.ver` o `personas.ver_ambito`    | `personas.administrar`      |
+| Mi Portal de otros    | lectura de la persona                     | `portal.administrar`        |
+| Roles                 | `roles.ver`                               | `roles.administrar`         |
+| Membresía de permisos | `roles.ver`                               | `roles.gestionar_membresia` |
+| Revisión de pedidos   | `designaciones.revisar`                   | —                           |
+| Estado del sistema    | `sistema.estado.ver`                      | —                           |
+| Auditoría             | `auditoria.ver`                           | —                           |
+| Catálogos             | permiso de lectura del recurso consumidor | —                           |
 
-Docentes usa `docentes.ver` para lectura global. La vista de Jefe de Cátedra es una excepción de lectura acotada: la API deriva el ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y no habilita la API de usuarios ni escrituras. `usuarios.ver` conserva acceso de lectura global por compatibilidad con la administración de identidad.
+`personas.ver` lee todas las personas. `personas.ver_ambito` (Jefe de Cátedra) lee sólo las personas con designación vigente en las materias donde es jefe; la API deriva ese ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y fuera de él responde 404. `portal.administrar` corrige el Mi Portal de otra persona dentro del mismo ámbito. Los permisos `usuarios.ver`, `usuarios.administrar` y `docentes.ver` se retiraron con las pantallas de Usuarios y Docentes.
 
 ## DTOs
 
@@ -27,19 +27,12 @@ AsignacionRolDto       = { id, rolId, codigo, nombre, ambito, materiaId?, carrer
                          Docente → `materiaId` + `carreraId` juntos (una materia compartida entre
                          carreras exige elegir una); Jefe de Cátedra → `materiaId` (canónica) solo;
                          Coordinador → `carreraId` solo.
-PerfilDocenteDto       = { esDocente, cantidadMaterias }
-UsuarioAdministracionDto      = { id, personaId, nombre, apellido, documento, legajo?, cuil?,
-                           fechaNacimiento?, telefono?, upn, activo, roles[], membresias[],
-                           perfilDocente }
-GuardarUsuarioDto      = { nombre, apellido, documento, legajo?, cuil?, fechaNacimiento?,
-                           telefono?, upn, membresias[{ rolId, materiaId?, carreraId? }], version? }
 DesignacionVigenteDto  = { id, materiaId, materiaCodigo, materiaNombre, carreraId,
                            cargo{id,codigo,nombre,abreviatura},
                            dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde }
-DocenteAdministracionDto      = { personaId, usuarioId?, datosPersona..., tieneCuenta, activo?,
-                           roles[], membresias[], designaciones[] }
-GuardarDocenteDto      = { personaId? | personaNueva, datosPersona..., membresias[],
-                           designaciones[], version? }
+PersonaAdministracionDto = { personaId, usuarioId?, nombre, apellido, documento, legajo?, cuil?,
+                           fechaNacimiento?, telefono?, upn?, tieneCuenta, activo, version?,
+                           roles[], membresias[], asignaciones[] }
 RolDto                 = { id, codigo, nombre, descripcion?, ambito, esSistema, activo, version, permisos[] }
 CrearRolDto            = { nombre, descripcion?, ambito, rolBaseId? }
 EditarRolDto           = { nombre, descripcion?, ambito, version }
@@ -53,11 +46,14 @@ EventoAuditoriaDto     = { id, schema, tabla, rowPk, accion, cambiadoEn, cambiad
 PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
-                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre }], personasElegibles[] }
+                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre, carreraCodigo }], personasElegibles[] }
                            `materias` son canónicas (jefe y, junto con `carreraId`, docente);
                            `materiasPlan` es el catálogo informativo materia–carrera (pares
                            deduplicados) que acota qué carreras ofrecer para una materia de
-                           Docente — ninguna FK de negocio depende de él.
+                           Docente — ninguna FK de negocio depende de él. Su `id` es el de la
+                           materia canónica (no el de la fila materia–plan) y `carreraCodigo`
+                           permite buscar por código de carrera. Mismo formato en
+                           `/api/administracion/personas/catalogos`.
 ```
 
 Los roles personalizados conservan su `codigo` al renombrarse y exigen nombre único entre roles
@@ -67,41 +63,45 @@ asignaciones históricas, pero lo excluye de listados, asignaciones nuevas y rol
 sistema mantienen inmutables código, nombre, descripción, ámbito, marca y estado; sus permisos sí
 pueden reemplazarse.
 
-## Rutas de usuarios
+## Rutas de personas
 
-| Método | Ruta                                           | Permiso                | Entrada / salida                                               |
-| ------ | ---------------------------------------------- | ---------------------- | -------------------------------------------------------------- |
-| GET    | `/api/administracion/usuarios`                 | `usuarios.ver`         | `UsuarioAdministracionDto[]`                                   |
-| GET    | `/api/administracion/usuarios/{id}`            | `usuarios.ver`         | `UsuarioAdministracionDto`                                     |
-| POST   | `/api/administracion/usuarios`                 | `usuarios.administrar` | `GuardarUsuarioDto` → `201 UsuarioAdministracionDto`           |
-| PUT    | `/api/administracion/usuarios/{id}`            | `usuarios.administrar` | `GuardarUsuarioDto` con `version` → `UsuarioAdministracionDto` |
-| POST   | `/api/administracion/usuarios/{id}/activar`    | `usuarios.administrar` | `{ version }` → `UsuarioAdministracionDto`                     |
-| POST   | `/api/administracion/usuarios/{id}/desactivar` | `usuarios.administrar` | `{ version }` → `UsuarioAdministracionDto`                     |
+| Método | Ruta                                                  | Permiso                                | Entrada / salida                                                                                                    |
+| ------ | ----------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/administracion/personas`                        | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto[]` (acotado por ámbito)                                                                   |
+| GET    | `/api/administracion/personas/{personaId}`            | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto`; 404 fuera del ámbito                                                                    |
+| GET    | `/api/administracion/personas/catalogos`              | `personas.ver` o `personas.ver_ambito` | roles, materias, materias–carrera, carreras, cargos y dedicaciones                                                  |
+| POST   | `/api/administracion/personas/documento/verificar`    | `personas.administrar`                 | `{ documento, exceptoPersonaId? }` → `{ existe, personaId?, nombre?, legajo?, activo? }` (`activo` nulo sin cuenta) |
+| POST   | `/api/administracion/personas`                        | `personas.administrar`                 | `GuardarPersonaDto` → `201 PersonaAdministracionDto`                                                                |
+| PUT    | `/api/administracion/personas/{personaId}`            | `personas.administrar`                 | `GuardarPersonaDto` con `version` → `PersonaAdministracionDto`                                                      |
+| POST   | `/api/administracion/personas/{personaId}/activar`    | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                                                          |
+| POST   | `/api/administracion/personas/{personaId}/desactivar` | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                                                          |
 
-## Rutas de docentes y catálogos
+`GuardarPersonaDto = { nombre, apellido, documento, legajo, cuil?, fechaNacimiento, telefono?, upn,
+membresias[{ rolId, materiaId?, carreraId? }], designaciones[{ materiaId, carreraId, cargoId,
+dedicacionId?, horas }], version? }`. Reglas: al menos un rol con su ámbito; asignaciones obligatorias
+con rol Docente o Jefe de Cátedra; `dedicacionId` es obligatorio en una asignación nueva y sólo puede
+faltar en una histórica que conserva su dedicación legada; el documento se guarda y compara por sus dígitos y no se repite;
+la lista de roles y la de designaciones se reemplazan completas en una sola transacción.
 
-| Método | Ruta                                                  | Permiso                      | Entrada / salida                                     |
-| ------ | ----------------------------------------------------- | ---------------------------- | ---------------------------------------------------- |
-| GET    | `/api/administracion/docentes`                        | `docentes.ver` o JdC acotado | `DocenteAdministracionDto[]`                         |
-| GET    | `/api/administracion/docentes/{personaId}`            | `docentes.ver` o JdC acotado | `DocenteAdministracionDto`                           |
-| POST   | `/api/administracion/docentes`                        | `usuarios.administrar`       | `GuardarDocenteDto` → `201 DocenteAdministracionDto` |
-| PUT    | `/api/administracion/docentes/{personaId}`            | `usuarios.administrar`       | `GuardarDocenteDto` → `DocenteAdministracionDto`     |
-| POST   | `/api/administracion/docentes/{personaId}/activar`    | `usuarios.administrar`       | `DocenteAdministracionDto`                           |
-| POST   | `/api/administracion/docentes/{personaId}/desactivar` | `usuarios.administrar`       | `DocenteAdministracionDto`                           |
-| GET    | `/api/administracion/docentes/catalogos`              | `docentes.ver` o JdC acotado | materias, cargos y personas elegibles según ámbito   |
-| GET    | `/api/administracion/catalogos`                       | `usuarios.ver`               | `CatalogoIdentityDto` filtrado por permisos          |
+## Mi Portal de una persona
 
-Alta/edición docente es atómica desde la perspectiva HTTP. Si falla identity o el comando público de Designaciones, el servidor revierte o compensa la unidad completa y retorna Problem Details.
+Bajo `/api/administracion/personas/{personaId}/portal` se exponen las mismas operaciones que
+`/api/portal/perfil` (lectura, contacto, CV, experiencia, educación, certificaciones, proyectos,
+habilidades, intereses y descargas de CV y documento de proyecto). Leer y descargar requiere poder
+ver a la persona; las mutaciones, además, `portal.administrar`; fuera del ámbito, 404. El Host
+autoriza y delega en `IAdministracionPortal` (`Modules.Portal.Contracts`), que usa las mismas
+validaciones y versiones de Mi Portal. El operador es el autor auditado y el dueño en Storage de los
+archivos que sube; el archivo queda vinculado al perfil de la persona.
+
+Alta/edición de persona es atómica desde la perspectiva HTTP. Si falla identity o el comando público de Designaciones, el servidor revierte o compensa la unidad completa y retorna Problem Details.
 
 `roles` es un resumen único por `rolId`; no se repiten por cada materia. `membresias` conserva cada
 asignación activa completa. Los payloads de escritura usan sólo IDs canónicos: las etiquetas visibles
 de roles, carreras y materias no son identificadores. Un mismo usuario puede tener, por ejemplo,
 `docente + Materia A` y `jefe_catedra + Materia B` sin combinaciones implícitas entre filas.
-`perfilDocente` se compone con esas membresías y las designaciones vigentes de la misma `personaId`;
-no es un campo persistido.
 
-Las tablas administrativas navegan entre las fichas mediante `/usuarios?personaId={id}` y
-`/docentes?personaId={id}`; abrir esos enlaces sólo selecciona el recurso existente y no crea registros.
+Las rutas de frontend `/usuarios` y `/docentes` (con `?personaId=`) redirigen a `/personas` y
+`/personas/{id}`.
 
 ## Rutas de roles
 
@@ -162,4 +162,4 @@ El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
 
-El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.
+El catálogo de personas incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.

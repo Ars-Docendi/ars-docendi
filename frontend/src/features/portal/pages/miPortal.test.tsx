@@ -68,8 +68,10 @@ const perfiles = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../api/portalApi", async () => {
-  const real = await vi.importActual<typeof import("../api/portalApi")>("../api/portalApi");
+vi.mock("../../../shared/perfil/api/portalApi", async () => {
+  const real = await vi.importActual<typeof import("../../../shared/perfil/api/portalApi")>(
+    "../../../shared/perfil/api/portalApi",
+  );
   return {
     ...real,
     obtenerPerfil: async () => {

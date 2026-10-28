@@ -46,6 +46,7 @@ flowchart TD
   Host --> Portal
   Host --> Tareas
   Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
+  Host -->|"administración de Mi Portal de otras personas"| PortalContracts
   Host --> Shared
 
   Designaciones --> Shared
@@ -87,6 +88,7 @@ flowchart TD
 | `ArsDocendi.Host`       | `Modules.Portal`                  | project reference | Hosting                                                                                            |
 | `ArsDocendi.Host`       | `Modules.Tareas`                  | project reference | Hosting                                                                                            |
 | `ArsDocendi.Host`       | `Modules.Designaciones.Contracts` | project reference | `IAdministracionDesignaciones`: consulta y reemplazo de designaciones vigentes sin tocar internals |
+| `ArsDocendi.Host`       | `Modules.Portal.Contracts`        | project reference | `IAdministracionPortal`: lectura y corrección de Mi Portal de otra persona                         |
 | `ArsDocendi.Host`       | `ArsDocendi.Shared`               | project reference | Identity, auditoría y permisos para administración y autenticación                                 |
 | `Modules.Designaciones` | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
 | `Modules.Designaciones` | `Modules.Designaciones.Contracts` | project reference | Propio contract público                                                                            |
@@ -143,7 +145,7 @@ internas de Portal.
 
 ## Orquestación administrativa de docentes
 
-`ArsDocendi.Host.Administracion.ServicioDocentes` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa el edge Host → Contracts ya permitido y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
+`ArsDocendi.Host.Administracion.ServicioAdministracionPersonas` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa el edge Host → Contracts ya permitido y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
 
 ## Agregar un edge nuevo
 
