@@ -87,4 +87,13 @@ describe("TopBar", () => {
     expect(onToggleCollapse).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog", { name: "Menú" })).not.toBeInTheDocument();
   });
+
+  it("la marca muestra el isotipo y lleva a Mi portal", () => {
+    renderTopBar();
+
+    const marca = screen.getByRole("link", { name: "Ars Docendi, ir a Mi portal" });
+    expect(marca).toHaveAttribute("href", "/portal");
+    expect(marca.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByText("AD")).not.toBeInTheDocument();
+  });
 });

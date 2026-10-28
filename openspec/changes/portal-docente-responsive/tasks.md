@@ -3,7 +3,7 @@
 ## 1. Shell: navegación en pantallas angostas
 
 - [x] 1.1 Extraer de `app/shell/Sidebar.tsx` la lista `<ul className="adoc-nav">` a un componente `ListaNavegacion` (`permissions`, `onNavegar` opcional) y montarlo en `Sidebar`. Verificar que `Sidebar.test.tsx` sigue en verde sin cambios.
-- [x] 1.2 En `app/shell/TopBar.tsx`, agregar el botón "Menú" (ícono en `icons.tsx`, `aria-label="Abrir menú de navegación"`, `aria-expanded`) y el `Drawer` de `@ars-docendi/ui` con `side="left"`, que monta `ListaNavegacion` con `user.permissions` y se cierra con `onNavegar`. Mantener comentado el botón de colapso (diseño pendiente) y verificar que `TopBar.test.tsx` sigue en verde.
+- [x] 1.2 En `app/shell/TopBar.tsx`, agregar el botón "Menú" (ícono en `icons.tsx`, `aria-label="Abrir menú de navegación"`, `aria-expanded`) y el `Drawer` de `@ars-docendi/ui` con `side="left"`, que monta `ListaNavegacion` con `user.permissions` y se cierra con `onNavegar`. Verificar que `TopBar.test.tsx` sigue en verde.
 - [x] 1.3 Agregar en `TopBar.test.tsx` el flujo de spec "Abrir el menú y navegar": tocar "Menú", elegir un ítem, verificar que navega y que el panel se cierra. Verificar con `pnpm --filter frontend test:run`.
 - [x] 1.4 En `app/shell/shell.css`, debajo de 768 px: grilla de una columna, `.adoc-sidebar` oculta, botón "Menú" visible (oculto con 768 px o más), `.adoc-brand .sub` oculta y padding de `.adoc-main` en 16 px. Verificar en el browser a 375, 767, 768 y 1280 px que escritorio no cambia y que en móvil no hay barra lateral fija.
 
@@ -22,10 +22,18 @@
 - [x] 3.4 Animar el ancho de la barra al plegar y desplegar, sólo sin "reducir movimiento", con el ícono ☰ fijo. Verificar en el browser que el ícono no cambia y que la barra transiciona.
 - [x] 3.5 Actualizar la sección "Pantallas angostas" de `portal-docente-design-spec.md` con el botón en escritorio.
 
-## 4. Verificación integral
+## 4. Integración con develop (Centro de ayuda y marca nueva)
 
-- [x] 4.1 Correr `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build` y `pnpm exec openspec validate --all`, todos en verde.
-- [x] 4.2 Revisar a 360 px la barra superior con un nombre de usuario largo. Desbordaba, así que debajo de 768 px se oculta el nombre dentro del `RoleBadge` (ver design).
+- [x] 4.1 Mergear `develop`. En `AppLayout.tsx`, combinar la contracción bajo `/ayuda` con la preferencia guardada: en `/ayuda` el botón despliega la barra sólo durante esa visita. Cubrirlo en `AppLayout.test.tsx` y verificar que pasan los tests de contracción por ruta.
+- [x] 4.2 Mover `EnlaceAyuda` a `ListaNavegacion.tsx`, montarlo en el pie de la barra y al final del panel móvil, y verificar en `TopBar.test.tsx` que el panel lo ofrece.
+- [x] 4.3 Conservar en `TopBar.tsx` la marca con isotipo y enlace a Mi portal junto al botón "Menú", y verificar el test de la marca.
+- [x] 4.5 Debajo de 768 px, achicar el isotipo de la marca a 28 px para que la barra superior entre en 360 px, y subir la especificidad de `.adoc-sidebar-help` para que `.adoc-ui a` no lo pinte como enlace de texto. Verificar en el browser a 360 y 1280 px.
+- [x] 4.4 Incluir en el delta de `barra-superior` el texto y los escenarios de `centro-de-ayuda` y `rediseno-pantalla-ingreso`. Verificar con `openspec validate --all`.
+
+## 5. Verificación integral
+
+- [x] 5.1 Correr `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build` y `pnpm exec openspec validate --all`, todos en verde.
+- [x] 5.2 Revisar a 360 px la barra superior con un nombre de usuario largo. Desbordaba, así que debajo de 768 px se oculta el nombre dentro del `RoleBadge` (ver design).
 
 ## Workflow follow-up
 

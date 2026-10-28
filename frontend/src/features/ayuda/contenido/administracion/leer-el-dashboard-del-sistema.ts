@@ -66,7 +66,7 @@ export const leerElDashboardDelSistema: ArticuloAyuda = {
   despues: {
     titulo: "¿Qué sucede después?",
     cuerpo:
-      "El dashboard es de solo lectura: no reinicia ni modifica nada. Si un componente figura como No disponible de forma sostenida, informalo a soporte.adocendi@unlam.edu.ar con el nombre del componente y la hora de la última comprobación.",
+      "El dashboard es de solo lectura: no reinicia ni modifica nada. Si un componente figura como No disponible de forma sostenida, informalo al equipo que mantiene el sistema con el nombre del componente y la hora de la última comprobación.",
   },
   preguntas: [
     {

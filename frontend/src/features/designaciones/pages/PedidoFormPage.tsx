@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 import { PedidoForm } from "../components/PedidoForm";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
@@ -25,6 +25,7 @@ export function PedidoFormPage() {
   const { id } = useParams();
   const esEdicion = Boolean(id);
   const navegar = useNavigate();
+  const location = useLocation();
 
   const { data: pedidos } = useMisPedidos();
   const catalogos = useCatalogosDesignaciones(id);
@@ -36,7 +37,8 @@ export function PedidoFormPage() {
   const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : RUTA_MIS_PEDIDOS;
 
   function volver() {
-    navegar(rutaRetorno);
+    // Reemplaza la edición en el historial y conserva el origen del detalle.
+    navegar(rutaRetorno, { replace: true, state: location.state });
   }
 
   function handleGuardar(datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) {

@@ -45,7 +45,8 @@ export function DetallePedidoPage() {
   const navegar = useNavigate();
   const actor = useActorContexto();
   const { user } = useCurrentUser();
-  const origen = resolverOrigen(useLocation().state, user?.permissions ?? []);
+  const estadoNavegacion: unknown = useLocation().state;
+  const origen = resolverOrigen(estadoNavegacion, user?.permissions ?? []);
   const { data: pedido, isLoading, isError } = usePedido(id);
 
   const aceptar = useAceptarPedido();
@@ -117,6 +118,11 @@ export function DetallePedidoPage() {
           }
           eliminando={eliminar.isPending}
           errorEliminar={eliminar.isError ? eliminar.error.message : undefined}
+          // A la pantalla de origen, no al historial: desde la edición, -1 volvía a editar.
+          onVolver={() => navegar(origen.ruta)}
+          onEditar={() =>
+            navegar(`/designaciones/pedidos/${pedido.id}/editar`, { state: estadoNavegacion })
+          }
         />
       )}
     </>
@@ -135,6 +141,8 @@ interface DetalleCargadoProps {
   onEliminar: () => void;
   eliminando: boolean;
   errorEliminar?: string;
+  onVolver: () => void;
+  onEditar: () => void;
 }
 
 function DetalleCargado({
@@ -149,6 +157,8 @@ function DetalleCargado({
   onEliminar,
   eliminando,
   errorEliminar,
+  onVolver,
+  onEditar,
 }: DetalleCargadoProps) {
   const acciones = pedido.accionesPermitidas ?? [];
   const esRevisor = acciones.some((accion) =>
@@ -159,7 +169,6 @@ function DetalleCargado({
   const puedeEliminar = acciones.includes("eliminar");
   const etapas = derivarCadena(pedido, actor);
   const periodoNombre = pedido.periodoNombre;
-  const navegar = useNavigate();
 
   // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.
   const [accionPendiente, setAccionPendiente] = useState<AccionRevision | null>(null);
@@ -201,19 +210,11 @@ function DetalleCargado({
         meta={periodoNombre}
         actions={
           <div className="adoc-det-headactions">
-            <Button
-              variant="secondary"
-              leadingIcon={<IconoArrowLeft />}
-              onClick={() => navegar(-1)}
-            >
+            <Button variant="secondary" leadingIcon={<IconoArrowLeft />} onClick={onVolver}>
               Volver
             </Button>
             {puedeEditar && (
-              <Button
-                variant="secondary"
-                leadingIcon={<IconoSquarePen />}
-                onClick={() => navegar(`/designaciones/pedidos/${pedido.id}/editar`)}
-              >
+              <Button variant="secondary" leadingIcon={<IconoSquarePen />} onClick={onEditar}>
                 Editar
               </Button>
             )}

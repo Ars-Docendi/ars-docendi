@@ -2,7 +2,7 @@
 
 ## Context
 
-- El shell (`app/AppLayout.tsx` + `app/shell/shell.css`) es una grilla `200px 1fr` sin ningún `@media`. Para colapsar la barra existe el estado `collapsed`, pero el botón está comentado en `TopBar.tsx` ("hasta que se me ocurra un buen diseño"), así que hoy no hay ningún control para la navegación.
+- El shell (`app/AppLayout.tsx` + `app/shell/shell.css`) es una grilla `200px 1fr` sin ningún `@media`. Para colapsar la barra existía el estado `collapsed`, pero su botón estaba comentado en `TopBar.tsx`, así que no había ningún control para la navegación. El Centro de ayuda (`centro-de-ayuda`) contrae la barra a íconos bajo `/ayuda` y suma su acceso en el pie de la barra.
 - `@ars-docendi/ui` v1.0.4 trae un `Drawer` controlado (`open`, `onOpenChange`, `side="left"`, cierre con Escape y con el fondo) que nadie usa en la app.
 - El Portal (`shared/perfil/components/portal.css`) ya es fluido en lo grueso: usa flex, `min-width: 0` y `portal-form-grid` con `auto-fit, minmax(180px, 1fr)`, que en un teléfono pasa sola a una columna. Lo que rompe:
   - `.portal-aviso`, porque el `.adoc-toast` de la librería tiene `width: 360px` fijo y queda corrido 24 px a la derecha.
@@ -58,11 +58,16 @@ Debajo de 560 px:
 
 El padding de `.adoc-main` (16 px debajo de 768) se ajusta en `shell.css` porque es del shell. El override del ancho del toast queda limitado a `.portal-aviso` para no alterar otros usos.
 
+**D8. Convivencia con el Centro de ayuda.**
+Bajo `/ayuda` la barra arranca en íconos, como define `centro-de-ayuda`. El botón "Menú" la puede desplegar durante esa visita sin tocar la preferencia guardada. Al salir vuelve la preferencia, y cada nueva entrada a `/ayuda` arranca en íconos (ajuste de estado en render comparando contra la ruta previa, sin efectos). Así el botón nunca queda sin efecto. El acceso "Centro de ayuda" se movió a `ListaNavegacion.tsx` como `EnlaceAyuda`, para montarlo en el pie de la barra y al final del panel móvil.
+_Alternativa_: ocultar o deshabilitar el botón en `/ayuda`. Se descartó para que el botón no aparezca y desaparezca según la pantalla.
+
 ## Risks / Trade-offs
 
 - [El `RoleBadge` con nombres largos desborda la barra superior en 360 px] → Debajo de 768 px se ocultan la línea "Ingeniería · UNLaM" y el nombre dentro del badge, que conserva iniciales, rol y menú. El nombre completo sigue en la página (por ejemplo, en la identidad del Portal). Se hace desde `shell.css`, sin tocar la librería.
 - [El cambio del shell también se ve en pantallas que no se adaptaron] → Con contenido a ancho completo quedan mejor que hoy. Fuera del Portal no se promete que sean usables.
 - [Personas hereda los ajustes de `portal.css`] → Se verifica también el editor de Personas a 375 px.
+- [Tres changes en curso (`centro-de-ayuda`, `rediseno-pantalla-ingreso` y este) modifican el mismo requisito de `barra-superior`, y el que se archive último pisa a los demás] → El delta de este change incluye el texto y los escenarios de los otros dos.
 
 ## Migration Plan
 

@@ -94,6 +94,6 @@ export const consultarLaAuditoria: ArticuloAyuda = {
   ],
   relacionados: [
     "administracion/leer-el-dashboard-del-sistema",
-    "administracion/administrar-usuarios",
+    "administracion/administrar-personas",
   ],
 };

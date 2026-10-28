@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button, Drawer, RoleBadge } from "@ars-docendi/ui";
 
 import { useCerrarSesion } from "../../shared/auth/auth";
+import { IsotipoArsDocendi } from "../../shared/marca/IsotipoArsDocendi";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { menuIcon } from "./icons";
 import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
@@ -103,8 +104,11 @@ export function TopBar({ collapsed, onToggleCollapse, user }: TopBarProps) {
       </Drawer>
 
       <div className="adoc-brand">
-        <span className="mark">AD</span>
-        <span>Ars Docendi</span>
+        {/* La marca lleva a Mi portal, el inicio de la aplicación. */}
+        <Link to="/portal" className="adoc-brand-link" aria-label="Ars Docendi, ir a Mi portal">
+          <IsotipoArsDocendi className="mark" />
+          <span>Ars Docendi</span>
+        </Link>
         <span className="sub">Ingeniería · UNLaM</span>
       </div>
 

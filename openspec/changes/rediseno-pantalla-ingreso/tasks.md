@@ -1,0 +1,27 @@
+# Tasks
+
+## 1. Identidad visual del panel
+
+- [x] 1.1 Vectorizar el isotipo de Ars Docendi en `IsotipoArsDocendi.tsx` y reemplazar con él el recuadro "UNLaM" de `Marquee`; verificar en el navegador que se ve el isotipo en blanco
+- [x] 1.2 Rehacer el layout: panel de bienvenida con degradé verde liso e isotipo blanco; formulario con la marca arriba y el botón primario verde; verificar en el navegador, en ambos temas, que se ve como en `design.md`
+- [x] 1.3 Ajustar el responsive: banda con isotipo y bienvenida hasta 960 px y banda mínima hasta 480 px; verificar a 375, 768 y 1440 px que no hay scroll horizontal y que el botón de ingreso queda a la vista
+- [x] 1.4 Reemplazar `frontend/public/favicon.svg` por el isotipo en el verde de marca; verificar que el navegador lo muestra en la pestaña
+- [x] 1.5 Reemplazar el cuadrado "AD" de la barra superior por el isotipo con enlace a Mi portal; verificar con el test de `TopBar.test.tsx`
+
+## 2. Copy, ayuda y condiciones de uso
+
+- [x] 2.1 Aplicar en `LoginPage.tsx` el copy de la tabla de `design.md` (crest, bajada, título, botón, error y condiciones de uso) y eliminar el bloque de ayuda con el `mailto` de soporte; verificar que la pantalla no contiene "cuenta institucional", "Soporte", direcciones de mail ni enlaces a términos
+- [x] 2.2 Actualizar `sesionMicrosoft.test.tsx` y `developmentAuth.test.tsx` al rótulo "Ingresar con Microsoft" y cubrir en `pantallaIngreso.test.tsx` los escenarios de `specs/pantalla-ingreso/spec.md`; verificar con `pnpm --filter frontend test:run`
+- [x] 2.3 Actualizar el Centro de ayuda: «Cómo ingresar al sistema» describe la pantalla nueva y ningún artículo menciona el mail de soporte inexistente; verificar con `integridad.test.ts`
+- [x] 2.4 Reemplazar la captura del login en «Cómo ingresar al sistema» (sin la del estado de error) y sumar las de «Cómo administrar personas»
+
+## 3. Términos de uso y privacidad
+
+- [x] 3.1 Crear `frontend/src/shared/legal/TerminosPage.tsx` con las secciones de `specs/pantalla-ingreso/spec.md` y registrar la ruta pública `/terminos` en `router.tsx`; verificar en el navegador que se lee sin sesión
+- [x] 3.2 Reemplazar la nota de condiciones del login por un pie con enlace a `/terminos`; verificar que el enlace navega a la página
+- [ ] 3.3 Hacer revisar el texto por el área legal de la UNLaM y completar domicilio, inscripción registral y plazos de conservación; verificar la leyenda de la AAIP contra el texto vigente
+
+## 4. Verificación
+
+- [x] 4.1 Correr `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check` y `pnpm exec openspec validate --all --strict`, y verificar que pasan
+- [ ] 4.2 Revisar la pantalla en el navegador (escritorio y ancho móvil) en los estados normal, error, acceso denegado y redirigiendo, y adjuntar capturas al PR

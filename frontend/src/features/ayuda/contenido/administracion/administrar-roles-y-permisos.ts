@@ -99,12 +99,12 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
     {
       pregunta: "¿Por qué no puedo cambiar el ámbito de un rol?",
       respuesta:
-        "Porque ya hay personas con ese rol asignado. Revisá sus membresías en Usuarios antes de cambiar el ámbito.",
+        "Porque ya hay personas con ese rol asignado. Revisá sus roles en Personas antes de cambiar el ámbito.",
     },
   ],
   relacionados: [
     "primeros-pasos/permisos-y-pantallas-visibles",
-    "administracion/administrar-usuarios",
+    "administracion/administrar-personas",
     "administracion/consultar-la-auditoria",
   ],
 };

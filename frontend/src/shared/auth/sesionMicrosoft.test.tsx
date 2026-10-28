@@ -152,9 +152,7 @@ describe("sesión por cookie del ingreso con Microsoft", () => {
     sesionApi.obtenerSesion.mockResolvedValue(null);
     await renderizarLogin();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Iniciar sesión con cuenta institucional" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Ingresar con Microsoft" }));
 
     expect(asignar).toHaveBeenCalledWith("/api/auth/login?returnUrl=%2Fportal");
     expect(
@@ -177,9 +175,7 @@ describe("sesión por cookie del ingreso con Microsoft", () => {
     );
     expect(screen.queryByText(/tu cuenta existe/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /instrucciones/i })).not.toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Iniciar sesión con cuenta institucional" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Ingresar con Microsoft" }));
     expect(asignar).toHaveBeenCalledWith("/api/auth/login?returnUrl=%2Fportal");
   });
 

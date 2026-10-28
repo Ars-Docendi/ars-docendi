@@ -31,7 +31,7 @@ Se diseña el **Centro de ayuda** (`/ayuda`): documentación dentro de la app, o
 
 ## Layout / IA
 
-- **Dos sidebars**: el menú de la app (contraído a íconos en `/ayuda`, derivado de la ruta, vuelve solo al salir) y la sidebar de documentación de 264 px, sticky y con scroll propio, a la izquierda del contenido dentro de `main`.
+- **Dos sidebars**: el menú de la app (arranca contraído a íconos en cada entrada a `/ayuda`; el botón ☰ de la barra superior lo puede desplegar durante esa visita, y al salir vuelve la preferencia guardada) y la sidebar de documentación de 264 px, sticky y con scroll propio, a la izquierda del contenido dentro de `main`.
 - La sidebar de documentación contiene el buscador, los módulos visibles (colapsables) con sus artículos y, en un artículo, el índice de pasos.
 - El contenido muestra breadcrumb desde "Inicio" (`MigasAyuda`, con `Link` del router; el `Breadcrumbs` de la librería recarga la página) y `PageHeader`, sin pretitle.
 - Rutas: `/ayuda`, `/ayuda/buscar?q=`, `/ayuda/:modulo`, `/ayuda/:modulo/:articulo`.
