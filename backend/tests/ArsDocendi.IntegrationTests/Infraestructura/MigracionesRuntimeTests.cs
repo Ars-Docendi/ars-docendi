@@ -117,7 +117,20 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
 
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-UPGRADE'"));
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.users WHERE upn='upgrade@example.test' AND azure_oid IS NULL AND azure_tid IS NULL"));
-        Assert.Equal(25L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        Assert.Equal(26L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        // Permisos de personas: se traducen desde usuarios.* / docentes.ver y se suma Decanato.
+        Assert.Equal(4L, await Escalar("""
+            SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
+            JOIN identity.roles r ON r.id=rp.rol_id
+            WHERE p.code='personas.administrar' AND r.code IN ('administrativo','secretaria','decanato','sys_admin')
+            """));
+        Assert.Equal(4L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='personas.administrar'"));
+        Assert.Equal(5L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='portal.administrar'"));
+        Assert.Equal(1L, await Escalar("""
+            SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
+            JOIN identity.roles r ON r.id=rp.rol_id WHERE p.code='personas.ver_ambito' AND r.code='jefe_catedra'
+            """));
+        Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='personas.ver_ambito'"));
         Assert.Equal(7L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.ver'"));
         Assert.Equal(4L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.gestionar'"));
         Assert.Equal(3L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='proyectos.gestionar'"));

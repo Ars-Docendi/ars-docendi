@@ -27,7 +27,7 @@ export function PedidoFormPage() {
   const navegar = useNavigate();
 
   const { data: pedidos } = useMisPedidos();
-  const catalogos = useCatalogosDesignaciones();
+  const catalogos = useCatalogosDesignaciones(id);
   const { data: pedidoInicial, isLoading, isError } = usePedido(id);
   const crear = useCrearPedido();
   const editar = useEditarPedido();

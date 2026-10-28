@@ -16,7 +16,7 @@ public sealed partial class ServicioPortal
         var nuevo = datos.ArchivoId == Guid.Empty ? (Guid?)null : datos.ArchivoId;
         var resultado = await ProtegerArchivosAsync(anterior, nuevo, async token =>
         {
-            var archivo = nuevo is { } id ? await RequerirArchivoPropioAsync(id, PropositosArchivo.Cv, token) : null;
+            var archivo = nuevo is { } id ? await RequerirArchivoAsync(id, anterior, PropositosArchivo.Cv, token) : null;
             if (archivo is null && string.IsNullOrWhiteSpace(datos.LegacyNombre))
                 await RequerirArchivoPropioAsync(datos.ArchivoId, PropositosArchivo.Cv, token);
             if (perfil.Cv is null)
