@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { DetallePedidoPage } from "./DetallePedidoPage";
@@ -112,5 +113,38 @@ describe("DetallePedidoPage — encabezado", () => {
     expect(alerta).toHaveTextContent("Seleccioná un cargo activo.");
     expect(alerta).toHaveTextContent("Horas");
     expect(alerta).toHaveTextContent("Las horas de materia deben ser mayores a cero.");
+  });
+});
+
+describe("DetallePedidoPage — Volver", () => {
+  beforeEach(() => {
+    estado.permisos = ["designaciones.gestionar"];
+    estado.pedido = PEDIDO;
+    estado.errorAceptar = null;
+  });
+
+  it("vuelve a la pantalla de origen aunque se haya llegado desde la edición", async () => {
+    // Historial real del loop: Mis pedidos → edición → (Cancelar) detalle.
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/designaciones/mis-pedidos",
+          "/designaciones/pedidos/p1/editar",
+          { pathname: "/designaciones/pedidos/p1", state: { origen: "mis-pedidos" } },
+        ]}
+        initialIndex={2}
+      >
+        <Routes>
+          <Route path="/designaciones/mis-pedidos" element={<p>Pantalla Mis pedidos</p>} />
+          <Route path="/designaciones/pedidos/:id/editar" element={<p>Pantalla de edición</p>} />
+          <Route path="/designaciones/pedidos/:id" element={<DetallePedidoPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+    expect(screen.getByText("Pantalla Mis pedidos")).toBeInTheDocument();
+    expect(screen.queryByText("Pantalla de edición")).not.toBeInTheDocument();
   });
 });
