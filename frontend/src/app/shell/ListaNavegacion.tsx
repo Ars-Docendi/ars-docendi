@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
-import { chevronIcon, navIcons } from "./icons";
+import { chevronIcon, helpIcon, navIcons } from "./icons";
 import { filtrarNavegacion, type NavItem } from "./nav";
 
 interface ListaNavegacionProps {
@@ -44,6 +44,32 @@ export function ListaNavegacion({
         </Fragment>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Acceso al Centro de ayuda. Va en el pie de la barra lateral (y al final del
+ * panel móvil) y no en `NAVEGACION` porque no depende de permisos: lo ve todo
+ * usuario autenticado.
+ */
+export function EnlaceAyuda({
+  collapsed = false,
+  onNavegar,
+}: {
+  collapsed?: boolean;
+  onNavegar?: () => void;
+}) {
+  return (
+    <NavLink
+      to="/ayuda"
+      className={({ isActive }) => `adoc-sidebar-help${isActive ? " current" : ""}`}
+      title={collapsed ? "Centro de ayuda" : undefined}
+      aria-label={collapsed ? "Centro de ayuda" : undefined}
+      onClick={onNavegar}
+    >
+      <span className="ico">{helpIcon}</span>
+      {!collapsed && <span className="label">Centro de ayuda</span>}
+    </NavLink>
   );
 }
 

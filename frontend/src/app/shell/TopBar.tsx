@@ -5,7 +5,7 @@ import { Button, Drawer, RoleBadge } from "@ars-docendi/ui";
 import { useCerrarSesion } from "../../shared/auth/auth";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { menuIcon } from "./icons";
-import { ListaNavegacion } from "./ListaNavegacion";
+import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
 
 /** Mismo corte que `shell.css`: debajo de esto la barra lateral fija no se muestra. */
 const CONSULTA_ANGOSTA = "(max-width: 767px)";
@@ -96,6 +96,9 @@ export function TopBar({ collapsed, onToggleCollapse, user }: TopBarProps) {
             permissions={user.permissions}
             onNavegar={() => setNavegacionAbierta(false)}
           />
+          <div className="adoc-nav-drawer-pie">
+            <EnlaceAyuda onNavegar={() => setNavegacionAbierta(false)} />
+          </div>
         </nav>
       </Drawer>
 

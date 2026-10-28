@@ -24,7 +24,7 @@ Leé antes de cambiar:
 6. Cambios de API, schema o dependencias actualizan la documentación correspondiente en el mismo diff.
 7. No crear UI ficticia, botones muertos, abstracciones especulativas ni dependencias innecesarias.
 8. Las reglas normativas usan `BR-<modulo>-NNN`, fuente y mapping a tests.
-9. Los cambios de UX actualizan su design spec cuando existe.
+9. Los cambios de UX actualizan su design spec cuando existe; los cambios de UX o de permisos actualizan también el artículo del Centro de ayuda que los documenta.
 10. Identificadores, comentarios y documentación propios se escriben en español; los símbolos de frameworks conservan sus nombres.
 11. Un test nuevo debe proteger una regla de negocio, una garantía de seguridad o de datos, o un flujo de usuario que ningún otro test cubra ya. No se agregan tests que cuentan, verifican forma, prueban el framework, son cosméticos o miden rendimiento. Criterios completos en [docs/quality/golden-principles.md → Tests](docs/quality/golden-principles.md#tests).
 

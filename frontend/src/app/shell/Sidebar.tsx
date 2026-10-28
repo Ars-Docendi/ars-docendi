@@ -1,4 +1,4 @@
-import { ListaNavegacion } from "./ListaNavegacion";
+import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -11,6 +11,7 @@ export function Sidebar({ collapsed, permissions }: SidebarProps) {
       <ListaNavegacion permissions={permissions} collapsed={collapsed} />
 
       <div className="adoc-sidebar-foot">
+        <EnlaceAyuda collapsed={collapsed} />
         {collapsed ? (
           "AD"
         ) : (

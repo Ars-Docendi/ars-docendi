@@ -68,6 +68,10 @@ describe("TopBar", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Abrir menú de navegación" }));
     const panel = screen.getByRole("dialog", { name: "Menú" });
+    expect(within(panel).getByRole("link", { name: "Centro de ayuda" })).toHaveAttribute(
+      "href",
+      "/ayuda",
+    );
     await userEvent.click(within(panel).getByRole("link", { name: "Mi portal" }));
 
     expect(screen.getByText("Pantalla del portal")).toBeInTheDocument();

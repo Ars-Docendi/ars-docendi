@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { useCurrentUser } from "../shared/auth/useCurrentUser";
 import { Sidebar } from "./shell/Sidebar";
@@ -33,8 +33,26 @@ function guardarColapsada(colapsada: boolean) {
 export default function AppLayout() {
   const usuarioActual = useCurrentUser();
   const [collapsed, setCollapsed] = useState(leerColapsada);
+  const { pathname } = useLocation();
+  // Bajo /ayuda la sidebar arranca contraída a íconos para dar lugar a la de
+  // documentación, pero el botón "Menú" la puede desplegar mientras se está ahí.
+  // Al salir vuelve la preferencia guardada, y cada entrada a /ayuda arranca
+  // contraída de nuevo (ajuste de estado en render, sin efectos).
+  const enAyuda = pathname === "/ayuda" || pathname.startsWith("/ayuda/");
+  const [desplegadaEnAyuda, setDesplegadaEnAyuda] = useState(false);
+  const [enAyudaPrevio, setEnAyudaPrevio] = useState(enAyuda);
+  if (enAyuda !== enAyudaPrevio) {
+    setEnAyudaPrevio(enAyuda);
+    setDesplegadaEnAyuda(false);
+  }
+  const colapsado = enAyuda ? !desplegadaEnAyuda : collapsed;
 
   function alternarColapsada() {
+    if (enAyuda) {
+      // Sólo para esta visita a /ayuda: no toca la preferencia guardada.
+      setDesplegadaEnAyuda((previa) => !previa);
+      return;
+    }
     const nueva = !collapsed;
     setCollapsed(nueva);
     guardarColapsada(nueva);
@@ -54,9 +72,9 @@ export default function AppLayout() {
   const user = usuarioActual.user;
 
   return (
-    <div className={`adoc-ui adoc-app${collapsed ? " collapsed" : ""}`}>
-      <TopBar collapsed={collapsed} onToggleCollapse={alternarColapsada} user={user} />
-      <Sidebar collapsed={collapsed} permissions={user.permissions} />
+    <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
+      <TopBar collapsed={colapsado} onToggleCollapse={alternarColapsada} user={user} />
+      <Sidebar collapsed={colapsado} permissions={user.permissions} />
       <main className="adoc-main">
         <Outlet />
       </main>

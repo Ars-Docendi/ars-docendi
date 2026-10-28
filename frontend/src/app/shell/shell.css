@@ -239,6 +239,43 @@
   color: var(--color-text-tertiary);
   border-top: 1px solid var(--color-border-subtle);
 }
+.adoc-sidebar-help {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 calc(var(--space-4) * -1) var(--space-3);
+  padding: 8px 16px 8px 17px;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+.adoc-sidebar-help:hover {
+  background: var(--neutral-200);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.adoc-sidebar-help:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+.adoc-sidebar-help.current {
+  background: var(--accent-100);
+  color: var(--accent-700);
+  border-left-color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+}
+.adoc-sidebar-help .ico {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.adoc-app.collapsed .adoc-sidebar-help {
+  justify-content: center;
+  padding: var(--space-2);
+}
 .adoc-app.collapsed .adoc-sidebar-foot {
   text-align: center;
   font-family: var(--font-mono);
@@ -295,6 +332,15 @@
 }
 .adoc-drawer.adoc-nav-drawer .body {
   padding: var(--space-2) 0;
+}
+/* Centro de ayuda al final del panel, separado como en el pie de la barra. */
+.adoc-nav-drawer-pie {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.adoc-nav-drawer-pie .adoc-sidebar-help {
+  margin: 0;
 }
 
 /* ====================== PANTALLAS ANGOSTAS ================== */
