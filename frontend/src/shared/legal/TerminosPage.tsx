@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { IsotipoArsDocendi } from "../auth/IsotipoArsDocendi";
+import { IsotipoArsDocendi } from "../marca/IsotipoArsDocendi";
 import "./TerminosPage.css";
 
 /** Términos de uso y política de privacidad: página pública, fuera del shell. */

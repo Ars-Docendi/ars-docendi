@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
 import { developmentAuthEnabled } from "./developmentAuth";
-import { IsotipoArsDocendi } from "./IsotipoArsDocendi";
+import { IsotipoArsDocendi } from "../marca/IsotipoArsDocendi";
 import { seleccionarSesionDesarrollo } from "./dev/session";
 import { microsoftLoginEnabled, urlIngresoMicrosoft } from "./sesionMicrosoft";
 import { useCurrentUser } from "./useCurrentUser";

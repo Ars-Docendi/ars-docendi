@@ -8,6 +8,7 @@ La pantalla de ingreso no comparte la identidad visual del sistema: en lugar de 
 
 - El panel izquierdo muestra el isotipo de Ars Docendi (la "A" y la "D" con un birrete) en lugar del recuadro "UNLaM".
 - El panel izquierdo pasa a ser una bienvenida en el verde de la marca ("Te damos la bienvenida a Ars Docendi" y qué se puede hacer), y el formulario de la derecha se rediseña con la marca arriba.
+- La marca de la barra superior reemplaza el cuadrado "AD" por el isotipo y lleva a Mi portal, el inicio.
 - El favicon deja de ser el logo por defecto de Vite y pasa a ser el isotipo de Ars Docendi.
 - La pantalla se adapta a tablet y celular: el panel pasa a una banda compacta y el botón de ingreso queda a la vista sin scroll.
 - Se reescribe el copy de la pantalla (encabezado, bajada, botón, ayuda y descripción del sistema) para que coincida con el ingreso real con Microsoft. La descripción suma el asistente conversacional.
@@ -24,11 +25,11 @@ La pantalla de ingreso no comparte la identidad visual del sistema: en lugar de 
 
 ### Modified Capabilities
 
-<!-- Ninguna: `inicio-sesion-microsoft` no cambia; su texto de acceso denegado ya remite a Secretaría Académica. -->
+- `barra-superior`: la marca muestra el isotipo de Ars Docendi y lleva a Mi portal. `inicio-sesion-microsoft` no cambia.
 
 ## Impact
 
-- Frontend: `frontend/src/shared/auth/LoginPage.tsx` y `LoginPage.css`, más el componente nuevo `IsotipoArsDocendi.tsx` con el isotipo vectorizado, la página `frontend/src/shared/legal/TerminosPage.tsx` y la ruta pública `/terminos` en `router.tsx` y `frontend/public/favicon.svg`.
+- Frontend: `frontend/src/shared/auth/LoginPage.tsx` y `LoginPage.css`, `frontend/src/app/shell/TopBar.tsx` y `shell.css`, más el componente nuevo `frontend/src/shared/marca/IsotipoArsDocendi.tsx` con el isotipo vectorizado, la página `frontend/src/shared/legal/TerminosPage.tsx` y la ruta pública `/terminos` en `router.tsx` y `frontend/public/favicon.svg`.
 - Tests: `sesionMicrosoft.test.tsx` y `developmentAuth.test.tsx` buscan el botón por su texto actual y hay que actualizarlos.
 - Módulos backend, APIs, schema y grafo de dependencias: sin impacto.
 - Rollback: revertir el commit. El cambio es sólo de presentación.

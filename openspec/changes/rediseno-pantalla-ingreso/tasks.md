@@ -6,6 +6,7 @@
 - [x] 1.2 Rehacer el layout: panel de bienvenida con degradé verde liso e isotipo blanco; formulario con la marca arriba y el botón primario verde; verificar en el navegador, en ambos temas, que se ve como en `design.md`
 - [x] 1.3 Ajustar el responsive: banda con isotipo y bienvenida hasta 960 px y banda mínima hasta 480 px; verificar a 375, 768 y 1440 px que no hay scroll horizontal y que el botón de ingreso queda a la vista
 - [x] 1.4 Reemplazar `frontend/public/favicon.svg` por el isotipo en el verde de marca; verificar que el navegador lo muestra en la pestaña
+- [x] 1.5 Reemplazar el cuadrado "AD" de la barra superior por el isotipo con enlace a Mi portal; verificar con el test de `TopBar.test.tsx`
 
 ## 2. Copy, ayuda y condiciones de uso
 

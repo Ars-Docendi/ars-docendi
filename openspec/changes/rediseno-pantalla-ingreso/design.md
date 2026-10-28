@@ -37,7 +37,7 @@ Hay tres rangos. En escritorio, dos columnas. Hasta 960 px, una columna: el pane
 
 ### Marca: isotipo vectorizado en un componente y en el favicon
 
-El isotipo se vectoriza a mano a partir de la imagen y queda en `IsotipoArsDocendi.tsx` como SVG inline monocromo (`currentColor`): blanco en el panel y verde en la marca del formulario. El panel sigue siendo decorativo (`aria-hidden`). El favicon (`frontend/public/favicon.svg`), que hasta ahora era el logo por defecto de Vite, pasa a ser el mismo isotipo en el verde de marca (`#009674`, el valor de `--accent-500`). Como es un archivo estático, no puede usar tokens.
+El isotipo se vectoriza a mano a partir de la imagen y queda en `frontend/src/shared/marca/IsotipoArsDocendi.tsx`, fuera de `auth/` porque lo usan el login, los términos y la barra superior, como SVG inline monocromo (`currentColor`): blanco en el panel y verde en la marca del formulario y en la barra superior. En la barra reemplaza el cuadrado "AD" y, junto con el nombre, es un enlace a `/portal` con la etiqueta accesible "Ars Docendi, ir a Mi portal". El panel sigue siendo decorativo (`aria-hidden`). El favicon (`frontend/public/favicon.svg`), que hasta ahora era el logo por defecto de Vite, pasa a ser el mismo isotipo en el verde de marca (`#009674`, el valor de `--accent-500`). Como es un archivo estático, no puede usar tokens.
 
 - Alternativa descartada: usar la imagen raster. Tiene fondo blanco y colores fijos, así que no se integra al panel ni escala bien.
 
