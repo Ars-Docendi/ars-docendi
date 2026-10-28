@@ -1,0 +1,21 @@
+/* Tamaño inicial y mínimo de los modales estirables de Tareas (`shared/ui/modalEstirable.css`). */
+.adoc-modal.adoc-modal-tareas {
+  width: 520px;
+  min-width: min(400px, 100%);
+  min-height: min(320px, 100%);
+}
+
+/* Buscar Responsable: la tabla ocupa el alto disponible al estirar. */
+.adoc-modal.adoc-modal-tareas-responsable {
+  width: 640px;
+  height: 560px;
+}
+.adoc-modal-tareas-responsable > .body {
+  display: flex;
+  flex-direction: column;
+}
+.adoc-modal-tareas-responsable .adoc-buscador-responsable-resultados {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}

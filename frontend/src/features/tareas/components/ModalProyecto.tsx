@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button, DatePicker, Field, InlineAlert, Input, Modal, Textarea } from "@ars-docendi/ui";
 import { SelectorResponsable } from "./SelectorResponsable";
 import type { DatosEditablesProyecto, PersonaTarea, Proyecto } from "../types";
+import "../../../shared/ui/modalEstirable.css";
+import "./modalesEstirables.css";
 
 interface ModalProyectoProps {
   open: boolean;
@@ -92,6 +94,7 @@ export function ModalProyecto({
   return (
     <Modal
       open={open}
+      className="adoc-modal--estirable adoc-modal-tareas"
       onOpenChange={(next) => {
         if (!next) handleCerrar();
       }}

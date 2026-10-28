@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
-import { chevronIcon, navIcons } from "./icons";
+import { chevronIcon, helpIcon, navIcons } from "./icons";
 import { filtrarNavegacion, type NavItem } from "./nav";
 
 interface SidebarProps {
@@ -36,6 +36,7 @@ export function Sidebar({ collapsed, permissions }: SidebarProps) {
       </ul>
 
       <div className="adoc-sidebar-foot">
+        <EnlaceAyuda collapsed={collapsed} />
         {collapsed ? (
           "AD"
         ) : (
@@ -47,6 +48,24 @@ export function Sidebar({ collapsed, permissions }: SidebarProps) {
         )}
       </div>
     </nav>
+  );
+}
+
+/**
+ * Acceso al Centro de ayuda. Vive en el pie y no en `NAVEGACION` porque no
+ * depende de permisos: lo ve todo usuario autenticado.
+ */
+function EnlaceAyuda({ collapsed }: { collapsed: boolean }) {
+  return (
+    <NavLink
+      to="/ayuda"
+      className={({ isActive }) => `adoc-sidebar-help${isActive ? " current" : ""}`}
+      title={collapsed ? "Centro de ayuda" : undefined}
+      aria-label={collapsed ? "Centro de ayuda" : undefined}
+    >
+      <span className="ico">{helpIcon}</span>
+      {!collapsed && <span className="label">Centro de ayuda</span>}
+    </NavLink>
   );
 }
 

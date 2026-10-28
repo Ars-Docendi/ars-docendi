@@ -48,8 +48,7 @@ describe("Sidebar — sector Designaciones", () => {
       "portal.ver",
       "aulas.ver",
       "tareas.ver",
-      "usuarios.ver",
-      "docentes.ver",
+      "personas.ver",
       "roles.ver",
       "designaciones.gestionar",
       "designaciones.revisar",
@@ -58,6 +57,25 @@ describe("Sidebar — sector Designaciones", () => {
 
     expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Revisión" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Docentes" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Personas" })).toBeInTheDocument();
+  });
+});
+
+describe("Sidebar — Centro de ayuda", () => {
+  it("lo muestra en el pie a un usuario sin permisos de navegación", () => {
+    renderSidebar([]);
+
+    expect(screen.getByRole("link", { name: "Centro de ayuda" })).toHaveAttribute("href", "/ayuda");
+    expect(screen.queryByText("Personal")).not.toBeInTheDocument();
+    expect(screen.queryByText("Trabajo")).not.toBeInTheDocument();
+  });
+
+  it("contraída muestra solo el ícono con title y nombre accesible", () => {
+    renderSidebar([], { collapsed: true });
+
+    const enlace = screen.getByRole("link", { name: "Centro de ayuda" });
+    expect(enlace).toHaveAttribute("title", "Centro de ayuda");
+    expect(enlace).toHaveAttribute("aria-label", "Centro de ayuda");
+    expect(enlace).not.toHaveTextContent("Centro de ayuda");
   });
 });
