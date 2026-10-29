@@ -91,6 +91,13 @@ var app = builder.Build();
 if (solicitud.Modo != ModoMigracion.Ninguno)
 {
     using var scope = app.Services.CreateScope();
+    // Escribe sellos con la clave del host: no es una migración y Migraciones no conoce módulos.
+    if (solicitud.Modo == ModoMigracion.SellarHistorialExistente)
+    {
+        var sellados = await Modules.Designaciones.ModuleExtensions.SellarHistorialExistenteAsync(scope.ServiceProvider, CancellationToken.None);
+        Console.Out.WriteLine($"Eventos sellados retroactivamente: {sellados}");
+        return;
+    }
     Environment.ExitCode = await RunnerMigraciones.EjecutarAsync(solicitud,
         scope.ServiceProvider.GetServices<IMigradorModulo>().ToArray(),
         builder.Configuration.GetConnectionString("ArsDocendi") ?? string.Empty,

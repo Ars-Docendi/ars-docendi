@@ -275,6 +275,9 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
+        // Como en un despliegue: tras sembrar, el historial se sella antes de exportar.
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct);
     }
 
     private static XDocument LeerXml(ZipArchive zip, string nombre)

@@ -66,6 +66,9 @@ services:
       Inferencia__Contrasena: ${INFERENCIA_CONTRASENA:-}
       Inferencia__AccessClientId: ${INFERENCIA_ACCESS_CLIENT_ID:-}
       Inferencia__AccessClientSecret: ${INFERENCIA_ACCESS_CLIENT_SECRET:-}
+      # Clave HMAC de la cadena de sellos: sólo del entorno del proceso. Obligatoria en
+      # Production; vacía en staging/PR usa la clave de desarrollo (datos sintéticos).
+      Integridad__ClavesSellado__1: ${SELLADO_CLAVE:-}
     volumes:
       - claves:/claves
     networks:

@@ -69,6 +69,8 @@ cd ..
 # Primera inicialización local: ejecuta ambos datasets en una transacción,
 # registra la marca completa y no vuelve a sembrar sobre ediciones existentes.
 bash infra/scripts/seed-local.sh
+# Sella el historial sembrado; sin esto la exportación del lote responde 409.
+dotnet run --project backend/src/ArsDocendi.Host -- --sellar-historial-existente
 ```
 
 Los dos datasets van siempre juntos: `sintetico.sql` (fixtures de prueba) y `sga.sql`

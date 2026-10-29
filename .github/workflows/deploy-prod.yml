@@ -83,6 +83,8 @@ jobs:
       INFERENCIA_URL: http://traefik:11435
       INFERENCIA_USUARIO: prod
       INFERENCIA_CONTRASENA: ${{ secrets.INFERENCIA_CONTRASENA_PROD }}
+      # Sin esta clave el backend no arranca en Production [BR-designaciones-019].
+      SELLADO_CLAVE: ${{ secrets.SELLADO_CLAVE_PROD }}
       ASPNETCORE_ENVIRONMENT: Production
       DEVELOPMENT_AUTHENTICATION_ENABLED: "false"
       # En prod el ingreso con Microsoft es obligatorio: sin estos valores el backend no arranca.

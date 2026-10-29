@@ -23,8 +23,10 @@
 #                                     ingreso con Microsoft (default apagado; en prod obligatorio)
 #   ADMIN_INICIAL_UPN ADMIN_INICIAL_NOMBRE ADMIN_INICIAL_APELLIDO ADMIN_INICIAL_DOCUMENTO
 #                                     sólo prod: administrador inicial que crea --migrate
+#   SELLADO_CLAVE                     clave HMAC base64 de la cadena de sellos (obligatoria en prod)
 #   Estas variables llegan a Compose por el entorno del proceso, no por el .env efímero.
-#   CLI fijo de la imagen: --estado-migraciones / --script-migraciones - / --migrate.
+#   CLI fijo de la imagen: --estado-migraciones / --script-migraciones - / --migrate /
+#   --sellar-historial-existente (sólo tras sembrar una base nueva).
 
 source "$(dirname "$0")/_comun.sh"
 
@@ -178,6 +180,10 @@ if (( pendientes > 0 )); then
 fi
 if [[ "$ambiente" != prod ]]; then
   SEED_BASE_CREATED="$base_nueva" "$scripts_dir/seed.sh" "$ambiente"
+  # Sólo tras sembrar una base nueva: sellar en cada deploy legitimaría cambios hechos por SQL.
+  if [[ "$base_nueva" == true ]]; then
+    compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --sellar-historial-existente
+  fi
 fi
 critica=true
 compose up -d

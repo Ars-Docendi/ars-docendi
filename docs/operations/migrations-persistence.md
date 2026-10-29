@@ -60,6 +60,7 @@ dotnet ArsDocendi.Host.dll --script-migraciones -
 dotnet ArsDocendi.Host.dll --script-migraciones <directorio>
 dotnet ArsDocendi.Host.dll --migrate
 dotnet ArsDocendi.Host.dll --diagnosticar-integridad
+dotnet ArsDocendi.Host.dll --sellar-historial-existente
 ```
 
 Estado stdout es exclusivamente JSON:
@@ -110,6 +111,37 @@ relleno de campos, reseed ni reset. El apply no autoriza tratar PII histórica o
 intervenir datos reales. Los permisos y constraints nuevos se verifican de nuevo
 dentro de los incrementales para impedir que el preflight sustituya su garantía.
 
+### Cadena de sellos del circuito de pedidos
+
+Cada evento del circuito fuera de borrador queda sellado y firmado con HMAC-SHA256
+[BR-designaciones-019]; el modelo está en
+[data-model → Cadena de sellos](../architecture/data-model.md#cadena-de-sellos-del-circuito).
+
+- **Clave.** `Integridad__ClavesSellado__<versión>` (base64, ≥ 32 bytes) e
+  `Integridad__VersionVigente` (default `1`). En prod llega del secret de Environment
+  `SELLADO_CLAVE_PROD` como `SELLADO_CLAVE`; sin ella el backend no arranca. Staging/PR la
+  dejan vacía y usan la clave de desarrollo: sus datos son sintéticos. La clave nunca va a
+  la base, al repo ni a logs. Respaldarla como cualquier secret de prod: perderla deja los
+  sellos sin verificación.
+- **Rotación.** Agregar la versión nueva sin quitar la anterior y subir `VersionVigente`.
+  Los sellos viejos se siguen verificando con su versión; una versión retirada los marca
+  `sello-firma-invalida`.
+- **Sellado retroactivo.** `--sellar-historial-existente` sella, con la clave vigente, el
+  historial sin sello de pedidos fuera de borrador y registra un ancla `retroactivo`. Es
+  idempotente. `spin-up.sh` lo corre sólo después de sembrar una base nueva; en prod se
+  ejecuta una única vez, a mano, tras el primer deploy con esta versión. **No repetirlo
+  como reparación:** sellaría también cambios hechos por SQL desde el último sello. Ante
+  hallazgos, el procedimiento es el de [Preflight de integridad](#preflight-de-integridad-y-saneamiento-autorizado).
+- **Verificación.** `GET /api/designaciones/periodos/{id}/integridad` (`auditoria.ver`) y
+  `--diagnosticar-integridad` reportan las categorías `designaciones-sello-*`,
+  `designaciones-historial-sin-sello`, `designaciones-pedido-estado-divergente` y
+  `designaciones-ancla-no-reproducida`. La exportación del lote responde 409 mientras la
+  cadena no verifique.
+- **Límite.** El runtime es owner de la base: puede deshabilitar los triggers de sólo
+  inserción. La garantía es la firma y el ancla impresa en cada lote exportado. Separar el
+  rol dueño/migrador del rol de la aplicación y la custodia de la clave del acceso a la
+  base reduce quién podría reescribir la cadena completa.
+
 ### Auditoría histórica y costos de consulta
 
 `audit.change_log` puede conservar snapshots legados con nombres, documentos, contacto o identificadores Microsoft. La API aplica redacción por tabla, pero eso **no purga** los valores en PostgreSQL ni en backups. El runtime actual es owner de la base: vistas y `REVOKE` no aíslan los snapshots frente a ese owner/DBA. No existe en este cambio una política institucional de retención ni autorización para purga, anonimización o reescritura retrospectiva.
@@ -118,13 +150,13 @@ Cualquier tratamiento posterior requiere política institucional y autorización
 
 La consulta administrativa de auditoría pagina hasta 50 filas por defecto y ejecuta el `COUNT` por separado. El orden `(changed_at,id)`, los límites y el timeout los verifican `AuditoriaHttpTests` y `AdministracionSistemaTests`. El benchmark de página/COUNT sobre 200.000 eventos sintéticos fue una medición única y ya no forma parte de la suite. En la re-medición del 14-oct-2026, INSERT de 10.000 eventos tuvo mediana 163,890 ms / 3.612.549 bytes WAL sin candidato y 295,970 ms / 4.588.885 bytes WAL con índice fecha+ID (tamaño 8.019.968 bytes); son medidas de esta máquina, incluyen triggers y no constituyen SLA ni costo marginal aislado. Por esa evidencia se conserva BRIN y se crea sólo el índice temporal; las variantes de filtro, planes, COUNT y costo completo están en [evidencia de Auditoría, §7.5](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/auditoria-implementacion.md#75-medición-reproducible-de-página-y-count).
 
-## Variables y scopes (sin secretos nuevos)
+## Variables y scopes
 
 | Scope                                        | Nombres                                                                                              |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Repository variables                         | `REGISTRO`, `DOMINIO`                                                                                |
 | Repository secrets                           | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY` |
-| Environment `prod` secret                    | `APP_DB_PASSWORD_PROD`                                                                               |
+| Environment `prod` secret                    | `APP_DB_PASSWORD_PROD`, `SELLADO_CLAVE_PROD`                                                         |
 | Environment `staging` secret                 | `APP_DB_PASSWORD_STAGING`                                                                            |
 | Environment `pr-preview` secret              | `APP_DB_PASSWORD_PREVIEW`                                                                            |
 | Vars opcionales de cada Environment anterior | `BACKUP_VOLUME_PREFIX`, `BACKUP_RETENTION_DAYS`                                                      |
