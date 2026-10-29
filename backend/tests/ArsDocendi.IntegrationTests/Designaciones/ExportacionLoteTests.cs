@@ -99,8 +99,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     public async Task Alta_y_baja_se_separan_y_no_mutan_el_estado()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        await EjecutarAsync("""
+        await EjecutarSeedAsync(ct, """
             UPDATE designaciones.pedidos SET estado = 'en_lote'
              WHERE id = 'd5000000-0000-4000-8000-000000000004';
             UPDATE designaciones.pedidos SET estado = 'en_lote'
@@ -108,7 +107,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             UPDATE designaciones.designaciones
                SET vigente_hasta = DATE '2026-07-31'
              WHERE id = 'd6000000-0000-4000-8000-000000000010';
-            """, ct);
+            """);
         var estadoAntes = await EscalarAsync<string>(
             "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'", ct);
 
@@ -201,11 +200,16 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
     }
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
+    /// <param name="ajustes">SQL del fixture: corre antes de sellar, porque después sería una alteración detectada.</param>
+    private async Task EjecutarSeedAsync(CancellationToken ct, string? ajustes = null)
     {
         var sql = await File.ReadAllTextAsync(
             Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
         await EjecutarAsync(sql, ct);
+        if (ajustes is not null) await EjecutarAsync(ajustes, ct);
+        // Como en un despliegue: tras sembrar, el historial se sella antes de exportar.
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct);
     }
 
     private async Task EjecutarAsync(string sql, CancellationToken ct, params NpgsqlParameter[] parametros)

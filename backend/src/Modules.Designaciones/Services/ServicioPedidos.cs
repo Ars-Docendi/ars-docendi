@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
+using Modules.Designaciones.Services.Integridad;
 
 namespace Modules.Designaciones.Services;
 
@@ -22,6 +23,7 @@ internal sealed partial class ServicioPedidos(
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
     UnidadDeTrabajo unidadDeTrabajo,
+    SelladorPedidos sellador,
     ILogger<ServicioPedidos> logger,
     IAdministracionIdentity? administracionIdentity = null,
     IAlmacenamientoArchivos? almacenamiento = null,
@@ -82,7 +84,7 @@ internal sealed partial class ServicioPedidos(
         foreach (var adjunto in ConstruirAdjuntos(pedido.Id, datosResueltos.Adjuntos, archivos, datosResueltos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null)) pedido.Adjuntos.Add(adjunto);
 
         pedidos.Agregar(pedido);
-        RegistrarEnHistorial(pedido, AccionesHistorial.Crear, RolesCircuito.JefeCatedra, actor, null);
+        await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Crear, RolesCircuito.JefeCatedra, actor, null, ct);
 
         await pedidos.GuardarCambiosAsync(ct);
 
@@ -135,7 +137,7 @@ internal sealed partial class ServicioPedidos(
             var rol = pedido.Estado == EstadosPedido.Borrador
                 ? RolesCircuito.JefeCatedra
                 : pedido.PropietarioActual ?? RolesCircuito.JefeCatedra;
-            RegistrarEnHistorial(pedido, AccionesHistorial.Editar, rol, actor, null);
+            await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Editar, rol, actor, null, token);
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
 
@@ -179,7 +181,7 @@ internal sealed partial class ServicioPedidos(
                 if (detalle is not null)
                     comentario = string.IsNullOrWhiteSpace(comentario) ? detalle : comentario + "\n" + detalle;
             }
-            RegistrarEnHistorial(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, comentario);
+            await RegistrarEnHistorialAsync(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, comentario, token);
 
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
@@ -263,10 +265,12 @@ internal sealed partial class ServicioPedidos(
     /// <summary>
     /// Agrega el evento al historial con el rol CONCRETO con el que se actuó. No se
     /// infiere del usuario: un usuario puede tener varios roles, y cuál autorizó la
-    /// acción lo decide la máquina de estados.
+    /// acción lo decide la máquina de estados. El evento se sella en la misma transacción
+    /// [BR-designaciones-019], así que se registra con el pedido ya en su estado posterior.
     /// </summary>
-    private void RegistrarEnHistorial(
-        Pedido pedido, string accion, string codigoRol, ActorContexto actor, string? comentario)
+    private async Task RegistrarEnHistorialAsync(
+        Pedido pedido, string accion, string codigoRol, ActorContexto actor, string? comentario,
+        CancellationToken ct)
     {
         var historial = new PedidoHistorial
         {
@@ -277,10 +281,11 @@ internal sealed partial class ServicioPedidos(
             ActorId = actor.UsuarioId,
             Etapa = pedido.Estado,
             Comentario = comentario,
-            CreadoEn = DateTimeOffset.UtcNow,
+            CreadoEn = CanonicoSellos.AMicrosegundos(DateTimeOffset.UtcNow),
         };
         pedido.Historial.Add(historial);
         pedidos.AgregarHistorial(historial);
+        await sellador.SellarAsync(pedido, historial, ct);
     }
 
     // Los roles de sistema tienen UUID fijo en el seed (002_identity_roles.sql), así

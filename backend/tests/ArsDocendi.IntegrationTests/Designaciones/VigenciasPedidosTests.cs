@@ -42,7 +42,7 @@ public abstract class VigenciasPedidosBase(PostgresFixture postgres)
         var designaciones = new RepositorioDesignaciones(db);
         var unidad = new UnidadDeTrabajo(db);
         var servicio = new ServicioPedidos(pedidos, designaciones, new MaterializadorDesignaciones(designaciones, new RelojFijo()),
-            resolutor, identity, unidad, NullLogger<ServicioPedidos>.Instance);
+            resolutor, identity, unidad, SellosPrueba.Sellador(db), NullLogger<ServicioPedidos>.Instance);
         return new ServicioPedidosApi(servicio, pedidos, resolutor, identity, new RepositorioIdempotencia(db), unidad);
     }
 

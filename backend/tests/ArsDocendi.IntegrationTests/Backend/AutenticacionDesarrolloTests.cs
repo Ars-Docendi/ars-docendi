@@ -226,6 +226,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(ambiente);
+            builder.UseSetting("Integridad:ClavesSellado:1", Convert.ToBase64String(Enumerable.Repeat((byte)7, 32).ToArray()));
             builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
             builder.UseSetting(
                 $"{AutenticacionDesarrolloOptions.Seccion}:Enabled",

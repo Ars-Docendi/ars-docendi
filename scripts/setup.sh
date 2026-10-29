@@ -109,6 +109,10 @@ ok "Migraciones aplicadas"
 # SGA queda exclusivamente local/privado; nunca se carga en staging/pr-N.
 infra/scripts/seed-local.sh
 
+# El historial sembrado no pasó por la aplicación: se sella para que el lote exporte.
+dotnet run --project backend/src/ArsDocendi.Host -- --sellar-historial-existente
+ok "Historial sembrado sellado"
+
 echo
 ok "Setup completo."
 echo

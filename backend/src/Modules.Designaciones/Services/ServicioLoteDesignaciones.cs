@@ -7,6 +7,7 @@ using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Identity;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Repositories;
+using Modules.Designaciones.Services.Integridad;
 using Modules.Portal.Contracts.Queries;
 
 namespace Modules.Designaciones.Services;
@@ -23,7 +24,9 @@ internal sealed class ServicioLoteDesignaciones(
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
     IPortalQueries portal,
-    Infrastructure.UnidadDeTrabajo unidadDeTrabajo) : IServicioLoteDesignaciones
+    Infrastructure.UnidadDeTrabajo unidadDeTrabajo,
+    VerificadorIntegridadPedidos verificador,
+    RepositorioSellos sellos) : IServicioLoteDesignaciones
 {
     public async Task<ArchivoLoteDesignaciones> ExportarAsync(Guid periodoId, CancellationToken ct)
     {
@@ -37,6 +40,7 @@ internal sealed class ServicioLoteDesignaciones(
         }
 
         ConsultaLoteDesignaciones? consulta = null;
+        ResultadoIntegridad? integridad = null;
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
             consulta = await repositorio.LeerAsync(periodoId, token);
@@ -55,6 +59,17 @@ internal sealed class ServicioLoteDesignaciones(
                     "periodo-inactive",
                     "El período dejó de estar activo. Actualizá los períodos antes de reintentar.");
             }
+
+            // Misma lectura consistente que el lote: lo exportado es lo verificado [BR-designaciones-020].
+            integridad = await verificador.VerificarAsync(periodoId, token);
+            if (!integridad.Integro)
+            {
+                throw new ExcepcionAplicacion(
+                    TipoErrorAplicacion.Conflicto,
+                    "lote-integridad-comprometida",
+                    "La integridad del circuito del período no pudo verificarse. Contactá a la administración del sistema.");
+            }
+            await AnclarAsync(periodoId, integridad, token);
         }, ct, System.Data.IsolationLevel.RepeatableRead);
 
         var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
@@ -139,8 +154,27 @@ internal sealed class ServicioLoteDesignaciones(
                     .ThenBy(f => f.MateriaId)
                     .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal)
                     .ToArray(),
-                bajasExportar),
+                bajasExportar,
+                $"INTEGRIDAD · sello {integridad!.Secuencia} · {Convert.ToHexStringLower(integridad.Hash)}"),
             "lote-designaciones.xlsx");
+    }
+
+    /// <summary>El hash impreso en el lote queda registrado como ancla, sin duplicar una cabeza ya anclada.</summary>
+    private async Task AnclarAsync(Guid periodoId, ResultadoIntegridad integridad, CancellationToken ct)
+    {
+        if (integridad.Secuencia == 0) return;
+        var ultima = await sellos.ObtenerUltimaAnclaAsync(periodoId, ct);
+        if (ultima?.Secuencia == integridad.Secuencia) return;
+        sellos.AgregarAncla(new PeriodoAncla
+        {
+            Id = Guid.NewGuid(),
+            PeriodoId = periodoId,
+            Secuencia = integridad.Secuencia,
+            Hash = integridad.Hash,
+            Motivo = MotivosAncla.ExportacionLote,
+            CreadoEn = DateTimeOffset.UtcNow,
+        });
+        await sellos.GuardarAsync(ct);
     }
 
     private static FilaPropuestaLote MapearPropuesta(
@@ -311,7 +345,8 @@ internal static class EscritorXlsxLote
         Periodo? periodoAnterior,
         IReadOnlyList<FilaPropuestaLote> propuesta,
         IReadOnlyList<FilaAltaLote> altas,
-        IReadOnlyList<FilaBajaLote> bajas)
+        IReadOnlyList<FilaBajaLote> bajas,
+        string integridad)
     {
         var nombre = typeof(EscritorXlsxLote).Assembly.GetManifestResourceNames()
             .Single(n => n.EndsWith(NombreRecurso, StringComparison.Ordinal));
@@ -331,7 +366,7 @@ internal static class EscritorXlsxLote
                         EscribirXml(stream, ModificarLibro(LeerXml(entrada)));
                         break;
                     case "xl/worksheets/sheet1.xml":
-                        EscribirXml(stream, ModificarPropuesta(LeerXml(entrada), periodo, periodoAnterior, propuesta));
+                        EscribirXml(stream, ModificarPropuesta(LeerXml(entrada), periodo, periodoAnterior, propuesta, integridad));
                         break;
                     case "xl/worksheets/sheet2.xml":
                         EscribirXml(stream, ModificarAltas(LeerXml(entrada), periodo, altas));
@@ -370,10 +405,17 @@ internal static class EscritorXlsxLote
         XDocument documento,
         Periodo periodo,
         Periodo? anterior,
-        IReadOnlyList<FilaPropuestaLote> filas)
+        IReadOnlyList<FilaPropuestaLote> filas,
+        string integridad)
     {
         PonerTexto(documento, "D1", Encabezado("DESIGNACIÓN", anterior?.Nombre));
         PonerTexto(documento, "E1", Encabezado("PROPUESTA", periodo.Nombre));
+        // Ancla externa: fuera de la tabla institucional, junto a la identificación del período.
+        var encabezado = documento.Descendants(Ns + "row").Single(r => r.Attribute("r")?.Value == "1");
+        encabezado.Attribute("spans")?.Remove();
+        var celdaIntegridad = new XElement(Ns + "c", new XAttribute("r", "M1"));
+        encabezado.Add(celdaIntegridad);
+        PonerTexto(celdaIntegridad, integridad);
         EscribirFilas(documento, 5, "K", 4, filas.Count, (fila, indice) =>
         {
             var propuesta = filas[indice - 1];

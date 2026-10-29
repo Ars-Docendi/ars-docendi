@@ -231,6 +231,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
+            SellosPrueba.Sellador(db),
             NullLogger<ServicioPedidos>.Instance);
         return new ServicioPedidosApi(
             core, pedidos, resolutor, identity,
