@@ -1,9 +1,13 @@
 const USUARIO_KEY = "adoc.dev.userId";
-const ROL_KEY = "adoc.dev.roleCode";
+const ASIGNACION_KEY = "adoc.dev.asignacionId";
 
+/**
+ * Sesión de desarrollo guardada en el navegador: quién ingresó y, una vez elegida,
+ * la asignación de rol con la que opera. Viajan en headers en cada solicitud.
+ */
 export interface SesionDesarrollo {
   usuarioId: string;
-  rolCodigo: string;
+  asignacionId: string | null;
 }
 
 const oyentes = new Set<() => void>();
@@ -12,23 +16,29 @@ let snapshot: SesionDesarrollo | null = null;
 
 export function obtenerSesionDesarrollo(): SesionDesarrollo | null {
   const usuarioId = localStorage.getItem(USUARIO_KEY) ?? "";
-  const rolCodigo = localStorage.getItem(ROL_KEY) ?? "";
-  const clave = `${usuarioId}|${rolCodigo}`;
+  const asignacionId = localStorage.getItem(ASIGNACION_KEY) || null;
+  const clave = `${usuarioId}|${asignacionId ?? ""}`;
   if (clave === claveAnterior) return snapshot;
   claveAnterior = clave;
-  snapshot = usuarioId && rolCodigo ? { usuarioId, rolCodigo } : null;
+  snapshot = usuarioId ? { usuarioId, asignacionId } : null;
   return snapshot;
 }
 
-export function seleccionarSesionDesarrollo(usuarioId: string, rolCodigo: string): void {
+/** Ingresa como esa identidad. El rol se elige después, como con Microsoft. */
+export function seleccionarSesionDesarrollo(usuarioId: string): void {
   localStorage.setItem(USUARIO_KEY, usuarioId);
-  localStorage.setItem(ROL_KEY, rolCodigo);
+  localStorage.removeItem(ASIGNACION_KEY);
+  notificar();
+}
+
+export function elegirAsignacionDesarrollo(asignacionId: string): void {
+  localStorage.setItem(ASIGNACION_KEY, asignacionId);
   notificar();
 }
 
 export function limpiarSesionDesarrollo(): void {
   localStorage.removeItem(USUARIO_KEY);
-  localStorage.removeItem(ROL_KEY);
+  localStorage.removeItem(ASIGNACION_KEY);
   notificar();
 }
 

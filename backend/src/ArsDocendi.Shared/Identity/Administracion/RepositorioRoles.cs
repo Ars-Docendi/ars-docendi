@@ -101,7 +101,6 @@ internal sealed class RepositorioRoles(IdentityDbContext db) : IRepositorioRoles
 
     private IQueryable<Rol> ConsultaCompleta(bool tracking) =>
         (tracking ? db.Roles : db.Roles.AsNoTracking())
-            .Where(r => r.Activo)
             .Include(r => r.Permisos)
             .ThenInclude(rp => rp.Permiso)
             .AsSplitQuery();

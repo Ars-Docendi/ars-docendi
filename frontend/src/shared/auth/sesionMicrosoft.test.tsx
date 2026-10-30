@@ -38,6 +38,15 @@ const sesion: SesionApi = {
   rolCodigo: "secretaria",
   rolNombre: "Secretaría Académica",
   permisos: ["usuarios.ver"],
+  asignacion: {
+    id: "a-1",
+    rolCodigo: "secretaria",
+    rolNombre: "Secretaría Académica",
+    ambitoTipo: "global",
+    ambitoNombre: null,
+  },
+  asignaciones: [],
+  requiereElegirRol: false,
 };
 
 function Proveedores({ children, ruta }: { children: ReactNode; ruta: string }) {
@@ -209,7 +218,7 @@ describe("sesión por cookie del ingreso con Microsoft", () => {
     banderas.desarrollo = true;
     const { seleccionarSesionDesarrollo, obtenerSesionDesarrollo } = await import("./dev/session");
     const { useCerrarSesion } = await import("./auth");
-    seleccionarSesionDesarrollo("u-1", "secretaria");
+    seleccionarSesionDesarrollo("u-1");
     function Salir() {
       const cerrar = useCerrarSesion();
       return (

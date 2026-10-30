@@ -34,11 +34,14 @@ public sealed partial class ServicioRoles(
             throw ConflictoCodigo();
         }
 
-        Rol? baseRol = null;
-        if (datos.RolBaseId is { } baseId)
+        var permisoIds = datos.PermisoIds ?? [];
+        if (permisoIds.Distinct().Count() != permisoIds.Count)
         {
-            baseRol = await repositorio.ObtenerAsync(baseId, false, ct)
-                ?? throw NoEncontrado("No se encontró el rol base solicitado.");
+            throw PermisosInvalidos("No se pueden repetir permisos.");
+        }
+        if ((await repositorio.ObtenerPermisosAsync(permisoIds, ct)).Count != permisoIds.Count)
+        {
+            throw PermisosInvalidos("Uno de los permisos no existe.");
         }
         var ahora = DateTimeOffset.UtcNow;
         var rol = new Rol
@@ -52,7 +55,7 @@ public sealed partial class ServicioRoles(
             Activo = true,
             CreadoEn = ahora,
         };
-        foreach (var permisoId in baseRol?.Permisos.Select(p => p.PermisoId) ?? [])
+        foreach (var permisoId in permisoIds)
         {
             rol.Permisos.Add(new RolPermiso
             {
@@ -127,18 +130,31 @@ public sealed partial class ServicioRoles(
         return permisos.OrderBy(p => p.Nombre).Select(Mapear).ToArray();
     }
 
-    public async Task EliminarAsync(Guid id, EliminarRolDto datos, CancellationToken ct)
+    /// <summary>
+    /// Desactiva o reactiva un rol personalizado. El registro y sus asignaciones se
+    /// conservan; mientras está inactivo sus asignaciones no aportan permisos.
+    /// </summary>
+    public async Task<RolAdministracionDto> CambiarEstadoAsync(
+        Guid id,
+        bool activar,
+        CambiarEstadoRolDto datos,
+        CancellationToken ct)
     {
         var rol = await ObtenerRequeridoAsync(id, true, ct);
         if (rol.EsSistema)
         {
-            throw Protegido("Los roles de sistema no se pueden eliminar.");
+            throw Protegido("Los roles de sistema no se pueden desactivar.");
+        }
+        if (activar && await repositorio.ExisteNombreAsync(rol.Nombre, id, ct))
+        {
+            throw ConflictoNombre();
         }
         repositorio.EsperarVersion(rol, datos.Version);
         await using var transaccion = await db.Database.BeginTransactionAsync(ct);
-        rol.Activo = false;
+        rol.Activo = activar;
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
+        return Mapear(rol);
     }
 
     private async Task<Rol> ObtenerRequeridoAsync(Guid id, bool tracking, CancellationToken ct) =>

@@ -26,6 +26,11 @@ public sealed class RolesController(ServicioRoles servicio) : ControllerBase
         CrearRolDto datos,
         CancellationToken ct)
     {
+        // Asignar permisos en el alta es gestionar membresía: exige el mismo permiso que el PUT.
+        if (datos.PermisoIds is { Count: > 0 } && !User.HasClaim(Permisos.Claim, Permisos.RolesGestionarMembresia))
+        {
+            return Forbid();
+        }
         var creado = await servicio.CrearAsync(datos, ct);
         return CreatedAtAction(nameof(Obtener), new { id = creado.Id }, creado);
     }
@@ -37,13 +42,19 @@ public sealed class RolesController(ServicioRoles servicio) : ControllerBase
         EditarRolDto datos,
         CancellationToken ct) => servicio.EditarAsync(id, datos, ct);
 
-    [HttpDelete("{id:guid}")]
+    [HttpPost("{id:guid}/desactivar")]
     [Authorize(Policy = Permisos.RolesAdministrar)]
-    public async Task<IActionResult> Eliminar(Guid id, EliminarRolDto datos, CancellationToken ct)
-    {
-        await servicio.EliminarAsync(id, datos, ct);
-        return NoContent();
-    }
+    public Task<RolAdministracionDto> Desactivar(
+        Guid id,
+        CambiarEstadoRolDto datos,
+        CancellationToken ct) => servicio.CambiarEstadoAsync(id, false, datos, ct);
+
+    [HttpPost("{id:guid}/activar")]
+    [Authorize(Policy = Permisos.RolesAdministrar)]
+    public Task<RolAdministracionDto> Activar(
+        Guid id,
+        CambiarEstadoRolDto datos,
+        CancellationToken ct) => servicio.CambiarEstadoAsync(id, true, datos, ct);
 
     [HttpGet("{id:guid}/permisos")]
     [Authorize(Policy = Permisos.RolesVer)]

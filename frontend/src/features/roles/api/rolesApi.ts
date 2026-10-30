@@ -27,12 +27,12 @@ const mapear = (rol: RolDto): RolMock => ({
 export async function listarRoles(): Promise<RolMock[]> {
   return (await apiClient.get<RolDto[]>("/api/administracion/roles")).data.map(mapear);
 }
-export async function crearRol(datos: DatosRolNuevo, rolBaseId: string | null): Promise<RolMock> {
+export async function crearRol(datos: DatosRolNuevo, permisoIds: string[]): Promise<RolMock> {
   const { data } = await apiClient.post<RolDto>("/api/administracion/roles", {
     nombre: datos.nombre,
     descripcion: datos.descripcion,
     ambito: datos.scope,
-    rolBaseId,
+    permisoIds,
   });
   return mapear(data);
 }
@@ -45,14 +45,15 @@ export async function editarRol(rol: RolMock, datos: DatosRolEditables): Promise
   });
   return mapear(data);
 }
-export async function eliminarRol(rol: RolMock): Promise<void> {
-  await apiClient.delete(`/api/administracion/roles/${rol.id}`, { data: { version: rol.version } });
+export async function cambiarEstadoRol(rol: RolMock, activar: boolean): Promise<RolMock> {
+  const accion = activar ? "activar" : "desactivar";
+  const { data } = await apiClient.post<RolDto>(`/api/administracion/roles/${rol.id}/${accion}`, {
+    version: rol.version,
+  });
+  return mapear(data);
 }
 export async function listarPermisos(): Promise<PermisoRol[]> {
   return (await apiClient.get<PermisoRol[]>("/api/administracion/permisos")).data;
-}
-export async function obtenerPermisosRol(id: string): Promise<PermisoRol[]> {
-  return (await apiClient.get<PermisoRol[]>(`/api/administracion/roles/${id}/permisos`)).data;
 }
 export async function reemplazarPermisos(
   rol: RolMock,

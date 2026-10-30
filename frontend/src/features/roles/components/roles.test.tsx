@@ -1,161 +1,161 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import type { PermisoRol, RolMock } from "../models";
-import { ListaRoles } from "./ListaRoles";
-import { ModalEditarRol } from "./ModalEditarRol";
-import { PanelPermisos } from "./PanelPermisos";
+import { PermisosPorModulo } from "./PermisosPorModulo";
 
-const ROL_PERSONALIZADO: RolMock = {
-  id: "custom",
+const api = vi.hoisted(() => ({
+  listarRoles: vi.fn(),
+  listarPermisos: vi.fn(),
+  crearRol: vi.fn(),
+  editarRol: vi.fn(),
+  reemplazarPermisos: vi.fn(),
+  eliminarRol: vi.fn(),
+}));
+vi.mock("../api/rolesApi", () => api);
+vi.mock("../../../shared/auth/useCurrentUser", () => ({
+  useCurrentUser: () => ({
+    user: { permissions: ["roles.ver", "roles.administrar", "roles.gestionar_membresia"] },
+  }),
+}));
+
+const permiso = (id: string, codigo: string, nombre: string): PermisoRol => ({
+  id,
+  codigo,
+  nombre,
+  descripcion: `Descripción de ${nombre}`,
+});
+const CATALOGO = [
+  permiso("dv", "designaciones.ver", "Ver designaciones"),
+  permiso("dg", "designaciones.gestionar", "Gestionar designaciones"),
+  permiso("tv", "tareas.ver", "Ver tareas"),
+];
+const ROL: RolMock = {
+  id: "r1",
   codigo: "coordinacion",
   nombre: "Coordinación",
   descripcion: "Descripción",
   scope: "global",
   es_sistema: false,
   activo: true,
-  version: 1,
-  permisos: [],
+  version: 3,
+  permisos: [CATALOGO[0]],
 };
 
-const ROL_SISTEMA: RolMock = {
-  ...ROL_PERSONALIZADO,
-  id: "system",
-  codigo: "secretaria",
-  nombre: "Secretaría",
-  es_sistema: true,
-};
-
-const PERMISO: PermisoRol = {
-  id: "permission",
-  codigo: "roles.ver",
-  nombre: "Ver roles",
-  descripcion: "Consultar roles.",
-};
-
-const PROPS_LISTA = {
-  busqueda: "",
-  onBusquedaChange: vi.fn(),
-  rolSeleccionadoId: null,
-  onSeleccionar: vi.fn(),
-  puedeAdministrar: true,
-  onEditar: vi.fn(),
-  onEliminar: vi.fn(),
-};
-
-describe("componentes unificados de roles", () => {
-  it("muestra el conflicto remoto dentro del formulario y conserva los campos", () => {
+describe("permisos por módulo", () => {
+  it("muestra el módulo a medias como intermedio y al marcarlo asigna todos sus permisos", async () => {
+    const onChange = vi.fn();
     render(
-      <ModalEditarRol
-        rol={ROL_PERSONALIZADO}
-        nombresExistentes={[]}
-        onGuardar={vi.fn()}
-        onCerrar={vi.fn()}
-        error="No se puede cambiar el ámbito con asignaciones vigentes."
+      <PermisosPorModulo
+        catalogo={CATALOGO}
+        asignados={["dv"]}
+        deshabilitado={false}
+        onChange={onChange}
       />,
     );
-    const dialog = screen.getByRole("dialog");
-    expect(
-      within(dialog).getByText(/No se puede cambiar el ámbito con asignaciones vigentes/),
-    ).toBeInTheDocument();
-    expect(within(dialog).getAllByRole("textbox")[0]).toHaveValue("Coordinación");
+
+    const modulo = screen.getByRole("checkbox", { name: "Todos los permisos de Designaciones" });
+    expect(modulo).toHaveProperty("indeterminate", true);
+    expect(screen.getByText("Designaciones").closest("summary")).toHaveTextContent("1/2");
+
+    await userEvent.click(modulo);
+    expect(onChange).toHaveBeenCalledWith(["dv", "dg"]);
   });
 
-  it("compara duplicados por trim y case sin confundir nombres con tildes", async () => {
+  it("desmarcar un módulo completo quita sólo los permisos de ese módulo", async () => {
+    const onChange = vi.fn();
+    render(
+      <PermisosPorModulo
+        catalogo={CATALOGO}
+        asignados={["dv", "dg", "tv"]}
+        deshabilitado={false}
+        onChange={onChange}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Todos los permisos de Designaciones" }),
+    );
+    expect(onChange).toHaveBeenCalledWith(["tv"]);
+  });
+});
+
+async function renderEditor(ruta: string) {
+  const { EditorPage } = await import("../pages/EditorPage");
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <MemoryRouter initialEntries={[ruta]}>
+        <Routes>
+          <Route path="/roles/nuevo" element={<EditorPage />} />
+          <Route path="/roles/:rolId" element={<EditorPage />} />
+          <Route path="/roles" element={<p>Listado</p>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe("editor de rol", () => {
+  it("un rol nuevo arranca sin permisos y se crea con los marcados", async () => {
+    api.listarRoles.mockResolvedValue([ROL]);
+    api.listarPermisos.mockResolvedValue(CATALOGO);
+    api.crearRol.mockResolvedValue({ ...ROL, id: "r2", nombre: "Observador" });
     const user = userEvent.setup();
-    const onGuardar = vi.fn();
-    const { rerender } = render(
-      <ModalEditarRol
-        rol={ROL_PERSONALIZADO}
-        nombresExistentes={[" Otro "]}
-        onGuardar={onGuardar}
-        onCerrar={vi.fn()}
-      />,
-    );
-    await user.clear(screen.getAllByRole("textbox")[0]);
-    await user.type(screen.getAllByRole("textbox")[0], " otro ");
-    await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(onGuardar).not.toHaveBeenCalled();
-    rerender(
-      <ModalEditarRol
-        rol={ROL_PERSONALIZADO}
-        nombresExistentes={["Coordinacion"]}
-        onGuardar={onGuardar}
-        onCerrar={vi.fn()}
-      />,
-    );
-    await user.clear(screen.getAllByRole("textbox")[0]);
-    await user.type(screen.getAllByRole("textbox")[0], "Coordinación");
-    await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(onGuardar).toHaveBeenCalledOnce();
-  });
-  it("sólo ofrece baja para roles personalizados", () => {
-    render(<ListaRoles {...PROPS_LISTA} roles={[ROL_SISTEMA, ROL_PERSONALIZADO]} />);
+    await renderEditor("/roles/nuevo");
 
-    expect(screen.getAllByRole("button", { name: "Editar" })).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "Eliminar" })).toHaveLength(1);
+    const checks = await screen.findAllByRole("checkbox");
+    expect(checks.every((c) => !(c as HTMLInputElement).checked)).toBe(true);
+
+    await user.type(screen.getAllByRole("textbox")[0], "Observador");
+    await user.click(screen.getByRole("checkbox", { name: "Todos los permisos de Tareas" }));
+    await user.click(screen.getByRole("button", { name: "Crear rol" }));
+
+    expect(api.crearRol).toHaveBeenCalledWith(
+      { nombre: "Observador", descripcion: "", scope: "global" },
+      ["tv"],
+    );
+    expect(await screen.findByText("Listado")).toBeInTheDocument();
   });
 
-  it("representa los metadatos del rol de sistema como sólo lectura", () => {
-    render(
-      <ModalEditarRol
-        rol={ROL_SISTEMA}
-        nombresExistentes={[]}
-        onGuardar={vi.fn()}
-        onCerrar={vi.fn()}
-      />,
-    );
-
-    const dialog = screen.getByRole("dialog");
-    expect(
-      within(dialog)
-        .getAllByRole("textbox")
-        .every((campo) => campo.hasAttribute("disabled")),
-    ).toBe(true);
-    expect(within(dialog).getByRole("combobox")).toBeDisabled();
-    expect(within(dialog).getByRole("button", { name: "Guardar" })).toBeDisabled();
-    expect(within(dialog).getByText(/código, nombre, descripción y ámbito/i)).toBeInTheDocument();
-  });
-
-  it("mantiene el panel de permisos en sólo lectura sin membresía", () => {
-    render(
-      <PanelPermisos
-        rol={ROL_SISTEMA}
-        permisos={[PERMISO]}
-        asignados={[]}
-        puedeEditar={false}
-        guardando={false}
-        onToggle={vi.fn()}
-        onGuardar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("checkbox", { name: /ver roles/i })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Guardar cambios" })).not.toBeInTheDocument();
-    expect(screen.getByText("Sólo lectura.")).toBeInTheDocument();
-  });
-
-  it("permite modificar y guardar permisos cuando corresponde", async () => {
+  it("al editar guarda los permisos con la versión que devolvió la edición de datos", async () => {
+    api.listarRoles.mockResolvedValue([ROL]);
+    api.listarPermisos.mockResolvedValue(CATALOGO);
+    api.editarRol.mockResolvedValue({ ...ROL, nombre: "Coordinación general", version: 4 });
+    api.reemplazarPermisos.mockResolvedValue([]);
     const user = userEvent.setup();
-    const onToggle = vi.fn();
-    const onGuardar = vi.fn();
-    render(
-      <PanelPermisos
-        rol={ROL_PERSONALIZADO}
-        permisos={[PERMISO]}
-        asignados={[]}
-        puedeEditar
-        guardando={false}
-        onToggle={onToggle}
-        onGuardar={onGuardar}
-      />,
-    );
+    await renderEditor("/roles/r1");
 
-    await user.click(screen.getByRole("checkbox", { name: /ver roles/i }));
+    const nombre = await screen.findByDisplayValue("Coordinación");
+    await user.clear(nombre);
+    await user.type(nombre, "Coordinación general");
+    await user.click(screen.getByRole("checkbox", { name: "Todos los permisos de Tareas" }));
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
-    expect(onToggle).toHaveBeenCalledWith(PERMISO.id);
-    expect(onGuardar).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Listado")).toBeInTheDocument();
+    expect(api.reemplazarPermisos).toHaveBeenCalledWith(expect.objectContaining({ version: 4 }), [
+      "dv",
+      "tv",
+    ]);
+  });
+
+  it("no guarda un nombre que ya usa otro rol, sin distinguir mayúsculas", async () => {
+    api.listarRoles.mockResolvedValue([ROL, { ...ROL, id: "r2", nombre: "Observador" }]);
+    api.listarPermisos.mockResolvedValue(CATALOGO);
+    api.editarRol.mockClear();
+    const user = userEvent.setup();
+    await renderEditor("/roles/r1");
+
+    const nombre = await screen.findByDisplayValue("Coordinación");
+    await user.clear(nombre);
+    await user.type(nombre, " observador ");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    expect(screen.getByText("Ya existe un rol con ese nombre.")).toBeInTheDocument();
+    expect(api.editarRol).not.toHaveBeenCalled();
   });
 });

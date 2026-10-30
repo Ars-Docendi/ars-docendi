@@ -30,6 +30,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Jefe, RolesCircuito.JefeCatedra);
+        await ElegirJefaturaAsync(cliente);
 
         var creado = await PostPedido(cliente,
             Guid.Parse("d0000000-0000-4000-8000-000000000002"), ct);
@@ -151,6 +152,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         using var secretaria = host.CreateClient();
         using var decanato = host.CreateClient();
         Autenticar(jefe, Jefe, RolesCircuito.JefeCatedra);
+        await ElegirJefaturaAsync(jefe);
         Autenticar(coordinador, Coordinador, RolesCircuito.CoordinadorCarrera);
         Autenticar(secretaria, Guid.Parse("a0000000-0000-4000-8000-000000000004"), RolesCircuito.Secretaria);
         Autenticar(decanato, Guid.Parse("a0000000-0000-4000-8000-000000000005"), RolesCircuito.Decanato);
@@ -251,6 +253,12 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         },
         version,
     };
+
+    /// <summary>El Jefe sembrado lo es en varias materias: opera con la de los pedidos.</summary>
+    private async Task ElegirJefaturaAsync(HttpClient cliente) =>
+        cliente.DefaultRequestHeaders.Add(
+            AutenticacionDesarrolloHandler.HeaderAsignacion,
+            (await AsignacionEnMateriaAsync(Jefe, RolesCircuito.JefeCatedra, Materia)).ToString());
 
     private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
     {

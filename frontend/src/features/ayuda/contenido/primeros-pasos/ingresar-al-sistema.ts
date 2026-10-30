@@ -12,6 +12,7 @@ export const ingresarAlSistema: ArticuloAyuda = {
   palabrasClave: [
     "login",
     "iniciar sesión",
+    "elegir rol",
     "ingresar",
     "entrar",
     "acceso",
@@ -52,6 +53,12 @@ export const ingresarAlSistema: ArticuloAyuda = {
       },
     },
     {
+      titulo: "Elegí con qué rol ingresar",
+      etiquetaIndice: "Elegir el rol",
+      cuerpo:
+        "Si tenés más de un rol, o el mismo rol en distintas materias o carreras, entrás con el primero y se abre «¿Con qué rol querés trabajar?», con una opción por cada uno y su materia o carrera. Elegí uno, o cerrá la ventana para seguir con el marcado. Trabajás siempre con un solo rol a la vez: ves sus pantallas y solo lo de esa materia o carrera. Si tenés un único rol, entrás directo. La pregunta se repite en cada ingreso.",
+    },
+    {
       titulo: "Si no te deja ingresar",
       etiquetaIndice: "Si no te deja",
       cuerpo:
@@ -66,7 +73,7 @@ export const ingresarAlSistema: ArticuloAyuda = {
   despues: {
     titulo: "¿Qué sucede después?",
     cuerpo:
-      "Entrás al sistema y ves el menú lateral con las pantallas que tu rol puede usar. La sesión vence si pasa un tiempo sin actividad o al llegar a su duración máxima; en ese caso, el sistema te devuelve a la pantalla de ingreso y tenés que iniciar sesión de nuevo.",
+      "Entrás al sistema y ves el menú lateral con las pantallas que el rol elegido puede usar. Para pasar a otro rol sin salir, usá Cambiar rol en el menú de usuario. La sesión vence si pasa un tiempo sin actividad o al llegar a su duración máxima; en ese caso, el sistema te devuelve a la pantalla de ingreso y tenés que iniciar sesión de nuevo.",
   },
   preguntas: [
     {

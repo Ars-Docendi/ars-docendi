@@ -31,14 +31,27 @@ public sealed record ResultadoIngreso(Guid? UsuarioId, MotivoRechazoIngreso? Mot
 }
 
 /// <summary>
-/// Identidad efectiva de una sesión: el rol con el que opera y sus permisos, leídos
-/// de la persistencia en cada solicitud.
+/// Una asignación de rol vigente tal como se ofrece al elegir con qué rol operar:
+/// el rol y su ámbito (<c>global</c>, <c>materia</c> o <c>carrera</c>).
+/// </summary>
+public sealed record AsignacionSesion(
+    Guid Id,
+    string RolCodigo,
+    string RolNombre,
+    string AmbitoTipo,
+    string? AmbitoNombre);
+
+/// <summary>
+/// Identidad efectiva de una sesión, leída de la persistencia en cada solicitud: la
+/// asignación con la que opera y los permisos de su rol. Mientras la persona no eligió
+/// (<see cref="AsignacionElegida"/> falso) opera con la primera por nombre de rol y
+/// ámbito, y el frontend le ofrece elegir.
 /// </summary>
 public sealed record IdentidadSesion(
     Guid UsuarioId,
     string NombreParaMostrar,
     string Upn,
-    string RolCodigo,
-    string RolNombre,
+    AsignacionSesion Asignacion,
+    bool AsignacionElegida,
     IReadOnlyList<string> Permisos,
-    int CantidadRoles);
+    IReadOnlyList<AsignacionSesion> Asignaciones);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 import { useCurrentUser } from "../shared/auth/useCurrentUser";
+import { ModalCambiarRol } from "./shell/MenuUsuario";
 import { Sidebar } from "./shell/Sidebar";
 import { TopBar } from "./shell/TopBar";
 import "./shell/shell.css";
@@ -79,6 +80,10 @@ export default function AppLayout() {
       <main className="adoc-main">
         <Outlet />
       </main>
+      {/* Con varias asignaciones, al ingresar se ofrece elegir; ya opera con la de por defecto. */}
+      {user.requiereElegirRol && user.asignaciones.length > 1 && (
+        <ModalCambiarRol user={user} alIngresar onCerrar={() => undefined} />
+      )}
     </div>
   );
 }

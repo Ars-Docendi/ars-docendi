@@ -28,6 +28,8 @@ public sealed class RepositorioIngreso(IdentityDbContext db)
                 .ThenInclude(a => a.Rol)
                 .ThenInclude(r => r!.Permisos)
                 .ThenInclude(rp => rp.Permiso)
+            .Include(u => u.Roles).ThenInclude(a => a.Materia)
+            .Include(u => u.Roles).ThenInclude(a => a.Carrera)
             .AsSplitQuery()
             .SingleOrDefaultAsync(u => u.Id == usuarioId, ct);
 }

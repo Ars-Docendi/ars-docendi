@@ -15,8 +15,10 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
     "nuevo rol",
     "crear rol",
     "editar rol",
-    "eliminar rol",
-    "rol base",
+    "desactivar rol",
+    "activar rol",
+    "buscar permiso",
+    "módulo",
     "ámbito",
     "membresía",
     "guardar cambios",
@@ -29,33 +31,19 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
       titulo: "Abrí Roles",
       etiquetaIndice: "Abrir Roles",
       cuerpo:
-        "En el menú, grupo Configuración, elegí Roles. A la izquierda está la lista de roles activos, con un buscador («Nombre o descripción…»); a la derecha, el panel de permisos del rol seleccionado. Cada permiso tiene su casilla, su nombre y su descripción, y arriba se cuenta cuántos tiene el rol («3 de 24»).",
-      captura: {
-        src: "/ayuda/administracion/administrar-roles-y-permisos-paso-1.webp",
-        alt: "Pantalla Roles con la lista y el panel de permisos.",
-      },
+        "En el menú, grupo Configuración, elegí Roles. La grilla muestra los roles con su Nombre, Descripción, Ámbito, Tipo (Sistema o Personalizado), cuántos permisos tiene cada uno sobre el total («7/19») y su Estado (Activo o Inactivo). Podés filtrar desde el encabezado de cada columna y ordenar por Nombre, Ámbito, Tipo, Permisos o Estado.",
       nota: {
         tipo: "info",
         titulo: "Qué ves según tus permisos",
         cuerpo:
-          "Con roles.ver solo mirás: las casillas aparecen bloqueadas y el panel dice «Sólo lectura.». Los botones Nuevo rol, Editar y Eliminar requieren roles.administrar, y modificar las casillas requiere roles.gestionar_membresia.",
+          "Con roles.ver solo mirás: al abrir un rol las casillas aparecen bloqueadas. Nuevo rol, la edición de nombre, descripción y ámbito y Activar/Desactivar requieren roles.administrar; modificar las casillas de permisos requiere roles.gestionar_membresia.",
       },
     },
     {
       titulo: "Creá un rol",
       etiquetaIndice: "Nuevo rol",
       cuerpo:
-        "Pulsá Nuevo rol. Completá el Nombre (obligatorio y único entre los roles activos; si ya existe, el formulario avisa «Ya existe un rol con ese nombre.»), una Descripción opcional y el Ámbito: Global, Materia o Carrera. El ámbito indica dónde rige el rol cuando se lo asigna a una persona.",
-      captura: {
-        src: "/ayuda/administracion/administrar-roles-y-permisos-paso-2.webp",
-        alt: "Ventana Nuevo rol con ámbito y rol base.",
-      },
-    },
-    {
-      titulo: "Partí de un rol existente (opcional)",
-      etiquetaIndice: "Rol base",
-      cuerpo:
-        "Marcá «Usar un rol existente como base (hereda sus permisos)» y elegí el Rol base: el rol nuevo arranca con los mismos permisos y después los ajustás. Pulsá Crear rol; el rol nuevo queda seleccionado.",
+        "Pulsá Nuevo rol. Completá el Nombre (obligatorio y único entre los roles activos; si ya existe, avisa «Ya existe un rol con ese nombre.»), una Descripción opcional y el Ámbito: Global, Materia o Carrera. El ámbito indica dónde rige el rol cuando se lo asigna a una persona. Debajo están los permisos agrupados por módulo, todos destildados: marcá los que corresponda y pulsá Crear rol.",
       nota: {
         tipo: "importante",
         titulo: "Alcance de un rol personalizado",
@@ -64,20 +52,16 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
       },
     },
     {
-      titulo: "Marcá los permisos y guardá",
+      titulo: "Marcá los permisos por módulo y guardá",
       etiquetaIndice: "Permisos",
       cuerpo:
-        "Seleccioná un rol en la lista y tildá o destildá sus permisos. Los cambios no se aplican hasta que pulses Guardar cambios («Los cambios se aplican al guardar.»). Si seleccionás otro rol antes de guardar, los cambios pendientes se descartan. Esto vale también para los roles de sistema.",
-      captura: {
-        src: "/ayuda/administracion/administrar-roles-y-permisos-paso-4.webp",
-        alt: "Panel de permisos con casillas marcadas y el botón Guardar cambios.",
-      },
+        "Hacé clic en un rol de la grilla para abrirlo. Cada módulo (Designaciones, Tareas, Personas…) muestra cuántos permisos tiene marcados sobre su total; desplegalo para ver sus permisos. Con el buscador encontrás un permiso por su nombre o descripción: quedan solo los módulos con coincidencias, ya desplegados. La casilla del módulo marca o desmarca todos sus permisos de una vez, y aparece a medias cuando solo algunos están marcados. Los cambios no se aplican hasta que pulses Guardar cambios; Cancelar los descarta. Esto vale también para los roles de sistema.",
     },
     {
-      titulo: "Editá o eliminá un rol propio",
-      etiquetaIndice: "Editar y eliminar",
+      titulo: "Editá, desactivá o reactivá un rol propio",
+      etiquetaIndice: "Editar y desactivar",
       cuerpo:
-        "Editar abre «Editar rol» con Nombre, Descripción y Ámbito; Guardar confirma. No se puede cambiar el ámbito si el rol tiene asignaciones vigentes. Eliminar (solo en roles personalizados) pide confirmación en «Eliminar rol»: el rol queda inactivo, pero sus asignaciones históricas y sus permisos se conservan. Los roles de sistema no se pueden renombrar ni eliminar, solo ajustar sus permisos.",
+        "Al abrir un rol personalizado podés cambiar Nombre, Descripción y Ámbito junto con sus permisos, y Guardar cambios confirma todo. No se puede cambiar el ámbito si el rol tiene asignaciones vigentes. Desactivar, en la fila del rol (solo en roles personalizados), pide confirmación: el rol queda inactivo y las personas que lo tienen asignado pierden sus permisos, pero las asignaciones se conservan. Activar lo vuelve a habilitar, salvo que otro rol activo ya use su nombre. Los roles de sistema no se pueden renombrar ni desactivar, solo ajustar sus permisos.",
     },
   ],
   despues: {

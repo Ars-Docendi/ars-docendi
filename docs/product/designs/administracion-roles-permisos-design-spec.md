@@ -7,11 +7,19 @@ ruta histórica `/membresia-roles` redirige a `/roles` y no renderiza una segund
 
 ## Layout
 
-- Panel izquierdo: buscador por nombre o descripción y lista de roles activos.
-- Panel derecho: nombre, tipo de rol, cantidad de permisos, catálogo completo de permisos y
-  estado de guardado.
-- La vista muestra un estado de carga, error reintentable y un placeholder cuando no hay un rol
-  seleccionado. Los grupos y acciones sin permiso no se renderizan.
+- `/roles`: grilla administrativa (`Table` de la guía, como Personas) con columnas Nombre,
+  Descripción, Ámbito, Tipo (Sistema o Personalizado), Permisos (`asignados/total`), Estado y
+  Acciones (Editar y, en personalizados, Desactivar o Activar). Filtros por encabezado, orden por
+  columna y fila clickeable que abre el rol. Lista activos e inactivos.
+- `/roles/nuevo` y `/roles/:rolId`: pantalla completa con Nombre, Descripción y Ámbito arriba y,
+  debajo y sin encabezado propio, los permisos agrupados por módulo. Pie con Cancelar y Guardar.
+- Cada módulo es un bloque desplegable, cerrado por defecto, con casilla de módulo (marcada,
+  desmarcada o intermedia), nombre, contador `asignados/total` y chevron. Al desplegarlo lista sus
+  permisos con casilla, nombre y descripción. El módulo sale del prefijo del código del permiso.
+- Un buscador sobre los módulos filtra por nombre o descripción del permiso (o nombre del módulo):
+  quedan solo los módulos con coincidencias, desplegados. Casilla y contador siguen refiriéndose
+  al módulo completo.
+- Estados de carga y error reintentable; las acciones sin permiso no se renderizan.
 
 ## Tipografía
 
@@ -23,18 +31,18 @@ pantalla.
 ## Reglas de edición
 
 - `roles.ver` permite consultar la lista y los permisos.
-- `roles.administrar` habilita crear, editar roles personalizados y solicitar su baja lógica.
+- `roles.administrar` habilita crear, editar, desactivar y reactivar roles personalizados.
 - `roles.gestionar_membresia` habilita marcar permisos y guardarlos para cualquier rol activo.
-- Un rol personalizado exige nombre único, mantiene su código al renombrarse y puede usar otro rol
-  activo como base para copiar permisos una sola vez.
+- Un rol personalizado exige nombre único y mantiene su código al renombrarse. Un rol nuevo arranca
+  con todos los permisos destildados.
 - Un rol de sistema muestra código, nombre, descripción, ámbito y estado como solo lectura. No se
   ofrece eliminarlo; sus permisos sí pueden editarse.
-- La baja pide confirmación y deja el rol fuera de la lista y de nuevos roles base, conservando
+- Desactivar y Activar piden confirmación. Desactivar deja el rol inactivo en la grilla, conservando
   asignaciones y permisos históricos.
 
 ## Accesibilidad y estados
 
-Los controles de selección son botones o checkboxes nativos con nombre accesible. El panel de
-permisos deshabilita los checkboxes y el guardado mientras no exista `roles.gestionar_membresia` o
-la mutación esté pendiente. Los conflictos de concurrencia mantienen el contexto seleccionado y
+Los módulos usan `<details>`/`<summary>`, operables con teclado; la casilla de módulo tiene nombre
+accesible («Todos los permisos de <módulo>») y no pliega el bloque. Las casillas se deshabilitan sin
+`roles.gestionar_membresia` o con el guardado pendiente. Los conflictos de concurrencia mantienen el contexto seleccionado y
 requieren recargar la versión vigente; no se muestran datos ajenos ni mensajes técnicos.
