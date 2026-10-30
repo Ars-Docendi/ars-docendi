@@ -190,4 +190,22 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
         await conexion.OpenAsync();
         return conexion;
     }
+
+    /// <summary>
+    /// Asignación vigente de un rol en una materia: la sesión opera con una sola, así
+    /// que quien tiene el rol en varias materias elige con cuál probar.
+    /// </summary>
+    protected async Task<Guid> AsignacionEnMateriaAsync(Guid usuario, string rol, Guid materia)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand("""
+            SELECT ur.id FROM identity.user_roles ur JOIN identity.roles r ON r.id = ur.role_id
+            WHERE ur.user_id = @usuario AND ur.materia_id = @materia AND r.code = @rol
+              AND ur.deleted_at IS NULL
+            """, conexion);
+        comando.Parameters.AddWithValue("usuario", usuario);
+        comando.Parameters.AddWithValue("materia", materia);
+        comando.Parameters.AddWithValue("rol", rol);
+        return (Guid)(await comando.ExecuteScalarAsync())!;
+    }
 }

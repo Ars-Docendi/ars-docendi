@@ -13,7 +13,8 @@ PedidoDto        = { id, numero, periodo{id,nombre}, persona, materia{id,codigo,
                      novedad, estado, prioritario, cargoSolicitado?, dedicacionSolicitada?, horas?,
                      horasInvestigacion?, horasExternas?, justificacion?, tipoBaja?,
                      tipoBajaDetalle?, etapaRetorno?, propietarioActual?, snapshot?, version,
-                     adjuntos[], historial[], accionesPermitidas[] }
+                     adjuntos[], historial[], accionesPermitidas[], dedicacionSolicitadaId?,
+                     motivoDevolucion?, enviadoEn? }
 GuardarPedidoDto = { periodoId, personaId?, materiaId, carreraId, novedad, cargoSolicitadoId?,
                      dedicacionSolicitadaId?, horas?, horasInvestigacion?, horasExternas?,
                      justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[], persona?, version? }
@@ -97,6 +98,16 @@ estar activo. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
 | POST   | `/api/designaciones/pedidos/{id}/despriorizar` | `designaciones.ver`       | comentario opcional → `PedidoDto`    |
 
 Permiso de etapa significa `designaciones.aprobar_coordinacion`, `designaciones.aprobar_secretaria` o `designaciones.aprobar_decanato`; la política también deja pasar a Administración para rechazar o devolver, y el dominio le impide aceptar. En edición, reenvío y prioridad, `designaciones.ver` abre el endpoint y la máquina de estados valida rol, estado y ámbito.
+
+### Seguimiento del pedido
+
+Sin `designaciones.ver_seguimiento` (Jefe de Cátedra) la API arma una vista simplificada:
+`estado` es `borrador`, `en_proceso` (cualquier etapa de revisión o devuelto a otro actor),
+`devuelto` (sólo si volvió al rol del Jefe), `aprobado` (`en_lote`), `rechazado` o
+`cancelado`; `historial` va vacío y `etapaRetorno` en `null`. `motivoDevolucion` trae el
+comentario de la última devolución cuando el pedido está devuelto a quien consulta (con
+seguimiento, siempre que esté devuelto). `accionesPermitidas` se calcula sobre el estado real. `enviadoEn` (fecha del primer envío) se
+entrega a todos, con o sin seguimiento.
 
 ### Lectura de grilla versus detalle
 

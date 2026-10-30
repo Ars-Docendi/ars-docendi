@@ -7,7 +7,7 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
   titulo: "Cómo seguir el estado de un pedido",
   resumen: "Mis pedidos, detalle, cadena de revisión y estados.",
   introduccion:
-    "Mis pedidos lista los pedidos que cargaste en el período activo. Desde cada fila abrís el detalle, donde ves en qué etapa está el pedido, qué pasó y quién lo tiene.",
+    "Mis pedidos lista los pedidos que cargaste en el período activo. Desde cada fila abrís el detalle. Qué tanto del recorrido ves depende de tu rol: el Jefe de Cátedra ve si el pedido está en proceso, devuelto a él o aprobado; las revisiones ven además la etapa, el historial y quién lo tiene.",
   permisos: ["designaciones.gestionar", "designaciones.revisar"],
   palabrasClave: [
     "estado",
@@ -21,6 +21,7 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
     "rechazado",
     "aprobado",
     "en lote",
+    "en proceso",
     "filtrar",
     "ordenar",
     "dónde está mi pedido",
@@ -40,13 +41,13 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
       titulo: "Leé el estado de cada pedido",
       etiquetaIndice: "Estados",
       cuerpo:
-        "Borrador: todavía no lo enviaste. En Coordinación, En Secretaría y En Decanato: está en revisión en esa etapa. Devuelto: una revisión te lo devolvió para que lo corrijas. Aprobado: pasó todas las etapas y quedó en lote. Rechazado: terminó sin aprobarse. Cancelado: el Jefe de Cátedra lo canceló antes de enviarlo y no sigue el circuito.",
+        "Borrador: todavía no lo enviaste. En proceso: está circulando por el circuito de revisión (como Jefe de Cátedra no ves en qué etapa). Quienes revisan ven en cambio En Coordinación, En Secretaría o En Decanato. Devuelto: te lo devolvieron para que lo corrijas, con el motivo. Aprobado: pasó todas las etapas y quedó en lote. Rechazado: terminó sin aprobarse. Cancelado: el Jefe de Cátedra lo canceló antes de enviarlo y no sigue el circuito.",
     },
     {
       titulo: "Filtrá y ordená la lista",
       etiquetaIndice: "Filtrar y ordenar",
       cuerpo:
-        "Cada encabezado tiene un filtro: texto para Docente, Legajo, Cátedra y Enviado, y casillas para Tipo y Estado (Aprobado agrupa los pedidos en lote; En revisión, los de las tres etapas). Hacé clic en el nombre de la columna para ordenar: una vez ascendente, otra descendente y una tercera para quitar el orden. Si nada coincide, ves «Sin resultados».",
+        "Cada encabezado tiene un filtro: texto para Docente, Legajo, Cátedra y Enviado, y casillas para Tipo y Estado (Aprobado agrupa los pedidos en lote; En revisión, los que están en proceso). Hacé clic en el nombre de la columna para ordenar: una vez ascendente, otra descendente y una tercera para quitar el orden. Si nada coincide, ves «Sin resultados».",
       captura: {
         src: "/ayuda/designaciones/seguir-el-estado-de-un-pedido-paso-3.webp",
         alt: "Encabezado de Estado con el filtro desplegado y las casillas marcadas.",
@@ -56,7 +57,7 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
       titulo: "Abrí el detalle",
       etiquetaIndice: "Abrir el detalle",
       cuerpo:
-        "Hacé clic en la fila (o enfocala y pulsá Enter o Espacio). El detalle muestra arriba la cadena de aprobación; debajo, el resumen del pedido con su documentación adjunta y el Historial del pedido; a la derecha, los Datos del trámite.",
+        "Hacé clic en la fila (o enfocala y pulsá Enter o Espacio). El detalle muestra el resumen del pedido con su documentación adjunta y, a la derecha, los Datos del trámite. Si te lo devolvieron, arriba ves el motivo. Quienes tienen el permiso de seguimiento ven además la cadena de aprobación y el Historial del pedido.",
       captura: {
         src: "/ayuda/designaciones/seguir-el-estado-de-un-pedido-paso-4.webp",
         alt: "Detalle de un pedido con la cadena de aprobación completa y el historial.",
@@ -66,7 +67,7 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
       titulo: "Interpretá la cadena de aprobación",
       etiquetaIndice: "Cadena de aprobación",
       cuerpo:
-        "El pedido recorre cinco etapas: Jefe de Cátedra, Coordinador, Secretaría, Decanato y En lote. Cada etapa se marca como cumplida, actual, devuelta o rechazada. El Historial del pedido registra cada acción con su autor, comentario y fecha.",
+        "Con el permiso de seguimiento (Coordinación, Secretaría, Decanato y Administración) ves que el pedido recorre cinco etapas: Jefe de Cátedra, Coordinador, Secretaría, Decanato y En lote, cada una marcada como cumplida, actual, devuelta o rechazada. El Historial del pedido registra cada acción con su autor, comentario y fecha.",
     },
   ],
   despues: {

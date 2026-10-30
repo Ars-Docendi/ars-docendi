@@ -107,6 +107,7 @@ export function DetallePedidoPage() {
         <DetalleCargado
           pedido={pedido}
           actor={actor}
+          conSeguimiento={user?.permissions.includes("designaciones.ver_seguimiento") ?? false}
           enviando={enviando}
           onAceptar={(comentario) => aceptar.mutate({ id: pedido.id, comentario })}
           onRechazar={(comentario) => rechazar.mutate({ id: pedido.id, comentario })}
@@ -132,6 +133,8 @@ export function DetallePedidoPage() {
 interface DetalleCargadoProps {
   pedido: PedidoDesignacion;
   actor: ActorContexto;
+  /** Sin designaciones.ver_seguimiento no se muestran la cadena de etapas ni el historial. */
+  conSeguimiento: boolean;
   enviando: boolean;
   onAceptar: (comentario?: string) => void;
   onRechazar: (comentario: string) => void;
@@ -148,6 +151,7 @@ interface DetalleCargadoProps {
 function DetalleCargado({
   pedido,
   actor,
+  conSeguimiento,
   enviando,
   onAceptar,
   onRechazar,
@@ -233,19 +237,26 @@ function DetalleCargado({
       />
 
       <div className="adoc-det">
-        <CadenaRevision etapas={etapas} />
+        {conSeguimiento && <CadenaRevision etapas={etapas} />}
+        {pedido.estado === "devuelto" && pedido.motivoDevolucion && !conSeguimiento && (
+          <InlineAlert severity="warning" title="Te devolvieron este pedido">
+            «{pedido.motivoDevolucion}» Corregilo y reenvialo.
+          </InlineAlert>
+        )}
 
         <div className="adoc-det-cols">
           <div className="adoc-det-main">
             <ResumenPedido pedido={pedido} periodoNombre={periodoNombre} />
 
-            <section className="adoc-det-hist" aria-label="Historial del pedido">
-              <header className="adoc-hist-head">
-                <h2 className="adoc-hist-title">Historial del pedido</h2>
-                <span className="adoc-hist-note">Auditoría · Usuario · Fecha</span>
-              </header>
-              <AuditLog entries={historialAAuditEntries(pedido.historial)} />
-            </section>
+            {conSeguimiento && (
+              <section className="adoc-det-hist" aria-label="Historial del pedido">
+                <header className="adoc-hist-head">
+                  <h2 className="adoc-hist-title">Historial del pedido</h2>
+                  <span className="adoc-hist-note">Auditoría · Usuario · Fecha</span>
+                </header>
+                <AuditLog entries={historialAAuditEntries(pedido.historial)} />
+              </section>
+            )}
           </div>
 
           <aside className="adoc-det-rail">

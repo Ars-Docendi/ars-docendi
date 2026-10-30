@@ -27,6 +27,7 @@ public sealed class PersonasHttpTests(PostgresFixture postgres)
         using var host = new Fabrica(Cadena);
         using var docente = Cliente(host, UsuarioDocente, "docente");
         using var jefe = Cliente(host, UsuarioJefe, "jefe_catedra");
+        await ElegirJefaturaAsync(jefe);
         using var secretaria = Cliente(host, UsuarioSecretaria, "secretaria");
 
         using var denegada = await docente.GetAsync("/api/administracion/personas", ct);
@@ -51,6 +52,7 @@ public sealed class PersonasHttpTests(PostgresFixture postgres)
         await EjecutarSeedAsync(ct);
         using var host = new Fabrica(Cadena);
         using var jefe = Cliente(host, UsuarioJefe, "jefe_catedra");
+        await ElegirJefaturaAsync(jefe);
         using var decanato = Cliente(host, UsuarioDecanato, "decanato");
         var sinRol = new
         {
@@ -82,6 +84,7 @@ public sealed class PersonasHttpTests(PostgresFixture postgres)
         using var host = new Fabrica(Cadena);
         using var docente = Cliente(host, UsuarioDocente, "docente");
         using var jefe = Cliente(host, UsuarioJefe, "jefe_catedra");
+        await ElegirJefaturaAsync(jefe);
         using var secretaria = Cliente(host, UsuarioSecretaria, "secretaria");
         var personaDocente = Guid.Parse("d0000000-0000-4000-8000-000000000001");
         var url = $"/api/administracion/personas/{personaDocente}/portal";
@@ -121,6 +124,13 @@ public sealed class PersonasHttpTests(PostgresFixture postgres)
             builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", bool.TrueString);
         }
     }
+
+    /// <summary>El Jefe sembrado lo es en varias materias: opera con la del docente sembrado.</summary>
+    private async Task ElegirJefaturaAsync(HttpClient cliente) =>
+        cliente.DefaultRequestHeaders.Add(
+            AutenticacionDesarrolloHandler.HeaderAsignacion,
+            (await AsignacionEnMateriaAsync(
+                UsuarioJefe, "jefe_catedra", Guid.Parse("70000000-0000-4000-8000-000000000101"))).ToString());
 
     private static HttpClient Cliente(WebApplicationFactory<Program> host, Guid usuarioId, string rol)
     {

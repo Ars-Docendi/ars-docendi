@@ -30,11 +30,13 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Jefe, RolesCircuito.JefeCatedra);
+        await ElegirJefaturaAsync(cliente);
 
         var creado = await PostPedido(cliente,
             Guid.Parse("d0000000-0000-4000-8000-000000000002"), ct);
         Assert.Matches(@"^\d{4}-\d{4}$", creado.Numero);
-        Assert.Equal("crear", Assert.Single(creado.Historial).Accion);
+        // El Jefe no tiene designaciones.ver_seguimiento: no recibe historial.
+        Assert.Empty(creado.Historial);
 
         var editado = await cliente.PutAsJsonAsync($"/api/designaciones/pedidos/{creado.Id}",
             Datos(creado.Persona.Id, creado.Version, 18), ct);
@@ -51,15 +53,20 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         using var respuestaEnviar = await cliente.SendAsync(enviar, ct);
         Assert.Equal(HttpStatusCode.OK, respuestaEnviar.StatusCode);
         var enviado = (await respuestaEnviar.Content.ReadFromJsonAsync<PedidoDto>(ct))!;
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviado.Estado);
-        Assert.Equal("enviar", enviado.Historial.Last().Accion);
+        Assert.Equal("en_proceso", enviado.Estado);
+        Assert.Empty(enviado.Historial);
+        Assert.NotNull(enviado.EnviadoEn); // su propio envío sí lo ve
 
-        var detalle = await cliente.GetStringAsync($"/api/designaciones/pedidos/{creado.Id}", ct);
+        // Secretaría tiene seguimiento: ve la etapa real y el historial completo.
+        using var secretaria = host.CreateClient();
+        Autenticar(secretaria, Guid.Parse("a0000000-0000-4000-8000-000000000004"), RolesCircuito.Secretaria);
+        var detalle = await secretaria.GetStringAsync($"/api/designaciones/pedidos/{creado.Id}", ct);
         // El frontend mapea este mismo JSON en pedidosApi.contrato.test.ts.
         ContratoFrontend.Verificar("pedido-detalle.json", detalle);
         var obtenido = System.Text.Json.JsonSerializer.Deserialize<PedidoDto>(detalle,
             System.Text.Json.JsonSerializerOptions.Web);
-        Assert.Equal(enviado.Estado, obtenido!.Estado);
+        Assert.Equal(EstadosPedido.EnRevisionCoordinador, obtenido!.Estado);
+        Assert.Equal("enviar", obtenido.Historial.Last().Accion);
 
         var devueltoId = Guid.Parse("d5000000-0000-4000-8000-000000000005");
         using var reenviar = new HttpRequestMessage(HttpMethod.Post,
@@ -151,17 +158,24 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         using var secretaria = host.CreateClient();
         using var decanato = host.CreateClient();
         Autenticar(jefe, Jefe, RolesCircuito.JefeCatedra);
+        await ElegirJefaturaAsync(jefe);
         Autenticar(coordinador, Coordinador, RolesCircuito.CoordinadorCarrera);
         Autenticar(secretaria, Guid.Parse("a0000000-0000-4000-8000-000000000004"), RolesCircuito.Secretaria);
         Autenticar(decanato, Guid.Parse("a0000000-0000-4000-8000-000000000005"), RolesCircuito.Decanato);
 
         var creado = await PostPedido(jefe, Guid.Parse("d0000000-0000-4000-8000-000000000004"), ct);
         var enviado = await Accionar(jefe, creado.Id, "enviar", null, ct);
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviado.Estado);
+        Assert.Equal("en_proceso", enviado.Estado);
 
         var devuelto = await Accionar(
             coordinador, creado.Id, "devolver", new AccionPedidoDto("Corregir las tres cargas"), ct);
         Assert.Equal(EstadosPedido.Devuelto, devuelto.Estado);
+        // El Jefe ve que se lo devolvieron y por qué, pero no el historial ni quién lo tiene.
+        var vistaJefe = await jefe.GetFromJsonAsync<PedidoDto>($"/api/designaciones/pedidos/{creado.Id}", ct);
+        Assert.Equal(EstadosPedido.Devuelto, vistaJefe!.Estado);
+        Assert.Equal("Corregir las tres cargas", vistaJefe.MotivoDevolucion);
+        Assert.Empty(vistaJefe.Historial);
+        Assert.Null(vistaJefe.EtapaRetorno);
 
         var corregido = await jefe.PutAsJsonAsync(
             $"/api/designaciones/pedidos/{creado.Id}",
@@ -172,11 +186,13 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         Assert.Equal(2, pedidoCorregido.HorasExternas);
 
         var reenviado = await Accionar(jefe, creado.Id, "reenviar", null, ct);
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, reenviado.Estado);
+        Assert.Equal("en_proceso", reenviado.Estado);
         await Accionar(coordinador, creado.Id, "aceptar", new AccionPedidoDto(), ct);
         await Accionar(secretaria, creado.Id, "aceptar", new AccionPedidoDto(), ct);
         var finalizado = await Accionar(decanato, creado.Id, "aceptar", new AccionPedidoDto(), ct);
         Assert.Equal(EstadosPedido.EnLote, finalizado.Estado);
+        var finalJefe = await jefe.GetFromJsonAsync<PedidoDto>($"/api/designaciones/pedidos/{creado.Id}", ct);
+        Assert.Equal("aprobado", finalJefe!.Estado);
 
         using var respuesta = await decanato.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
@@ -251,6 +267,12 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         },
         version,
     };
+
+    /// <summary>El Jefe sembrado lo es en varias materias: opera con la de los pedidos.</summary>
+    private async Task ElegirJefaturaAsync(HttpClient cliente) =>
+        cliente.DefaultRequestHeaders.Add(
+            AutenticacionDesarrolloHandler.HeaderAsignacion,
+            (await AsignacionEnMateriaAsync(Jefe, RolesCircuito.JefeCatedra, Materia)).ToString());
 
     private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
     {

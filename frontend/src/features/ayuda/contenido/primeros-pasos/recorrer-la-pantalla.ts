@@ -20,13 +20,14 @@ export const recorrerLaPantalla: ArticuloAyuda = {
     "salir",
     "usuario",
     "rol",
+    "cambiar rol",
   ],
   pasos: [
     {
       titulo: "Ubicá tu usuario",
       etiquetaIndice: "Tu usuario",
       cuerpo:
-        "Arriba del menú lateral están el botón ☰ y la marca Ars Docendi, que te lleva a Mi portal. Al pie del menú ves tus iniciales, tu nombre y tu rol, que indican con qué usuario estás trabajando.",
+        "Arriba del menú lateral están el botón ☰ y la marca Ars Docendi, que te lleva a Mi portal. Al pie del menú ves tus iniciales, tu nombre, el rol con el que estás trabajando y, debajo, su materia o carrera (o Global).",
     },
     {
       titulo: "Usá el menú lateral",
@@ -47,6 +48,12 @@ export const recorrerLaPantalla: ArticuloAyuda = {
         src: "/ayuda/primeros-pasos/recorrer-la-pantalla-paso-3.webp",
         alt: "Migas de pan de una pantalla de tres niveles, por ejemplo el detalle de un pedido.",
       },
+    },
+    {
+      titulo: "Cambiá de rol",
+      etiquetaIndice: "Cambiar rol",
+      cuerpo:
+        "Si tenés más de un rol, hacé clic sobre tu nombre al pie del menú lateral y elegí Cambiar rol. Aparecen tus roles con su materia o carrera; al elegir otro, el menú y las pantallas pasan a ser las de ese rol y volvés al inicio. No hace falta cerrar sesión.",
     },
     {
       titulo: "Cerrá la sesión",

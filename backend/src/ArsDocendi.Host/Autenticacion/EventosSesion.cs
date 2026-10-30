@@ -11,9 +11,10 @@ using Microsoft.Extensions.Options;
 namespace ArsDocendi.Host.Autenticacion;
 
 /// <summary>
-/// Eventos del ingreso con Microsoft y de la cookie de sesión. La cookie sólo guarda
-/// quién es el usuario y cuándo ingresó; rol y permisos se leen de identity en cada
-/// solicitud, así que desactivar o cambiar el rol aplica en la solicitud siguiente.
+/// Eventos del ingreso con Microsoft y de la cookie de sesión. La cookie guarda quién
+/// es el usuario, cuándo ingresó y, una vez elegida, la asignación de rol con la que
+/// opera; rol, ámbito y permisos se leen de identity en cada solicitud, así que
+/// desactivar o cambiar una asignación aplica en la solicitud siguiente.
 /// </summary>
 public static partial class EventosSesion
 {
@@ -78,12 +79,15 @@ public static partial class EventosSesion
     {
         var usuarioTexto = contexto.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
         var inicio = contexto.Principal?.FindFirstValue(ClaimInicio);
+        Guid? asignacionId = Guid.TryParse(contexto.Principal?.FindFirstValue(ClaimsSesion.Asignacion), out var a)
+            ? a
+            : null;
         IdentidadSesion? sesion = null;
         if (Guid.TryParse(usuarioTexto, out var usuarioId) && DentroDeLaDuracionMaxima(contexto, inicio))
         {
             sesion = await contexto.HttpContext.RequestServices
                 .GetRequiredService<ServicioSesion>()
-                .ObtenerAsync(usuarioId, contexto.HttpContext.RequestAborted);
+                .ObtenerAsync(usuarioId, asignacionId, contexto.HttpContext.RequestAborted);
         }
 
         if (sesion is null)
@@ -93,18 +97,27 @@ public static partial class EventosSesion
             return;
         }
 
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, sesion.UsuarioId.ToString()),
-            new(ClaimTypes.Name, sesion.NombreParaMostrar),
-            new(ClaimTypes.Email, sesion.Upn),
-            new(ClaimTypes.Role, sesion.RolCodigo),
-            new(ClaimRolNombre, sesion.RolNombre),
-            new(ClaimInicio, inicio!),
-        };
-        claims.AddRange(sesion.Permisos.Select(p => new Claim(Permisos.Claim, p)));
+        var claims = new List<Claim> { new(ClaimInicio, inicio!) };
+        claims.AddRange(ClaimsDe(sesion));
         contexto.ReplacePrincipal(new ClaimsPrincipal(
             new ClaimsIdentity(claims, RegistroAutenticacion.EsquemaSesion)));
+    }
+
+    /// <summary>
+    /// Claims de una identidad de sesión: siempre opera con una asignación (la elegida
+    /// o la de por defecto), y marca si la persona ya la eligió.
+    /// </summary>
+    public static IEnumerable<Claim> ClaimsDe(IdentidadSesion sesion)
+    {
+        var asignacion = sesion.Asignacion;
+        yield return new(ClaimTypes.NameIdentifier, sesion.UsuarioId.ToString());
+        yield return new(ClaimTypes.Name, sesion.NombreParaMostrar);
+        yield return new(ClaimTypes.Email, sesion.Upn);
+        yield return new(ClaimsSesion.Asignacion, asignacion.Id.ToString());
+        if (sesion.AsignacionElegida) yield return new(ClaimsSesion.AsignacionElegida, "true");
+        yield return new(ClaimTypes.Role, asignacion.RolCodigo);
+        yield return new(ClaimRolNombre, asignacion.RolNombre);
+        foreach (var permiso in sesion.Permisos) yield return new(Permisos.Claim, permiso);
     }
 
     private static bool DentroDeLaDuracionMaxima(CookieValidatePrincipalContext contexto, string? inicio)

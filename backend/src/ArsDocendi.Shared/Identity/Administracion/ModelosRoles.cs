@@ -21,7 +21,7 @@ public sealed record CrearRolDto(
     string Nombre,
     string? Descripcion,
     string Ambito,
-    Guid? RolBaseId = null);
+    IReadOnlyList<Guid>? PermisoIds = null);
 
 public sealed record EditarRolDto(
     string Nombre,
@@ -33,4 +33,4 @@ public sealed record ReemplazarPermisosDto(
     IReadOnlyList<Guid> PermisoIds,
     uint Version);
 
-public sealed record EliminarRolDto(uint Version);
+public sealed record CambiarEstadoRolDto(uint Version);

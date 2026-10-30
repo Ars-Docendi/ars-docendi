@@ -34,7 +34,7 @@ PersonaAdministracionDto = { personaId, usuarioId?, nombre, apellido, documento,
                            fechaNacimiento?, telefono?, upn?, tieneCuenta, activo, version?,
                            roles[], membresias[], asignaciones[] }
 RolDto                 = { id, codigo, nombre, descripcion?, ambito, esSistema, activo, version, permisos[] }
-CrearRolDto            = { nombre, descripcion?, ambito, rolBaseId? }
+CrearRolDto            = { nombre, descripcion?, ambito, permisoIds? }   (permisoIds no vacío exige roles.gestionar_membresia)
 EditarRolDto           = { nombre, descripcion?, ambito, version }
 EliminarRolDto         = { version }
 PermisoDto             = { id, codigo, nombre, descripcion }
@@ -57,9 +57,10 @@ CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], per
 ```
 
 Los roles personalizados conservan su `codigo` al renombrarse y exigen nombre único entre roles
-activos. Un rol base debe estar activo y la copia de permisos ocurre sólo al crear el nuevo rol.
-La baja de un rol personalizado es lógica (`activo = false`): conserva el registro, permisos y
-asignaciones históricas, pero lo excluye de listados, asignaciones nuevas y roles base. Los roles de
+activos. Un rol nuevo nace con los permisos de `permisoIds` (ninguno si no se envía).
+Desactivar un rol personalizado es lógico (`activo = false`): conserva el registro, permisos y
+asignaciones, que dejan de aportar permisos mientras esté inactivo; el listado administrativo lo
+sigue mostrando con su estado. Reactivarlo exige que ningún rol activo use su nombre. Los roles de
 sistema mantienen inmutables código, nombre, descripción, ámbito, marca y estado; sus permisos sí
 pueden reemplazarse.
 
@@ -105,16 +106,17 @@ Las rutas de frontend `/usuarios` y `/docentes` (con `?personaId=`) redirigen a 
 
 ## Rutas de roles
 
-| Método | Ruta                                      | Permiso                     | Entrada / salida                           |
-| ------ | ----------------------------------------- | --------------------------- | ------------------------------------------ |
-| GET    | `/api/administracion/roles`               | `roles.ver`                 | `RolDto[]`                                 |
-| GET    | `/api/administracion/roles/{id}`          | `roles.ver`                 | `RolDto`                                   |
-| POST   | `/api/administracion/roles`               | `roles.administrar`         | `CrearRolDto` → `201 RolDto`               |
-| PUT    | `/api/administracion/roles/{id}`          | `roles.administrar`         | `EditarRolDto` con `version` → `RolDto`    |
-| DELETE | `/api/administracion/roles/{id}`          | `roles.administrar`         | `{ version }` → `204 No Content`           |
-| GET    | `/api/administracion/roles/{id}/permisos` | `roles.ver`                 | `PermisoDto[]`                             |
-| PUT    | `/api/administracion/roles/{id}/permisos` | `roles.gestionar_membresia` | `{ permisoIds, version }` → `PermisoDto[]` |
-| GET    | `/api/administracion/permisos`            | `roles.ver`                 | catálogo cerrado `PermisoDto[]`            |
+| Método | Ruta                                        | Permiso                     | Entrada / salida                           |
+| ------ | ------------------------------------------- | --------------------------- | ------------------------------------------ |
+| GET    | `/api/administracion/roles`                 | `roles.ver`                 | `RolDto[]` (activos e inactivos)           |
+| GET    | `/api/administracion/roles/{id}`            | `roles.ver`                 | `RolDto`                                   |
+| POST   | `/api/administracion/roles`                 | `roles.administrar`         | `CrearRolDto` → `201 RolDto`               |
+| PUT    | `/api/administracion/roles/{id}`            | `roles.administrar`         | `EditarRolDto` con `version` → `RolDto`    |
+| POST   | `/api/administracion/roles/{id}/desactivar` | `roles.administrar`         | `{ version }` → `RolDto`                   |
+| POST   | `/api/administracion/roles/{id}/activar`    | `roles.administrar`         | `{ version }` → `RolDto`                   |
+| GET    | `/api/administracion/roles/{id}/permisos`   | `roles.ver`                 | `PermisoDto[]`                             |
+| PUT    | `/api/administracion/roles/{id}/permisos`   | `roles.gestionar_membresia` | `{ permisoIds, version }` → `PermisoDto[]` |
+| GET    | `/api/administracion/permisos`              | `roles.ver`                 | catálogo cerrado `PermisoDto[]`            |
 
 ## Estado del sistema y auditoría
 
@@ -132,15 +134,19 @@ La consulta de auditoría acepta `desde`, `hasta`, `accion` (`INSERT`, `UPDATE`,
 
 ## Desarrollo
 
-`GET /api/desarrollo/identidades` devuelve únicamente roles y permisos activos:
+`GET /api/desarrollo/identidades` lista las identidades sembradas para elegir quién ingresa, con
+los nombres de sus roles vigentes sólo para reconocerlas:
 
 ```text
-IdentidadDesarrolloDto = { usuarioId, nombreParaMostrar, upn, roles[
-  { codigo, nombre, permisos[], materias[{id,codigo,nombre}], carreras[{id,codigo,nombre}] }
-] }
+IdentidadDesarrolloDto = { usuarioId, nombreParaMostrar, upn, roles[] }
 ```
 
-El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario activo, marca de dataset sintético, asignación vigente y ámbito. No acepta ámbitos declarados por el cliente. En Production la ruta y el esquema no están registrados, por lo que el resultado es `404` aunque se envíen esos headers.
+El cliente envía `X-Dev-User-Id` y, una vez elegida, `X-Dev-Asignacion-Id`. El handler valida usuario
+activo y marca de dataset sintético, y resuelve asignación, rol, ámbito y permisos igual que la
+sesión por cookie: sin asignación elegida opera con la de por defecto. `GET /api/desarrollo/sesion`
+devuelve la misma `SesionDto` que `GET /api/auth/sesion`. `X-Dev-Role-Code` sigue aceptándose como
+atajo para tests y herramientas (elige la primera asignación de ese rol); el frontend no lo usa. No
+acepta ámbitos declarados por el cliente. En Production la ruta y el esquema no están registrados, por lo que el resultado es `404` aunque se envíen esos headers.
 
 ## Códigos de error
 

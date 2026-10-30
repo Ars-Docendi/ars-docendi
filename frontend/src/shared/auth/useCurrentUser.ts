@@ -1,9 +1,15 @@
 import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { developmentAuthEnabled } from "./developmentAuth";
+import { obtenerSesionDesarrolloApi } from "./dev/identidadesApi";
 import { obtenerSesionDesarrollo, suscribirSesionDesarrollo } from "./dev/session";
-import { useIdentidadesDesarrollo } from "./dev/useIdentidadesDesarrollo";
-import { microsoftLoginEnabled, obtenerSesion, sesionKeys } from "./sesionMicrosoft";
+import {
+  microsoftLoginEnabled,
+  obtenerSesion,
+  sesionKeys,
+  type AsignacionApi,
+  type SesionApi,
+} from "./sesionMicrosoft";
 
 export type Role = string;
 
@@ -15,6 +21,10 @@ export interface CurrentUser {
   role: Role;
   roleCode: string;
   permissions: string[];
+  /** Asignación con la que opera; `null` mientras falta elegirla. */
+  asignacion: AsignacionApi | null;
+  asignaciones: AsignacionApi[];
+  requiereElegirRol: boolean;
 }
 
 export interface CurrentUserState {
@@ -55,28 +65,16 @@ function useCurrentUserDesarrollo(habilitado: boolean): CurrentUserState {
     obtenerSesionDesarrollo,
     () => null,
   );
-  const consulta = useIdentidadesDesarrollo(habilitado && sesion !== null);
-  const identidad = consulta.data?.find((item) => item.usuarioId === sesion?.usuarioId);
-  const rol = identidad?.roles.find((item) => item.codigo === sesion?.rolCodigo);
-  const user =
-    identidad && rol
-      ? {
-          id: identidad.usuarioId,
-          name: identidad.nombreParaMostrar,
-          initials: iniciales(identidad.nombreParaMostrar),
-          upn: identidad.upn,
-          role: rol.nombre,
-          roleCode: rol.codigo,
-          permissions: rol.permisos,
-        }
-      : null;
-  const seleccionInvalida = Boolean(consulta.data && sesion && !user);
+  const consulta = useQuery({
+    queryKey: [...sesionKeys.desarrollo, sesion?.usuarioId, sesion?.asignacionId],
+    queryFn: obtenerSesionDesarrolloApi,
+    enabled: habilitado && sesion !== null,
+    retry: false,
+  });
   return {
-    user,
+    user: sesion && consulta.data ? aUsuario(consulta.data) : null,
     isLoading: consulta.isLoading,
-    error:
-      consulta.error ??
-      (seleccionInvalida ? new Error("La sesión elegida ya no está disponible.") : null),
+    error: consulta.error ? new Error("La sesión elegida ya no está disponible.") : null,
     retry: () => {
       void consulta.refetch();
     },
@@ -90,24 +88,28 @@ function useCurrentUserMicrosoft(habilitado: boolean): CurrentUserState {
     enabled: habilitado,
     staleTime: 60_000,
   });
-  const sesion = consulta.data;
   return {
-    user: sesion
-      ? {
-          id: sesion.usuarioId,
-          name: sesion.nombreParaMostrar,
-          initials: iniciales(sesion.nombreParaMostrar),
-          upn: sesion.upn,
-          role: sesion.rolNombre,
-          roleCode: sesion.rolCodigo,
-          permissions: sesion.permisos,
-        }
-      : null,
+    user: consulta.data ? aUsuario(consulta.data) : null,
     isLoading: consulta.isLoading,
     error: consulta.error,
     retry: () => {
       void consulta.refetch();
     },
+  };
+}
+
+function aUsuario(sesion: SesionApi): CurrentUser {
+  return {
+    id: sesion.usuarioId,
+    name: sesion.nombreParaMostrar,
+    initials: iniciales(sesion.nombreParaMostrar),
+    upn: sesion.upn,
+    role: sesion.rolNombre ?? "",
+    roleCode: sesion.rolCodigo ?? "",
+    permissions: sesion.permisos,
+    asignacion: sesion.asignacion,
+    asignaciones: sesion.asignaciones,
+    requiereElegirRol: sesion.requiereElegirRol,
   };
 }
 
