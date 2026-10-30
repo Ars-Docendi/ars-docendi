@@ -11,7 +11,7 @@
 - [x] 1.7 Tests en `roles.test.tsx`: alta con permisos destildados, marcado por módulo con estado intermedio y contador, y edición que guarda datos y permisos.
 - [x] 1.9 Activar y desactivar roles personalizados: `POST /roles/{id}/activar|desactivar` (reemplazan `DELETE`), listado con inactivos, columna Estado y acciones Editar/Desactivar/Activar en la grilla.
 - [x] 1.10 Buscador de permisos en la sección de permisos del editor.
-- [ ] 1.8 Actualizar `administracion-roles-permisos-design-spec.md`, `api-contracts-administracion.md` y el artículo de ayuda `administrar-roles-y-permisos` (texto y capturas).
+- [x] 1.8 Actualizar `administracion-roles-permisos-design-spec.md`, `api-contracts-administracion.md` y el artículo de ayuda `administrar-roles-y-permisos` (texto y capturas).
 
 ## 2. Fase 2 — Rol activo
 

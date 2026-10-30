@@ -32,6 +32,10 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
       etiquetaIndice: "Abrir Roles",
       cuerpo:
         "En el menú, grupo Configuración, elegí Roles. La grilla muestra los roles con su Nombre, Descripción, Ámbito, Tipo (Sistema o Personalizado), cuántos permisos tiene cada uno sobre el total («7/19») y su Estado (Activo o Inactivo). Podés filtrar desde el encabezado de cada columna y ordenar por Nombre, Ámbito, Tipo, Permisos o Estado.",
+      captura: {
+        src: "/ayuda/administracion/administrar-roles-y-permisos-paso-1.webp",
+        alt: "Grilla de roles con nombre, ámbito, tipo, permisos, estado y las acciones Editar y Activar o Desactivar.",
+      },
       nota: {
         tipo: "info",
         titulo: "Qué ves según tus permisos",
@@ -44,6 +48,10 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
       etiquetaIndice: "Nuevo rol",
       cuerpo:
         "Pulsá Nuevo rol. Completá el Nombre (obligatorio y único entre los roles activos; si ya existe, avisa «Ya existe un rol con ese nombre.»), una Descripción opcional y el Ámbito: Global, Materia o Carrera. El ámbito indica dónde rige el rol cuando se lo asigna a una persona. Debajo están los permisos agrupados por módulo, todos destildados: marcá los que corresponda y pulsá Crear rol.",
+      captura: {
+        src: "/ayuda/administracion/administrar-roles-y-permisos-paso-2.webp",
+        alt: "Pantalla Nuevo rol con los campos Nombre, Descripción y Ámbito y su ayuda.",
+      },
       nota: {
         tipo: "importante",
         titulo: "Alcance de un rol personalizado",
@@ -56,6 +64,10 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
       etiquetaIndice: "Permisos",
       cuerpo:
         "Hacé clic en un rol de la grilla para abrirlo. Cada módulo (Designaciones, Tareas, Personas…) muestra cuántos permisos tiene marcados sobre su total; desplegalo para ver sus permisos. Con el buscador encontrás un permiso por su nombre o descripción: quedan solo los módulos con coincidencias, ya desplegados. La casilla del módulo marca o desmarca todos sus permisos de una vez, y aparece a medias cuando solo algunos están marcados. Los cambios no se aplican hasta que pulses Guardar cambios; Cancelar los descarta. Esto vale también para los roles de sistema.",
+      captura: {
+        src: "/ayuda/administracion/administrar-roles-y-permisos-paso-3.webp",
+        alt: "Permisos agrupados por módulo, con el buscador y un módulo marcado a medias.",
+      },
     },
     {
       titulo: "Editá, desactivá o reactivá un rol propio",

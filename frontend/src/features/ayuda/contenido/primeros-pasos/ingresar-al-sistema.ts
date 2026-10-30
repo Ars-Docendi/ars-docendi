@@ -57,6 +57,10 @@ export const ingresarAlSistema: ArticuloAyuda = {
       etiquetaIndice: "Elegir el rol",
       cuerpo:
         "Si tenés más de un rol, o el mismo rol en distintas materias o carreras, entrás con el primero y se abre «¿Con qué rol querés trabajar?», con una opción por cada uno y su materia o carrera. Elegí uno, o cerrá la ventana para seguir con el marcado. Trabajás siempre con un solo rol a la vez: ves sus pantallas y solo lo de esa materia o carrera. Si tenés un único rol, entrás directo. La pregunta se repite en cada ingreso.",
+      captura: {
+        src: "/ayuda/primeros-pasos/ingresar-al-sistema-paso-4.webp",
+        alt: "Ventana «¿Con qué rol querés trabajar?» con dos roles y el primero marcado.",
+      },
     },
     {
       titulo: "Si no te deja ingresar",
