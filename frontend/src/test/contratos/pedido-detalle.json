@@ -1,5 +1,5 @@
 {
-  "id": "f85bf016-90e1-4bd2-b87e-948d7ef95a7a",
+  "id": "e77e22bd-01a8-40c9-802b-0cef8b5570e0",
   "numero": "2026-0001",
   "periodo": {
     "id": "d4000000-0000-4000-8000-000000000001",
@@ -9,7 +9,7 @@
     "impactoDesde": "2026-08-01",
     "impactoHasta": "2026-12-31",
     "activo": true,
-    "version": 785
+    "version": 834
   },
   "persona": {
     "id": "d0000000-0000-4000-8000-000000000002",
@@ -50,33 +50,33 @@
     "horasInvestigacion": 4,
     "horasExternas": 2
   },
-  "version": 791,
+  "version": 840,
   "adjuntos": [
     {
-      "id": "0c9fe087-0298-46b2-a7aa-abb1b386d61a",
-      "tipo": "dni_dorso",
-      "nombre": "dni-dorso.pdf",
+      "id": "5d7960cb-3acc-4793-98b0-8baaa38b4292",
+      "tipo": "dni_frente",
+      "nombre": "dni-frente.pdf",
       "archivoId": null,
       "estadoArchivo": "legacy"
     },
     {
-      "id": "1cc108be-9ac4-4eba-a470-d58a948f3190",
+      "id": "5e9e94bf-366c-4abd-85c7-3fb8a20ad3cc",
       "tipo": "cv",
       "nombre": "cv.pdf",
       "archivoId": null,
       "estadoArchivo": "legacy"
     },
     {
-      "id": "4ff30bf0-a6d0-40b8-89d4-bff8354c7e21",
-      "tipo": "dni_frente",
-      "nombre": "dni-frente.pdf",
+      "id": "6d70af3e-be4b-4170-bf9d-0fac1989670c",
+      "tipo": "dni_dorso",
+      "nombre": "dni-dorso.pdf",
       "archivoId": null,
       "estadoArchivo": "legacy"
     }
   ],
   "historial": [
     {
-      "id": "3cb36986-8475-4868-86f4-9172e972db18",
+      "id": "c90468a5-b7c1-4d57-adaa-2e9ff4be88aa",
       "accion": "crear",
       "rolId": "a1000000-0000-4000-8000-000000000002",
       "rolCodigo": "jefe_catedra",
@@ -84,10 +84,10 @@
       "actorNombre": "Gustavo Ruiz",
       "etapa": "borrador",
       "comentario": null,
-      "creadoEn": "2026-10-20T17:50:53.238375+00:00"
+      "creadoEn": "2026-10-30T15:31:13.265347+00:00"
     },
     {
-      "id": "ae563714-993b-48f8-be73-87835f10e8f9",
+      "id": "5e818b96-8a2f-476f-8856-8d571eda6393",
       "accion": "editar",
       "rolId": "a1000000-0000-4000-8000-000000000002",
       "rolCodigo": "jefe_catedra",
@@ -95,10 +95,10 @@
       "actorNombre": "Gustavo Ruiz",
       "etapa": "borrador",
       "comentario": null,
-      "creadoEn": "2026-10-20T17:50:54.47335+00:00"
+      "creadoEn": "2026-10-30T15:31:13.379541+00:00"
     },
     {
-      "id": "1b73ea37-e73a-41ca-baa9-d17bf31088a6",
+      "id": "d4e93909-0322-4dee-9092-98255505080e",
       "accion": "enviar",
       "rolId": "a1000000-0000-4000-8000-000000000002",
       "rolCodigo": "jefe_catedra",
@@ -106,12 +106,14 @@
       "actorNombre": "Gustavo Ruiz",
       "etapa": "en_revision_coordinador",
       "comentario": null,
-      "creadoEn": "2026-10-20T17:50:55.123514+00:00"
+      "creadoEn": "2026-10-30T15:31:13.474377+00:00"
     }
   ],
   "accionesPermitidas": [
     "priorizar",
     "despriorizar"
   ],
-  "dedicacionSolicitadaId": "d6000000-0000-4000-8000-000000000001"
+  "dedicacionSolicitadaId": "d6000000-0000-4000-8000-000000000001",
+  "motivoDevolucion": null,
+  "enviadoEn": "2026-10-30T15:31:13.474377+00:00"
 }

@@ -26,9 +26,12 @@
 - [x] 2.9 Test de frontend del flujo de selección y cambio de rol.
 - [x] 2.10 Docs: `api-contracts.md` (endpoints de auth), artículos de ayuda `ingresar-al-sistema` y `recorrer-la-pantalla`.
 
-## 3. Fase 3 — Depuración de permisos sin uso
+## 3. Fase 3 — Depuración de permisos y seguimiento de pedidos
 
-- [ ] 3.1 Con la vista por módulo, revisar con producto cada permiso de `Permisos.Todos` contra sus usos en políticas y guardas, y acordar cuáles se retiran.
-- [ ] 3.2 Agregar a este change el delta de spec con los permisos retirados.
-- [ ] 3.3 Migración incremental de `identity` (scaffold) que retira esos permisos de `rol_permisos` y `permisos`, con `Down` que los restaura; quitar las constantes de `Permisos.cs`.
-- [ ] 3.4 Actualizar `data-model.md` si lista permisos y el artículo de ayuda `permisos-y-pantallas-visibles`.
+- [x] 3.1 Relevar cada permiso contra sus usos en políticas, guardas y menú, y acordar con producto: retirar `portal.editar`, `reportes.ver` y `sistema.parametrizar`; conservar `aulas.*`, `portal.ver` y `designaciones.aprobar_*`.
+- [x] 3.2 Delta de spec: catálogo sin permisos sin uso (`gestionar-permisos-rol`) y seguimiento según permiso (`pedidos-designacion`).
+- [x] 3.3 Migración `PermisosSeguimientoPedidosIdentity` (scaffold): crea y asigna `designaciones.ver_seguimiento` (todos los roles con `designaciones.ver` salvo Jefe de Cátedra) y retira los tres permisos, con `Down` que los restaura; constante en `Permisos.cs`.
+- [x] 3.4 Backend: `VistaPedido` simplifica estado, historial y etapa sin seguimiento; `PedidoDto.motivoDevolucion`.
+- [x] 3.5 Frontend: estados `en_proceso` y `aprobado`, motivo de devolución en detalle y formulario, cadena e historial sólo con seguimiento.
+- [x] 3.6 Tests: recorrido HTTP del Jefe (en proceso, devuelto con motivo, aprobado) y detalle con y sin seguimiento; contrato `pedido-detalle.json` regenerado desde Secretaría.
+- [x] 3.7 Docs y ayuda: `api-contracts-designaciones.md`, `seguir-el-estado-de-un-pedido`, `editar-un-pedido`.

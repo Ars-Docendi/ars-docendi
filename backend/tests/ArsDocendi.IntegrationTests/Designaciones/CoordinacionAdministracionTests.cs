@@ -157,6 +157,8 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
             && d.MateriaId == pedido.MateriaId && d.VigenteHasta == null, ct);
         Assert.Equal(aprobar ? 16 : 32, vigente.Horas);
         Assert.Equal(aprobar ? PedidoId : null, vigente.OrigenPedidoId);
-        Assert.Single(respuesta.Historial, h => h.Accion == (aprobar ? AccionesHistorial.Aceptar : AccionesHistorial.Enviar));
+        await using var verificacion = PostgresFixture.CrearDesignaciones(Cadena);
+        Assert.Equal(1, await verificacion.PedidoHistorial.CountAsync(h => h.PedidoId == PedidoId
+            && h.Accion == (aprobar ? AccionesHistorial.Aceptar : AccionesHistorial.Enviar), ct));
     }
 }

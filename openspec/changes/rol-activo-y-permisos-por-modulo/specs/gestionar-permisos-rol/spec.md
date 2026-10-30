@@ -84,3 +84,12 @@ La sección de permisos de las pantallas de alta y edición de rol SHALL ofrecer
 
 - **WHEN** el texto no coincide con ningún permiso ni módulo
 - **THEN** la sección informa que no hay permisos que coincidan
+
+### Requirement: Catálogo sin permisos sin uso
+
+El catálogo de permisos MUST NOT ofrecer permisos que no habilitan ninguna pantalla ni operación. `portal.editar`, `reportes.ver` y `sistema.parametrizar` SHALL retirarse junto con sus asignaciones; editar el propio Mi Portal no requiere permiso y corregir el de otra persona requiere `portal.administrar`.
+
+#### Scenario: Permisos retirados no aparecen
+
+- **WHEN** el operador abre la edición de cualquier rol
+- **THEN** no ve `portal.editar`, `reportes.ver` ni `sistema.parametrizar` entre los permisos

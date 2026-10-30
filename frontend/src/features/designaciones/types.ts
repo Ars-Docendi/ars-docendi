@@ -75,7 +75,10 @@ export type EstadoPedido =
   | "devuelto" // sub-estado: volvió a un actor anterior para corrección
   | "en_lote" // terminal-para-el-prototipo (flujo real: → Universitaria → Aprobado)
   | "rechazado" // terminal
-  | "cancelado"; // terminal
+  | "cancelado" // terminal
+  // Vista sin designaciones.ver_seguimiento (Jefe de Cátedra): el backend no informa la etapa.
+  | "en_proceso"
+  | "aprobado";
 
 export type TipoAdjunto = "cv" | "dni_frente" | "dni_dorso" | "justificativo";
 
@@ -193,6 +196,10 @@ export interface PedidoDesignacion {
   etapaRetorno?: EstadoPedido; // a qué etapa de revisión vuelve al reenviar
   propietarioActual?: Rol; // quién debe corregir (JC / Coordinador / Secretaría)
   historial: EventoHistorial[];
+  /** Comentario de la última devolución, cuando el pedido está devuelto a quien lo ve. */
+  motivoDevolucion?: string;
+  /** Primer envío al circuito; llega aunque no venga el historial. */
+  enviadoEn?: string;
   accionesPermitidas?: string[];
   version?: number;
   personaId?: string;

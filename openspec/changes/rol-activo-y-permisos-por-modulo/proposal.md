@@ -28,9 +28,11 @@ Se implementa en tres fases, en este orden:
 - La cookie guarda la asignación elegida (no los permisos). En cada solicitud se verifica que siga vigente; si dejó de estarlo, se opera con la de por defecto y se vuelve a ofrecer elegir.
 - **API**: `POST /api/auth/asignacion` (elige o cambia la asignación). `GET /api/auth/sesion` informa la asignación activa, las opciones y si falta elegirla. En desarrollo se ingresa eligiendo sólo la identidad y después se elige el rol en la misma pantalla; `GET /api/desarrollo/sesion` devuelve la misma sesión y el header `X-Dev-Asignacion-Id` reemplaza a `X-Dev-Role-Code` (que queda como atajo para tests).
 
-### Fase 3 — Depuración de permisos sin uso
+### Fase 3 — Depuración de permisos y seguimiento de pedidos
 
-- Con la vista por módulo terminada, se revisa con producto qué permisos no habilitan nada y se retiran con una migración incremental de `identity`. El detalle se agrega a este change como delta de spec antes de implementarlo.
+- Se retiran `portal.editar` (el portal propio se edita sin permiso y el ajeno con `portal.administrar`), `reportes.ver` y `sistema.parametrizar`, que no habilita ninguna pantalla ni endpoint. Se conservan `aulas.*` (módulo en desarrollo), `portal.ver` (pantalla de inicio) y `designaciones.aprobar_*` (la aprobación del circuito sigue fija por rol de sistema).
+- Permiso nuevo `designaciones.ver_seguimiento`, asignado a los roles que ven pedidos salvo Jefe de Cátedra. Sin él, la API devuelve una vista simplificada del pedido: en proceso mientras circula, devuelto sólo si volvió a su rol (con el motivo), aprobado al quedar en lote; sin historial ni etapa.
+- Una migración incremental de `identity` hace ambas cosas, con `Down` que restaura los permisos retirados.
 
 ## Capabilities
 
@@ -44,6 +46,7 @@ Se implementa en tres fases, en este orden:
 - `crear-rol`: alta a pantalla completa con permisos, todos destildados; se retira la herencia desde rol base.
 - `editar-rol`: edición a pantalla completa de datos y permisos con un único guardado.
 - `eliminar-rol`: la baja lógica pasa a desactivar/activar, con reactivación.
+- `pedidos-designacion`: el seguimiento (etapa, historial, a quién se devolvió) exige `designaciones.ver_seguimiento`.
 - `gestionar-permisos-rol`: los permisos se visualizan y marcan agrupados por módulo dentro de la pantalla del rol.
 - `inicio-sesion-microsoft`: la sesión opera con la asignación elegida y su cookie la identifica; se retira la elección automática por nombre.
 
@@ -53,7 +56,8 @@ Se implementa en tres fases, en este orden:
 - **Host**: `EventosSesion`, `EndpointsAutenticacion`, `AutenticacionDesarrolloHandler`, `ResolutorAlcanceDocentes`/`AlcancePersonas`.
 - **Consumidores cross-module** del ámbito del actor: `Modules.Designaciones` (`ResolutorActor`, `ServicioPedidos`, `ServicioPedidosApi`, `ServicioLoteDesignaciones`, `ServicioCatalogosDesignaciones`) y `Modules.Tareas` (`DirectorioPersonas`). Siguen consumiendo `IConsultasIdentity`; no se agregan dependencias ni cambia el grafo.
 - **Frontend**: `features/roles` (grilla, pantalla de alta/edición, permisos por módulo; se retiran `ListaRoles`, `PanelPermisos` y los modales), pantalla de selección de rol, `MenuUsuario`, `shared/auth` (sesión y guardas).
-- **Base de datos**: sin cambios en fases 1 y 2; fase 3 agrega una migración de datos en `identity`.
+- **Base de datos**: sin cambios en fases 1 y 2; fase 3 agrega la migración de datos `PermisosSeguimientoPedidosIdentity` en `identity`.
+- **Modules.Designaciones**: `ServicioPedidosApi` arma la vista del pedido según `designaciones.ver_seguimiento` (`VistaPedido`); `PedidoDto` suma `motivoDevolucion`.
 - **Shared (identity) roles**: `ServicioRoles`/`ModelosRoles` reemplazan `RolBaseId` por los permisos iniciales.
 - **Docs**: `api-contracts.md` y `api-contracts-administracion.md` (auth y alta de roles), design spec `administracion-roles-permisos-design-spec.md`, artículos de ayuda `administrar-roles-y-permisos`, `ingresar-al-sistema` y `recorrer-la-pantalla`.
 - **Rollback**: fases 1 y 2 se revierten con el diff (las cookies emitidas sin asignación vuelven a resolverse por nombre). Fase 3 se revierte con el `Down` de su migración.

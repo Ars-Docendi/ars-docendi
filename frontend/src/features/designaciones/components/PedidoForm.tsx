@@ -344,6 +344,12 @@ export function PedidoForm({
           .
         </InlineAlert>
       )}
+      {/* Sin seguimiento no hay historial: sólo el motivo, sin quién ni a qué etapa vuelve. */}
+      {!devolucion && pedidoInicial?.estado === "devuelto" && pedidoInicial.motivoDevolucion && (
+        <InlineAlert severity="warning" title="Te devolvieron este pedido">
+          «{pedidoInicial.motivoDevolucion}» Corregilo y reenvialo.
+        </InlineAlert>
+      )}
 
       <div className="adoc-pf-card">
         <section className="adoc-pf-sec">
