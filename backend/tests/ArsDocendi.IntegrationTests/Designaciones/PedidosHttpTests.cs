@@ -118,7 +118,8 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         string etapaRetorno)
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        // El arreglo del fixture va antes del sellado: después sería un cambio fuera del circuito.
+        await EjecutarSeedAsync(ct, sellar: false);
         var pedidoId = Guid.Parse("d5000000-0000-4000-8000-000000000005");
         await using (var db = PostgresFixture.CrearDesignaciones(Cadena))
         {
@@ -126,6 +127,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
             pedido.PropietarioActual = propietario;
             pedido.EtapaRetorno = etapaRetorno;
             await db.SaveChangesAsync(ct);
+            await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct);
         }
         using var host = CrearHost();
         using var cliente = host.CreateClient();
@@ -290,13 +292,17 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
                 "true");
         });
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
+    private async Task EjecutarSeedAsync(CancellationToken ct, bool sellar = true)
     {
         var sql = await File.ReadAllTextAsync(
             Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
+        if (!sellar) return;
+        // Como en un despliegue: tras sembrar, el historial se sella antes de exportar.
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct);
     }
 
     private static XDocument LeerXml(ZipArchive zip, string nombre)

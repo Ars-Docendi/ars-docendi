@@ -9,7 +9,7 @@ import {
   type CampoFiltroFijo,
   type CampoFiltroOpcional,
 } from "../../../shared/ui/FiltrosLista";
-import { exportarLote } from "../api/loteApi";
+import { esIntegridadComprometida, exportarLote } from "../api/loteApi";
 import { TablaRevision } from "../components/TablaRevision";
 import { CARRERAS, FILTROS_INICIALES } from "../components/filtrosTablero";
 import type { FiltrosTablero } from "../components/filtrosTablero";
@@ -116,7 +116,11 @@ export function TableroRevisionPage() {
       enlace.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 409) {
+      if (await esIntegridadComprometida(error)) {
+        setErrorExportacion(
+          "No se pudo verificar la integridad del período y el lote no se descargó. Avisá a la administración del sistema.",
+        );
+      } else if (axios.isAxiosError(error) && error.response?.status === 409) {
         setErrorExportacion("El período cambió. Actualizamos los períodos; reintentá la descarga.");
         await catalogos.refetch();
       } else {

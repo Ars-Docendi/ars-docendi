@@ -444,6 +444,65 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PedidoSello", b =>
+                {
+                    b.Property<Guid>("PeriodoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("periodo_id");
+
+                    b.Property<long>("Secuencia")
+                        .HasColumnType("bigint")
+                        .HasColumnName("secuencia");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("Firma")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("firma");
+
+                    b.Property<byte[]>("Hash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash");
+
+                    b.Property<byte[]>("HashAnterior")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash_anterior");
+
+                    b.Property<byte[]>("HashEstado")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash_estado");
+
+                    b.Property<Guid>("HistorialId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("historial_id");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pedido_id");
+
+                    b.Property<short>("VersionClave")
+                        .HasColumnType("smallint")
+                        .HasColumnName("version_clave");
+
+                    b.HasKey("PeriodoId", "Secuencia");
+
+                    b.HasIndex("HistorialId")
+                        .IsUnique();
+
+                    b.HasIndex("PedidoId");
+
+                    b.ToTable("pedido_sellos", "designaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Periodo", b =>
                 {
                     b.Property<Guid>("Id")
@@ -489,6 +548,43 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("periodos", "designaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("PeriodoAncla", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("Hash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("motivo");
+
+                    b.Property<Guid>("PeriodoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("periodo_id");
+
+                    b.Property<long>("Secuencia")
+                        .HasColumnType("bigint")
+                        .HasColumnName("secuencia");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("periodo_anclas", "designaciones", t =>
                         {
                             t.ExcludeFromMigrations();
                         });
@@ -554,6 +650,21 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Pedido");
+                });
+
+            modelBuilder.Entity("PedidoSello", b =>
+                {
+                    b.HasOne("PedidoHistorial", null)
+                        .WithMany()
+                        .HasForeignKey("HistorialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Pedido", null)
+                        .WithMany()
+                        .HasForeignKey("PedidoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Pedido", b =>

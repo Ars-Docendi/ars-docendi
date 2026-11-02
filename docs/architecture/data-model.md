@@ -147,6 +147,8 @@ designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` s
 | `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                            | No  |
 | `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
 | `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
+| `pedido_sellos`    | Cadena de integridad por período: un sello firmado por evento fuera de borrador. Sólo inserción (ver abajo)                     | No  |
+| `periodo_anclas`   | Cabezas de la cadena publicadas en un lote exportado o registradas por el sellado retroactivo. Sólo inserción                   | No  |
 
 Pedido y Designación usan `xmin` como token EF; no requieren agregar una columna
 ordinaria. Administración y circuito comparten exclusión transaccional por persona,
@@ -228,6 +230,30 @@ legadas; incrementales no reescriben objetos ni fabrican bytes.
 4. **El log está pensado para purgarse** (índice BRIN sobre `changed_at`). El historial de un trámite no se purga.
 
 Igual hace `audit.attach`: que alguien edite el historial a mano tiene que dejar rastro.
+
+### Cadena de sellos del circuito
+
+Trazabilidad no es integridad: quien tenga credenciales de la base puede reescribir el
+historial y el log. Por eso cada evento fuera de borrador queda sellado en
+`pedido_sellos` en la misma transacción [BR-designaciones-019]:
+
+- **Una cadena por período.** `secuencia` 1..n sin huecos; `hash_anterior` es el `hash` del
+  sello previo (el primero usa `sha256(periodo_id)`). El trigger `encadenar_sello` toma
+  `bloquear_cadena_periodo` (advisory lock) y rechaza un sello que no encadene con la cabeza.
+- **Hash y firma los calcula la aplicación.** `hash_estado` es el SHA-256 del estado canónico
+  del pedido tras el evento; `hash` cubre el evento y `hash_estado`; `firma` es HMAC-SHA256
+  con una clave por `version_clave` que vive en los secretos del host, nunca en la base. Un
+  sello insertado por SQL directo no puede firmarse.
+- **Sólo inserción.** `pedido_sellos` y `periodo_anclas` rechazan UPDATE/DELETE;
+  `pedido_historial` rechaza cambiar un evento fuera de borrador y DELETE salvo el de un pedido en
+  borrador; `pedidos` rechaza borrar un pedido fuera de borrador.
+- **Ancla externa.** El lote exportado imprime la cabeza y la registra en `periodo_anclas`:
+  aunque alguien tenga base y clave, no reproduce un ancla ya circulada.
+
+La verificación (`VerificadorIntegridadPedidos`) recalcula la cadena y la expone en
+`GET /api/designaciones/periodos/{id}/integridad`, en el diagnóstico operativo y como
+condición de la exportación del lote. Las protecciones de la base son defensa en
+profundidad: un superusuario puede deshabilitarlas, pero no reproducir firmas ni anclas.
 
 ## Trazabilidad de cambios
 

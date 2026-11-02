@@ -43,21 +43,26 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
       titulo: "Abrí el libro",
       etiquetaIndice: "Contenido del libro",
       cuerpo:
-        "El libro tiene tres hojas. PROPUESTA COMPLETA: una fila por asignación vigente, baja aprobada o alta aprobada del período. ALTAS: los pedidos de Alta aprobados. BAJAS: los pedidos de Baja aprobados, con el cargo anterior y el motivo. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco.",
+        "El libro tiene tres hojas. PROPUESTA COMPLETA: una fila por asignación vigente, baja aprobada o alta aprobada del período. ALTAS: los pedidos de Alta aprobados. BAJAS: los pedidos de Baja aprobados, con el cargo anterior y el motivo. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco. Arriba a la derecha de la primera hoja, la celda «INTEGRIDAD · sello …» identifica el estado exacto del período que se exportó.",
     },
     {
       titulo: "Si algo falla",
       etiquetaIndice: "Errores",
       cuerpo:
-        "Sin período activo, Exportar queda deshabilitado con la explicación «Configurá un período activo para descargar el lote». Si el período cambió mientras tenías la pantalla abierta, ves «El período cambió. Actualizamos los períodos; reintentá la descarga.». Ante cualquier otro error, el sistema muestra «No se pudo descargar el lote. Reintentá.»",
+        "Sin período activo, Exportar queda deshabilitado con la explicación «Configurá un período activo para descargar el lote». Si el período cambió mientras tenías la pantalla abierta, ves «El período cambió. Actualizamos los períodos; reintentá la descarga.». Si el sistema detecta que algún pedido del período se modificó por fuera del circuito, el lote no se descarga y ves «No se pudo verificar la integridad del período y el lote no se descargó. Avisá a la administración del sistema.». Ante cualquier otro error, el sistema muestra «No se pudo descargar el lote. Reintentá.»",
     },
   ],
   despues: {
     titulo: "¿Qué sucede después?",
     cuerpo:
-      "Descargar el lote no modifica pedidos, designaciones ni estados: podés repetirlo cuantas veces quieras. El libro refleja el estado del momento de la descarga e incluye todo el período activo aunque la tabla tenga filtros aplicados.",
+      "Descargar el lote no modifica pedidos, designaciones ni estados: podés repetirlo cuantas veces quieras. Sólo deja registrado el código de integridad que figura en el libro. El libro refleja el estado del momento de la descarga e incluye todo el período activo aunque la tabla tenga filtros aplicados.",
   },
   preguntas: [
+    {
+      pregunta: "¿Para qué sirve la celda INTEGRIDAD del libro?",
+      respuesta:
+        "Es un código que resume todo el circuito de los pedidos del período hasta ese momento. Si después alguien alterara un pedido o su historial por fuera del sistema, el código dejaría de coincidir con el del libro que ya circuló.",
+    },
     {
       pregunta: "No veo el botón Exportar. ¿Por qué?",
       respuesta:
