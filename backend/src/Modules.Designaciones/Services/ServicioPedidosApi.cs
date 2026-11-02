@@ -57,7 +57,10 @@ internal sealed class ServicioPedidosApi(
             .ToLookup(h => h.PedidoId);
         foreach (var pedido in pedidos)
             foreach (var evento in resumenes[pedido.Id]) pedido.Historial.Add(evento);
-        return await MapearAsync(pedidos, ct);
+        // El resumen no trae comentarios: el motivo de devolución se lee aparte.
+        var motivos = await repositorio.ObtenerUltimosMotivosDevolucionAsync(
+            pedidos.Where(p => p.Estado == EstadosPedido.Devuelto).Select(p => p.Id).ToArray(), ct);
+        return await MapearAsync(pedidos, ct, motivos);
     }
 
     public async Task<PedidoDto> ObtenerAsync(Guid id, CancellationToken ct)
@@ -124,9 +127,8 @@ internal sealed class ServicioPedidosApi(
                         "La clave de idempotencia ya fue usada con otra solicitud.");
                 }
 
-                respuesta = JsonSerializer.Deserialize<PedidoDto>(anterior.ResponseBody, OpcionesJson)
-                    ?? throw new InvalidOperationException(
-                        "La respuesta idempotente almacenada no pudo deserializarse.");
+                // No repite la transición, pero revalida ámbito y vista con los permisos vigentes.
+                respuesta = await ObtenerAsync(id, token);
                 return;
             }
 
@@ -169,7 +171,8 @@ internal sealed class ServicioPedidosApi(
 
     private async Task<IReadOnlyList<PedidoDto>> MapearAsync(
         IReadOnlyList<Pedido> pedidos,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyDictionary<Guid, string?>? motivosDevolucion = null)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
         var personas = (await identity.ObtenerPersonasAsync(pedidos.Select(p => p.PersonaId).Distinct().ToArray(), ct))
@@ -193,7 +196,12 @@ internal sealed class ServicioPedidosApi(
                 continue;
             }
             var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
-            var vista = conSeguimiento ? VistaPedido.Completa(pedido) : VistaPedido.Simplificada(pedido);
+            var motivo = motivosDevolucion is null
+                ? VistaPedido.UltimoMotivo(pedido)
+                : motivosDevolucion.GetValueOrDefault(pedido.Id);
+            var vista = conSeguimiento
+                ? VistaPedido.Completa(pedido, motivo)
+                : VistaPedido.Simplificada(pedido, actor, motivo);
             resultado.Add(new PedidoDto(
                 pedido.Id,
                 pedido.Numero,

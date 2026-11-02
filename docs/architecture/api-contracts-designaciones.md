@@ -118,7 +118,7 @@ Permiso de etapa significa `designaciones.aprobar_coordinacion`, `designaciones.
 
 Sin `designaciones.ver_seguimiento` (Jefe de Cátedra) la API arma una vista simplificada:
 `estado` es `borrador`, `en_proceso` (cualquier etapa de revisión o devuelto a otro actor),
-`devuelto` (sólo si volvió al rol del Jefe), `aprobado` (`en_lote`), `rechazado` o
+`devuelto` (sólo si volvió al rol activo de quien consulta), `aprobado` (`en_lote`), `rechazado` o
 `cancelado`; `historial` va vacío y `etapaRetorno` en `null`. `motivoDevolucion` trae el
 comentario de la última devolución cuando el pedido está devuelto a quien consulta (con
 seguimiento, siempre que esté devuelto). `accionesPermitidas` se calcula sobre el estado real. `enviadoEn` (fecha del primer envío) se
@@ -145,7 +145,7 @@ intención obsoleta en automático.
 
 `Idempotency-Key: <uuid>` es obligatorio en enviar, reenviar, aceptar, rechazar, devolver, priorizar y despriorizar. La clave se identifica junto con actor, ruta y pedido durante 24 horas:
 
-- repetir exactamente la solicitud retorna el mismo status y body;
+- repetir exactamente la solicitud no repite la transición: revalida el ámbito y retorna el pedido vigente con la vista que corresponde a los permisos actuales;
 - reutilizar la clave con otro payload o recurso retorna `409 idempotency-key-reused`;
 - solicitudes concurrentes con la misma clave producen una sola transición e historial.
 

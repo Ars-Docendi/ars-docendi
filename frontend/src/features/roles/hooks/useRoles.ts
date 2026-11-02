@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   crearRol,
@@ -34,7 +35,8 @@ export function useRoles() {
     cambiarEstado: useMutation({
       mutationFn: ({ rol, activar }: { rol: RolMock; activar: boolean }) =>
         cambiarEstadoRol(rol, activar),
-      onSuccess: invalidar,
+      // También tras un conflicto, para que el reintento use la versión vigente.
+      onSettled: invalidar,
     }),
   };
 }
@@ -57,16 +59,19 @@ const mismosIds = (a: string[], b: string[]) =>
  */
 export function useGuardarRol(rol: RolMock | null) {
   const invalidar = useInvalidarRoles();
+  // Si los datos se guardaron y los permisos fallaron, el reintento parte del rol devuelto.
+  const guardado = useRef(rol);
   return useMutation({
     mutationFn: async ({ datos, permisoIds }: DatosGuardarRol) => {
       if (!rol) return crearRol(datos, permisoIds);
-      let actual = rol;
+      let actual = guardado.current ?? rol;
       if (
-        datos.nombre !== rol.nombre ||
-        datos.descripcion !== rol.descripcion ||
-        datos.scope !== rol.scope
+        datos.nombre !== actual.nombre ||
+        datos.descripcion !== actual.descripcion ||
+        datos.scope !== actual.scope
       ) {
-        actual = await editarRol(rol, datos);
+        actual = await editarRol(actual, datos);
+        guardado.current = actual;
       }
       if (
         !mismosIds(
@@ -78,6 +83,6 @@ export function useGuardarRol(rol: RolMock | null) {
       }
       return actual;
     },
-    onSettled: invalidar,
+    onSuccess: invalidar,
   });
 }

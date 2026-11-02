@@ -20,6 +20,7 @@ public sealed class ServicioSesion(RepositorioIngreso repositorio)
         var vigentes = usuario.Roles
             .OrderBy(a => a.Rol!.Nombre, StringComparer.Ordinal)
             .ThenBy(a => NombreAmbito(a), StringComparer.Ordinal)
+            .ThenBy(a => a.Id)
             .ToArray();
         if (vigentes.Length == 0) return null;
 
