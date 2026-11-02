@@ -10,6 +10,8 @@ interface CuadroProyectoProps {
   proyecto: Proyecto | null;
   tareas: Tarea[];
   preset?: PresetEstado;
+  /** Prefijo de los filtros y el orden de columna de este cuadro en el query (ver `prefijoDeCuadro`). */
+  prefijoURL?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ interface CuadroProyectoProps {
  * `TablaTareas` que antes, sin cambios en sus columnas. El título de un
  * cuadro de Proyecto navega a su Detalle; el de "Generales" no.
  */
-export function CuadroProyecto({ proyecto, tareas, preset }: CuadroProyectoProps) {
+export function CuadroProyecto({ proyecto, tareas, preset, prefijoURL }: CuadroProyectoProps) {
   const estado = useEstadoVolver();
 
   return (
@@ -34,7 +36,7 @@ export function CuadroProyecto({ proyecto, tareas, preset }: CuadroProyectoProps
       ) : (
         <h2 className="adoc-cuadro-proyecto-titulo">Generales</h2>
       )}
-      <TablaTareas tareas={tareas} preset={preset} />
+      <TablaTareas tareas={tareas} preset={preset} prefijoURL={prefijoURL} />
     </section>
   );
 }

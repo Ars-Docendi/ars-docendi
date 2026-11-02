@@ -7,7 +7,7 @@ import { PageHeader } from "../../../shared/ui/PageHeader";
 import { CuadroProyecto } from "../components/CuadroProyecto";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
 import { TablaTareas } from "../components/TablaTareas";
-import { agruparTareasPorProyecto } from "../components/agrupacionProyectos";
+import { agruparTareasPorProyecto, prefijoDeCuadro } from "../components/agrupacionProyectos";
 import {
   ALCANCE_INICIAL,
   ETIQUETA_ALCANCE,
@@ -47,8 +47,12 @@ export function IndexPage() {
         const siguientes = new URLSearchParams(previos);
         if (nuevo === PRESET_INICIAL) siguientes.delete("estado");
         else siguientes.set("estado", nuevo);
-        // Un preset nuevo recarga el filtro de la columna Estado.
-        siguientes.delete(`${PREFIJO_TABLA}.estado`);
+        // Un preset nuevo recarga el filtro de la columna Estado de la tabla única y de cada cuadro.
+        for (const clave of [...siguientes.keys()]) {
+          if (clave === `${PREFIJO_TABLA}.estado` || /^(g|p[0-9a-f]{8})\.estado$/.test(clave)) {
+            siguientes.delete(clave);
+          }
+        }
         return siguientes;
       },
       { replace: true },
@@ -151,6 +155,7 @@ export function IndexPage() {
             proyecto={cuadro.proyecto}
             tareas={cuadro.tareas}
             preset={preset}
+            prefijoURL={prefijoDeCuadro(cuadro.proyecto)}
           />
         ))}
 
