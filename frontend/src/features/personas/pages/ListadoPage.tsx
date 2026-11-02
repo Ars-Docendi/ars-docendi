@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { PageHeader } from "../../../shared/ui/PageHeader";
@@ -41,7 +42,7 @@ export function ListadoPage() {
 
   return (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Personas" }]} />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Personas" }]} />
       <PageHeader
         title="Administrar personas"
         meta={`${conteo} · ${activas} activas`}

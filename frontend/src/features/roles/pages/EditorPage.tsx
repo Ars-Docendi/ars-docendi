@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, Button, Field, InlineAlert, Input } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Input } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
@@ -96,8 +97,7 @@ function Editor({ rol, roles, catalogo }: EditorProps) {
 
   return (
     <div className="roles-editor">
-      <Breadcrumbs
-        separator="›"
+      <Migas
         items={[
           { label: "Inicio", href: "/" },
           { label: "Roles", href: "/roles" },

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
+import { Button, InlineAlert } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { AlertaConReintento } from "../components/AlertaConReintento";
@@ -28,10 +29,7 @@ export function IndexPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
-        items={[{ label: "Inicio", href: "/" }, { label: "Reserva de aulas" }]}
-      />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Reserva de aulas" }]} />
       <PageHeader title="Reserva de aulas" />
 
       {puedeSolicitar && <SeccionMisSolicitudes />}

@@ -1,4 +1,5 @@
-import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { InlineAlert } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { usePerfilDocente } from "../../../shared/perfil/hooks/usePerfilDocente";
@@ -20,7 +21,7 @@ export function IndexPage() {
 
   const encabezado = (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Mi portal" }]} />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Mi portal" }]} />
       <PageHeader title="Mi portal" />
     </>
   );

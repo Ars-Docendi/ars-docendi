@@ -24,6 +24,15 @@ export const FILTROS_INICIALES: FiltrosMisPedidosState = {
 export type ColumnaOrdenMisPedidos =
   "docente" | "legajo" | "catedra" | "tipo" | "enviado" | "estado";
 
+export const COLUMNAS_ORDEN_MIS_PEDIDOS: ColumnaOrdenMisPedidos[] = [
+  "docente",
+  "legajo",
+  "catedra",
+  "tipo",
+  "enviado",
+  "estado",
+];
+
 export interface OrdenMisPedidos {
   columna: ColumnaOrdenMisPedidos;
   direccion: "asc" | "desc";

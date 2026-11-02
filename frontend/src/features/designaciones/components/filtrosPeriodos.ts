@@ -22,6 +22,15 @@ export const FILTROS_PERIODOS_INICIALES: FiltrosPeriodos = {
 
 export type ColumnaOrdenPeriodos = keyof Omit<FiltrosPeriodos, "activo"> | "activo";
 
+export const COLUMNAS_ORDEN_PERIODOS: ColumnaOrdenPeriodos[] = [
+  "nombre",
+  "cargaDesde",
+  "cargaHasta",
+  "impactoDesde",
+  "impactoHasta",
+  "activo",
+];
+
 export interface OrdenPeriodos {
   columna: ColumnaOrdenPeriodos;
   direccion: "asc" | "desc";

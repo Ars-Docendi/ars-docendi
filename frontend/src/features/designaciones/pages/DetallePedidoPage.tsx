@@ -1,10 +1,19 @@
 import { useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Button, AuditLog, Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Button, AuditLog, InlineAlert } from "@ars-docendi/ui";
+import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
+import {
+  migaDeVolver,
+  propagarVolver,
+  type DestinoVolver,
+} from "../../../shared/navegacion/volver";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoPedidoBadge } from "../components/EstadoPedidoBadge";
-import { IconoArrowLeft, IconoSquarePen, IconoX } from "../components/lucide";
+import { IconoSquarePen, IconoX } from "../components/lucide";
 import { CadenaRevision } from "../components/CadenaRevision";
 import { ResumenPedido } from "../components/ResumenPedido";
 import { PanelAccionesRevision } from "../components/PanelAccionesRevision";
@@ -27,10 +36,7 @@ import {
   useRechazarPedido,
 } from "../hooks/useAccionesPedido";
 import type { ActorContexto, Novedad, PedidoDesignacion } from "../types";
-import { resolverOrigen } from "./origenDetalle";
 import "./detalle.css";
-
-const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
 /** Título legible de la novedad para el header del detalle. */
 const TITULO_NOVEDAD: Record<Novedad, string> = {
@@ -45,8 +51,7 @@ export function DetallePedidoPage() {
   const navegar = useNavigate();
   const actor = useActorContexto();
   const { user } = useCurrentUser();
-  const estadoNavegacion: unknown = useLocation().state;
-  const origen = resolverOrigen(estadoNavegacion, user?.permissions ?? []);
+  const origen = useDestinoVolver("pedido");
   const { data: pedido, isLoading, isError } = usePedido(id);
 
   const aceptar = useAceptarPedido();
@@ -65,11 +70,11 @@ export function DetallePedidoPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
+        conVolver
         items={[
           { label: "Inicio", href: "/" },
-          { label: origen.etiqueta, href: origen.ruta },
+          migaDeVolver(origen),
           { label: "Detalle del pedido" },
         ]}
       />
@@ -82,8 +87,7 @@ export function DetallePedidoPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se encontró el pedido">
-          No pudimos cargar el pedido solicitado.{" "}
-          <a href={origen.ruta}>Volver a {origen.etiqueta}</a>.
+          No pudimos cargar el pedido solicitado. <Link to={origen.ruta}>{origen.texto}</Link>.
         </InlineAlert>
       )}
 
@@ -115,14 +119,16 @@ export function DetallePedidoPage() {
           onPriorizar={(comentario) => priorizar.mutate({ id: pedido.id, comentario })}
           onDespriorizar={(comentario) => despriorizar.mutate({ id: pedido.id, comentario })}
           onEliminar={() =>
-            eliminar.mutate(pedido.id, { onSuccess: () => navegar(RUTA_MIS_PEDIDOS) })
+            // Al origen real (Revisión o Mis pedidos), reemplazando el detalle que ya no existe.
+            eliminar.mutate(pedido.id, {
+              onSuccess: () => navegar(origen.ruta, { replace: true }),
+            })
           }
           eliminando={eliminar.isPending}
           errorEliminar={eliminar.isError ? eliminar.error.message : undefined}
-          // A la pantalla de origen, no al historial: desde la edición, -1 volvía a editar.
-          onVolver={() => navegar(origen.ruta)}
+          volver={origen}
           onEditar={() =>
-            navegar(`/designaciones/pedidos/${pedido.id}/editar`, { state: estadoNavegacion })
+            navegar(`/designaciones/pedidos/${pedido.id}/editar`, { state: propagarVolver(origen) })
           }
         />
       )}
@@ -144,7 +150,7 @@ interface DetalleCargadoProps {
   onEliminar: () => void;
   eliminando: boolean;
   errorEliminar?: string;
-  onVolver: () => void;
+  volver: DestinoVolver;
   onEditar: () => void;
 }
 
@@ -161,7 +167,7 @@ function DetalleCargado({
   onEliminar,
   eliminando,
   errorEliminar,
-  onVolver,
+  volver,
   onEditar,
 }: DetalleCargadoProps) {
   const acciones = pedido.accionesPermitidas ?? [];
@@ -178,6 +184,8 @@ function DetalleCargado({
   const [accionPendiente, setAccionPendiente] = useState<AccionRevision | null>(null);
   const [comentario, setComentario] = useState("");
   const [mostrarEliminar, setMostrarEliminar] = useState(false);
+  // El justificativo escrito en el panel se pierde al salir: se avisa.
+  useGuardiaDeCambios(comentario.trim() !== "");
 
   function ejecutar(accion: AccionRevision, texto: string) {
     switch (accion) {
@@ -214,9 +222,7 @@ function DetalleCargado({
         meta={periodoNombre}
         actions={
           <div className="adoc-det-headactions">
-            <Button variant="secondary" leadingIcon={<IconoArrowLeft />} onClick={onVolver}>
-              Volver
-            </Button>
+            <EnlaceVolver id="pedido-volver" destino={volver} />
             {puedeEditar && (
               <Button variant="secondary" leadingIcon={<IconoSquarePen />} onClick={onEditar}>
                 Editar

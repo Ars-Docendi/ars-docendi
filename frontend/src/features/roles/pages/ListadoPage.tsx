@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
@@ -44,7 +45,7 @@ export function ListadoPage() {
 
   return (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Roles" }]} />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Roles" }]} />
       <PageHeader
         title="Administración de roles"
         meta={`${conteo} · ${activos} activos`}

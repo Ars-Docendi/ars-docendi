@@ -109,10 +109,7 @@
       "creadoEn": "2026-10-30T15:31:13.474377+00:00"
     }
   ],
-  "accionesPermitidas": [
-    "priorizar",
-    "despriorizar"
-  ],
+  "accionesPermitidas": ["priorizar", "despriorizar"],
   "dedicacionSolicitadaId": "d6000000-0000-4000-8000-000000000001",
   "motivoDevolucion": null,
   "enviadoEn": "2026-10-30T15:31:13.474377+00:00"

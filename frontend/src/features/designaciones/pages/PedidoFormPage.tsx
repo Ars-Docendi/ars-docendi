@@ -1,5 +1,6 @@
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { InlineAlert } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 import { PedidoForm } from "../components/PedidoForm";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
@@ -96,8 +97,7 @@ export function PedidoFormPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
         items={[
           { label: "Inicio", href: "/" },
           { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
@@ -111,13 +111,21 @@ export function PedidoFormPage() {
 
       {esEdicion && isError && (
         <InlineAlert severity="danger" title="No se encontró el pedido">
-          No pudimos cargar el pedido solicitado. <a href={rutaRetorno}>Volver</a>.
+          No pudimos cargar el pedido solicitado.{" "}
+          <Link to={rutaRetorno} state={location.state}>
+            Volver
+          </Link>
+          .
         </InlineAlert>
       )}
 
       {esEdicion && pedidoInicial && !pedidoInicial.accionesPermitidas?.includes("editar") && (
         <InlineAlert severity="info" title="Este pedido no es editable">
-          El pedido no admite edición para el actor actual. <a href={rutaRetorno}>Volver</a>.
+          El pedido no admite edición para el actor actual.{" "}
+          <Link to={rutaRetorno} state={location.state}>
+            Volver
+          </Link>
+          .
         </InlineAlert>
       )}
 

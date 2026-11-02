@@ -1,9 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render as renderBase, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { TablaRevision } from "./TablaRevision";
 import type { FiltrosTablero } from "./filtrosTablero";
 import type { ActorContexto, EstadoPedido, PedidoDesignacion, PeriodoDesignacion } from "../types";
+
+/** Las filas llevan enlaces del router: toda renderización necesita uno. */
+function render(ui: React.ReactElement) {
+  return renderBase(ui, { wrapper: MemoryRouter });
+}
 
 const COORD: ActorContexto = {
   rol: "Coordinador",
@@ -264,7 +270,8 @@ describe("filtros por encabezado de Revisión", () => {
     expect(screen.queryByRole("button", { name: /Ver/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Acciones" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByText(p.docente.nombre));
+    // Un click fuera del enlace de la celda principal ejecuta la acción de la fila.
+    await user.click(screen.getAllByRole("cell")[1]);
     expect(onSeleccionar).toHaveBeenCalledWith(p);
 
     screen.getByText(p.docente.nombre).closest("tr")!.focus();

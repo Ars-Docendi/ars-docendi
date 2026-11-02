@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render as renderBase, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import type { PeriodoDesignacion } from "../types";
 import { TablaPeriodos } from "./TablaPeriodos";
+
+/** Filtros y orden viven en el query: la tabla necesita un router. */
+function render(ui: React.ReactElement) {
+  return renderBase(ui, { wrapper: MemoryRouter });
+}
 
 const PERIODOS: PeriodoDesignacion[] = [
   {

@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
-import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { InlineAlert } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { DatosSolicitud } from "../components/DatosSolicitud";
@@ -37,8 +38,7 @@ export function DetalleSolicitudPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
         items={[
           { label: "Inicio", href: "/" },
           { label: ETIQUETA_LISTADO, href: RUTA_LISTADO },

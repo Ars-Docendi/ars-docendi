@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, Button, Field, InlineAlert, Input, StatusBadge, Tabs } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Input, StatusBadge, Tabs } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { MembresiasSelector } from "../../../shared/ui/MembresiasSelector";
@@ -127,8 +128,7 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
 
   return (
     <div className="adoc-personas">
-      <Breadcrumbs
-        separator="›"
+      <Migas
         items={[
           { label: "Inicio", href: "/" },
           { label: "Personas", href: "/personas" },
