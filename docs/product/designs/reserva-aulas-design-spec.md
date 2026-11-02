@@ -2,7 +2,7 @@
 status: draft
 owner: ""
 feature: "openspec/specs/reserva-aulas/spec.md"
-last_updated: 2026-09-20
+last_updated: 2026-11-02
 ---
 
 # Design spec: Reserva de Aulas
@@ -39,28 +39,27 @@ institucional o personalizado que tenga alguno de esos permisos ve la sección c
    confirmación → pasa a Cancelada).
 5. Cuando Administrativo asigna aula, la fila pasa a Aprobada y muestra el aula asignada. Cuando la
    rechaza, la fila pasa a Rechazada.
-6. Doble click sobre una fila Rechazada abre un popup de solo lectura con el detalle completo de la
-   solicitud, incluido el motivo del rechazo. Las demás filas no reaccionan al doble click en esta
-   tabla.
+6. Un click en cualquier fila (o Enter con el foco en ella) abre la página de detalle de la solicitud
+   (`/aulas/solicitudes/:id`): todos los datos y, si corresponde, el motivo del rechazo o de la
+   cancelación. La celda principal de la fila es un enlace real al detalle. "Cancelar" de la fila sigue
+   cancelando sin abrir el detalle. Desde el detalle, el Docente puede cancelar su solicitud Pendiente
+   ("Tu solicitud"); una Aprobada no admite acciones (se pide a Administración).
 
 **Administrativo:**
 
 1. Entra a `/aulas` y ve la sección "Todas las solicitudes": todas las solicitudes de todos los
-   docentes, con el mismo detalle más el nombre del Docente. Esta tabla no tiene columna Acciones — la
-   interacción es doble click sobre la fila.
-2. Doble click sobre una fila Pendiente abre el modal "Asignar aula": indica el aula/laboratorio y
-   confirma ("Asignar y aprobar"), o hace click en "Rechazar solicitud" (botón secundario del mismo
-   modal) para pasar al flujo de rechazo en vez de aprobar. Asignar pasa la solicitud a Aprobada; el
-   Docente la ve actualizada en su propia lista.
-3. Al elegir "Rechazar solicitud" se cierra el modal de asignación y se abre "Rechazar solicitud": un
-   motivo es obligatorio para confirmar. La solicitud pasa a Rechazada; el Docente ve el motivo
-   haciendo doble click en su fila.
-4. Doble click sobre una fila Aprobada abre el mismo modal de asignación en modo "Actualizar aula
-   asignada", precargado con el aula actual — por si el Administrativo se equivocó o cambian las
-   condiciones del examen. No cambia el estado, solo el aula. No ofrece la opción de rechazar (ya no
-   está Pendiente).
-5. Doble click sobre una fila Rechazada o Cancelada no hace nada: son estados terminales sin acción
-   posible.
+   docentes, con el mismo detalle más el nombre del Docente. Esta tabla no tiene columna Acciones — un
+   click en cualquier fila abre el detalle de la solicitud.
+2. En el detalle de una solicitud Pendiente, el panel "Acciones" pide el aula/laboratorio y confirma
+   ("Asignar y aprobar"), o "Rechazar solicitud" abre un diálogo con motivo obligatorio. Asignar pasa la
+   solicitud a Aprobada; el Docente la ve actualizada en su propia lista.
+3. Al rechazar, un motivo es obligatorio para confirmar. La solicitud pasa a Rechazada; el Docente ve el
+   motivo en el detalle de su solicitud.
+4. En el detalle de una Aprobada, el mismo panel permite "Actualizar aula" (precargada con el aula
+   actual — no cambia el estado) o "Cancelar reserva": un diálogo con motivo obligatorio que pasa la
+   solicitud a Cancelada, libera el aula y deja el motivo visible para el Docente.
+5. El detalle de una Rechazada o Cancelada muestra el motivo y avisa "Esta solicitud está cerrada: no
+   admite más acciones."
 
 ## Layout / IA
 
@@ -78,6 +77,7 @@ ve solo "Todas las solicitudes"). Cada sección es un header con título (+ bot�
 | Empty   | Alerta informativa ("Todavía no generaste solicitudes" / "Todavía no hay solicitudes") | Lista vacía (sin datos, no por filtro) |
 | Error   | Alerta de error con botón "Reintentar"                                                 | Falla la consulta                      |
 | Success | Tabla con filas, filtro y orden por encabezado                                         | Estado normal con datos                |
+| Detalle | Cargando la solicitud…, error "No se pudo cargar la solicitud" o datos + acciones      | `/aulas/solicitudes/:id`               |
 
 Un caso adicional no listado en la tabla del template: filtros sin coincidencias (lista tiene datos
 pero el filtro activo no matchea ninguno) muestra una alerta "Sin resultados" separada del Empty real,
@@ -96,18 +96,26 @@ igual que en Mis Pedidos.
 - **"Mis solicitudes" (Docente) conserva la columna Acciones**: "Cancelar" queda visible pero
   deshabilitado cuando la solicitud no está Pendiente, mismo lenguaje que Mis Pedidos de Designaciones
   (acciones fijas en la fila, atenuadas cuando no aplican).
-- **"Todas las solicitudes" (Administrativo) usa doble click en vez de columna Acciones** — ajuste
-  posterior a la primera versión: un botón "Asignar aula" deshabilitado en dos de los tres estados
-  ocupaba espacio sin aportar nada. El doble click resuelve las tres acciones (asignar / actualizar /
-  nada) sin columna extra. Ver `openspec/changes/reserva-aulas/design.md` (decisión 8).
+- **Las dos tablas abren un detalle con un click en la fila** (reemplaza el doble click por estado de
+  "Todas las solicitudes", decisión 8 de `openspec/changes/reserva-aulas/design.md`, superada por
+  `openspec/changes/reserva-aulas-detalle-y-cancelacion/`): un solo gesto para todas las filas, un enlace
+  real en la celda principal (teclado, click medio, barra de estado) y la resolución en una página con
+  dirección propia, que es el destino de las notificaciones.
 - **Actualizar el aula de una Aprobada no es "editar el pedido"**: es una corrección puntual del dato
   aula, no reabre el circuito ni permite tocar día/horario/materia/comisión — esos siguen siendo
   inmutables una vez aprobada.
-- **Rechazar vive dentro del modal "Asignar aula", no como una tercera rama del doble click**: una fila
-  Pendiente tiene dos desenlaces posibles (aprobar o rechazar) y conviene verlos juntos en el mismo
-  modal en vez de que el Administrativo tenga que adivinar de antemano qué gesto dispara cuál acción.
-  El botón "Rechazar solicitud" solo aparece en modo "asignar" (no en "actualizar": una Aprobada ya no
-  es rechazable). Ver `openspec/changes/reserva-aulas/design.md` (decisión 9).
+- **Rechazar y Cancelar reserva viven junto a "Asignar" en el panel de acciones del detalle**: una
+  Pendiente tiene dos desenlaces (aprobar o rechazar) y una Aprobada dos (actualizar el aula o cancelar
+  la reserva), siempre a la vista. "Rechazar solicitud" sólo aparece en una Pendiente y "Cancelar
+  reserva" sólo en una Aprobada. Ver `openspec/changes/reserva-aulas/design.md` (decisión 9).
+- **Diálogos con la carcasa compartida de la app** (`ModalDeFormulario`): 480 px para confirmaciones,
+  `min(600px, 100vw - 32px)` para formularios (con el zoom de la app), hoja a pantalla completa debajo de
+  560 px, foco inicial en el primer campo (o en el botón menos destructivo), foco de vuelta al abridor,
+  Esc sólo sobre el diálogo superior, sin cierre mientras se guarda y confirmación inline "Tenés cambios
+  sin guardar." con "Seguir editando" / "Descartar cambios".
+- **"Nueva solicitud"**: secciones Examen / Fecha y horario / Capacidad, controles de 44 px, día como
+  `dd/mm/aaaa` con botón "Abrir calendario" y horarios `hh:mm` de 24 h (nada de mm/dd/yyyy ni AM/PM),
+  error por campo con foco en el primero inválido y formulario vacío en cada apertura.
 - **El motivo de rechazo es obligatorio**, mismo patrón que "Rechazar pedido" en Designaciones: sin
   motivo no hay forma de confirmar, y el backend revalida (no confía en la validación del formulario).
 - **Cód. Materia se agrega como columna de solo lectura** (sin filtro/orden propios: el filtro de

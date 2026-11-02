@@ -174,6 +174,17 @@ libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
 
+`solicitudes_reserva` suma, desde la migración `20261102030524_MotivoCancelacionYRolSolicitanteAulas`:
+
+- `motivo_cancelacion TEXT NULL`: motivo con que un Administrativo cancela una reserva ya aprobada
+  (`aprobada` → `cancelada`). El CHECK `solicitudes_reserva_motivo_cancelacion_si_cancelada` sólo lo
+  admite con `estado = 'cancelada'` y no en blanco. Es `NULL` cuando el docente cancela su propia
+  solicitud pendiente. Al cancelar una reserva el aula se libera (`aula_asignada` pasa a `NULL`, como
+  exige `solicitudes_reserva_aula_si_aprobada`).
+- `rol_solicitante TEXT NULL`: rol activo de la sesión que creó la solicitud. Lo usan las notificaciones
+  internas para elegir el destino del enlace. `NULL` en las filas anteriores a la migración (sin backfill);
+  sin CHECK contra el catálogo de roles porque los roles son datos y pueden renombrarse.
+
 ### Portal (`schema: portal`)
 
 `perfiles` vincula una persona canónica con `contactos`, `cvs`, `experiencias`,

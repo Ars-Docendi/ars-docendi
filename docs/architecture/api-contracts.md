@@ -101,16 +101,30 @@ Rutas, DTOs, permisos y códigos de error: [api-contracts-designaciones.md](./ap
 
 ### Aulas (`/api/aulas/`)
 
-| Método | Path                            | Permiso           | Descripción                                                                             |
-| ------ | ------------------------------- | ----------------- | --------------------------------------------------------------------------------------- |
-| GET    | `/ping`                         | (anónimo)         | Health check del módulo                                                                 |
-| POST   | `/solicitudes`                  | `aulas.solicitar` | Crear una solicitud de reserva propia                                                   |
-| GET    | `/solicitudes/materias-propias` | `aulas.solicitar` | Listar las materias asignadas al docente autenticado                                    |
-| GET    | `/solicitudes/mias`             | `aulas.solicitar` | Listar las solicitudes propias del Docente autenticado                                  |
-| POST   | `/solicitudes/{id}/cancelar`    | `aulas.solicitar` | Cancelar una solicitud propia en estado `pendiente`                                     |
-| GET    | `/solicitudes`                  | `aulas.aprobar`   | Listar todas las solicitudes (todos los docentes)                                       |
-| POST   | `/solicitudes/{id}/asignar`     | `aulas.aprobar`   | Asignar aula a una `pendiente` (→ `aprobada`) o actualizar el aula de una ya `aprobada` |
-| POST   | `/solicitudes/{id}/rechazar`    | `aulas.aprobar`   | Rechazar una `pendiente` con motivo obligatorio (→ `rechazada`)                         |
+| Método | Path                                 | Permiso                 | Descripción                                                                             |
+| ------ | ------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/ping`                              | (anónimo)               | Health check del módulo                                                                 |
+| POST   | `/solicitudes`                       | `aulas.solicitar`       | Crear una solicitud de reserva propia                                                   |
+| GET    | `/solicitudes/materias-propias`      | `aulas.solicitar`       | Listar las materias asignadas al docente autenticado                                    |
+| GET    | `/solicitudes/mias`                  | `aulas.solicitar`       | Listar las solicitudes propias del Docente autenticado                                  |
+| POST   | `/solicitudes/{id}/cancelar`         | `aulas.solicitar`       | Cancelar una solicitud propia en estado `pendiente`                                     |
+| GET    | `/solicitudes`                       | `aulas.aprobar`         | Listar todas las solicitudes (todos los docentes)                                       |
+| POST   | `/solicitudes/{id}/asignar`          | `aulas.aprobar`         | Asignar aula a una `pendiente` (→ `aprobada`) o actualizar el aula de una ya `aprobada` |
+| POST   | `/solicitudes/{id}/rechazar`         | `aulas.aprobar`         | Rechazar una `pendiente` con motivo obligatorio (→ `rechazada`)                         |
+| GET    | `/solicitudes/{id}`                  | dueño o `aulas.aprobar` | Detalle de una solicitud (ver abajo)                                                    |
+| POST   | `/solicitudes/{id}/cancelar-reserva` | `aulas.aprobar`         | Cancelar una reserva `aprobada` con motivo obligatorio (→ `cancelada`, libera el aula)  |
+
+`GET /solicitudes/{id}` no lleva policy de permiso: lo ve el dueño (con `aulas.solicitar`) o quien tiene
+`aulas.aprobar`. Para cualquier otro, incluso un rol sin permisos de Aulas, responde `404`
+`solicitud-not-found`, igual que para un id inexistente (no revela que existe). El DTO de solicitud suma
+`motivoCancelacion` (sólo en una reserva cancelada por un Administrativo) y `esPropia` (la solicitud es
+de quien consulta; lo calcula el backend). `docente` viene siempre en el detalle.
+
+`POST /solicitudes/{id}/cancelar-reserva` recibe `{ "motivo": string }`. Motivo en blanco: `400`
+`solicitud-invalida` en el campo `motivo` ("Debés indicar el motivo de la cancelación."). Estado distinto
+de `aprobada`: `409` `solicitud-no-aprobada` ("Sólo se puede cancelar una reserva en estado Aprobada.").
+Sin `aulas.aprobar`: `403`. Éxito: `200` con la solicitud en estado `cancelada`, `aulaAsignada` nulo y el
+motivo guardado.
 
 ### Portal (`/api/portal/`)
 
