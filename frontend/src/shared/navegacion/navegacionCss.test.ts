@@ -16,4 +16,11 @@ describe("encabezado de página en pantallas angostas", () => {
     expect(base).toBe(true);
     expect(movil).toMatch(/\.adoc-main \.adoc-page-head\s*\{[^}]*align-items:\s*stretch/);
   });
+
+  it("la marca y las migas llegan a 24 px de alto en pantallas angostas", () => {
+    const movil = leer("./navegacion.css").split("@media (max-width: 559.98px)").join("\n");
+    expect(movil).toMatch(
+      /\.adoc-topbar \.adoc-brand-link,\s*\.adoc-crumbs a\s*\{[^}]*min-height:\s*24px/,
+    );
+  });
 });
