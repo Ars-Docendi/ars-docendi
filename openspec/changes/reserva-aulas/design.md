@@ -167,6 +167,10 @@ permisos vería ambas vistas (no es el caso de la matriz actual, pero no se cier
 
 ### 8. "Todas las solicitudes": doble click en la fila en vez de columna Acciones
 
+> **Superada** por el change `reserva-aulas-detalle-y-cancelacion`: ambas tablas abren una página de
+> detalle con un click en cualquier fila y `ModalAsignarAula` / `ModalDetalleSolicitud` ya no existen.
+> El texto de abajo queda como registro histórico de la decisión original.
+
 Ajuste posterior a la primera implementación, pedido en revisión. La columna Acciones con un botón
 "Asignar aula" quedaba rara para Administrativo: en `Pendiente` estaba habilitado, pero en `Aprobada` y
 `Cancelada` quedaba deshabilitado ocupando espacio sin aportar nada (a diferencia de "Mis solicitudes",
