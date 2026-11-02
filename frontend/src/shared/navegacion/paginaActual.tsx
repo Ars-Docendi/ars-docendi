@@ -22,6 +22,7 @@ export function EnlaceSaltar() {
 
 const REINTENTOS = 40;
 const ESPERA_MS = 50;
+const VIGILANCIA_MS = 5000;
 
 /**
  * En cada cambio de página (no de query): título base mientras carga, foco al `h1` y su texto en
@@ -45,23 +46,51 @@ export function SeguimientoDePagina() {
     // La carga inicial no roba el foco: sólo la navegación dentro de la app.
     if (primera || !cambio) return;
     let intentos = 0;
+    let enfocado: HTMLElement | null = null;
+    let observador: MutationObserver | null = null;
+    let vigilancia: number | undefined;
+    const enfocar = (titulo: HTMLElement) => {
+      titulo.focus({ preventScroll: true });
+      enfocado = titulo;
+      const texto = titulo.textContent?.trim() ?? "";
+      // Páginas que no usan PageHeader (p. ej. la ayuda) igual titulan el documento.
+      if (texto && document.title === SUFIJO_TITULO) document.title = tituloDocumento(texto);
+      setAnuncio(texto);
+    };
+    // Una página que muestra un h1 provisorio y lo reemplaza al cargar deja el foco en el body:
+    // si el h1 que enfocamos se desmontó y nadie movió el foco, pasa al h1 nuevo.
+    const vigilar = () => {
+      observador = new MutationObserver(() => {
+        if (!enfocado || enfocado.isConnected) return;
+        const activo = document.activeElement;
+        if (activo && activo !== document.body) return;
+        const nuevo = document.querySelector<HTMLElement>(".adoc-main h1");
+        if (nuevo) enfocar(nuevo);
+      });
+      observador.observe(document.body, { childList: true, subtree: true });
+      vigilancia = window.setTimeout(() => observador?.disconnect(), VIGILANCIA_MS);
+    };
     const buscar = () => {
       const titulo = document.querySelector<HTMLElement>(".adoc-main h1");
       if (titulo) {
-        titulo.focus({ preventScroll: true });
-        const texto = titulo.textContent?.trim() ?? "";
-        // Páginas que no usan PageHeader (p. ej. la ayuda) igual titulan el documento.
-        if (texto && document.title === SUFIJO_TITULO) document.title = tituloDocumento(texto);
-        setAnuncio(texto);
+        enfocar(titulo);
+        vigilar();
         return true;
       }
       return ++intentos > REINTENTOS;
     };
-    if (buscar()) return;
+    const limpiar = () => {
+      observador?.disconnect();
+      window.clearTimeout(vigilancia);
+    };
+    if (buscar()) return limpiar;
     const reloj = window.setInterval(() => {
       if (buscar()) window.clearInterval(reloj);
     }, ESPERA_MS);
-    return () => window.clearInterval(reloj);
+    return () => {
+      window.clearInterval(reloj);
+      limpiar();
+    };
   }, [pathname]);
 
   return (

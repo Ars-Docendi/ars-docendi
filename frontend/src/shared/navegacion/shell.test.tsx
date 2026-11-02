@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createMemoryRouter, Link, Outlet, RouterProvider, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -34,6 +34,7 @@ function Editor() {
       <PageHeader title="Editor" />
       <input aria-label="Texto" value={texto} onChange={(e) => setTexto(e.target.value)} />
       <Link to="/otra">Ir a otra</Link>
+      <Link to="/carga">Ir a una con carga</Link>
       <Link to="/editor?x=1">Mismo editor con query</Link>
       <button
         type="button"
@@ -65,6 +66,22 @@ function ConModal() {
   );
 }
 
+/** Página con carga: primero un h1 provisorio y, al llegar los datos, otro h1 distinto (otro nodo). */
+function ConCarga() {
+  const [cargado, setCargado] = useState(false);
+  useEffect(() => {
+    const reloj = window.setTimeout(() => setCargado(true), 150);
+    return () => window.clearTimeout(reloj);
+  }, []);
+  return cargado ? (
+    <section>
+      <PageHeader title="Detalle cargado" />
+    </section>
+  ) : (
+    <PageHeader title="Detalle" />
+  );
+}
+
 function montar(inicial: string, entradas?: string[]) {
   const router = createMemoryRouter(
     [
@@ -74,6 +91,7 @@ function montar(inicial: string, entradas?: string[]) {
           { path: "/editor", element: <Editor /> },
           { path: "/otra", element: <PageHeader title="Otra página" /> },
           { path: "/modal", element: <ConModal /> },
+          { path: "/carga", element: <ConCarga /> },
         ],
       },
     ],
@@ -159,6 +177,14 @@ describe("título, foco y anuncio", () => {
     await waitFor(() => expect(titulo).toHaveFocus());
     expect(document.title).toBe("Otra página · Ars Docendi");
     expect(screen.getByRole("status")).toHaveTextContent("Otra página");
+  });
+
+  it("si el h1 enfocado se reemplaza al terminar de cargar, el foco pasa al h1 nuevo", async () => {
+    montar("/editor");
+    await userEvent.click(screen.getByRole("link", { name: "Ir a una con carga" }));
+
+    const final = await screen.findByRole("heading", { name: "Detalle cargado" });
+    await waitFor(() => expect(final).toHaveFocus());
   });
 
   it("un cambio sólo de query no mueve el foco", async () => {
