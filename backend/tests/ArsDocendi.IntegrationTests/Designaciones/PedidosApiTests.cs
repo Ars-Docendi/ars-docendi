@@ -152,7 +152,9 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         await using var conexion = await AbrirConexionAsync();
+        // Fixture fuera de orden: el historial del circuito es de sólo inserción.
         await using var comando = new NpgsqlCommand("""
+            SET session_replication_role = replica;
             UPDATE designaciones.pedido_historial
                SET created_at = CASE id
                    WHEN 'd7000000-0000-4000-8000-000000000004' THEN TIMESTAMPTZ '2026-06-14 12:00:00+00'
@@ -449,6 +451,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
+            SellosPrueba.Sellador(db),
             NullLogger<ServicioPedidos>.Instance,
             new ServicioPersonas(new RepositorioDocentes(identityDb)),
             almacenamiento);

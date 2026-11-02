@@ -76,6 +76,7 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
         pedido.Horas = 16;
         pedido.Snapshot = new SnapshotPedido("Congelado", "Anterior", 10, "Materia", 1, 2);
         await circuito.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(circuito, pedido, ct);
         await using var administrador = PostgresFixture.CrearDesignaciones(Cadena);
         var repositorio = new RepositorioDesignaciones(administrador);
         var actuales = await repositorio.ListarVigentesDePersonaAsync(pedido.PersonaId, ct);
@@ -122,6 +123,7 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
             pedido.Snapshot = new SnapshotPedido("Congelado", "Anterior", 10, "Materia", 1, 2);
             pedido.Horas = 16;
             await circuito.SaveChangesAsync(ct);
+            await SellosPrueba.SellarEtapaForzadaAsync(circuito, pedido, ct);
         }
         // Estado seguido antes de la exclusión: no debe reutilizarse tras esperar.
         var leida = await circuito.Designaciones.SingleAsync(d => d.PersonaId == pedido.PersonaId

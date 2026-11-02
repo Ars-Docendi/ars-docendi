@@ -76,8 +76,23 @@ período anterior por `ImpactoDesde`; si no existe, la referencia anterior queda
 vacía. La exportación no recibe filtros: siempre representa el lote completo y
 las continuidades vigentes del período. Devuelve `401` sin autenticación, `403`
 fuera del ámbito departamental, `404` si el período no existe y `409` si dejó de
-estar activo. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
+estar activo (`periodo-inactive`) o si la cadena de integridad del período no verifica
+(`lote-integridad-comprometida`, sin detalle de hallazgos). Con la cadena íntegra, la
+celda `M1` de la primera hoja imprime `INTEGRIDAD · sello {n} · {hash}` y la cabeza queda
+registrada como ancla [BR-designaciones-020]. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
 `IPortalQueries` aporta únicamente `Contacto.Mail` para las altas.
+
+## Integridad del circuito
+
+| Método | Ruta                                          | Permiso         | Salida                 |
+| ------ | --------------------------------------------- | --------------- | ---------------------- |
+| GET    | `/api/designaciones/periodos/{id}/integridad` | `auditoria.ver` | `IntegridadPeriodoDto` |
+
+`IntegridadPeriodoDto` = `{ integro, secuencia, hash, hallazgos: [{ categoria, id }] }`.
+`hash` es la cabeza en hexadecimal, el mismo valor que imprime el lote. Las categorías son
+`sello-hash-invalido`, `sello-firma-invalida`, `sello-secuencia-rota`, `historial-sin-sello`,
+`pedido-estado-divergente` y `ancla-no-reproducida`; `id` es técnico (evento, pedido o ancla).
+Devuelve `404` si el período no existe. Sólo lee.
 
 ## Pedidos
 
