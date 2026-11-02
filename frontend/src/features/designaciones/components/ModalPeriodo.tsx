@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Modal, Field, Input, DatePicker, Button, InlineAlert, Toggle } from "@ars-docendi/ui";
+import { Field, Input, Button, InlineAlert, Toggle } from "@ars-docendi/ui";
+import { CampoFechaISO } from "../../../shared/ui/CampoFechaISO";
 import type { PeriodoDesignacion } from "../types";
 import { validarPeriodo, esPeriodoValido } from "../periodoValidacion";
 import type { DatosEditablesPeriodo } from "../periodoValidacion";
+import { Modal } from "../../../shared/ui/Modal";
 
 type DatosPeriodo = Omit<PeriodoDesignacion, "id">;
 
@@ -107,6 +109,10 @@ export function ModalPeriodo({
       open={open}
       onOpenChange={onOpenChange}
       title={esEdicion ? "Editar período" : "Nuevo período"}
+      sucio={
+        JSON.stringify(formulario) !==
+        JSON.stringify(periodo ? periodoAFormulario(periodo) : FORMULARIO_VACIO)
+      }
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
@@ -118,7 +124,7 @@ export function ModalPeriodo({
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      <div className="adoc-form">
         {error && (
           <InlineAlert severity="warning" title="Atención">
             {error}
@@ -145,18 +151,18 @@ export function ModalPeriodo({
             Ventana para cargar pedidos
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div className="adoc-form-fila cols-2">
             <Field label="Desde" required>
-              <DatePicker
+              <CampoFechaISO
                 value={formulario.cargaDesde}
-                onChange={(e) => actualizar("cargaDesde", e.target.value)}
+                onChange={(valor) => actualizar("cargaDesde", valor)}
               />
             </Field>
 
             <Field label="Hasta" required error={mostrarErrores ? errores.cargaHasta : undefined}>
-              <DatePicker
+              <CampoFechaISO
                 value={formulario.cargaHasta}
-                onChange={(e) => actualizar("cargaHasta", e.target.value)}
+                onChange={(valor) => actualizar("cargaHasta", valor)}
               />
             </Field>
           </div>
@@ -174,18 +180,18 @@ export function ModalPeriodo({
             Período de impacto de la designación
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div className="adoc-form-fila cols-2">
             <Field label="Desde" required error={mostrarErrores ? errores.impactoDesde : undefined}>
-              <DatePicker
+              <CampoFechaISO
                 value={formulario.impactoDesde}
-                onChange={(e) => actualizar("impactoDesde", e.target.value)}
+                onChange={(valor) => actualizar("impactoDesde", valor)}
               />
             </Field>
 
             <Field label="Hasta" required error={mostrarErrores ? errores.impactoHasta : undefined}>
-              <DatePicker
+              <CampoFechaISO
                 value={formulario.impactoHasta}
-                onChange={(e) => actualizar("impactoHasta", e.target.value)}
+                onChange={(valor) => actualizar("impactoHasta", valor)}
               />
             </Field>
           </div>

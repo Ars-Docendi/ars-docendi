@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Button, Input, Modal, Table } from "@ars-docendi/ui";
+import { Button, Input, Table } from "@ars-docendi/ui";
 import {
   FILTROS_MATERIA_VACIOS,
   buscarMaterias,
@@ -15,6 +15,7 @@ import {
 import { propsFilaClickeable } from "./filaClickeable";
 import "./BuscadorMaterias.css";
 import "./modalEstirable.css";
+import { Modal } from "./Modal";
 
 interface BuscadorMateriasProps {
   open: boolean;
@@ -81,6 +82,7 @@ export function BuscadorMaterias({
   return (
     <Modal
       open={open}
+      tamano="libre"
       onOpenChange={(siguiente) => {
         if (!siguiente) cerrar();
       }}

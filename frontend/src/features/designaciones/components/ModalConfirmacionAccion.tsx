@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { Button, Modal, Textarea } from "@ars-docendi/ui";
+import { Button, Textarea } from "@ars-docendi/ui";
 import type { ButtonVariant } from "@ars-docendi/ui";
 import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
+import { Modal } from "../../../shared/ui/Modal";
 
 /** Acciones de revisión que se confirman con este modal. */
 export type AccionRevision = "aceptar" | "rechazar" | "devolver" | "priorizar" | "despriorizar";
@@ -288,6 +289,8 @@ function Contenido({
   return (
     <Modal
       open
+      tamano="confirmacion"
+      pendiente={enviando}
       className="adoc-macc"
       onOpenChange={(abierto) => {
         if (!abierto) onCerrar();

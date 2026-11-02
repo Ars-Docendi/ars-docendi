@@ -1,7 +1,7 @@
 import { useResaltado } from "../../../shared/ui/resaltado";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AuditLog, Button, InlineAlert, Modal, TrafficLight } from "@ars-docendi/ui";
+import { AuditLog, Button, InlineAlert, TrafficLight } from "@ars-docendi/ui";
 import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
@@ -42,6 +42,7 @@ import type {
   TipoTarea,
 } from "../types";
 import "./tareas.css";
+import { Modal } from "../../../shared/ui/Modal";
 
 const ETIQUETA_PRIORIDAD: Record<Tarea["prioridad"], string> = {
   alta: "Alta",
@@ -396,6 +397,8 @@ function DetalleCargado({
 
       <Modal
         open={modalCancelarAbierto}
+        tamano="confirmacion"
+        pendiente={enviando}
         onOpenChange={setModalCancelarAbierto}
         title="Cancelar tarea"
         footer={

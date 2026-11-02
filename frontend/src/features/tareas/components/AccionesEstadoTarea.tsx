@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { Button, Field, InlineAlert, Input, Textarea } from "@ars-docendi/ui";
 import { puedeCambiarEstado, puedeEditarAvance } from "../api/maquinaEstadosTarea";
 import type { ActorTarea, EstadoTarea, Tarea } from "../types";
@@ -43,6 +44,11 @@ export function AccionesEstadoTarea({
   const [destinoPendiente, setDestinoPendiente] = useState<EstadoTarea | null>(null);
   const [texto, setTexto] = useState("");
   const [avance, setAvance] = useState(String(tarea.porcentajeAvance));
+
+  // Motivo/solución a medio escribir o avance modificado sin guardar: se avisa al salir.
+  useGuardiaDeCambios(
+    (destinoPendiente !== null && texto.trim() !== "") || avance !== String(tarea.porcentajeAvance),
+  );
 
   const estadosPosibles = ESTADOS_DISPONIBLES.filter(
     (destino) => destino !== tarea.estado && puedeCambiarEstado(tarea, actor, destino),

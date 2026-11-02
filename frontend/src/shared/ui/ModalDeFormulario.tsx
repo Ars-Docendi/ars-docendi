@@ -16,9 +16,14 @@ import "./ModalDeFormulario.css";
 const SELECTOR_CAMPOS = 'input:not([type="hidden"]):not([data-no-foco]), select, textarea';
 
 export interface ModalDeFormularioProps {
-  titulo: string;
-  /** `confirmacion` mide 480 px; `formulario` mide min(600px, 100vw - 32px), con el zoom de la app. */
-  tamano?: "confirmacion" | "formulario";
+  titulo?: ReactNode;
+  /** Nombre accesible cuando no hay `titulo` (p. ej. un visor de imagen). */
+  etiqueta?: string;
+  /** `confirmacion` mide 480 px; `formulario` mide min(600px, 100vw - 32px), con el zoom de la app;
+   *  `libre` deja el ancho a la clase del consumidor (modales estirables). */
+  tamano?: "confirmacion" | "formulario" | "libre";
+  /** Clase extra del cuadro de diálogo. */
+  className?: string;
   /** Se monta sólo mientras está abierto: el padre decide cuándo mostrarlo. */
   onCerrar: () => void;
   /** Hay una mutación en curso: Esc, la X y el fondo no cierran. */
@@ -76,6 +81,8 @@ function isDisabled(elemento: HTMLElement) {
  */
 export function ModalDeFormulario({
   titulo,
+  etiqueta,
+  className,
   tamano = "confirmacion",
   onCerrar,
   pendiente = false,
@@ -224,15 +231,18 @@ export function ModalDeFormulario({
         ref={dialogoRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={`${id}-titulo`}
+        aria-labelledby={titulo ? `${id}-titulo` : undefined}
+        aria-label={titulo ? undefined : etiqueta}
         tabIndex={-1}
         data-confirmando={confirmando ? "true" : undefined}
-        className={`adoc-modal adoc-modal--app ${
-          tamano === "formulario" ? "adoc-modal--formulario" : "adoc-modal--confirmacion"
-        }`}
+        className={`adoc-modal adoc-modal--app adoc-modal--${tamano}${className ? ` ${className}` : ""}`}
       >
         <header>
-          <h4 id={`${id}-titulo`}>{titulo}</h4>
+          {titulo ? (
+            <h4 id={`${id}-titulo`}>{titulo}</h4>
+          ) : (
+            <span className="adoc-modal-sin-titulo" />
+          )}
           <button
             type="button"
             className="close"

@@ -1,14 +1,5 @@
 import { useState } from "react";
-import {
-  Button,
-  DatePicker,
-  Field,
-  InlineAlert,
-  Input,
-  Modal,
-  Select,
-  Textarea,
-} from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Input, Select, Textarea } from "@ars-docendi/ui";
 import { SelectorResponsable } from "./SelectorResponsable";
 import type {
   DatosEditablesTarea,
@@ -20,6 +11,8 @@ import type {
 } from "../types";
 import "../../../shared/ui/modalEstirable.css";
 import "./modalesEstirables.css";
+import { CampoFechaISO } from "../../../shared/ui/CampoFechaISO";
+import { Modal } from "../../../shared/ui/Modal";
 
 interface ModalNuevaTareaProps {
   open: boolean;
@@ -139,16 +132,14 @@ export function ModalNuevaTarea({
   }
 
   const fechaFinInvalida = enviado && !!campos.fechaFin && campos.fechaFin < campos.fechaInicio;
-  const grilla: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1.25rem",
-  };
 
   return (
     <Modal
       open={open}
       className="adoc-modal--estirable adoc-modal-tareas"
+      tamano="libre"
+      pendiente={guardando}
+      sucio={JSON.stringify(campos) !== JSON.stringify(datosIniciales(tarea, proyectoFijo))}
       onOpenChange={(next) => {
         if (!next) handleCerrar();
       }}
@@ -164,7 +155,7 @@ export function ModalNuevaTarea({
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      <div className="adoc-form">
         {error && (
           <InlineAlert severity="danger" title="No se pudo guardar la tarea">
             {error}
@@ -192,15 +183,15 @@ export function ModalNuevaTarea({
           />
         </Field>
 
-        <div style={grilla}>
+        <div className="adoc-form-fila cols-2">
           <Field
             label="Fecha de inicio"
             required
             error={enviado && !campos.fechaInicio ? "Campo obligatorio" : undefined}
           >
-            <DatePicker
+            <CampoFechaISO
               value={campos.fechaInicio}
-              onChange={(e) => set("fechaInicio", e.target.value)}
+              onChange={(valor) => set("fechaInicio", valor)}
             />
           </Field>
           <Field
@@ -214,11 +205,11 @@ export function ModalNuevaTarea({
                   : undefined
             }
           >
-            <DatePicker value={campos.fechaFin} onChange={(e) => set("fechaFin", e.target.value)} />
+            <CampoFechaISO value={campos.fechaFin} onChange={(valor) => set("fechaFin", valor)} />
           </Field>
         </div>
 
-        <div style={grilla}>
+        <div className="adoc-form-fila cols-2">
           <Field
             label="Prioridad"
             required

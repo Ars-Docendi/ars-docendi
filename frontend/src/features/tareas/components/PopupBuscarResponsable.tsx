@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Button, InlineAlert, Input, Modal, Select, Table } from "@ars-docendi/ui";
+import { Button, InlineAlert, Input, Select, Table } from "@ars-docendi/ui";
 import { useCandidatosResponsable } from "../hooks/useTareas";
 import type { PersonaCandidata } from "../types";
 import "./tablaTareas.css";
 import "./selectorResponsable.css";
 import "../../../shared/ui/modalEstirable.css";
 import "./modalesEstirables.css";
+import { Modal } from "../../../shared/ui/Modal";
 
 interface PopupBuscarResponsableProps {
   open: boolean;
@@ -55,6 +56,7 @@ export function PopupBuscarResponsable({
   return (
     <Modal
       open={open}
+      tamano="libre"
       className="adoc-modal--estirable adoc-modal-tareas adoc-modal-tareas-responsable"
       onOpenChange={(siguiente) => {
         if (!siguiente) cerrar();

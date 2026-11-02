@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Button, InlineAlert } from "@ars-docendi/ui";
 import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
@@ -19,6 +19,7 @@ import {
   siguienteOrden,
 } from "../filtrosPersonas";
 import { usePermisosPersonas, usePersonas } from "../hooks/usePersonas";
+import { Modal } from "../../../shared/ui/Modal";
 
 export function ListadoPage() {
   const navegar = useNavigate();
@@ -86,6 +87,8 @@ export function ListadoPage() {
 
       <Modal
         open={aConfirmar !== null}
+        tamano="confirmacion"
+        pendiente={cambiarEstado.isPending}
         onOpenChange={(abierto) => !abierto && setAConfirmar(null)}
         title={activar ? "Activar persona" : "Desactivar persona"}
         footer={

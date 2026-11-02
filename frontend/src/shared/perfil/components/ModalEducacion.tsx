@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Field, Input, Modal, Select } from "@ars-docendi/ui";
+import { Button, Field, Input, Select } from "@ars-docendi/ui";
 
 import {
   NIVELES_EDUCACION,
@@ -10,6 +10,7 @@ import {
 import { CampoPeriodo } from "./CampoPeriodo";
 import { MENSAJE_FALTA_ANIO, SIN_MES_SIN_ANIO, type MesSinAnio } from "./mesSinAnio";
 import "./portal.css";
+import { Modal } from "../../ui/Modal";
 
 const VACIA: DatosEducacion = {
   nivel: "Grado",
@@ -30,6 +31,8 @@ export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacio
   const [cursando, setCursando] = useState(() => educacion?.hasta === null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [mesSinAnio, setMesSinAnio] = useState<MesSinAnio>(SIN_MES_SIN_ANIO);
+  // Lo cargado se compara con lo que se abrió: cerrar con datos sin guardar pide confirmar.
+  const [inicial] = useState(() => JSON.stringify([datos, cursando]));
 
   function guardar() {
     const nuevos: Record<string, string> = {};
@@ -53,6 +56,7 @@ export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacio
   return (
     <Modal
       open
+      sucio={JSON.stringify([datos, cursando]) !== inicial}
       onOpenChange={(abierto) => !abierto && onCerrar()}
       title={educacion ? "Editar formación" : "Agregar formación"}
       footer={
@@ -66,7 +70,7 @@ export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacio
         </>
       }
     >
-      <div className="portal-form">
+      <div className="adoc-form-seccion">
         <Field label="Nivel" required>
           <Select
             value={datos.nivel}

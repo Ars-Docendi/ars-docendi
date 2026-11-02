@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, InlineAlert, Modal, RoleMenu } from "@ars-docendi/ui";
+import { Button, InlineAlert, RoleMenu } from "@ars-docendi/ui";
 
 import { mensajeProblema } from "../../shared/api/problemDetails";
 import { useCerrarSesion } from "../../shared/auth/auth";
 import { etiquetaAmbito, useElegirRol } from "../../shared/auth/rolActivo";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { chevronIcon } from "./icons";
+import { Modal } from "../../shared/ui/Modal";
 
 /**
  * Nombre corto para la tarjeta: primer nombre y primer apellido a partir del
@@ -142,6 +143,7 @@ export function ModalCambiarRol({
   return (
     <Modal
       open
+      tamano="confirmacion"
       onOpenChange={(abrir) =>
         !abrir && (alIngresar && actual ? elegirAsignacion(actual) : onCerrar())
       }

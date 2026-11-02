@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Button, Field, FileUpload, Input, Modal, Textarea } from "@ars-docendi/ui";
+import { Button, Field, FileUpload, Input, Textarea } from "@ars-docendi/ui";
 
 import type { DatosProyecto, Proyecto } from "../types";
 import { CampoPeriodo } from "./CampoPeriodo";
 import { MENSAJE_FALTA_ANIO, SIN_MES_SIN_ANIO, type MesSinAnio } from "./mesSinAnio";
 import "./portal.css";
+import { Modal } from "../../ui/Modal";
 
 const VACIO: DatosProyecto = {
   nombre: "",
@@ -33,6 +34,8 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
   const [actual, setActual] = useState(() => proyecto?.hasta === null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [mesSinAnio, setMesSinAnio] = useState<MesSinAnio>(SIN_MES_SIN_ANIO);
+  // Lo cargado se compara con lo que se abrió: cerrar con datos sin guardar pide confirmar.
+  const [inicial] = useState(() => JSON.stringify([datos, actual]));
 
   function guardar() {
     const nuevos: Record<string, string> = {};
@@ -59,6 +62,7 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
   return (
     <Modal
       open
+      sucio={JSON.stringify([datos, actual]) !== inicial}
       onOpenChange={(abierto) => !abierto && onCerrar()}
       title={proyecto ? "Editar proyecto" : "Agregar proyecto"}
       footer={
@@ -72,7 +76,7 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
         </>
       }
     >
-      <div className="portal-form">
+      <div className="adoc-form-seccion">
         <Field label="Nombre" required error={errores.nombre}>
           <Input
             value={datos.nombre}

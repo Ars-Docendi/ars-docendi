@@ -11,6 +11,7 @@ interface CampoFechaProps {
   disabled?: boolean;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
+  "aria-label"?: string;
 }
 
 /**
@@ -25,6 +26,7 @@ export function CampoFecha({
   disabled,
   "aria-invalid": ariaInvalid,
   "aria-describedby": ariaDescribedby,
+  "aria-label": ariaLabel,
 }: CampoFechaProps) {
   const texto = useRef<HTMLInputElement>(null);
   const nativo = useRef<HTMLInputElement>(null);
@@ -56,6 +58,7 @@ export function CampoFecha({
         className="adoc-input"
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedby}
+        aria-label={ariaLabel}
         onChange={(evento) => aplicarMascara(evento, formatearFecha, onChange)}
       />
       <button

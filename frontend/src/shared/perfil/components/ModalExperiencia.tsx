@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Button, Field, Input, Modal, Textarea } from "@ars-docendi/ui";
+import { Button, Field, Input, Textarea } from "@ars-docendi/ui";
 
 import type { DatosExperiencia, Experiencia } from "../types";
 import { CampoPeriodo } from "./CampoPeriodo";
 import { MENSAJE_FALTA_ANIO, SIN_MES_SIN_ANIO, type MesSinAnio } from "./mesSinAnio";
 import "./portal.css";
+import { Modal } from "../../ui/Modal";
 
 const VACIA: DatosExperiencia = {
   puesto: "",
@@ -28,6 +29,8 @@ export function ModalExperiencia({ experiencia, onCerrar, onGuardar }: ModalExpe
   const [actual, setActual] = useState(() => experiencia?.hasta === null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [mesSinAnio, setMesSinAnio] = useState<MesSinAnio>(SIN_MES_SIN_ANIO);
+  // Lo cargado se compara con lo que se abrió: cerrar con datos sin guardar pide confirmar.
+  const [inicial] = useState(() => JSON.stringify([datos, actual]));
 
   function guardar() {
     const nuevos: Record<string, string> = {};
@@ -52,6 +55,7 @@ export function ModalExperiencia({ experiencia, onCerrar, onGuardar }: ModalExpe
   return (
     <Modal
       open
+      sucio={JSON.stringify([datos, actual]) !== inicial}
       onOpenChange={(abierto) => !abierto && onCerrar()}
       title={experiencia ? "Editar experiencia" : "Agregar experiencia"}
       footer={
@@ -65,7 +69,7 @@ export function ModalExperiencia({ experiencia, onCerrar, onGuardar }: ModalExpe
         </>
       }
     >
-      <div className="portal-form">
+      <div className="adoc-form-seccion">
         <Field label="Puesto" required error={errores.puesto}>
           <Input
             value={datos.puesto}
