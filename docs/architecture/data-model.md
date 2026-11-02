@@ -165,6 +165,17 @@ orden `(created_at,id)`. Relectura administrativa por persona y resolución de
 personas/actores por lote evitan materialización global innecesaria.
 Ver [evidencia Designaciones 3.6–3.8](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/designaciones-3.6-3.8.md).
 
+### Aulas (`schema: aulas`)
+
+Primera tabla real del schema, sin catálogo propio: `materia_id` referencia `identity.materias`
+(acotada por el backend a las materias del docente solicitante), `comision` y `aula_asignada` son texto
+libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
+`docs/architecture/domains/aulas.md`).
+
+| Tabla                 | Descripción                                                                                                                                                                                           | PII |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
+
 ### Portal (`schema: portal`)
 
 `perfiles` vincula una persona canónica con `contactos`, `cvs`, `experiencias`,
@@ -344,6 +355,8 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 | `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
 | `designaciones.designaciones`    | `identity.materias` | FK `ON DELETE RESTRICT` (`20261013170855_IntegridadMateriaDesignaciones.sql`)                                    |
 | `designaciones.designaciones`    | `identity.carreras` | Ídem que pedidos                                                                                                 |
+| `aulas.solicitudes_reserva`      | `identity.personas` | Una solicitud sin docente resoluble es un registro roto — mismo criterio que `designaciones.pedidos`             |
+| `aulas.solicitudes_reserva`      | `identity.materias` | La materia se acota a las asignadas al docente — mismo criterio que `designaciones.pedidos.materia_id`           |
 | `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
 
 Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.

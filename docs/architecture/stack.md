@@ -21,7 +21,7 @@ Monolito modular en un único `ArsDocendi.slnx`. Cada módulo es un proyecto sep
 | `ArsDocendi.Storage` + `.Contracts`    | Adjuntos sobre almacenamiento S3 (SeaweedFS) con antivirus (ClamAV).                                  |
 | `ArsDocendi.Inferencia`                | Cliente del servicio Ollama compartido y su estado.                                                   |
 | `Modules.Designaciones` + `.Contracts` | Pedidos de designación, circuito de aprobación, períodos y exportación de lotes.                      |
-| `Modules.Aulas` + `.Contracts`         | Reserva de aulas para exámenes. Hoy sólo expone ping e infraestructura.                               |
+| `Modules.Aulas` + `.Contracts`         | Reserva de aulas para exámenes: solicitudes del Docente y su gestión administrativa.                  |
 | `Modules.Portal` + `.Contracts`        | Perfil del docente: contacto, CV, trayectoria y experticia.                                           |
 | `Modules.Tareas` + `.Contracts`        | Tablero de tareas y proyectos internos con semáforo de vencimiento.                                   |
 

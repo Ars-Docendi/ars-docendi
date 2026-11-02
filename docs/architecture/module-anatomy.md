@@ -21,7 +21,7 @@ Modules.<Modulo>.Contracts/
 └── Modules.<Modulo>.Contracts.csproj
 ```
 
-No todos los módulos necesitan todas las carpetas: Aulas, por ejemplo, sólo expone hoy su ping y su infraestructura mínima. No se crean clases vacías para completar el dibujo.
+No todos los módulos necesitan todas las carpetas: Aulas, por ejemplo, no expone todavía interfaces públicas en su `Contracts`. No se crean clases vacías para completar el dibujo.
 
 ## Flujo
 

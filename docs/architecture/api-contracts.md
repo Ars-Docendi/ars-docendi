@@ -102,7 +102,16 @@ Rutas, DTOs, permisos y códigos de error: [api-contracts-designaciones.md](./ap
 
 ### Aulas (`/api/aulas/`)
 
-Sólo `GET /ping` (anónimo).
+| Método | Path                            | Permiso           | Descripción                                                                             |
+| ------ | ------------------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| GET    | `/ping`                         | (anónimo)         | Health check del módulo                                                                 |
+| POST   | `/solicitudes`                  | `aulas.solicitar` | Crear una solicitud de reserva propia                                                   |
+| GET    | `/solicitudes/materias-propias` | `aulas.solicitar` | Listar las materias asignadas al docente autenticado                                    |
+| GET    | `/solicitudes/mias`             | `aulas.solicitar` | Listar las solicitudes propias del Docente autenticado                                  |
+| POST   | `/solicitudes/{id}/cancelar`    | `aulas.solicitar` | Cancelar una solicitud propia en estado `pendiente`                                     |
+| GET    | `/solicitudes`                  | `aulas.aprobar`   | Listar todas las solicitudes (todos los docentes)                                       |
+| POST   | `/solicitudes/{id}/asignar`     | `aulas.aprobar`   | Asignar aula a una `pendiente` (→ `aprobada`) o actualizar el aula de una ya `aprobada` |
+| POST   | `/solicitudes/{id}/rechazar`    | `aulas.aprobar`   | Rechazar una `pendiente` con motivo obligatorio (→ `rechazada`)                         |
 
 ### Portal (`/api/portal/`)
 
