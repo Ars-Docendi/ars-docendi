@@ -58,6 +58,8 @@ institucional o personalizado que tenga alguno de esos permisos ve la sección c
 4. En el detalle de una Aprobada, el mismo panel permite "Actualizar aula" (precargada con el aula
    actual — no cambia el estado) o "Cancelar reserva": un diálogo con motivo obligatorio que pasa la
    solicitud a Cancelada, libera el aula y deja el motivo visible para el Docente.
+   El diálogo avisa "El aula asignada queda liberada, el docente ve el motivo completo y se le notifica
+   (in-app)." — es cierto: el Docente recibe la notificación "Reserva cancelada".
 5. El detalle de una Rechazada o Cancelada muestra el motivo y avisa "Esta solicitud está cerrada: no
    admite más acciones."
 
@@ -104,6 +106,10 @@ igual que en Mis Pedidos.
 - **Actualizar el aula de una Aprobada no es "editar el pedido"**: es una corrección puntual del dato
   aula, no reabre el circuito ni permite tocar día/horario/materia/comisión — esos siguen siendo
   inmutables una vez aprobada.
+- **Cada cambio avisa**: asignar aula, actualizarla (sólo si cambia), rechazar y cancelar la reserva
+  generan una notificación para el Docente dueño; que el Docente cancele una pendiente avisa a
+  Administrativo y Secretaría Académica (si ya pidieron un aula afuera del sistema, hay que liberarla).
+  Cada aviso lleva a `/aulas/solicitudes/:id` (ver `notificaciones-design-spec.md`).
 - **Rechazar y Cancelar reserva viven junto a "Asignar" en el panel de acciones del detalle**: una
   Pendiente tiene dos desenlaces (aprobar o rechazar) y una Aprobada dos (actualizar el aula o cancelar
   la reserva), siempre a la vista. "Rechazar solicitud" sólo aparece en una Pendiente y "Cancelar

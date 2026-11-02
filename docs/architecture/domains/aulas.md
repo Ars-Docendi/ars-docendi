@@ -48,6 +48,10 @@ aulas/laboratorios todavía.
 | GET    | `/api/aulas/solicitudes/{id}`                  | dueño o `aulas.aprobar` | Detalle de una solicitud; 404 `solicitud-not-found` para cualquier otro (no revela que existe)                  |
 | POST   | `/api/aulas/solicitudes/{id}/cancelar-reserva` | `aulas.aprobar`         | Cancelar una `Aprobada` con motivo obligatorio (→ `Cancelada`, libera el aula)                                  |
 
+## Notificaciones
+
+Después de confirmar cada cambio, `ServicioSolicitudesAula` avisa por `INotificador` (best effort; ver [notificaciones.md](./notificaciones.md)): al docente dueño cuando se le asigna aula ("Aula asignada"), cuando el aula de una reserva aprobada cambia a otra distinta ("Aula actualizada"; repetir la misma no avisa), cuando se rechaza su solicitud y cuando se cancela su reserva (con el motivo y el aula liberada, leída antes de borrarla); y a los usuarios `administrativo` y `secretaria` cuando el docente cancela una solicitud pendiente. El aviso al dueño se ve bajo `rol_solicitante`.
+
 ## Permisos
 
 Catálogo completo (código C# en `ArsDocendi.Shared/Auth/Permisos.cs`; dato en

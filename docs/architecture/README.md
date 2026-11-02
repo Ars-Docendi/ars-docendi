@@ -14,7 +14,7 @@ Esta carpeta describe **cómo** está estructurado Ars Docendi: decisiones de st
 
 ## Docs por dominio
 
-Para cada módulo backend (Designaciones, Aulas, Portal, Tareas), se mantiene `domains/<dominio>.md` (a partir de `_template.md`).
+Para cada módulo backend (Designaciones, Aulas, Portal, Tareas, Notificaciones), se mantiene `domains/<dominio>.md` (a partir de `_template.md`).
 
 ## Relacionados
 

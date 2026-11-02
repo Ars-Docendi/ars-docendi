@@ -10,7 +10,7 @@ Scaffold de un **nuevo módulo .NET** (`Modules.<X>` + `Modules.<X>.Contracts`) 
 
 ## Cuándo usar
 
-- `/add-feature` revela necesidad de un nuevo bounded context backend que no encaja en los 4 módulos existentes (Designaciones, Aulas, Portal, Tareas).
+- `/add-feature` revela necesidad de un nuevo bounded context backend que no encaja en los 5 módulos existentes (Designaciones, Aulas, Portal, Tareas, Notificaciones).
 - La spec definió un módulo nuevo durante `/opsx:propose`.
 
 ## Pre-requisitos

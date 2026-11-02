@@ -79,6 +79,7 @@ Los DTOs, permisos, códigos de error y respuestas exactas están detallados en 
 | Períodos            | `/api/designaciones/periodos` y comandos activar/desactivar                                                                                    | `periodos.administrar`                                                                 |
 | Catálogos           | `GET /api/designaciones/catalogos`                                                                                                             | `designaciones.ver`                                                                    |
 | Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                                                               | permisos de consulta, gestión o revisión; siempre acotados al actor                    |
+| Notificaciones      | `GET /api/notificaciones`, `/no-leidas/cantidad`, `PATCH /{id}/leida`, `PATCH /leidas`                                                         | autenticado; siempre acotadas al usuario de la sesión y a su rol activo                |
 | Archivos            | `POST /api/archivos/cargas`, subida del objeto, confirmación, metadata, descarga y baja                                                        | autenticado; archivo propio para mutaciones                                            |
 | Sesión dev          | `GET /api/desarrollo/identidades`, `GET /api/desarrollo/sesion`                                                                                | sólo ambiente no productivo con opt-in                                                 |
 | Sesión              | `GET /api/auth/login`, `GET /api/auth/sesion`, `POST /api/auth/asignacion`, `POST /api/auth/logout`                                            | con `AutenticacionMicrosoft:Habilitada`                                                |
@@ -191,6 +192,22 @@ Acceso por permiso del rol vigente (no por nombre de rol). `tareas.ver` lo tiene
 | POST        | `/proyectos/{id}/estado`                        | `proyectos.gestionar` | Finalizar o cancelar un proyecto                                                                                               |
 
 Tarea y Proyecto exponen `version`: PUT y los cambios de estado o avance requieren la versión observada; una ausente responde `400` y una obsoleta `409 concurrency-conflict`. Reglas de jerarquía, herencia de Proyecto y visibilidad: spec [tareas-api](../../openspec/specs/tareas-api/spec.md).
+
+### Notificaciones (`/api/notificaciones/`)
+
+Todas las rutas (salvo el ping) exigen sesión (`401` sin ella) y se acotan al usuario autenticado y a su **rol activo**: una notificación con `rolDestino` sólo es visible bajo ese rol; sin `rolDestino` (Tareas, solicitudes de aula anteriores a la columna) es visible bajo cualquiera. Ninguna ruta recibe un id de usuario. Lo ajeno, lo de otro perfil y lo inexistente se responden igual: `404 notificacion-not-found` ("La notificación no existe").
+
+| Método | Path                  | Descripción                                                                                                                        |
+| ------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/ping`               | Health check del módulo (anónimo)                                                                                                  |
+| GET    | `/no-leidas/cantidad` | `{ cantidad }`: no leídas visibles                                                                                                 |
+| GET    | `/`                   | `?pagina=1&tamanio=20&estado=NO_LEIDAS\|LEIDAS`: `{ datos, total, pagina, tamanio, totalPaginas }`, de la más nueva a la más vieja |
+| PATCH  | `/{id}/leida`         | Idempotente: conserva el primer instante de lectura; devuelve la notificación                                                      |
+| PATCH  | `/leidas`             | Exactamente uno de `{ ids }` (1 a 100 UUID únicos) o `{ todas: true, hasta? }` (ISO 8601 con zona); `{ cantidadActualizada }`      |
+
+`tamanio` va de 1 a 100 (20 por defecto), `pagina` desde 1, `estado` es opcional: un valor inválido responde `400`. En `PATCH /leidas`, cualquier otra combinación responde `400` con código `notificaciones-seleccion-invalida` y el mensaje en el campo ofensor (`ids`, `todas` o `hasta`); los ids que el usuario no ve se ignoran sin revelar si existen. Cada notificación expone `id, rolDestino, tipoEvento, tipoEntidad, entidadId, titulo, mensaje, contexto, leidaEn, creadaEn`; nunca el destinatario.
+
+La emisión no es un endpoint: la hacen Aulas, Designaciones y Tareas a través de `INotificador` después de confirmar su acción (ver [domains/notificaciones.md](./domains/notificaciones.md)).
 
 ## Idempotencia
 

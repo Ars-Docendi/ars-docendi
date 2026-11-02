@@ -31,10 +31,10 @@ Alternative: emitters resolve user ids themselves and pass a list. Rejected: thr
 
 ### 4. Storage
 
-`notificaciones.notificaciones(id, destinatario_usuario_id, rol_destino, tipo_evento, tipo_entidad, entidad_id, titulo, mensaje, contexto jsonb, leida_en, creada_en)` with the index `(destinatario_usuario_id, leida_en, creada_en DESC)` as requested and a second one on `(destinatario_usuario_id, creada_en DESC, id DESC)` only if the plans need it (see tasks: not added, the first one serves the count and both lists).
+`notificaciones.notificaciones(id, destinatario_usuario_id, rol_destino, tipo_evento, tipo_entidad, entidad_id, titulo, mensaje, contexto jsonb, leida_en, creada_en)` with one index, `(destinatario_usuario_id, leida_en, creada_en DESC)`, as requested: the unread count and both lists filter on the recipient and on `leida_en` and order by `creada_en`, so a second index was not added.
 
 - **FK**: `destinatario_usuario_id REFERENCES identity.users(id) ON DELETE RESTRICT`. Same documented precedent as `aulas.solicitudes_reserva` (identity is transversal infrastructure, rule 4). `entidad_id` has no FK: it points to three different modules' tables.
-- **CHECKs**: `tipo_entidad` in the three entity kinds; a blank title or message is rejected; `leida_en` is not before `creada_en` is not enforced (clock skew).
+- **CHECKs**: `tipo_entidad` is one of the three entity kinds, title/message/event type are not blank, `rol_destino` is not blank when present and `contexto` is a JSON object.
 - **No `audit.attach`** (decision). `audit.change_log` records who changed what in business tables; here (a) every row is derived data whose cause is already audited in the emitting module, (b) the only mutation after insert is the read instant, which would add one audit row per click and several per bulk read, and (c) the message snapshots contain names and free text that the audit would copy a second time. Cost: no trail of who read what, which is not a requirement.
 - `rol_destino` is free text validated by the emitters (role codes are data and can be renamed), exactly like `rol_solicitante`.
 
@@ -67,3 +67,26 @@ The ui-lib `Toast` renders a card only. `shared/ui/Toaster.tsx` is a tiny extern
 ### 10. Navigation and highlight
 
 Click: mark read (optimistic), close the panel, `navigate(path)`, then highlight the entity for three seconds. The highlight is a small store (`id`) that the three detail pages consume through `useResaltado(entidadId)`, which also scrolls the element into view once. A plain link would lose the "mark read" side effect, hence a button with a click handler; the item exposes its destination in the accessible description. Stage 3 adds validated origin.
+
+### 11. Emission sites and the idempotent transitions
+
+`ArsDocendi.Shared.Aplicacion.EmisionPosterior.IntentarAsync` wraps every emission, including the lookups needed to build the text (materia name, persona name): a failure anywhere is logged (event name and exception type only) and swallowed. It is a few lines of generic code with no notification concept, so it lives in Shared rather than being copied into three modules (Contracts cannot hold logic). The notifier is also best effort on its own; the wrapper additionally protects against a replacement `INotificador` that throws.
+
+Designaciones transitions called through `AplicarAccionIdempotenteAsync` run inside an outer transaction opened by the idempotency wrapper; the inner `ServicioPedidos.AplicarAccionAsync` therefore returns before the commit. Emitting there would notify before (or without) the commit. The emission was moved to `ServicioPedidosApi`: it runs after the outermost transaction block and only when the transition was really applied (a replayed idempotency key emits nothing). `ServicioPedidos` itself stays free of notification concerns.
+
+### 12. Deviations from the prototype
+
+- **Task number**: the prototype writes `T-0001`; the real task page shows `N° {numero}` (an integer), so the copy says "la tarea N° 7: ...".
+- **Highlight** is applied to the data card of the three detail pages, not to the list rows (the click always navigates to the detail). The store and hook are generic, so rows can adopt it later.
+- **`Volver a ...`** (stage 3) is not implemented: navigation is a plain `navigate(path)`.
+- **Docs** (`docs/architecture`, domains, design specs) are written in Spanish like the surrounding documents (AGENTS rule 10); OpenSpec artifacts, code comments, tests and fixtures are in English as instructed.
+- The assignment mentioned `backend/manifiesto-de-aristas.json` and `ArquitecturaAsistenteTests`; neither exists in this branch (they belong to the Asistente work). The dependency graph document was updated and `ArquitecturaIdentityTests` gained a test that fixes Notificaciones as a leaf of the module graph.
+
+### 13. Security pass (add-feature, step 7)
+
+- Authorization: every route except the ping requires a session; no route accepts a user id; visibility is one reusable predicate (user and active profile) applied to all reads and writes; foreign, other-profile and missing notices are indistinguishable (404); bulk ids that are not visible are ignored.
+- No new public endpoint without documentation: the ping is the mandatory smoke endpoint; all routes are in `api-contracts.md`.
+- Data exposure: the DTO never carries the recipient; logs carry event name, entity id and exception type only (no titles, messages, names, emails or database error details); persona-without-usuario logs only a count.
+- Injection: no raw SQL; bulk selection is parsed from `JsonElement` with explicit validation, bounded to 100 ids.
+- No secrets, no new packages; no environment variables; infrastructure change limited to the smoke script listing the new ping.
+- Boundaries: Notificaciones references only Shared, Migraciones and its own Contracts; emitters reference only the Contracts (tested).
