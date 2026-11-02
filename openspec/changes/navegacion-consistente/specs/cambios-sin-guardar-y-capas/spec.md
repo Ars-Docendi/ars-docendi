@@ -22,6 +22,14 @@ Pages with editable state SHALL block leaving with unsaved changes through the r
 - **THEN** the same confirmation SHALL appear and the active role SHALL NOT change until the user discards the changes
 - **AND** after discarding, no second confirmation SHALL appear
 
+#### Scenario: Landing after changing the active role
+
+- **GIVEN** a user with more than one role on a role-gated page such as `/aulas`
+- **WHEN** the user picks a different role in "Cambiar rol"
+- **THEN** the app SHALL land on the home of the new role, replacing the current history entry, with that role's sidebar and notifications
+- **AND** this SHALL hold even though the session reloads and the shell is replaced by "Cargando sesión…" while the role changes
+- **AND** picking the role already active on login SHALL NOT navigate, and a failed change SHALL show the error in the dialog without navigating
+
 #### Scenario: Opening a notification over a dirty page
 
 - **GIVEN** the notifications panel open over a page with unsaved changes

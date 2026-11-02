@@ -45,3 +45,4 @@
 ## 10. Validation against the prototype (real browser)
 
 - [x] 10.1 Fixes found by driving the real app: initial focus kept under StrictMode in modals and in the notifications panel; focus follows a replaced `h1`; page title no longer right-aligned below 560 px; marca and breadcrumb links reach 24 px; aula field 44 px; text filters in the URL keep every letter; Tareas "cuadros" in the URL; "Nuevo pedido" cancel keeps "Mis pedidos" filters; role change and notification click ask before leaving a dirty page. Verify: Vitest regression test per fix and the browser matrix at 1200, 400 and 360 px.
+- [x] 10.2 Changing the role from a role-gated page lands on the new role's home: the navigation no longer depends on the modal staying mounted while the session reloads (TD-011). Verify: `AppLayout.cambioDeRol.test.tsx` with the real layout (development and Microsoft sessions, dirty form, failed change) and the real browser.

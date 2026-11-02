@@ -137,12 +137,17 @@ export function ModalCambiarRol({
   // cambiarlo (el rol sólo cambia si se descartan).
   const [aDescartar, setADescartar] = useState<string | null>(null);
   function aplicarAsignacion(id: string) {
-    elegir.mutate(id, {
-      onSuccess: () => {
+    // No usar los callbacks de `mutate`: con el ingreso de desarrollo el rol nuevo cambia la clave
+    // de la sesión, el layout pasa a "Cargando sesión…" y este modal se desmonta antes de que la
+    // mutación termine; TanStack Query descarta entonces los callbacks de esa llamada. La promesa
+    // sí sobrevive al desmontaje. El error queda en `elegir.error`, que muestra el modal.
+    elegir.mutateAsync(id).then(
+      () => {
         onCerrar();
         if (id !== actual) navigate("/", { replace: true });
       },
-    });
+      () => undefined,
+    );
   }
   function elegirAsignacion(id: string) {
     if (id === actual && !alIngresar) return onCerrar();
