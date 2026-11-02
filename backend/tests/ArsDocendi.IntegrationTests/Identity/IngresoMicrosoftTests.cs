@@ -87,34 +87,80 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Sesion_con_un_rol_en_varios_ambitos_expone_ese_rol_y_sus_permisos()
+    public async Task Sesion_con_varias_asignaciones_opera_con_la_primera_hasta_que_se_elige()
     {
         var ct = TestContext.Current.CancellationToken;
         var usuario = await CrearUsuarioAsync(
             "docente@dominio.edu.ar", activo: true, [RolDocente, RolDocente], ct);
 
-        var sesion = await CrearSesion().ObtenerAsync(usuario, ct);
+        var sinElegir = await CrearSesion().ObtenerAsync(usuario, null, ct);
+        var elegida = await CrearSesion().ObtenerAsync(usuario, sinElegir!.Asignaciones[1].Id, ct);
 
-        Assert.NotNull(sesion);
-        Assert.Equal("docente", sesion.RolCodigo);
-        Assert.Equal("Docente", sesion.RolNombre);
-        Assert.Equal(1, sesion.CantidadRoles);
-        Assert.Equal(await PermisosDeRolAsync(RolDocente, ct), sesion.Permisos.Order().ToArray());
+        Assert.False(sinElegir.AsignacionElegida);
+        Assert.Equal(sinElegir.Asignaciones[0].Id, sinElegir.Asignacion.Id);
+        Assert.Equal(2, sinElegir.Asignaciones.Count);
+        Assert.True(elegida!.AsignacionElegida);
+        Assert.Equal(sinElegir.Asignaciones[1].Id, elegida.Asignacion.Id);
+        Assert.Equal(await PermisosDeRolAsync(RolDocente, ct), elegida.Permisos.Order().ToArray());
     }
 
     [Fact]
-    public async Task Sesion_con_varios_roles_usa_el_primero_por_nombre()
+    public async Task Asignacion_elegida_que_deja_de_estar_vigente_vuelve_a_la_de_por_defecto()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(
+            "revocada@dominio.edu.ar", activo: true, [RolDocente, RolDocente, RolSecretaria], ct);
+        var opciones = (await CrearSesion().ObtenerAsync(usuario, null, ct))!.Asignaciones;
+        var secretaria = Assert.Single(opciones, a => a.RolCodigo == "secretaria");
+        var docentes = opciones.Where(a => a.RolCodigo == "docente").ToArray();
+
+        await RevocarAsync(secretaria.Id, ct);
+        var conDosRestantes = await CrearSesion().ObtenerAsync(usuario, secretaria.Id, ct);
+        await RevocarAsync(docentes[0].Id, ct);
+        var conUnaRestante = await CrearSesion().ObtenerAsync(usuario, secretaria.Id, ct);
+
+        Assert.False(conDosRestantes!.AsignacionElegida);
+        Assert.Equal(docentes[0].Id, conDosRestantes.Asignacion.Id);
+        Assert.Equal(2, conDosRestantes.Asignaciones.Count);
+        Assert.True(conUnaRestante!.AsignacionElegida);
+        Assert.Equal(docentes[1].Id, conUnaRestante.Asignacion.Id);
+    }
+
+    [Fact]
+    public async Task Ambito_del_actor_se_limita_a_su_asignacion_activa_y_el_de_terceros_no()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(
+            "dos-materias@dominio.edu.ar", activo: true, [RolDocente, RolDocente], ct);
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var asignaciones = await db.UsuarioRoles.AsNoTracking()
+            .Where(a => a.UsuarioId == usuario)
+            .OrderBy(a => a.Id)
+            .ToListAsync(ct);
+        var (activa, otra) = (asignaciones[0], asignaciones[1]);
+
+        var comoActor = new ConsultasIdentity(db, new UsuarioActual(usuario, activa.Id));
+        var comoTercero = new ConsultasIdentity(db, new UsuarioActual(Guid.NewGuid()));
+
+        Assert.Equal([activa.MateriaId!.Value], await comoActor.ObtenerMateriasDeRolAsync(usuario, "docente", ct));
+        Assert.False(await comoActor.TieneRolEnMateriaAsync(usuario, "docente", otra.MateriaId!.Value, ct));
+        Assert.Equal(2, (await comoTercero.ObtenerMateriasDeRolAsync(usuario, "docente", ct)).Count);
+        Assert.True(await comoTercero.TieneRolEnMateriaAsync(usuario, "docente", otra.MateriaId!.Value, ct));
+    }
+
+    [Fact]
+    public async Task Sesion_con_varios_roles_opera_solo_con_el_elegido()
     {
         var ct = TestContext.Current.CancellationToken;
         var usuario = await CrearUsuarioAsync(
             "varios@dominio.edu.ar", activo: true, [RolSecretaria, RolDocente], ct);
 
-        var sesion = await CrearSesion().ObtenerAsync(usuario, ct);
+        var sinElegir = await CrearSesion().ObtenerAsync(usuario, null, ct);
+        var docente = Assert.Single(sinElegir!.Asignaciones, a => a.RolCodigo == "docente");
+        var sesion = await CrearSesion().ObtenerAsync(usuario, docente.Id, ct);
         var resultado = await ResolverAsync(CuentaOrganizacional("varios@dominio.edu.ar"), ct);
 
-        Assert.NotNull(sesion);
-        Assert.Equal("docente", sesion.RolCodigo);
-        Assert.Equal(2, sesion.CantidadRoles);
+        Assert.Equal("docente", sesion!.Asignacion.RolCodigo);
         Assert.Equal(await PermisosDeRolAsync(RolDocente, ct), sesion.Permisos.Order().ToArray());
         Assert.True(resultado.Aceptado);
     }
@@ -213,9 +259,17 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
         return await db.Personas.CountAsync(ct);
     }
 
-    private sealed class UsuarioActual(Guid id) : ICurrentUser
+    private async Task RevocarAsync(Guid asignacion, CancellationToken ct)
+    {
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE identity.user_roles SET deleted_at = now() WHERE id = {asignacion}", ct);
+    }
+
+    private sealed class UsuarioActual(Guid id, Guid? asignacion = null) : ICurrentUser
     {
         public string? UserId => id.ToString();
+        public Guid? AsignacionActivaId => asignacion;
         public string? Email => null;
         public IReadOnlyList<string> Roles => [];
         public bool IsAuthenticated => true;

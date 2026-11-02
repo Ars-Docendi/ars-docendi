@@ -19,6 +19,7 @@ public static class Permisos
     public const string AulasSolicitar = "aulas.solicitar";
     public const string AulasGestionar = "aulas.gestionar";
     public const string AulasAprobar = "aulas.aprobar";
+    public const string DesignacionesVerSeguimiento = "designaciones.ver_seguimiento";
     public const string TareasVer = "tareas.ver";
     public const string TareasGestionar = "tareas.gestionar";
     public const string ProyectosGestionar = "proyectos.gestionar";
@@ -49,6 +50,7 @@ public static class Permisos
         AulasSolicitar,
         AulasGestionar,
         AulasAprobar,
+        DesignacionesVerSeguimiento,
         TareasVer,
         TareasGestionar,
         ProyectosGestionar,

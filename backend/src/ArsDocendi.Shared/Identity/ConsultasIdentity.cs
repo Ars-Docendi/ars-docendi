@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Auth;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -10,9 +11,22 @@ namespace ArsDocendi.Shared.Identity;
 /// El filtro de asignaciones vigentes (<c>deleted_at IS NULL</c>) lo aplica el
 /// query filter global de <see cref="UsuarioRol"/>, no cada consulta.
 /// </para>
+/// <para>
+/// Cuando se consulta por el propio actor de la sesión, sólo cuenta la asignación con
+/// la que opera: las demás asignaciones de la persona no aportan rol, ámbito ni
+/// permisos. Las consultas sobre terceros consideran todas sus asignaciones.
+/// </para>
 /// </summary>
-internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdentity
+internal sealed class ConsultasIdentity(IdentityDbContext db, ICurrentUser? actor = null) : IConsultasIdentity
 {
+    private IQueryable<UsuarioRol> AsignacionesDe(Guid usuarioId)
+    {
+        var consulta = db.UsuarioRoles.AsNoTracking().Where(ur => ur.UsuarioId == usuarioId);
+        return actor?.AsignacionActivaId is { } activa && actor.UserId == usuarioId.ToString()
+            ? consulta.Where(ur => ur.Id == activa)
+            : consulta;
+    }
+
     public Task<Usuario?> ObtenerUsuarioAsync(Guid usuarioId, CancellationToken ct) =>
         db.Usuarios.AsNoTracking().Include(u => u.Persona).SingleOrDefaultAsync(u => u.Id == usuarioId, ct);
 
@@ -64,30 +78,24 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
         db.Personas.AsNoTracking().FirstOrDefaultAsync(p => p.Id == personaId, ct);
 
     public Task<bool> TieneRolEnMateriaAsync(Guid usuarioId, string codigoRol, Guid materiaId, CancellationToken ct) =>
-        db.UsuarioRoles
-          .AsNoTracking()
-          .AnyAsync(ur => ur.UsuarioId == usuarioId
-                       && ur.Usuario!.Activo
+        AsignacionesDe(usuarioId)
+          .AnyAsync(ur => ur.Usuario!.Activo
                        && ur.MateriaId == materiaId
                        && ur.Rol!.Codigo == codigoRol
                        && ur.Rol.EsSistema
                        && ur.Rol.Activo, ct);
 
     public Task<bool> TieneRolEnCarreraAsync(Guid usuarioId, string codigoRol, Guid carreraId, CancellationToken ct) =>
-        db.UsuarioRoles
-          .AsNoTracking()
-          .AnyAsync(ur => ur.UsuarioId == usuarioId
-                       && ur.Usuario!.Activo
+        AsignacionesDe(usuarioId)
+          .AnyAsync(ur => ur.Usuario!.Activo
                        && ur.CarreraId == carreraId
                        && ur.Rol!.Codigo == codigoRol
                        && ur.Rol.EsSistema
                        && ur.Rol.Activo, ct);
 
     public Task<bool> TieneRolGlobalAsync(Guid usuarioId, string codigoRol, CancellationToken ct) =>
-        db.UsuarioRoles
-          .AsNoTracking()
-          .AnyAsync(ur => ur.UsuarioId == usuarioId
-                       && ur.Usuario!.Activo
+        AsignacionesDe(usuarioId)
+          .AnyAsync(ur => ur.Usuario!.Activo
                        && ur.MateriaId == null
                        && ur.CarreraId == null
                        && ur.Rol!.Codigo == codigoRol
@@ -95,10 +103,8 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
                        && ur.Rol.Activo, ct);
 
     public async Task<IReadOnlyList<string>> ObtenerCodigosDeRolesDeSistemaAsync(Guid usuarioId, CancellationToken ct) =>
-        await db.UsuarioRoles
-                .AsNoTracking()
-                .Where(ur => ur.UsuarioId == usuarioId
-                          && ur.Usuario!.Activo
+        await AsignacionesDe(usuarioId)
+                .Where(ur => ur.Usuario!.Activo
                           && ur.Rol!.EsSistema
                           && ur.Rol.Activo)
                 .Select(ur => ur.Rol!.Codigo)
@@ -129,9 +135,8 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
     // es exactamente para lo que sirven. Lo que no habilitan es el circuito de
     // aprobación, y eso lo resuelve ObtenerCodigosDeRolesDeSistemaAsync.
     public async Task<IReadOnlyList<string>> ObtenerCodigosDePermisosAsync(Guid usuarioId, CancellationToken ct) =>
-        await db.UsuarioRoles
-                .AsNoTracking()
-                .Where(ur => ur.UsuarioId == usuarioId && ur.Usuario!.Activo && ur.Rol!.Activo)
+        await AsignacionesDe(usuarioId)
+                .Where(ur => ur.Usuario!.Activo && ur.Rol!.Activo)
                 .SelectMany(ur => ur.Rol!.Permisos)
                 .Select(rp => rp.Permiso!.Codigo)
                 .Distinct()
@@ -141,10 +146,8 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
     // (junto a la carrera que devuelve ObtenerCarrerasDeRolAsync).
     public async Task<IReadOnlyList<Guid>> ObtenerMateriasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct) =>
-        await db.UsuarioRoles
-                .AsNoTracking()
-                .Where(ur => ur.UsuarioId == usuarioId
-                          && ur.Usuario!.Activo
+        await AsignacionesDe(usuarioId)
+                .Where(ur => ur.Usuario!.Activo
                           && ur.MateriaId != null
                           && ur.Rol!.Codigo == codigoRol
                           && ur.Rol.EsSistema
@@ -155,10 +158,8 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
 
     public async Task<IReadOnlyList<Guid>> ObtenerCarrerasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct) =>
-        await db.UsuarioRoles
-                .AsNoTracking()
-                .Where(ur => ur.UsuarioId == usuarioId
-                          && ur.Usuario!.Activo
+        await AsignacionesDe(usuarioId)
+                .Where(ur => ur.Usuario!.Activo
                           && ur.CarreraId != null
                           && ur.Rol!.Codigo == codigoRol
                           && ur.Rol.EsSistema

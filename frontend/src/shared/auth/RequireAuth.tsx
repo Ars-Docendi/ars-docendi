@@ -30,5 +30,6 @@ export function RequireAuth() {
   if (!user && !error) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
+
   return <Outlet />;
 }

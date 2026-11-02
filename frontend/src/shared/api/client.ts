@@ -17,7 +17,7 @@ if (developmentAuthEnabled) {
     const sesion = obtenerSesionDesarrollo();
     if (sesion) {
       config.headers.set("X-Dev-User-Id", sesion.usuarioId);
-      config.headers.set("X-Dev-Role-Code", sesion.rolCodigo);
+      if (sesion.asignacionId) config.headers.set("X-Dev-Asignacion-Id", sesion.asignacionId);
     }
     return config;
   });

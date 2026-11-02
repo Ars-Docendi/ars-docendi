@@ -148,3 +148,23 @@ describe("DetallePedidoPage — Volver", () => {
     expect(screen.queryByText("Pantalla de edición")).not.toBeInTheDocument();
   });
 });
+
+describe("DetallePedidoPage — seguimiento", () => {
+  it("sin seguimiento muestra el motivo de la devolución pero no las etapas ni el historial", () => {
+    estado.permisos = ["designaciones.ver", "designaciones.gestionar"];
+    estado.pedido = { ...PEDIDO, motivoDevolucion: "Falta el CV" };
+    renderDetalle();
+
+    expect(screen.getByText(/Te devolvieron este pedido/)).toBeInTheDocument();
+    expect(screen.getByText(/Falta el CV/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Historial del pedido" })).not.toBeInTheDocument();
+  });
+
+  it("con seguimiento muestra el historial", () => {
+    estado.permisos = ["designaciones.ver", "designaciones.ver_seguimiento"];
+    estado.pedido = PEDIDO;
+    renderDetalle();
+
+    expect(screen.getByRole("region", { name: "Historial del pedido" })).toBeInTheDocument();
+  });
+});

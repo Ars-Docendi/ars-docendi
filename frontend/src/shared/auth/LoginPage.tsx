@@ -88,8 +88,9 @@ export function LoginPage() {
     if (DevLoginModal) setDevModalOpen(true);
   }
 
-  function handleDevSelect(userId: string, roleCode: string) {
-    seleccionarSesionDesarrollo(userId, roleCode);
+  function handleDevSelect(userId: string) {
+    // Igual que con Microsoft: con varias asignaciones, RequireAuth lleva a elegir el rol.
+    seleccionarSesionDesarrollo(userId);
     // Close the picker and show the loading button briefly before entering the app.
     setDevModalOpen(false);
     setRedirecting(true);
