@@ -552,6 +552,12 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
         public Task<IReadOnlyList<Persona>> ObtenerPersonasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) => Task.FromResult<IReadOnlyList<Persona>>(ids.Contains(Propietario) ? [persona] : []);
         public Task<IReadOnlyList<Usuario>> BuscarCandidatosAsync(FiltroCandidatosIdentity filtro, CancellationToken ct) => Task.FromResult<IReadOnlyList<Usuario>>([]);
 
+        public Task<IReadOnlyList<Guid>> ObtenerUsuarioIdsConRolAsync(string codigoRol, Guid? materiaId, Guid? carreraId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+
+        public Task<IReadOnlyDictionary<Guid, Guid>> ObtenerUsuarioIdsDePersonasAsync(IReadOnlyCollection<Guid> personaIds, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, Guid>>(new Dictionary<Guid, Guid>());
+
         public Task<Persona?> ObtenerPersonaAsync(Guid personaId, CancellationToken ct) =>
             Task.FromResult(personaId == Propietario ? persona : null);
 
