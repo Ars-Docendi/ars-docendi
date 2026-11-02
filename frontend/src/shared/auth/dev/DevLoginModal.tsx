@@ -5,7 +5,7 @@ import "./DevLoginModal.css";
 interface DevLoginModalProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (userId: string, roleCode: string) => void;
+  onSelect: (userId: string) => void;
 }
 
 export function DevLoginModal({ open, onClose, onSelect }: DevLoginModalProps) {
@@ -28,26 +28,24 @@ export function DevLoginModal({ open, onClose, onSelect }: DevLoginModalProps) {
       )}
       {identidades.data?.length === 0 && <p>No hay identidades habilitadas.</p>}
       <ul className="dev-login-list">
-        {identidades.data?.flatMap((identidad) =>
-          identidad.roles.map((rol) => (
-            <li key={`${identidad.usuarioId}:${rol.codigo}`}>
-              <button
-                type="button"
-                className="dev-login-row"
-                onClick={() => onSelect(identidad.usuarioId, rol.codigo)}
-              >
-                <span className="dev-login-avatar" aria-hidden="true">
-                  {iniciales(identidad.nombreParaMostrar)}
-                </span>
-                <span className="dev-login-info">
-                  <span className="dev-login-name">{identidad.nombreParaMostrar}</span>
-                  <span className="dev-login-upn">{identidad.upn}</span>
-                </span>
-                <span className="dev-login-role">{rol.nombre}</span>
-              </button>
-            </li>
-          )),
-        )}
+        {identidades.data?.map((identidad) => (
+          <li key={identidad.usuarioId}>
+            <button
+              type="button"
+              className="dev-login-row"
+              onClick={() => onSelect(identidad.usuarioId)}
+            >
+              <span className="dev-login-avatar" aria-hidden="true">
+                {iniciales(identidad.nombreParaMostrar)}
+              </span>
+              <span className="dev-login-info">
+                <span className="dev-login-name">{identidad.nombreParaMostrar}</span>
+                <span className="dev-login-upn">{identidad.upn}</span>
+              </span>
+              <span className="dev-login-role">{identidad.roles.join(", ")}</span>
+            </button>
+          </li>
+        ))}
       </ul>
     </Modal>
   );

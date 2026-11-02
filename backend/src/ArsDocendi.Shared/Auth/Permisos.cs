@@ -15,6 +15,7 @@ public static class Permisos
     public const string DesignacionesAprobarSecretaria = "designaciones.aprobar_secretaria";
     public const string DesignacionesAprobarDecanato = "designaciones.aprobar_decanato";
     public const string DesignacionesRevisar = "designaciones.revisar";
+    public const string DesignacionesVerSeguimiento = "designaciones.ver_seguimiento";
     public const string TareasVer = "tareas.ver";
     public const string TareasGestionar = "tareas.gestionar";
     public const string ProyectosGestionar = "proyectos.gestionar";
@@ -41,6 +42,7 @@ public static class Permisos
         DesignacionesAprobarSecretaria,
         DesignacionesAprobarDecanato,
         DesignacionesRevisar,
+        DesignacionesVerSeguimiento,
         TareasVer,
         TareasGestionar,
         ProyectosGestionar,

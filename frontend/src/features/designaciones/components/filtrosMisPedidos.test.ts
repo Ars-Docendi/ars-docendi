@@ -127,6 +127,29 @@ describe("filtros de Mis pedidos", () => {
     ).toBe(enero);
   });
 
+  it("sin historial (Jefe sin seguimiento) ordena y filtra por la fecha de envío", () => {
+    const marzo = pedido({
+      estado: "en_proceso",
+      historial: [],
+      enviadoEn: "2026-03-10T00:00:00.000Z",
+    });
+    const enero = pedido({
+      estado: "en_proceso",
+      historial: [],
+      enviadoEn: "2026-01-10T00:00:00.000Z",
+    });
+
+    expect(
+      aplicarFiltrosYOrdenMisPedidos([marzo, enero], FILTROS_INICIALES, {
+        columna: "enviado",
+        direccion: "asc",
+      })[0],
+    ).toBe(enero);
+    expect(
+      aplicarFiltrosMisPedidos([marzo, enero], { ...FILTROS_INICIALES, enviado: "03/2026" }),
+    ).toEqual([marzo]);
+  });
+
   it("deja los valores vacíos agrupados al final en ambas direcciones", () => {
     const conLegajo = pedido({
       docente: { dni: "1", nombre: "Con legajo", legajo: "100", antiguedad: 3 },

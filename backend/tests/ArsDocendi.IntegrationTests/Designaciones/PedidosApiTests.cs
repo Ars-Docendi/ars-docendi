@@ -253,7 +253,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 
         var enviada = await servicio.AplicarAccionAsync(baja.Id, new AccionPedido.Enviar(), ct);
 
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviada.Estado);
+        Assert.Equal("en_proceso", enviada.Estado);
         Assert.Null(enviada.CargoSolicitado);
         Assert.Null(enviada.DedicacionSolicitada);
         Assert.Null(enviada.Horas);
@@ -420,7 +420,8 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             dos.AplicarAccionIdempotenteAsync(
                 pedidoId, new AccionPedido.Enviar(), clave, "enviar", string.Empty, ct));
 
-        Assert.All(respuestas, r => Assert.Equal(EstadosPedido.EnRevisionCoordinador, r.Estado));
+        // El Jefe no tiene designaciones.ver_seguimiento: ve el pedido "en proceso".
+        Assert.All(respuestas, r => Assert.Equal("en_proceso", r.Estado));
         await using var verificacion = PostgresFixture.CrearDesignaciones(Cadena);
         Assert.Equal(1, await verificacion.PedidoHistorial.CountAsync(
             h => h.PedidoId == pedidoId && h.Accion == "enviar", ct));

@@ -70,6 +70,8 @@ interface PedidoDto {
     creadoEn: string;
   }[];
   accionesPermitidas: string[];
+  motivoDevolucion: string | null;
+  enviadoEn: string | null;
 }
 
 export async function listarMisPedidos(): Promise<PedidoDesignacion[]> {
@@ -233,6 +235,8 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
       comentario: h.comentario ?? undefined,
       fecha: h.creadoEn,
     })),
+    motivoDevolucion: dto.motivoDevolucion ?? undefined,
+    enviadoEn: dto.enviadoEn ?? undefined,
     accionesPermitidas: dto.accionesPermitidas,
     version: dto.version,
   };

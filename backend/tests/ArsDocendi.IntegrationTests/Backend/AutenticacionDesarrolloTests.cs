@@ -42,8 +42,11 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         var (personaMixta, personaAjena) = await AgregarDocentesConAmbitoMixtoAsync(ct);
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
+        // El ámbito es el de la asignación elegida: la jefatura de la primera materia.
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
+        cliente.DefaultRequestHeaders.Add(
+            AutenticacionDesarrolloHandler.HeaderAsignacion,
+            (await AsignacionEnMateriaAsync(Jefe, "jefe_catedra", MateriasDelJefe[0])).ToString());
 
         var docentes = await cliente.GetFromJsonAsync<PersonaAdministracionDto[]>(
             "/api/administracion/personas", ct);
@@ -59,7 +62,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.NotNull(docentes);
         Assert.NotEmpty(docentes);
         Assert.All(docentes, docente =>
-            Assert.Contains(docente.Asignaciones, asignacion => MateriasDelJefe.Contains(asignacion.MateriaId)));
+            Assert.Contains(docente.Asignaciones, asignacion => asignacion.MateriaId == MateriasDelJefe[0]));
         var mixta = Assert.Single(docentes, docente => docente.PersonaId == personaMixta);
         Assert.DoesNotContain(mixta.Asignaciones, asignacion => asignacion.MateriaId == MateriaAjena);
         Assert.Contains(mixta.Membresias, membresia => membresia.MateriaId == MateriasDelJefe[0]);
@@ -112,6 +115,46 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
     }
 
+    [Theory]
+    [InlineData(false, HttpStatusCode.Forbidden)]
+    [InlineData(true, HttpStatusCode.Created)]
+    public async Task Alta_de_rol_con_permisos_exige_gestionar_membresia(
+        bool conMembresia,
+        HttpStatusCode esperado)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        Guid permiso;
+        await using (var conexion = await AbrirConexionAsync())
+        await using (var comando = new NpgsqlCommand("""
+            INSERT INTO identity.roles (id, code, name, scope, is_active)
+            VALUES (@rol, 'gestor_roles', 'Gestor de roles', 'global', TRUE);
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT @rol, id FROM identity.permisos
+            WHERE code = 'roles.administrar' OR (@membresia AND code = 'roles.gestionar_membresia');
+            INSERT INTO identity.user_roles (user_id, role_id)
+            VALUES (@usuario, @rol);
+            SELECT id FROM identity.permisos WHERE code = 'designaciones.ver';
+            """, conexion))
+        {
+            comando.Parameters.AddWithValue("rol", Guid.NewGuid());
+            comando.Parameters.AddWithValue("membresia", conMembresia);
+            comando.Parameters.AddWithValue("usuario", Jefe);
+            permiso = (Guid)(await comando.ExecuteScalarAsync(ct))!;
+        }
+        using var host = CrearHost("Development", true);
+        using var cliente = host.CreateClient();
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "gestor_roles");
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            "/api/administracion/roles",
+            new CrearRolDto("Rol con permisos iniciales", null, "global", [permiso]),
+            ct);
+
+        Assert.Equal(esperado, respuesta.StatusCode);
+    }
+
     [Fact]
     public async Task Catalogo_y_handler_aceptan_rol_personalizado_con_permisos_y_omiten_inactivo()
     {
@@ -142,9 +185,8 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
             "/api/desarrollo/identidades", ct);
         var jefe = Assert.Single(identidades!, identidad => identidad.UsuarioId == Jefe);
-        var custom = Assert.Single(jefe.Roles, rol => rol.Codigo == "revisor_custom");
-        Assert.Contains("personas.ver", custom.Permisos);
-        Assert.DoesNotContain(jefe.Roles, rol => rol.Codigo == "inactivo_custom");
+        Assert.Contains("Revisor personalizado", jefe.Roles);
+        Assert.DoesNotContain("Inactivo personalizado", jefe.Roles);
 
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "revisor_custom");

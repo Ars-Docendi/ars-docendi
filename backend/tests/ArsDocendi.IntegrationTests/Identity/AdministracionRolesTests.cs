@@ -13,32 +13,26 @@ public sealed class AdministracionRolesTests(PostgresFixture postgres)
     private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
 
     [Fact]
-    public async Task Listado_es_sin_tracking_y_creacion_copia_permisos_una_sola_vez()
+    public async Task Listado_es_sin_tracking_y_creacion_asigna_solo_los_permisos_elegidos()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var db = PostgresFixture.CrearIdentity(Cadena);
         var servicio = CrearServicio(db);
-        var baseRol = await servicio.ObtenerAsync(RolSecretaria, ct);
+        var elegidos = (await servicio.ObtenerAsync(RolSecretaria, ct)).Permisos.Take(2).Select(p => p.Id).ToArray();
         db.ChangeTracker.Clear();
 
         var creado = await servicio.CrearAsync(new CrearRolDto(
-            "Coordinación de Área", "Permisos operativos", "carrera", RolSecretaria), ct);
+            "Coordinación de Área", "Permisos operativos", "carrera", elegidos), ct);
+        var vacio = await servicio.CrearAsync(new CrearRolDto("Rol sin permisos", null, "global"), ct);
 
         Assert.Equal("coordinacion_de_area", creado.Codigo);
         Assert.False(creado.EsSistema);
-        Assert.Equal(baseRol.Permisos.Select(p => p.Id).Order(), creado.Permisos.Select(p => p.Id).Order());
+        Assert.Equal(elegidos.Order(), creado.Permisos.Select(p => p.Id).Order());
+        Assert.Empty(vacio.Permisos);
         db.ChangeTracker.Clear();
         var listado = await servicio.ListarAsync(ct);
         Assert.Contains(listado, r => r.Id == creado.Id);
         Assert.Empty(db.ChangeTracker.Entries());
-
-        await servicio.ReemplazarPermisosAsync(
-            RolSecretaria,
-            new ReemplazarPermisosDto([], baseRol.Version),
-            ct);
-        db.ChangeTracker.Clear();
-        var copia = await servicio.ObtenerAsync(creado.Id, ct);
-        Assert.NotEmpty(copia.Permisos);
     }
 
     [Fact]
@@ -112,13 +106,35 @@ public sealed class AdministracionRolesTests(PostgresFixture postgres)
         });
         await db.SaveChangesAsync(ct);
 
-        await servicio.EliminarAsync(creado.Id, new EliminarRolDto(creado.Version), ct);
+        await servicio.CambiarEstadoAsync(creado.Id, false, new CambiarEstadoRolDto(creado.Version), ct);
 
         db.ChangeTracker.Clear();
-        Assert.DoesNotContain(await servicio.ListarAsync(ct), r => r.Id == creado.Id);
+        Assert.Contains(await servicio.ListarAsync(ct), r => r.Id == creado.Id && !r.Activo);
         Assert.False(await db.Roles.AsNoTracking().Where(r => r.Id == creado.Id)
             .Select(r => r.Activo).SingleAsync(ct));
         Assert.Equal(1, await db.UsuarioRoles.AsNoTracking().CountAsync(r => r.RolId == creado.Id, ct));
+    }
+
+    [Fact]
+    public async Task Reactivar_rol_cuyo_nombre_tomo_otro_rol_activo_es_rechazado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var original = await servicio.CrearAsync(new CrearRolDto("Rol reutilizado", null, "global"), ct);
+        var inactivo = await servicio.CambiarEstadoAsync(
+            original.Id, false, new CambiarEstadoRolDto(original.Version), ct);
+        // El nombre deriva el código: el otro rol toma el nombre al renombrarse.
+        var otro = await servicio.CrearAsync(new CrearRolDto("Rol sucesor", null, "global"), ct);
+        await servicio.EditarAsync(otro.Id,
+            new EditarRolDto("Rol reutilizado", null, "global", otro.Version), ct);
+
+        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.CambiarEstadoAsync(
+            original.Id, true, new CambiarEstadoRolDto(inactivo.Version), ct));
+
+        Assert.Equal("identity-role-name-conflict", error.Codigo);
+        db.ChangeTracker.Clear();
+        Assert.Contains(await servicio.ListarAsync(ct), r => r.Id == original.Id && !r.Activo);
     }
 
     [Fact]
@@ -129,15 +145,15 @@ public sealed class AdministracionRolesTests(PostgresFixture postgres)
         var servicio = CrearServicio(db);
         var sistema = await servicio.ObtenerAsync(RolSecretaria, ct);
 
-        var protegido = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.EliminarAsync(
-            RolSecretaria, new EliminarRolDto(sistema.Version), ct));
+        var protegido = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.CambiarEstadoAsync(
+            RolSecretaria, false, new CambiarEstadoRolDto(sistema.Version), ct));
         Assert.Equal("identity-protected-role", protegido.Codigo);
 
         var creado = await servicio.CrearAsync(new CrearRolDto("Rol concurrente", null, "global"), ct);
         await servicio.EditarAsync(creado.Id,
             new EditarRolDto("Rol concurrente actualizado", null, "global", creado.Version), ct);
-        var conflicto = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => servicio.EliminarAsync(
-            creado.Id, new EliminarRolDto(creado.Version), ct));
+        var conflicto = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => servicio.CambiarEstadoAsync(
+            creado.Id, false, new CambiarEstadoRolDto(creado.Version), ct));
         Assert.NotNull(conflicto);
         Assert.True((await servicio.ObtenerAsync(creado.Id, ct)).Activo);
     }

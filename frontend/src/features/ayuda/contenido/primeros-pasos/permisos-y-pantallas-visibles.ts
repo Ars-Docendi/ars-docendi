@@ -48,7 +48,7 @@ export const permisosYPantallasVisibles: ArticuloAyuda = {
       titulo: "Volvé a entrar si te cambiaron el rol",
       etiquetaIndice: "Cambio de rol",
       cuerpo:
-        "Cuando te cambian los permisos, el menú se actualiza al revalidar tu sesión. Si una pantalla desapareció o apareció una nueva y no la ves, actualizá la página o cerrá sesión y volvé a ingresar.",
+        "Ves los permisos del rol con el que estás trabajando; si tenés otro rol, usá Cambiar rol en el menú de usuario. Cuando te cambian los permisos, el menú se actualiza al revalidar tu sesión. Si una pantalla desapareció o apareció una nueva y no la ves, actualizá la página o cerrá sesión y volvé a ingresar.",
     },
   ],
   despues: {

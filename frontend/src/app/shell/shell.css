@@ -323,7 +323,8 @@ a.adoc-sidebar-help {
 .adoc-app.collapsed .adoc-usuario-tarjeta {
   border-color: transparent;
 }
-.adoc-usuario-tarjeta .rol {
+.adoc-usuario-tarjeta .rol,
+.adoc-usuario-tarjeta .ambito {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -346,6 +347,10 @@ a.adoc-sidebar-help {
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.adoc-usuario-tarjeta .ambito {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
 }
 /* Se abre hacia arriba, sobre la tarjeta. */
 .adoc-usuario-pop {
@@ -486,4 +491,15 @@ a.adoc-sidebar-help {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+/* El RoleMenu ocupa todo el ancho del modal de elegir rol. */
+.adoc-elegir-rol {
+  width: 100%;
+  box-sizing: border-box;
+}
+.adoc-elegir-rol-ayuda {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm-size);
 }

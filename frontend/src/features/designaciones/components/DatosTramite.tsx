@@ -12,6 +12,8 @@ const ETAPA_LEGIBLE: Record<EstadoPedido, string> = {
   en_lote: "En lote",
   rechazado: "Rechazado",
   cancelado: "Cancelado",
+  en_proceso: "En proceso",
+  aprobado: "Aprobado",
 };
 
 const ICONO_BANDERA = (
@@ -69,6 +71,9 @@ export function DatosTramite({ pedido }: { pedido: PedidoDesignacion }) {
           <MetaRow etiqueta={ultimoEnvio.accion === "reenviar" ? "Reenviado" : "Enviado"}>
             {formatearFecha(ultimoEnvio.fecha)}
           </MetaRow>
+        )}
+        {!ultimoEnvio && pedido.enviadoEn && (
+          <MetaRow etiqueta="Enviado">{formatearFecha(pedido.enviadoEn)}</MetaRow>
         )}
         {creacion && <MetaRow etiqueta="Creado">{formatearFecha(creacion.fecha)}</MetaRow>}
       </div>

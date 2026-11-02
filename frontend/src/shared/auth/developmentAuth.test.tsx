@@ -20,7 +20,11 @@ vi.mock("./dev/DevLoginModal", () => ({
 
 import { apiClient } from "../api/client";
 import { LoginPage } from "./LoginPage";
-import { obtenerSesionDesarrollo, seleccionarSesionDesarrollo } from "./dev/session";
+import {
+  obtenerSesionDesarrollo,
+  elegirAsignacionDesarrollo,
+  seleccionarSesionDesarrollo,
+} from "./dev/session";
 import { resolverDevelopmentAuthEnabled } from "./developmentAuth";
 
 describe("autenticación sembrada configurable", () => {
@@ -49,15 +53,17 @@ describe("autenticación sembrada configurable", () => {
   });
 
   it("conserva la sesión seleccionada cuando el opt-in está habilitado", () => {
-    seleccionarSesionDesarrollo("usuario-1", "jefe_catedra");
+    seleccionarSesionDesarrollo("usuario-1");
+    elegirAsignacionDesarrollo("asignacion-1");
     expect(obtenerSesionDesarrollo()).toEqual({
       usuarioId: "usuario-1",
-      rolCodigo: "jefe_catedra",
+      asignacionId: "asignacion-1",
     });
   });
 
   it("adjunta la identidad seleccionada en las solicitudes", async () => {
-    seleccionarSesionDesarrollo("usuario-1", "jefe_catedra");
+    seleccionarSesionDesarrollo("usuario-1");
+    elegirAsignacionDesarrollo("asignacion-1");
     const adapter = vi.fn(async (config) => ({
       data: {},
       status: 200,
@@ -70,6 +76,6 @@ describe("autenticación sembrada configurable", () => {
 
     const config = adapter.mock.calls[0][0];
     expect(config.headers.get("X-Dev-User-Id")).toBe("usuario-1");
-    expect(config.headers.get("X-Dev-Role-Code")).toBe("jefe_catedra");
+    expect(config.headers.get("X-Dev-Asignacion-Id")).toBe("asignacion-1");
   });
 });

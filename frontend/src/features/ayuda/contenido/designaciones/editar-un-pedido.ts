@@ -42,7 +42,7 @@ export const editarUnPedido: ArticuloAyuda = {
       titulo: "Atendé la devolución",
       etiquetaIndice: "Pedido devuelto",
       cuerpo:
-        "Si el pedido fue devuelto, arriba del formulario ves el aviso Devuelto por el rol que lo devolvió, con su comentario y la etapa a la que vuelve el pedido cuando lo reenvíes.",
+        "Si el pedido te fue devuelto, arriba del formulario ves el aviso «Te devolvieron este pedido» con el motivo. Quienes tienen el permiso de seguimiento ven además qué rol lo devolvió y a qué etapa vuelve cuando lo reenvíen.",
       captura: {
         src: "/ayuda/designaciones/editar-un-pedido-paso-3.webp",
         alt: "Formulario de un pedido devuelto con el aviso «Devuelto por…» y el comentario.",
@@ -68,7 +68,7 @@ export const editarUnPedido: ArticuloAyuda = {
   despues: {
     titulo: "¿Qué sucede después?",
     cuerpo:
-      "Un borrador guardado sigue en Borrador. Un pedido enviado o reenviado pasa a la etapa de revisión correspondiente y vuelve a quedar de solo lectura. El historial del pedido registra quién lo editó y cuándo.",
+      "Un borrador guardado sigue en Borrador. Un pedido enviado o reenviado pasa a la etapa de revisión correspondiente y vuelve a quedar de solo lectura. El historial del pedido registra quién lo editó y cuándo, y lo ven quienes tienen el permiso de seguimiento.",
   },
   preguntas: [
     {

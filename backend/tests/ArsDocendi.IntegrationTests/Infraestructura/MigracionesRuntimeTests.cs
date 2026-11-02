@@ -117,7 +117,18 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
 
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-UPGRADE'"));
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.users WHERE upn='upgrade@example.test' AND azure_oid IS NULL AND azure_tid IS NULL"));
-        Assert.Equal(26L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        // Se retiran portal.editar, reportes.ver y sistema.parametrizar y se suma designaciones.ver_seguimiento.
+        Assert.Equal(24L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        Assert.Equal(0L, await Escalar("""
+            SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
+            JOIN identity.roles r ON r.id=rp.rol_id
+            WHERE p.code='designaciones.ver_seguimiento' AND r.code='jefe_catedra'
+            """));
+        Assert.Equal(1L, await Escalar("""
+            SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
+            JOIN identity.roles r ON r.id=rp.rol_id
+            WHERE p.code='designaciones.ver_seguimiento' AND r.code='secretaria'
+            """));
         // Permisos de personas: se traducen desde usuarios.* / docentes.ver y se suma Decanato.
         Assert.Equal(4L, await Escalar("""
             SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id

@@ -106,7 +106,7 @@ no admite reset/seed/restore directo. El procedimiento detallado, contrato CLI
 y recuperación aislada están en
 [migrations-persistence.md](../operations/migrations-persistence.md).
 
-La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con el rol solicitado vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
+La autenticación por `X-Dev-User-Id`/`X-Dev-Asignacion-Id` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con la asignación elegida vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
 
 | Ambiente             | Frontend             | Backend                          | Resultado                                     |
 | -------------------- | -------------------- | -------------------------------- | --------------------------------------------- |
