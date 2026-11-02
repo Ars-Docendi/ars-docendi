@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
+import { estadoVolver } from "../../../shared/navegacion/volver";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaMisPedidos } from "../components/TablaMisPedidos";
 import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
@@ -22,6 +23,7 @@ import "./misPedidos.css";
 
 export function MisPedidosPage() {
   const navegar = useNavigate();
+  const location = useLocation();
   const abrir = useAbrirDetalle();
   const { data: pedidos, isLoading, isError, refetch } = useMisPedidos();
   const catalogos = useCatalogosDesignaciones();
@@ -63,7 +65,9 @@ export function MisPedidosPage() {
           <Button
             variant="primary"
             leadingIcon={<IconoPlus />}
-            onClick={() => navegar("/designaciones/pedidos/nuevo")}
+            onClick={() =>
+              navegar("/designaciones/pedidos/nuevo", { state: estadoVolver(location) })
+            }
           >
             Nuevo pedido
           </Button>

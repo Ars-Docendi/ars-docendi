@@ -32,6 +32,9 @@ vi.mock("../hooks/useAccionesPedido", () => {
     useReenviarPedido: mutacion,
   };
 });
+vi.mock("../../../shared/auth/useCurrentUser", () => ({
+  useCurrentUser: () => ({ user: { permissions: ["designaciones.gestionar"] } }),
+}));
 vi.mock("../api/catalogos", () => ({ docentesDesdeCatalogo: () => [] }));
 // El formulario real se prueba aparte: acá interesa cómo la página bloquea la salida.
 vi.mock("../components/PedidoForm", () => ({

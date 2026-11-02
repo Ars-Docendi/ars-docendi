@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { InlineAlert } from "@ars-docendi/ui";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
 import { PedidoForm } from "../components/PedidoForm";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
@@ -37,7 +38,14 @@ export function PedidoFormPage() {
   const editar = useEditarPedido();
   const enviar = useEnviarPedido();
   const reenviar = useReenviarPedido();
-  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : RUTA_MIS_PEDIDOS;
+  // Un pedido nuevo nace en Mis pedidos: vuelve a esa lista con los filtros con los que se salió
+  // (`volverA` validado); cualquier otro origen se ignora.
+  const origen = useDestinoVolver("pedido");
+  const rutaMisPedidos =
+    origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_MIS_PEDIDOS
+      ? origen.ruta
+      : RUTA_MIS_PEDIDOS;
+  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : rutaMisPedidos;
 
   // El formulario avisa si tiene cambios; tras guardar se sale sin preguntar.
   const [sucio, setSucio] = useState(false);
