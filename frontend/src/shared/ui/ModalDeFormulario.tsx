@@ -55,9 +55,13 @@ function IconoCerrar() {
   );
 }
 
-/** Foco de vuelta al elemento que abrió el modal; si ya no existe, al h1 de la página. */
-function devolverFoco(abridor: Element | null) {
-  window.setTimeout(() => {
+/**
+ * Foco de vuelta al elemento que abrió el modal; si ya no existe, al h1 de la página. Devuelve la
+ * función que cancela el retorno: un montaje que se repite (StrictMode, remontaje) no debe
+ * arrebatarle el foco al diálogo que sigue abierto.
+ */
+function devolverFoco(abridor: Element | null): () => void {
+  const temporizador = window.setTimeout(() => {
     if (abridor instanceof HTMLElement && document.contains(abridor) && !isDisabled(abridor)) {
       abridor.focus();
       return;
@@ -68,6 +72,7 @@ function devolverFoco(abridor: Element | null) {
       titulo.focus();
     }
   }, 0);
+  return () => window.clearTimeout(temporizador);
 }
 
 function isDisabled(elemento: HTMLElement) {
@@ -156,9 +161,14 @@ export function ModalDeFormulario({
     [],
   );
 
+  const cancelarDevolucion = useRef<(() => void) | null>(null);
   useEffect(() => {
+    cancelarDevolucion.current?.();
+    cancelarDevolucion.current = null;
     enfocarInicial();
-    return () => devolverFoco(abridor);
+    return () => {
+      cancelarDevolucion.current = devolverFoco(abridor);
+    };
   }, [enfocarInicial, abridor]);
 
   // Un primer campo deshabilitado al abrir (p. ej. materias cargando) toma el foco al habilitarse.

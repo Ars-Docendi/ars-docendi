@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -65,6 +65,19 @@ describe("ModalDeFormulario", () => {
     await usuario.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await vi.waitFor(() => expect(abridor).toHaveFocus());
+  });
+
+  it("keeps the focus inside the dialog under StrictMode's double effect run", async () => {
+    const usuario = userEvent.setup();
+    render(
+      <StrictMode>
+        <Escenario />
+      </StrictMode>,
+    );
+    await usuario.click(screen.getByRole("button", { name: "Abrir" }));
+    await new Promise((resolver) => window.setTimeout(resolver, 20));
+
+    expect(screen.getByLabelText("Primero")).toHaveFocus();
   });
 
   it("without fields, focuses the least destructive button", async () => {
