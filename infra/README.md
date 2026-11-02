@@ -202,7 +202,26 @@ de corte y rollback en [cloudflared/README.md](cloudflared/README.md).
    Este runbook usa ingress **local**: no sustituir el archivo de configuración
    por un simple `tunnel run --token` salvo que las rutas estén gestionadas y
    comprobadas en el panel de Cloudflare.
-3. Verificar si **Cloudflare Access** ya protege staging y `pr-N`; si no, definir
+3. Programar la actualización de la imagen en **cada host** con
+   [`scripts/actualizar-cloudflared.sh`](scripts/actualizar-cloudflared.sh): hace
+   `pull`, sale sin cambios si la imagen es la misma, valida el ingress con la
+   imagen nueva, recrea el contenedor con los argumentos del paso 2 y restaura
+   el anterior si el nuevo no queda corriendo. El corte dura unos segundos.
+   Crear `/etc/cron.d/cloudflared` (root, porque usa Docker), con un horario
+   distinto en cada host para no cortar ambos túneles a la vez:
+
+   ```cron
+   # Debian: lunes 04:17. En Proxmox usar otro minuto/hora, p. ej. 04:47.
+   17 4 * * 1 root /opt/ars-docendi/repo/infra/scripts/actualizar-cloudflared.sh >> /var/log/cloudflared-actualizacion.log 2>&1
+   ```
+
+   Probarlo una vez a mano con el mismo comando y revisar el log. Sólo aplica
+   al túnel local del paso 2; si el contenedor se creó con otros argumentos,
+   adaptar el script antes de programarlo. Para fijar una versión en lugar de
+   `latest`, exportar `CLOUDFLARED_IMAGEN=cloudflare/cloudflared:<versión>` en
+   la línea de cron.
+
+4. Verificar si **Cloudflare Access** ya protege staging y `pr-N`; si no, definir
    la restricción al equipo según la política institucional (panel Zero Trust).
    Los smoke checks deben usar acceso autorizado, sin abrir staging/previews
    para sortear la política institucional.
