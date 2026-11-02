@@ -22,7 +22,14 @@ export const NAVEGACION: NavGroup[] = [
   {
     label: "Trabajo",
     items: [
-      { to: "/aulas", icon: "aulas", label: "Reserva de aulas", permiso: "aulas.ver" },
+      {
+        to: "/aulas",
+        icon: "aulas",
+        label: "Reserva de aulas",
+        // Los mismos permisos que exige la ruta /aulas: con sólo aulas.ver la pantalla
+        // redirige, así que la entrada no se muestra.
+        permiso: ["aulas.solicitar", "aulas.aprobar"],
+      },
       { to: "/tareas", icon: "tareas", label: "Tareas", permiso: "tareas.ver" },
       {
         to: "/tareas/proyectos",
