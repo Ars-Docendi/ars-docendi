@@ -8,7 +8,7 @@
 -- quien solicita. Ver openspec/changes/reserva-aulas/design.md (decisión 5).
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000030', 'aulas.solicitar', 'Solicitar reservas de aulas',
+    ('b2000000-0000-4000-8000-000000000031', 'aulas.solicitar', 'Solicitar reservas de aulas',
      'Crear y cancelar solicitudes propias de reserva de aula o laboratorio para mesas de examen.')
 ON CONFLICT (code) DO NOTHING;
 
