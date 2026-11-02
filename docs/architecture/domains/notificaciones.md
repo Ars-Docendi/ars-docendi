@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Avisar dentro del sistema (in-app) a la persona que tiene que actuar o enterarse de algo que le pasó a un trámite suyo: un aula asignada, un pedido devuelto, una tarea reasignada. El correo es otro trabajo y está fuera de este módulo.
+Avisar dentro del sistema (in-app) a la persona que tiene que actuar o enterarse de algo que le pasó a un trámite suyo: un aula asignada, un pedido devuelto, una tarea reasignada.
 
 ## Roles que interactúan
 
@@ -75,5 +75,5 @@ Sin reglas de normativa institucional. Es comportamiento de producto, especifica
 - **Fan-out al emitir, una fila por usuario** — varios Jefes de una materia leen y marcan por separado; la consulta de lectura es un índice por usuario, sin joins con roles.
 - **Texto congelado en el emisor** — Notificaciones no lee datos ajenos y el aviso no cambia si el pedido cambia después.
 - **Sin `audit.attach`** — ver [data-model.md](../data-model.md#notificaciones-schema-notificaciones).
-- **Optimismo al marcar como leída** — la regla "sin optimismo para transiciones" protege hechos de negocio que otros usan; leer un aviso sólo cambia el estado de quien lo lee y se revierte con un toast si falla (ver `openspec/changes/notificaciones-in-app/design.md`, decisión 7).
+- **Optimismo al marcar como leída** — la regla "sin optimismo para transiciones" protege hechos de negocio que otros usan; leer un aviso sólo cambia el estado de quien lo lee y se revierte con un toast si falla (ver `openspec/changes/archive/2026-11-02-notificaciones-in-app/design.md`, decisión 7).
 - **El número de tarea se muestra como `N° {numero}`**, igual que el detalle de la tarea.

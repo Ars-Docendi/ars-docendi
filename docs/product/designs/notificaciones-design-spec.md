@@ -1,7 +1,7 @@
 ---
 status: draft
 owner: ""
-feature: "openspec/changes/notificaciones-in-app"
+feature: "openspec/changes/archive/2026-11-02-notificaciones-in-app"
 last_updated: 2026-11-02
 ---
 
@@ -12,7 +12,7 @@ last_updated: 2026-11-02
 Una campana en el shell avisa cuántas notificaciones sin leer tiene la persona bajo el rol con que
 opera y abre un panel lateral donde las lee, las marca y salta a lo que las originó (una solicitud de
 aula, un pedido de designación, una tarea). La referencia de aceptación es el prototipo
-`notificaciones.html`; el correo queda fuera.
+`notificaciones.html`.
 
 ## Roles que ven esta surface
 
@@ -66,7 +66,7 @@ rol con que está operando (las tareas no tienen rol y se ven bajo cualquiera).
 
 - **Marcar como leída es optimista** aunque las transiciones no lo sean: sólo cambia el estado de
   lectura de quien la mira, es idempotente y un error cuesta un toast y un rollback. Ver
-  `openspec/changes/notificaciones-in-app/design.md`, decisión 7.
+  `openspec/changes/archive/2026-11-02-notificaciones-in-app/design.md`, decisión 7.
 - **El perfil activo manda**: cambiar de rol cambia la campana y el panel (el rol es parte de toda
   consulta). Un aviso dirigido a otro de tus roles no aparece hasta que cambies a ese rol.
 - **"Seleccionar todas" incluye lo que no se cargó**: se envía "todas hasta el instante de la más nueva

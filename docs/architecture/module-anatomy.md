@@ -37,7 +37,7 @@ Cada módulo expone `Add<Modulo>Module(IConfiguration)`. El método registra DbC
 
 ## Efectos posteriores al commit
 
-Cuando una acción de negocio debe avisar a alguien (una notificación, un correo), lo hace **después** de confirmar su transacción y de forma _best effort_: la falla del aviso se registra sin datos personales y nunca deshace ni altera la acción. `ArsDocendi.Shared.Aplicacion.EmisionPosterior.IntentarAsync` envuelve el efecto (incluidas las lecturas para armarlo) y `INotificador` abre su propio scope de DI, así que no reutiliza el `DbContext` ni la transacción de quien lo llama. Si la acción corre dentro de una transacción externa (como las transiciones idempotentes de pedidos), el aviso se emite después del commit más externo.
+Cuando una acción de negocio debe avisar a alguien (una notificación), lo hace **después** de confirmar su transacción y de forma _best effort_: la falla del aviso se registra sin datos personales y nunca deshace ni altera la acción. `ArsDocendi.Shared.Aplicacion.EmisionPosterior.IntentarAsync` envuelve el efecto (incluidas las lecturas para armarlo) y `INotificador` abre su propio scope de DI, así que no reutiliza el `DbContext` ni la transacción de quien lo llama. Si la acción corre dentro de una transacción externa (como las transiciones idempotentes de pedidos), el aviso se emite después del commit más externo.
 
 ## Ping
 
