@@ -39,28 +39,28 @@ institucional o personalizado que tenga alguno de esos permisos ve la sección c
    confirmación → pasa a Cancelada).
 5. Cuando Administrativo asigna aula, la fila pasa a Aprobada y muestra el aula asignada. Cuando la
    rechaza, la fila pasa a Rechazada.
-6. Doble click sobre una fila Rechazada abre un popup de solo lectura con el detalle completo de la
-   solicitud, incluido el motivo del rechazo. Las demás filas no reaccionan al doble click en esta
-   tabla.
+6. En una fila Rechazada, el botón "Ver motivo" (que reemplaza a "Cancelar") o el doble click abre un
+   popup de solo lectura con el detalle completo de la solicitud, incluido el motivo del rechazo. Las
+   demás filas no reaccionan al doble click en esta tabla.
 
 **Administrativo:**
 
 1. Entra a `/aulas` y ve la sección "Todas las solicitudes": todas las solicitudes de todos los
-   docentes, con el mismo detalle más el nombre del Docente. Esta tabla no tiene columna Acciones — la
-   interacción es doble click sobre la fila.
-2. Doble click sobre una fila Pendiente abre el modal "Asignar aula": indica el aula/laboratorio y
+   docentes, con el mismo detalle más el nombre del Docente. La columna Acciones muestra un botón sólo
+   cuando la fila tiene una acción; el doble click sobre la fila es un atajo equivalente.
+2. "Asignar aula" (o doble click) sobre una fila Pendiente abre el modal "Asignar aula": indica el aula/laboratorio y
    confirma ("Asignar y aprobar"), o hace click en "Rechazar solicitud" (botón secundario del mismo
    modal) para pasar al flujo de rechazo en vez de aprobar. Asignar pasa la solicitud a Aprobada; el
    Docente la ve actualizada en su propia lista.
 3. Al elegir "Rechazar solicitud" se cierra el modal de asignación y se abre "Rechazar solicitud": un
    motivo es obligatorio para confirmar. La solicitud pasa a Rechazada; el Docente ve el motivo
-   haciendo doble click en su fila.
-4. Doble click sobre una fila Aprobada abre el mismo modal de asignación en modo "Actualizar aula
+   con "Ver motivo" en su fila.
+4. "Actualizar aula" (o doble click) sobre una fila Aprobada abre el mismo modal de asignación en modo "Actualizar aula
    asignada", precargado con el aula actual — por si el Administrativo se equivocó o cambian las
    condiciones del examen. No cambia el estado, solo el aula. No ofrece la opción de rechazar (ya no
    está Pendiente).
-5. Doble click sobre una fila Rechazada o Cancelada no hace nada: son estados terminales sin acción
-   posible.
+5. Una fila Rechazada o Cancelada no tiene botón y el doble click no hace nada: son estados terminales
+   sin acción posible.
 
 ## Layout / IA
 
@@ -96,10 +96,10 @@ igual que en Mis Pedidos.
 - **"Mis solicitudes" (Docente) conserva la columna Acciones**: "Cancelar" queda visible pero
   deshabilitado cuando la solicitud no está Pendiente, mismo lenguaje que Mis Pedidos de Designaciones
   (acciones fijas en la fila, atenuadas cuando no aplican).
-- **"Todas las solicitudes" (Administrativo) usa doble click en vez de columna Acciones** — ajuste
-  posterior a la primera versión: un botón "Asignar aula" deshabilitado en dos de los tres estados
-  ocupaba espacio sin aportar nada. El doble click resuelve las tres acciones (asignar / actualizar /
-  nada) sin columna extra. Ver `openspec/changes/reserva-aulas/design.md` (decisión 8).
+- **"Todas las solicitudes" (Administrativo) muestra la acción sólo cuando existe** — un botón
+  "Asignar aula" deshabilitado en la mayoría de los estados ocupaba espacio sin aportar nada; el doble
+  click no es operable con teclado ni en pantallas táctiles, así que queda como atajo de un botón
+  visible ("Asignar aula" / "Actualizar aula") que sólo aparece en Pendiente y Aprobada. Ver `openspec/changes/reserva-aulas/design.md` (decisión 8).
 - **Actualizar el aula de una Aprobada no es "editar el pedido"**: es una corrección puntual del dato
   aula, no reabre el circuito ni permite tocar día/horario/materia/comisión — esos siguen siendo
   inmutables una vez aprobada.

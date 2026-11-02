@@ -76,6 +76,12 @@ namespace Modules.Aulas.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("motivo_rechazo");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DocenteId");

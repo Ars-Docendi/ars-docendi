@@ -1,17 +1,16 @@
 ## 1. Base de datos y permisos
 
-- [x] 1.1 Crear `database/aulas/001_aulas_solicitudes.sql` con la tabla
+- [x] 1.1 Crear la migración `SolicitudesReservaAulas` (`database/aulas/20261102000904_SolicitudesReservaAulas.sql`) con la tabla
       `aulas.solicitudes_reserva` (`id`, `docente_id`, `dia`, `horario_desde`, `horario_hasta`,
       `cantidad_alumnos_aprox`, `materia`, `comision`, `estado`, `aula_asignada`, `created_at`),
       `CHECK (horario_hasta > horario_desde)`, `CHECK (cantidad_alumnos_aprox > 0)` y
       `CHECK` de estado en (`pendiente`, `aprobada`, `cancelada`).
 - [x] 1.2 Agregar la migración EF en `Modules.Aulas/Infrastructure/Migrations/` que invoca el `.sql`
       embebido vía `RecursosSql` (patrón `ExcludeFromMigrations`, igual que Designaciones).
-- [x] 1.3 Agregar la fila del permiso `aulas.solicitar` en un nuevo `database/identity/012_*.sql`
-      (siguiente número disponible después de `011_identity_permisos_pantallas.sql`) — no editar
-      archivos ya numerados existentes.
-- [x] 1.4 Actualizar `database/identity/008_identity_rol_permisos.sql` (o su migración equivalente) para
-      agregar `aulas.ver` + `aulas.solicitar` a `docente` y `jefe_catedra`.
+- [x] 1.3 Agregar el permiso `aulas.solicitar` en la migración incremental
+      `PermisosAulasSolicitarIdentity` — no editar SQL ya aplicado.
+- [x] 1.4 En la misma migración `PermisosAulasSolicitarIdentity`, agregar `aulas.ver` +
+      `aulas.solicitar` a `docente` y `jefe_catedra`.
 - [x] 1.5 Completar `ArsDocendi.Shared/Auth/Permisos.cs`: agregar `AulasVer`, `AulasSolicitar`,
       `AulasGestionar`, `AulasAprobar` y sumarlos a `Permisos.Todos`.
 - [x] 1.6 Prueba de integración: verificar que `GET /api/administracion/permisos` incluye los cuatro
@@ -97,7 +96,7 @@
 - [x] 7.2 `openspec validate reserva-aulas --strict` → válido.
 - [x] 7.3 Validación end-to-end con Docker + Postgres local (`docker compose up`, `--migrate`, seed
       sintético, `dotnet test` completo, backend + frontend dev levantados y probados por HTTP real).
-      Encontró y corrigió dos bugs reales que ningún test unitario/mockeado hubiera detectado: - `database/aulas/001_aulas_solicitudes.sql` no tenía `CREATE SCHEMA IF NOT EXISTS aulas;` — la
+      Encontró y corrigió dos bugs reales que ningún test unitario/mockeado hubiera detectado: - `SolicitudesReservaAulas.sql` no tenía `CREATE SCHEMA IF NOT EXISTS aulas;` — la
       migración fallaba en una base limpia con "schema aulas does not exist". - `PostgresFixture.CrearBaseMigradaAsync` (fixture compartido de tests de integración) nunca
       migraba `AulasDbContext` — solo Identity/Portal/Designaciones. Cualquier test de Aulas contra
       una base de tests fresca fallaba con "relation aulas.solicitudes_reserva does not exist".
@@ -132,8 +131,8 @@ para `Aprobada`/`Cancelada` no quedaba bien. Se reemplaza por doble click en la 
 Pedido del usuario en revisión (ver design.md decisión 3, actualizada): la Materia de una solicitud
 debe elegirse entre las materias que el docente solicitante tiene asignadas, no texto libre.
 
-- [x] 9.1 DDL: `database/aulas/001_aulas_solicitudes.sql` — columna `materia` (TEXT) → `materia_id`
-      (UUID, FK a `identity.materias(id) ON DELETE RESTRICT`) + índice. Se edita el archivo 001 in
+- [x] 9.1 DDL: `SolicitudesReservaAulas.sql` — columna `materia` (TEXT) → `materia_id`
+      (UUID, FK a `identity.materias(id) ON DELETE RESTRICT`) + índice. Se edita esa migración in
       place (no una migración nueva): el schema `aulas` todavía no se desplegó a ningún ambiente real.
 - [x] 9.2 Dominio: `SolicitudReservaAula.Materia` (string) → `MateriaId` (Guid). `AulasDbContext` y las
       migraciones EF (Designer + Snapshot) actualizados a juego.
@@ -165,7 +164,7 @@ Pedido del usuario en revisión (ver design.md decisiones 9 y 10): Administrativ
 rechazar una solicitud `Pendiente` con un motivo obligatorio; el Docente dueño necesita poder ver ese
 motivo; y ambas grillas deben mostrar el código de materia y renombrar dos encabezados.
 
-- [x] 10.1 DDL: `database/aulas/001_aulas_solicitudes.sql` — agregar `'rechazada'` al CHECK
+- [x] 10.1 DDL: `SolicitudesReservaAulas.sql` — agregar `'rechazada'` al CHECK
       `solicitudes_reserva_estado_valido`; agregar columna `motivo_rechazo TEXT NULL` +
       `CONSTRAINT solicitudes_reserva_motivo_si_rechazada CHECK ((estado = 'rechazada' AND
 motivo_rechazo IS NOT NULL) OR (estado <> 'rechazada' AND motivo_rechazo IS NULL))`. Se edita el

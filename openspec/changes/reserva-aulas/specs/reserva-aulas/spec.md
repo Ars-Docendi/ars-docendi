@@ -234,7 +234,8 @@ rechazar la operación si no se envía un motivo, o si la solicitud no está `Pe
 ### Requirement: Ver el motivo de una solicitud rechazada (Docente)
 
 En "Mis solicitudes", un Docente SHALL poder ver el detalle completo de una solicitud propia en
-estado `Rechazada` —incluido el motivo del rechazo— haciendo doble click sobre su fila. El popup de
+estado `Rechazada` —incluido el motivo del rechazo— con un botón "Ver motivo" en su fila, operable con
+teclado y táctil; el doble click sobre la fila SHALL funcionar como atajo equivalente. El popup de
 detalle SHALL mostrar día, horario, código y nombre de materia, comisión, capacidad y el motivo de
 rechazo. Las filas en otros estados dentro de esta vista MUST NOT abrir este popup.
 
@@ -242,7 +243,7 @@ rechazo. Las filas en otros estados dentro de esta vista MUST NOT abrir este pop
 
 - **GIVEN** una solicitud propia `Rechazada` con motivo "El aula solicitada no está disponible en ese
   horario"
-- **WHEN** el Docente hace doble click sobre esa fila en "Mis solicitudes"
+- **WHEN** el Docente activa "Ver motivo" o hace doble click sobre esa fila en "Mis solicitudes"
 - **THEN** se abre un popup de solo lectura con los datos de la solicitud y ese motivo visible
 
 #### Scenario: Doble click sobre una fila que no está rechazada

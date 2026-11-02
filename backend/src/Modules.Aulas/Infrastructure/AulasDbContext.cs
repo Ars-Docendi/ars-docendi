@@ -37,6 +37,8 @@ public sealed class AulasDbContext(DbContextOptions<AulasDbContext> options) : D
             e.Property(x => x.AulaAsignada).HasColumnName("aula_asignada");
             e.Property(x => x.MotivoRechazo).HasColumnName("motivo_rechazo");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            // Dos transiciones concurrentes sobre la misma fila no se pisan: la segunda recibe 409.
+            e.Property<uint>("Version").HasColumnName("xmin").IsRowVersion();
 
             e.HasIndex(x => x.DocenteId);
             e.HasIndex(x => x.Estado);

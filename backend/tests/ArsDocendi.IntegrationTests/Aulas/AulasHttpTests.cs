@@ -13,6 +13,8 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "aulas_http")
 {
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
+    /// <summary>Otro solicitante (rol "jefe_catedra", con <c>aulas.solicitar</c>).</summary>
+    private static readonly Guid JefeCatedra = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
     /// <summary>Materia asignada a Docente (rol "docente") en el seed sintético.</summary>
@@ -57,11 +59,15 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
 
         var creada = await CrearSolicitud(clienteDocente, ct);
 
-        using var clienteAdministrativo = host.CreateClient();
-        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
-        using var cancelarAjena = await clienteAdministrativo.PostAsync(
+        using var clienteOtroDocente = host.CreateClient();
+        Autenticar(clienteOtroDocente, JefeCatedra, "jefe_catedra");
+        using var cancelarAjena = await clienteOtroDocente.PostAsync(
             $"/api/aulas/solicitudes/{creada.Id}/cancelar", null, ct);
         Assert.Equal(HttpStatusCode.Forbidden, cancelarAjena.StatusCode);
+        Assert.Contains("solicitud-ajena", await cancelarAjena.Content.ReadAsStringAsync(ct));
+        var intacta = await clienteDocente.GetFromJsonAsync<SolicitudReservaAulaDto[]>(
+            "/api/aulas/solicitudes/mias", ct);
+        Assert.Equal("pendiente", Assert.Single(intacta!).Estado);
 
         Assert.Equal(HttpStatusCode.NoContent,
             (await clienteDocente.PostAsync($"/api/aulas/solicitudes/{creada.Id}/cancelar", null, ct))
@@ -209,6 +215,23 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
             (await cliente.GetAsync("/api/aulas/solicitudes", ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden,
             (await cliente.PostAsJsonAsync("/api/aulas/solicitudes", DatosSolicitud(), ct)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Un_docente_sin_aulas_aprobar_no_asigna_ni_rechaza()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        // "docente" tiene aulas.ver y aulas.solicitar, pero no aulas.aprobar.
+        Autenticar(cliente, Docente, "docente");
+        var creada = await CrearSolicitud(cliente, ct);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await cliente.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await cliente.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/rechazar", new RechazarSolicitudDto("Motivo"), ct)).StatusCode);
     }
 
     [Fact]

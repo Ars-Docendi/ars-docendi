@@ -60,6 +60,17 @@ export function ModalNuevaSolicitud({
   const [formulario, setFormulario] = useState<DatosNuevaSolicitud>(FORMULARIO_VACIO);
   const [errores, setErrores] = useState<Errores>({});
   const [mostrarErrores, setMostrarErrores] = useState(false);
+  const [openAnterior, setOpenAnterior] = useState(open);
+
+  // Reinicia el formulario en cada apertura, venga del padre o del propio Modal.
+  if (open !== openAnterior) {
+    setOpenAnterior(open);
+    if (open) {
+      setFormulario(FORMULARIO_VACIO);
+      setErrores({});
+      setMostrarErrores(false);
+    }
+  }
 
   function actualizar<K extends keyof DatosNuevaSolicitud>(
     campo: K,
@@ -76,25 +87,16 @@ export function ModalNuevaSolicitud({
     onGuardar(formulario);
   }
 
-  function handleOpenChange(siguiente: boolean) {
-    if (siguiente) {
-      setFormulario(FORMULARIO_VACIO);
-      setErrores({});
-      setMostrarErrores(false);
-    }
-    onOpenChange(siguiente);
-  }
-
   const sinMaterias = materias.isSuccess && materias.data.length === 0;
 
   return (
     <Modal
       open={open}
-      onOpenChange={handleOpenChange}
+      onOpenChange={onOpenChange}
       title="Nueva solicitud de reserva de aula"
       footer={
         <>
-          <Button variant="secondary" onClick={() => handleOpenChange(false)} disabled={guardando}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={guardando}>
             Cancelar
           </Button>
           <Button

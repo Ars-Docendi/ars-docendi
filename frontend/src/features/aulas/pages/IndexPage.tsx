@@ -82,7 +82,10 @@ function SeccionMisSolicitudes() {
         <Button
           variant="primary"
           leadingIcon={<IconoPlus />}
-          onClick={() => setModalNuevaAbierto(true)}
+          onClick={() => {
+            crear.reset();
+            setModalNuevaAbierto(true);
+          }}
         >
           Nueva solicitud
         </Button>
@@ -119,7 +122,10 @@ function SeccionMisSolicitudes() {
             orden={orden}
             onFiltrosChange={setFiltros}
             onOrdenChange={setOrden}
-            onCancelar={setSolicitudACancelar}
+            onCancelar={(solicitud) => {
+              cancelar.reset();
+              setSolicitudACancelar(solicitud);
+            }}
             onVerDetalle={setSolicitudDetalle}
           />
         </>
@@ -225,8 +231,14 @@ function SeccionTodasLasSolicitudes() {
             orden={orden}
             onFiltrosChange={setFiltros}
             onOrdenChange={setOrden}
-            onAsignarAula={(solicitud) => setEdicionAula({ solicitud, modo: "asignar" })}
-            onActualizarAula={(solicitud) => setEdicionAula({ solicitud, modo: "actualizar" })}
+            onAsignarAula={(solicitud) => {
+              asignar.reset();
+              setEdicionAula({ solicitud, modo: "asignar" });
+            }}
+            onActualizarAula={(solicitud) => {
+              asignar.reset();
+              setEdicionAula({ solicitud, modo: "actualizar" });
+            }}
           />
         </>
       )}
@@ -244,6 +256,7 @@ function SeccionTodasLasSolicitudes() {
         onConfirmar={handleConfirmarAsignar}
         onRechazar={(solicitud) => {
           setEdicionAula(undefined);
+          rechazar.reset();
           setSolicitudARechazar(solicitud);
         }}
       />

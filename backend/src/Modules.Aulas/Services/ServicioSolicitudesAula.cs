@@ -38,6 +38,11 @@ internal sealed class ServicioSolicitudesAula(
 
     public async Task<SolicitudReservaAulaDto> CrearAsync(CrearSolicitudReservaAulaDto datos, CancellationToken ct)
     {
+        if (datos.Dia == default)
+        {
+            throw ErrorValidacion("dia", "El día del examen es obligatorio.");
+        }
+
         if (datos.HorarioHasta <= datos.HorarioDesde)
         {
             throw ErrorValidacion("horario", "El horario hasta debe ser posterior al horario desde.");
@@ -94,18 +99,14 @@ internal sealed class ServicioSolicitudesAula(
     {
         var solicitudes = await repositorio.ListarTodasAsync(ct);
         var materias = await CatalogoMateriasAsync(ct);
-        var resultado = new List<SolicitudReservaAulaDto>(solicitudes.Count);
+        var personas = (await identity.ObtenerPersonasAsync(
+                solicitudes.Select(s => s.DocenteId).Distinct().ToList(), ct))
+            .ToDictionary(p => p.Id);
 
-        foreach (var solicitud in solicitudes)
-        {
-            var persona = await identity.ObtenerPersonaAsync(solicitud.DocenteId, ct);
-            var docenteDto = persona is null
-                ? null
-                : new DocenteSolicitudDto(persona.Id, persona.Nombre, persona.Apellido, persona.Legajo);
-            resultado.Add(Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId), docenteDto));
-        }
-
-        return resultado;
+        return solicitudes.Select(s => Mapear(s, ResolverMateria(materias, s.MateriaId),
+            personas.TryGetValue(s.DocenteId, out var persona)
+                ? new DocenteSolicitudDto(persona.Id, persona.Nombre, persona.Apellido, persona.Legajo)
+                : null)).ToList();
     }
 
     public async Task CancelarAsync(Guid id, CancellationToken ct)
@@ -195,8 +196,7 @@ internal sealed class ServicioSolicitudesAula(
                 TipoErrorAplicacion.NoAutenticado, "unauthenticated", "Se requiere autenticación.");
         }
 
-        var usuarios = await identity.ListarUsuariosAsync(ct);
-        var personaId = usuarios.FirstOrDefault(u => u.Id == usuarioId)?.PersonaId;
+        var personaId = (await identity.ObtenerUsuarioAsync(usuarioId, ct))?.PersonaId;
 
         return personaId is null
             ? throw new ExcepcionAplicacion(
