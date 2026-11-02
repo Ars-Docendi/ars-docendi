@@ -22,6 +22,14 @@ export interface FiltrosRoles {
   estado: EstadoRol[];
 }
 
+export const COLUMNAS_ORDEN_ROLES: ColumnaOrdenRol[] = [
+  "nombre",
+  "ambito",
+  "tipo",
+  "permisos",
+  "estado",
+];
+
 export interface OrdenRoles {
   columna: ColumnaOrdenRol;
   direccion: "asc" | "desc";

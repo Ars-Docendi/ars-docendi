@@ -1,19 +1,20 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
 import { Migas } from "../../../shared/navegacion/Migas";
+import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
 
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaRoles } from "../components/TablaRoles";
 import { mensajeConflictoRol } from "../erroresRol";
 import {
+  COLUMNAS_ORDEN_ROLES,
   FILTROS_VACIOS,
   filtrarRoles,
   ordenarRoles,
   siguienteOrden,
-  type FiltrosRoles,
-  type OrdenRoles,
 } from "../filtrosRoles";
 import { useCatalogoPermisos, useRoles } from "../hooks/useRoles";
 import type { RolMock } from "../models";
@@ -21,14 +22,15 @@ import "../roles.css";
 
 export function ListadoPage() {
   const navegar = useNavigate();
+  const abrir = useAbrirDetalle();
   const aviso = (useLocation().state as { aviso?: string } | null)?.aviso;
   const permisos = useCurrentUser().user?.permissions ?? [];
   const administrar = permisos.includes("roles.administrar");
   const editarPermisos = permisos.includes("roles.gestionar_membresia");
   const { consulta, cambiarEstado } = useRoles();
   const catalogo = useCatalogoPermisos();
-  const [filtros, setFiltros] = useState<FiltrosRoles>(FILTROS_VACIOS);
-  const [orden, setOrden] = useState<OrdenRoles | null>(null);
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_VACIOS);
+  const [orden, setOrden] = useOrdenURL(COLUMNAS_ORDEN_ROLES);
   const [aConfirmar, setAConfirmar] = useState<RolMock | null>(null);
 
   const roles = useMemo(() => consulta.data ?? [], [consulta.data]);
@@ -73,7 +75,7 @@ export function ListadoPage() {
           orden={orden}
           onFiltrosChange={setFiltros}
           onOrdenar={(columna) => setOrden(siguienteOrden(orden, columna))}
-          onAbrir={(rol) => navegar(`/roles/${rol.id}`)}
+          onAbrir={(rol) => abrir(`/roles/${rol.id}`)}
           onCambiarEstado={
             administrar
               ? (rol) => {

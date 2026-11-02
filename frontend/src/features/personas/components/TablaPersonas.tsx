@@ -2,6 +2,7 @@ import { Button, Input, StatusBadge, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
 
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import type { Persona } from "../api/personasApi";
@@ -160,7 +161,12 @@ export function TablaPersonas({
             return (
               <Table.Row key={persona.personaId} {...propsFilaClickeable(() => onAbrir(persona))}>
                 <Table.Cell>
-                  <TextoRecortado texto={nombreCompleto(persona)} anchoMinimo={ANCHO_NOMBRE} />
+                  <EnlaceFila
+                    ruta={`/personas/${persona.personaId}`}
+                    etiqueta={`Ver a ${nombreCompleto(persona)}`}
+                  >
+                    <TextoRecortado texto={nombreCompleto(persona)} anchoMinimo={ANCHO_NOMBRE} />
+                  </EnlaceFila>
                 </Table.Cell>
                 <Table.Cell className="adoc-mono">{persona.documento}</Table.Cell>
                 <Table.Cell className="adoc-mono">{persona.legajo ?? "—"}</Table.Cell>

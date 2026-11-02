@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Field, InlineAlert, Input, StatusBadge, Tabs } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Input, StatusBadge } from "@ars-docendi/ui";
+import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
+import { usePestanaURL } from "../../../shared/navegacion/estadoURL";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { Migas } from "../../../shared/navegacion/Migas";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
+import { migaDeVolver } from "../../../shared/navegacion/volver";
+import { PanelPestana, Pestanas } from "../../../shared/ui/Pestanas";
 
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { MembresiasSelector } from "../../../shared/ui/MembresiasSelector";
@@ -34,6 +40,7 @@ import {
 import "./personas.css";
 
 type Pestana = "personales" | "docentes";
+const PESTANAS: Pestana[] = ["personales", "docentes"];
 
 export function EditorPage() {
   const { personaId } = useParams();
@@ -65,7 +72,10 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   const navegar = useNavigate();
   const { administrar, administrarPortal } = usePermisosPersonas();
   const guardar = useGuardarPersona(personaId);
-  const [pestana, setPestana] = useState<Pestana>("personales");
+  // Las dos pestañas son vistas de un mismo formulario: cambiar de una a otra reemplaza la
+  // entrada del historial, así Atrás sale del formulario en lugar de recorrer pestañas.
+  const [pestana, setPestana] = usePestanaURL(PESTANAS, "personales", { reemplazar: true });
+  const volver = useDestinoVolver("persona");
   const [form, setForm] = useState<FormularioPersona>(() =>
     personaActual ? formularioDesde(personaActual) : formularioVacio(),
   );
@@ -79,6 +89,11 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
     resultado: DocumentoRegistrado;
   } | null>(null);
   const persona = { data: personaActual };
+  // Cambios sin guardar: el formulario se compara con el que se abrió.
+  const [formInicial] = useState(() => JSON.stringify(form));
+  const { permitirSalida } = useGuardiaDeCambios(
+    administrar && JSON.stringify(form) !== formInicial,
+  );
 
   // DNI repetido: se avisa mientras se escribe (sólo quien puede guardar).
   const digitos = form.datos.documento.replace(/\D/g, "");
@@ -112,12 +127,16 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
     setEnviado(true);
     if (hayErroresPersonales(errores) || hayErroresDocentes(errores) || errorDni) return;
     guardar.mutate(aGuardar(form, cat, versionInicial), {
-      onSuccess: (p) =>
-        navegar("/personas", {
+      onSuccess: (p) => {
+        permitirSalida();
+        // Reemplaza la edición en el historial: Atrás no vuelve a un formulario ya guardado.
+        navegar(volver.ruta, {
+          replace: true,
           state: {
             aviso: `${nombreCompleto(p)}: ${personaId ? "cambios guardados." : "quedó creada."}`,
           },
-        }),
+        });
+      },
     });
   }
 
@@ -129,14 +148,12 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   return (
     <div className="adoc-personas">
       <Migas
-        items={[
-          { label: "Inicio", href: "/" },
-          { label: "Personas", href: "/personas" },
-          { label: titulo },
-        ]}
+        conVolver
+        items={[{ label: "Inicio", href: "/" }, migaDeVolver(volver), { label: titulo }]}
       />
       <PageHeader
         title={titulo}
+        actions={<EnlaceVolver id="persona-volver" destino={volver} />}
         meta={
           persona.data &&
           (persona.data.tieneCuenta ? (
@@ -157,7 +174,8 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
         />
       )}
 
-      <Tabs
+      <Pestanas
+        prefijo="persona"
         aria-label="Secciones de la persona"
         value={pestana}
         onChange={(id) => setPestana(id as Pestana)}
@@ -174,9 +192,9 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
       )}
 
       {pestana === "personales" && (
-        <div
-          role="tabpanel"
-          aria-label="Datos personales"
+        <PanelPestana
+          prefijo="persona"
+          id="personales"
           style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}
         >
           <section className="adoc-personas-tarjeta">
@@ -219,13 +237,13 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
               soloLectura={soloLectura}
             />
           </section>
-        </div>
+        </PanelPestana>
       )}
 
       {pestana === "docentes" && (
-        <div
-          role="tabpanel"
-          aria-label="Datos docentes"
+        <PanelPestana
+          prefijo="persona"
+          id="docentes"
           style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}
         >
           <section className="adoc-personas-tarjeta">
@@ -250,17 +268,13 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
               </span>
             )}
           </section>
-        </div>
+        </PanelPestana>
       )}
 
       <div className="adoc-personas-pie">
-        {soloLectura ? (
-          <Button variant="secondary" onClick={() => navegar("/personas")}>
-            Volver al listado
-          </Button>
-        ) : (
+        {soloLectura ? null : (
           <>
-            <Button variant="secondary" onClick={() => navegar("/personas")}>
+            <Button variant="secondary" onClick={() => navegar(volver.ruta)}>
               Cancelar
             </Button>
             <Button variant="primary" loading={guardar.isPending} onClick={enviar}>
