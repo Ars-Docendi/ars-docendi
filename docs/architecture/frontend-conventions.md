@@ -28,8 +28,10 @@ navegación usan `createMemoryRouter`.
 `useFiltrosURL(valoresPorDefecto, prefijo?)`, `useOrdenURL(columnas, prefijo?)` y `usePestanaURL(validas, defecto, opciones)`
 (`shared/navegacion/estadoURL.ts`). Los valores por defecto no se escriben. Filtros y orden reemplazan la entrada del
 historial; las pestañas la agregan, salvo las del editor de Personas (`reemplazar`), que son dos vistas de un mismo
-formulario. Dos tablas en una página usan prefijos (`mias.`, `todas.`). `valoresPorDefecto` debe ser una constante o estar
-memorizado.
+formulario. Dos tablas en una página usan prefijos (`mias.`, `todas.`; en el inicio de Tareas, `g.` para "Generales" y
+`p<8 primeros caracteres del id>.` para cada proyecto, ver `prefijoDeCuadro`). `valoresPorDefecto` debe ser una constante o
+estar memorizado. `useFiltrosURL` devuelve un eco local de lo último escrito hasta que la URL lo alcanza: la navegación es
+asíncrona y, sin el eco, las teclas rápidas se pisan y el filtro de texto pierde letras.
 
 ## Scroll
 
@@ -42,7 +44,9 @@ conserva en un `replace` que sólo cambia el query.
 `useGuardiaDeCambios(sucio)` marca la página; devuelve `permitirSalida()`, que se llama justo antes de navegar tras un
 guardado exitoso. `GestorDeNavegacion` pregunta "Tenés cambios sin guardar." ("Seguir editando" con el foco /
 "Descartar cambios") al salir de la página, y también avisa en `beforeunload`. Un cambio de query de la misma página no
-bloquea.
+bloquea. Cambiar de rol (`ModalCambiarRol`) pregunta lo mismo **antes** de aplicarlo; al descartar llama a
+`liberarGuardias()` para que no se pregunte de nuevo al navegar. Abrir una notificación con la página sucia deja el panel
+abierto bajo el diálogo: el panel se cierra cuando la ruta cambia de verdad.
 
 ## Capas (modales y paneles)
 

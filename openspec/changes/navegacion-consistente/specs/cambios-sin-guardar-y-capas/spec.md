@@ -15,6 +15,20 @@ Pages with editable state SHALL block leaving with unsaved changes through the r
 - **WHEN** the user chooses "Descartar cambios"
 - **THEN** the navigation SHALL continue
 
+#### Scenario: Changing the active role
+
+- **GIVEN** a page with unsaved changes
+- **WHEN** the user picks another role in "Cambiar rol"
+- **THEN** the same confirmation SHALL appear and the active role SHALL NOT change until the user discards the changes
+- **AND** after discarding, no second confirmation SHALL appear
+
+#### Scenario: Opening a notification over a dirty page
+
+- **GIVEN** the notifications panel open over a page with unsaved changes
+- **WHEN** the user opens a notification and then chooses "Seguir editando"
+- **THEN** the panel SHALL stay open and the page SHALL not change
+- **AND** the panel SHALL close only when the navigation actually happens
+
 ### Requirement: Overlay behavior
 
 Every modal and the mobile menu drawer SHALL trap focus, focus the first field or the least destructive button on open, return focus to the opener on close, and react to Esc only on the top-most overlay. A form modal with data SHALL ask for confirmation before closing by Esc, overlay or X, and SHALL NOT close while a mutation is pending. Browser Back with an overlay open SHALL close the top-most overlay and keep the page.
@@ -24,6 +38,11 @@ Every modal and the mobile menu drawer SHALL trap focus, focus the first field o
 - **GIVEN** a confirmation opened over a form modal
 - **WHEN** the user presses Esc
 - **THEN** only the confirmation SHALL close
+
+#### Scenario: Initial focus survives a repeated mount
+
+- **GIVEN** a modal or the notifications panel mounted twice in a row (React StrictMode in development)
+- **THEN** the initial focus SHALL stay inside the overlay and SHALL NOT return to the opener until it really closes
 
 #### Scenario: Browser Back
 

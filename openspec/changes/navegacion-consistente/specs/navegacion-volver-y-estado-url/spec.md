@@ -37,6 +37,25 @@ Filters, sort and tabs SHALL live in the query string through one shared hook. D
 - **WHEN** the user opens a row and goes back
 - **THEN** the filter and sort SHALL still be applied
 
+#### Scenario: One prefix per table on the Tareas home
+
+- **GIVEN** the Tareas home with several project tables ("cuadros")
+- **THEN** the column filters and sort of each table SHALL live in the query with its own prefix (`g.` for "Generales", `p<first 8 characters of the project id>.` for a project)
+- **AND** changing the Estado preset SHALL reload the Estado filter of every table
+
+#### Scenario: Typing never drops letters
+
+- **GIVEN** a text filter that lives in the URL and a slow navigation
+- **WHEN** the user types several characters in a row
+- **THEN** the field SHALL keep every character and the URL SHALL end with the complete text
+- **AND** a URL change that comes from elsewhere (Back, a link) SHALL still replace the field's value
+
+#### Scenario: Cancelling a new request
+
+- **GIVEN** "Mis pedidos" with filters, from which "Nuevo pedido" was opened
+- **WHEN** the user presses "Cancelar" (or saves)
+- **THEN** the app SHALL go back to "Mis pedidos" with the same filters and sort
+
 ### Requirement: Scroll restoration
 
 The `.adoc-main` scroll position SHALL be saved per history entry, restored on back/forward and on "Volver" once the data has rendered, reset to the top on a new page and kept on a query-only replace.
