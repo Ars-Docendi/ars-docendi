@@ -172,6 +172,52 @@ Rollback: revertir la versión de la app. Las tablas y permisos quedan sin uso y
 - **Sin paginación**: ambos endpoints devuelven todo en una sola respuesta (un período son unas 2000 filas, alrededor de 0,5 MB).
 - **Red**: la API sólo responde dentro de la red de UNLaM. Llegan a ella el entorno local de desarrollo (conectado a esa red) y el servidor productivo. Los ambientes que no están en la red (staging, efímeros, CI) quedan sin la sección `Guarani` configurada: la pantalla funciona con datos sembrados y la importación responde 503.
 
+## Consulta del endpoint de comisiones
+
+Las filas se mantienen planas a propósito, aunque propuestas y docentes multipliquen las filas de una comisión: `AgrupadorComisionesGuarani` las unifica al importar y el snapshot `sga_*` queda normalizado, que es lo que consulta el asistente. No agregar propuestas ni docentes en listas JSON: el cliente lee estas columnas por nombre y, si faltan, importa las comisiones sin carreras ni docentes y sin error.
+
+`:periodo_lectivo` es el período que recibe el endpoint (`{periodoLectivo}` en `RutaComisiones`).
+
+```sql
+select
+	sga_comisiones.comision,
+	sga_asignaciones.asignacion,
+	sga_comisiones.nombre as comision_nombre,
+	sga_ubicaciones.nombre as comision_ubicacion,
+	sga_elementos.codigo as elemento_codigo,
+	sga_elementos.nombre as elemento_nombre,
+	sga_propuestas.nombre as propuesta_nombre,
+	sga_propuestas.codigo as propuesta_codigo,
+	sga_asignaciones.dia_semana,
+	sga_asignaciones.hora_inicio,
+	sga_asignaciones.hora_finalizacion,
+	sga_espacios.nombre as aula,
+	comisiones_tipo_modalidad.codigo as modalidad_codigo,
+	comisiones_tipo_modalidad.descripcion as modalidad_descripcion,
+	vw_personas_unlam.apellido_nombres as docente_nombre,
+	mdp_tipo_documento.descripcion as docente_tipo_documento,
+	vw_personas_unlam.nro_documento as docente_documento,
+	sga_docentes_responsabilidades.nombre as docente_responsabilidad
+from negocio.sga_comisiones
+inner join negocio.sga_ubicaciones on sga_ubicaciones.ubicacion = sga_comisiones.ubicacion
+inner join negocio.sga_comisiones_propuestas on sga_comisiones_propuestas.comision = sga_comisiones.comision
+inner join negocio.sga_propuestas on sga_propuestas.propuesta = sga_comisiones_propuestas.propuesta
+inner join negocio.sga_elementos on sga_elementos.elemento = sga_comisiones.elemento
+inner join negocio.sga_elementos_ra on sga_elementos_ra.elemento = sga_elementos.elemento
+left join negocio.sga_docentes_comision on sga_docentes_comision.comision = sga_comisiones.comision
+left join negocio.sga_docentes_responsabilidades on sga_docentes_responsabilidades.responsabilidad = sga_docentes_comision.responsabilidad
+left join negocio.sga_docentes on sga_docentes.docente = sga_docentes_comision.docente
+left join negocio_Unlam.vw_personas_unlam on vw_personas_unlam.persona = sga_docentes.persona
+left join negocio.mdp_tipo_documento on mdp_tipo_documento.tipo_documento = vw_personas_unlam.tipo_documento
+left join negocio.sga_comisiones_bh on sga_comisiones_bh.comision = sga_comisiones.comision
+left join negocio.sga_asignaciones on sga_asignaciones.asignacion = sga_comisiones_bh.asignacion
+left join negocio.sga_espacios on sga_espacios.espacio = sga_asignaciones.espacio
+left join negocio_Unlam.u817_sga_comisiones on u817_sga_comisiones.comision_fk = sga_comisiones.comision
+left join negocio_unlam.comisiones_tipo_modalidad on comisiones_tipo_modalidad.modalidad = u817_sga_comisiones.modalidad
+where sga_comisiones.periodo_lectivo = :periodo_lectivo
+and sga_elementos_ra.responsable_academica = '3'
+```
+
 ## Open Questions
 
 - Valores de `UrlBase`, `RutaPeriodosLectivos` y `RutaComisiones` en prod. Son configuración (`GUARANI_*` en el deploy); no requieren cambios de código. Se asume HTTP Basic con la cuenta técnica; si la API usara otro esquema, el cambio queda confinado a `ClienteGuarani`.
