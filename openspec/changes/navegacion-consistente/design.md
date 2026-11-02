@@ -26,9 +26,9 @@
 
 **D10. No access vs not found.** `RequirePermission` renders `PaginaSinAcceso` in place (same URL) instead of `Navigate`. `path: "*"` renders `PaginaNoEncontrada`. A route-level `errorElement` renders inside the shell for crashes (the shell layout route owns it).
 
-**D11. Pedido edit route.** `pedidos/:id/editar` was unguarded. Its section requires `designaciones.gestionar` for `mis-pedidos` and `pedidos/nuevo`, and the backend already authorizes the edit per owner; the route is now inside the same `RequirePermission` so a user without it sees "No tenés acceso" instead of a form that fails on save. No backend change.
+**D11. Pedido edit route stays unguarded.** The brief asked to guard `/designaciones/pedidos/:id/editar` if the rest of its section requires it. `aprobacion-pedidos-designacion` ("las rutas `pedidos/:id` y `pedidos/:id/editar` accesibles a cualquier rol autenticado que tenga la visibilidad indicada por la respuesta autoritativa del backend") deliberately leaves it open and the page already shows "Este pedido no es editable" from the backend `accionesPermitidas`. No route guard was added.
 
-**D12. Post-login return.** `LoginPage` builds the return target from `from.pathname + from.search + from.hash` and only follows it when it starts with a single `/`. The backend Microsoft `target` handling was read; see tasks 7.3.
+**D12. Post-login return.** `LoginPage` builds the return target from `from.pathname + from.search + from.hash` and only follows it when it starts with a single `/`. The backend (`EndpointsAutenticacion.RutaLocalODefecto`) already accepts only a single leading `/` without `//`, `\\` or control characters and keeps the query; no backend change. The frontend previously dropped query and hash and forwarded unvalidated values.
 
 **D13. Responsive follows the portal.** Breakpoint 560 px for paddings and stacked data lists, 768 px (existing) for the shell. Tables scroll inside `.adoc-tabla-scroll`. Touch targets: 24 px minimum, 44 px for primary buttons below 560 px.
 
@@ -37,3 +37,7 @@
 - [`useBlocker` cannot be exercised in `MemoryRouter` unit tests] -> Guard and overlay tests use `createMemoryRouter`; page tests that do not need it keep `MemoryRouter` and the store is simply unobserved.
 - [A native browser Back is simulated in tests with `router.navigate(-1)`] -> Exactly what the browser's popstate triggers in the router; the real popstate path is listed as needing a real browser.
 - [Migrating ~15 modals is wide] -> The wrapper keeps their JSX; each gets `sucio`/`pendiente` only where the form has data.
+
+**D14. What stays local on purpose.** The per-project cuadros of the Tareas home each hold their own column filters in memory (many tables on one page; only the single-table views and the project detail table use the `t.` prefix). "Pedido nuevo" cancel returns to Mis pedidos without its filters. Notifications only open detail pages, so the notification highlight needs no list-row variant.
+
+**D15. Esc, Back and the notifications panel.** The panel already registered in the layer stack (stage 2), so browser Back closes it through the same blocker.

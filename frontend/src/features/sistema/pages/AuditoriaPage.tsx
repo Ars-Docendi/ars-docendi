@@ -1,15 +1,24 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@ars-docendi/ui";
 
+import { CampoFechaISO } from "../../../shared/ui/CampoFechaISO";
+import { CampoHora } from "../../../shared/ui/CampoHora";
+import { horaTextoValida } from "../../../shared/ui/camposFechaHora";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { listarAuditoria } from "../api/sistemaApi";
 import type { CambioAuditoria, FiltrosAuditoria } from "../api/sistemaApi";
 import "../sistema.css";
 
 interface FormularioFiltros {
+  /** Fecha ISO `aaaa-mm-dd`. */
   desde: string;
+  /** `hh:mm`; vacío = 00:00. */
+  desdeHora: string;
   hasta: string;
+  /** `hh:mm`; vacío = 23:59. */
+  hastaHora: string;
   accion: string;
   schema: string;
   tabla: string;
@@ -19,7 +28,9 @@ interface FormularioFiltros {
 
 const formularioVacio: FormularioFiltros = {
   desde: "",
+  desdeHora: "",
   hasta: "",
+  hastaHora: "",
   accion: "",
   schema: "",
   tabla: "",
@@ -33,13 +44,41 @@ const schemasPorEtiqueta: Record<string, string> = {
   portal: "portal",
 };
 
-function aIso(fecha: string): string | undefined {
-  return fecha ? new Date(fecha).toISOString() : undefined;
+/** Fecha ISO + hora `hh:mm` (hora local) a instante ISO; sin fecha no hay filtro. */
+function aIso(fecha: string, hora: string, horaPorDefecto: string): string | undefined {
+  if (!fecha) return undefined;
+  const instante = new Date(`${fecha}T${horaTextoValida(hora) ?? horaPorDefecto}`);
+  return Number.isNaN(instante.getTime()) ? undefined : instante.toISOString();
+}
+
+const CAMPOS_URL = Object.keys(formularioVacio) as (keyof FormularioFiltros)[];
+
+/** Filtros aplicados, leídos del query: recargar o volver restaura la consulta. */
+function filtrosDeLaURL(params: URLSearchParams) {
+  const aplicados = { ...formularioVacio };
+  for (const campo of CAMPOS_URL) aplicados[campo] = params.get(campo) ?? "";
+  const pagina = Math.max(1, Number.parseInt(params.get("pagina") ?? "1", 10) || 1);
+  return { aplicados, pagina };
 }
 
 function normalizarSchemaFiltro(valor: string): string {
   const texto = valor.trim();
   return schemasPorEtiqueta[texto.toLocaleLowerCase("es-AR")] ?? texto.toLowerCase();
+}
+
+/** Parámetros de la API a partir de los filtros aplicados. */
+function aFiltros(aplicados: FormularioFiltros, pagina: number): FiltrosAuditoria {
+  const filtros: FiltrosAuditoria = { pagina, tamanoPagina };
+  const desde = aIso(aplicados.desde, aplicados.desdeHora, "00:00");
+  const hasta = aIso(aplicados.hasta, aplicados.hastaHora, "23:59");
+  if (desde) filtros.desde = desde;
+  if (hasta) filtros.hasta = hasta;
+  if (aplicados.accion) filtros.accion = aplicados.accion;
+  if (aplicados.schema.trim()) filtros.schema = normalizarSchemaFiltro(aplicados.schema);
+  if (aplicados.tabla.trim()) filtros.tabla = aplicados.tabla.trim();
+  if (aplicados.actor.trim()) filtros.actor = aplicados.actor.trim();
+  if (aplicados.rowPk.trim()) filtros.rowPk = aplicados.rowPk.trim();
+  return filtros;
 }
 
 function mostrarValor(cambio: CambioAuditoria, lado: "anterior" | "nuevo"): string {
@@ -53,8 +92,21 @@ function fechaLocal(valor: string): string {
 }
 
 export function AuditoriaPage() {
-  const [formulario, setFormulario] = useState(formularioVacio);
-  const [filtros, setFiltros] = useState<FiltrosAuditoria>({ pagina: 1, tamanoPagina });
+  // Los filtros aplicados y la página viven en el query; el formulario es un borrador.
+  const [params, setParams] = useSearchParams();
+  const lectura = params.toString();
+  const { aplicados, pagina: paginaActual } = useMemo(
+    () => filtrosDeLaURL(new URLSearchParams(lectura)),
+    [lectura],
+  );
+  const [formulario, setFormulario] = useState(aplicados);
+  const [lecturaPrevia, setLecturaPrevia] = useState(lectura);
+  if (lectura !== lecturaPrevia) {
+    // Atrás/Adelante: el borrador vuelve a lo que muestra la URL.
+    setLecturaPrevia(lectura);
+    setFormulario(aplicados);
+  }
+  const filtros = useMemo(() => aFiltros(aplicados, paginaActual), [aplicados, paginaActual]);
   const [detallesAbiertos, setDetallesAbiertos] = useState<Set<number>>(() => new Set());
   const consulta = useQuery({
     queryKey: ["administracion", "auditoria", filtros],
@@ -66,29 +118,31 @@ export function AuditoriaPage() {
 
   function buscar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    const nuevos: FiltrosAuditoria = { pagina: 1, tamanoPagina };
-    const desde = aIso(formulario.desde);
-    const hasta = aIso(formulario.hasta);
-    if (desde) nuevos.desde = desde;
-    if (hasta) nuevos.hasta = hasta;
-    if (formulario.accion) nuevos.accion = formulario.accion;
-    if (formulario.schema.trim()) nuevos.schema = normalizarSchemaFiltro(formulario.schema);
-    if (formulario.tabla.trim()) nuevos.tabla = formulario.tabla.trim();
-    if (formulario.actor.trim()) nuevos.actor = formulario.actor.trim();
-    if (formulario.rowPk.trim()) nuevos.rowPk = formulario.rowPk.trim();
+    const siguientes = new URLSearchParams();
+    for (const campo of CAMPOS_URL) {
+      if (formulario[campo].trim()) siguientes.set(campo, formulario[campo].trim());
+    }
     setDetallesAbiertos(new Set());
-    setFiltros(nuevos);
+    setParams(siguientes, { replace: true });
   }
 
   function limpiar() {
     setFormulario(formularioVacio);
     setDetallesAbiertos(new Set());
-    setFiltros({ pagina: 1, tamanoPagina });
+    setParams(new URLSearchParams(), { replace: true });
   }
 
   function cambiarPagina(paginaNueva: number) {
     setDetallesAbiertos(new Set());
-    setFiltros((actuales) => ({ ...actuales, pagina: paginaNueva }));
+    setParams(
+      (previos) => {
+        const siguientes = new URLSearchParams(previos);
+        if (paginaNueva <= 1) siguientes.delete("pagina");
+        else siguientes.set("pagina", String(paginaNueva));
+        return siguientes;
+      },
+      { replace: true },
+    );
   }
 
   function alternarDetalle(id: number) {
@@ -121,20 +175,32 @@ export function AuditoriaPage() {
       <form className="auditoria-filtros" onSubmit={buscar}>
         <label>
           Desde
-          <input
+          <CampoFechaISO
             aria-label="Desde"
-            type="datetime-local"
             value={formulario.desde}
-            onChange={(e) => setFormulario({ ...formulario, desde: e.target.value })}
+            onChange={(desde) => setFormulario({ ...formulario, desde })}
+          />
+        </label>
+        <label>
+          Hora desde
+          <CampoHora
+            value={formulario.desdeHora}
+            onChange={(desdeHora) => setFormulario({ ...formulario, desdeHora })}
           />
         </label>
         <label>
           Hasta
-          <input
+          <CampoFechaISO
             aria-label="Hasta"
-            type="datetime-local"
             value={formulario.hasta}
-            onChange={(e) => setFormulario({ ...formulario, hasta: e.target.value })}
+            onChange={(hasta) => setFormulario({ ...formulario, hasta })}
+          />
+        </label>
+        <label>
+          Hora hasta
+          <CampoHora
+            value={formulario.hastaHora}
+            onChange={(hastaHora) => setFormulario({ ...formulario, hastaHora })}
           />
         </label>
         <label>
