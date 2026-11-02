@@ -54,7 +54,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.True(estados.Sum(x => x.Disponibles.Count) >= 9);
         Assert.Equal(estados.Sum(x => x.Disponibles.Count), estados.Sum(x => x.Pendientes.Count));
         var archivos = await PreviewMigraciones.GenerarAsync(migradores, estados, "runtime-test", ct);
-        Assert.Equal(5, archivos.Keys.Count(x => x.EndsWith(".sql", StringComparison.Ordinal)));
+        Assert.Equal(6, archivos.Keys.Count(x => x.EndsWith(".sql", StringComparison.Ordinal)));
         Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','portal','aulas','tareas')"));
     }
 
@@ -69,7 +69,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-PERSIST' AND name='Edición persistente'"));
         Assert.Equal(auditoria, await Escalar("SELECT count(*) FROM audit.change_log"));
         foreach (var migrador in migradores) Assert.Empty((await migrador.ConsultarAsync(ct)).Pendientes);
-        Assert.Equal(5L, await Escalar("SELECT count(*) FROM pg_tables WHERE tablename='__EFMigrationsHistory'"));
+        Assert.Equal(6L, await Escalar("SELECT count(*) FROM pg_tables WHERE tablename='__EFMigrationsHistory'"));
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
 
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-UPGRADE'"));
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.users WHERE upn='upgrade@example.test' AND azure_oid IS NULL AND azure_tid IS NULL"));
-        Assert.Equal(26L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        Assert.Equal(27L, await Escalar("SELECT count(*) FROM identity.permisos"));
         // Permisos de personas: se traducen desde usuarios.* / docentes.ver y se suma Decanato.
         Assert.Equal(4L, await Escalar("""
             SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
