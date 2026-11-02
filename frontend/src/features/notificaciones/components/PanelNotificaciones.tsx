@@ -123,11 +123,16 @@ function PanelAbierto({
   );
 
   // Focus into the dialog on open; back to the bell on close, unless a navigation took over.
+  // El retorno se cancela si el efecto se vuelve a montar (StrictMode): el panel sigue abierto.
+  const retorno = useRef<number | undefined>(undefined);
   useEffect(() => {
+    window.clearTimeout(retorno.current);
     cerrarRef.current?.focus();
     const disparador = triggerRef.current;
     return () => {
-      if (!cerrarPorNavegacion.current) setTimeout(() => disparador?.focus(), 0);
+      if (!cerrarPorNavegacion.current) {
+        retorno.current = window.setTimeout(() => disparador?.focus(), 0);
+      }
     };
   }, [triggerRef]);
 

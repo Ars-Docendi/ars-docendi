@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Fragment, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { limpiarToasts } from "../../../shared/ui/toasts";
@@ -32,7 +33,9 @@ function renderizar({
   cliente = crearCliente(),
   onCerrar = vi.fn(),
   onNavegar = vi.fn(),
+  estricto = false,
 }: {
+  estricto?: boolean;
   rol?: string;
   cliente?: QueryClient;
   onCerrar?: () => void;
@@ -41,18 +44,21 @@ function renderizar({
   const disparador = document.createElement("button");
   disparador.textContent = "Campana";
   document.body.appendChild(disparador);
+  const Envoltorio = estricto ? StrictMode : Fragment;
   const resultado = render(
-    <QueryClientProvider client={cliente}>
-      <PanelNotificaciones
-        abierto
-        onCerrar={onCerrar}
-        triggerRef={{ current: disparador }}
-        desplazamiento={200}
-        rol={rol}
-        onNavegar={onNavegar}
-      />
-      <Toaster />
-    </QueryClientProvider>,
+    <Envoltorio>
+      <QueryClientProvider client={cliente}>
+        <PanelNotificaciones
+          abierto
+          onCerrar={onCerrar}
+          triggerRef={{ current: disparador }}
+          desplazamiento={200}
+          rol={rol}
+          onNavegar={onNavegar}
+        />
+        <Toaster />
+      </QueryClientProvider>
+    </Envoltorio>,
   );
   return { ...resultado, cliente, onCerrar, onNavegar, disparador };
 }
@@ -479,6 +485,14 @@ describe("PanelNotificaciones — cierre y foco", () => {
     await screen.findByRole("dialog", { name: "Notificaciones" });
     await usuario.click(disparador);
     expect(onCerrar).not.toHaveBeenCalled();
+  });
+
+  it("keeps the focus on the close button under StrictMode's double effect run", async () => {
+    listas({});
+    renderizar({ estricto: true });
+    const cerrar = await screen.findByRole("button", { name: "Cerrar notificaciones" });
+    await new Promise((resolver) => window.setTimeout(resolver, 20));
+    expect(cerrar).toHaveFocus();
   });
 
   it("focuses the close button on open and returns focus to the bell on close", async () => {
