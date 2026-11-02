@@ -9,7 +9,7 @@ hace que producción quede indisponible.
 
 | Host                    | Plantilla versionada   | Hostnames admitidos                                        |
 | ----------------------- | ---------------------- | ---------------------------------------------------------- |
-| PC Debian (principal)   | `config-principal.yml` | `<DOMINIO>`                                                |
+| PC Debian (principal)   | `config-principal.yml` | `<DOMINIO>`, `ia.<DOMINIO>` (sólo Cloudflare Access)       |
 | VM Proxmox (secundaria) | `config.yml`           | `staging.<DOMINIO>`, `*.<DOMINIO>`; antiguo prod bloqueado |
 
 El nombre histórico del cambio `deploy-dual-con-failover-temporal` no describe
@@ -43,14 +43,17 @@ El orden es significativo: la primera regla coincidente gana.
 **Debian (`config-principal.yml`):**
 
 1. `<DOMINIO>` → `http://traefik:80`.
-2. Catchall → `http_status:404`.
+2. `ia.<DOMINIO>` → `http://traefik:11435` (entrypoint privado `ollama`), con
+   `originRequest.access` exigiendo JWT de Access. Ver [IA privada](#ia-privada-iadominio).
+3. Catchall → `http_status:404`.
 
 **Proxmox (`config.yml`):**
 
 1. `prod.<DOMINIO>` → `http_status:404`, **antes del wildcard**.
-2. `staging.<DOMINIO>` → `http://traefik:80`.
-3. `*.<DOMINIO>` → `http://traefik:80` para previews existentes.
-4. Catchall → `http_status:404`.
+2. `ia.<DOMINIO>` → `http_status:404`, **antes del wildcard**.
+3. `staging.<DOMINIO>` → `http://traefik:80`.
+4. `*.<DOMINIO>` → `http://traefik:80` para previews existentes.
+5. Catchall → `http_status:404`.
 
 La PC no admite staging ni previews. El wildcard de la VM no crea ambientes:
 Traefik sólo sirve los contenedores autorizados que existen allí. Retirar el
@@ -64,6 +67,7 @@ No añadir una redirección permanente a la raíz sin autorización adicional.
 | `@`                      | `<UUID_PRINCIPAL>.cfargotunnel.com`  | producción en el dominio raíz |
 | `*`                      | `<UUID_SECUNDARIA>.cfargotunnel.com` | previews en Proxmox           |
 | `staging` (opcional)     | `<UUID_SECUNDARIA>.cfargotunnel.com` | staging explícito en Proxmox  |
+| `ia`                     | `<UUID_PRINCIPAL>.cfargotunnel.com`  | Ollama para staging/pr-N      |
 
 Usar el soporte de flattening del apex de Cloudflare; no publicar IP de los
 hosts ni crear balanceadores. Reutilizar el UUID, conector y wildcard actuales
@@ -83,12 +87,13 @@ cloudflared tunnel --config /etc/cloudflared/config.yml ingress rule https://exa
 cloudflared tunnel --config /etc/cloudflared/config.yml ingress rule https://staging.example.net
 cloudflared tunnel --config /etc/cloudflared/config.yml ingress rule https://pr-321.example.net
 cloudflared tunnel --config /etc/cloudflared/config.yml ingress rule https://prod.example.net
+cloudflared tunnel --config /etc/cloudflared/config.yml ingress rule https://ia.example.net
 ```
 
 Sustituir `example.net` por el dominio real antes de probar. La raíz debe llegar
 al Traefik de Debian y al catchall 404 de Proxmox; staging y el preview deben
 llegar sólo al Traefik de Proxmox. El hostname antiguo `prod` debe recibir 404
-en ambos. La regla de bloqueo de Proxmox se activa durante el corte aprobado,
+en ambos. `ia` debe llegar a `traefik:11435` en Debian y a 404 en Proxmox. La regla de bloqueo de Proxmox se activa durante el corte aprobado,
 no mientras se depende aún de la URL productiva anterior.
 
 En modo remoto, comprobar las rutas del panel y probar cada conector: los
@@ -96,6 +101,33 @@ comandos sobre YAML no verifican ese modo. La selección local de reglas no
 prueba DNS ni conectividad. Verificar además frontend y `GET
 /api/designaciones/ping` públicos, login real y carga/descarga autenticada de
 adjuntos. Un ping 200 no demuestra salud de PostgreSQL, SeaweedFS o ClamAV.
+
+## IA privada (`ia.<DOMINIO>`)
+
+Ollama de Debian se publica por el túnel **sólo** para staging/pr-N (Proxmox).
+Producción lo consume localmente (`http://traefik:11435` por la red Docker
+`traefik`) y nunca recibe Service Token. Capas, todas obligatorias:
+
+1. **CNAME explícito** `ia` → túnel principal: gana al wildcard `*` de Proxmox,
+   que además lo responde 404 por si el DNS se revierte.
+2. **Cloudflare Access**: aplicación self-hosted para `ia.<DOMINIO>` con una
+   única política de acción **Service Auth**: _Include_ Service Token
+   `vm-dev-ia` y _Require_ la IP pública de egreso de vm-dev. Sin políticas
+   Allow/Bypass ni login de identidad. Token con vencimiento (≤ 1 año); su
+   Client ID/Secret se guardan fuera de Git y se envían como
+   `CF-Access-Client-Id`/`CF-Access-Client-Secret`.
+3. **cloudflared valida el JWT** de Access (`originRequest.access`, con el
+   _team name_ y el AUD de esa aplicación): si la aplicación se borra o se
+   relaja por error, el origen sigue rechazando.
+4. **WAF/Rate limiting** (panel): regla de rate limiting para el host `ia` y
+   bloqueo de métodos distintos de GET/POST.
+5. **Traefik**: entrypoint `ollama` separado de `web`, allowlist de
+   método/ruta, rateLimit, inFlightReq y BasicAuth con usuario propio de
+   staging (ver [ollama-compartido.md](../../docs/operations/ollama-compartido.md)).
+
+Rotar el Service Token antes de vencer: crear uno nuevo, agregarlo a la
+política, actualizar consumidores y retirar el anterior. Si se filtra, revocarlo
+en Zero Trust (efecto inmediato en el borde).
 
 ## Corte y reversión
 

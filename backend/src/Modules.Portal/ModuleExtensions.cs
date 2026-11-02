@@ -26,6 +26,7 @@ public static class ModuleExtensions
         services.AddScoped<RepositorioPortal>();
         services.AddScoped<ServicioPortal>();
         services.AddScoped<Modules.Portal.Contracts.Queries.IPortalQueries>(sp => sp.GetRequiredService<ServicioPortal>());
+        services.AddScoped<Modules.Portal.Contracts.Administracion.IAdministracionPortal, Application.AdministracionPortal>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

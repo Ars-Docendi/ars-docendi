@@ -129,19 +129,19 @@ Las descargas SHALL validar autenticación, autorización por propietario, pedid
 
 ### Requirement: Auditoría, limpieza y retención
 
-El sistema SHALL auditar la creación, confirmación, rechazo, asociación, descarga, reemplazo y eliminación lógica de archivos sin registrar bytes ni contenido sensible. SHALL eliminar cargas pendientes y objetos huérfanos según un proceso idempotente y SHALL conservar la metadata mínima necesaria para trazabilidad y cumplimiento de la política de retención.
+El sistema SHALL auditar creación, confirmación, rechazo, asociación, descarga, reemplazo y eliminación lógica sin registrar bytes ni contenido sensible. SHALL limpiar cargas pendientes y objetos huérfanos de manera idempotente. La desvinculación de una asociación MUST NOT borrar ni indisponibilizar el archivo para otros consumidores que lo referencian; la eliminación física SHALL respetar esas referencias y la política de retención, conservando metadata mínima de trazabilidad.
 
 #### Scenario: Carga abandonada
 
 - **GIVEN** una carga pendiente cuyo vencimiento superó el umbral configurado
 - **WHEN** corre el proceso de limpieza
-- **THEN** se elimina el objeto temporal y la metadata queda marcada o eliminada según la política, sin afectar archivos asociados
+- **THEN** se elimina el objeto temporal y la metadata queda marcada o eliminada según la política, sin afectar archivos asociados ni una carga/revisión vigente concurrente
 
 #### Scenario: Archivo reemplazado
 
-- **GIVEN** un CV o documento de proyecto reemplazado por otro
-- **WHEN** corre la política de retención
-- **THEN** el objeto anterior deja de estar disponible para el usuario y su eliminación queda auditada
+- **GIVEN** un CV o documento de proyecto reemplazado por otro y sin referencias restantes
+- **WHEN** corre la política de retención que permite su eliminación
+- **THEN** el objeto anterior deja de estar disponible y su eliminación queda auditada
 
 #### Scenario: Registro sin objeto histórico
 
@@ -149,9 +149,21 @@ El sistema SHALL auditar la creación, confirmación, rechazo, asociación, desc
 - **WHEN** se consulta
 - **THEN** se conserva como metadata histórica y no se inventa ni descarga un archivo inexistente
 
+#### Scenario: CV anterior conservado por un trámite
+
+- **GIVEN** el CV anterior del perfil también está asociado a un pedido
+- **WHEN** el docente reemplaza o elimina su asociación de CV
+- **THEN** el perfil deja de referenciarlo pero el pedido conserva sus bytes y descarga autorizada
+
+#### Scenario: Consulta de referencias incompleta
+
+- **GIVEN** falla la consulta de un consumidor registrado
+- **WHEN** limpieza o eliminación evalúan si pueden borrar el archivo
+- **THEN** se rechaza el borrado y no se interpreta el fallo como cero referencias
+
 ### Requirement: Operación, backup y recuperación
 
-La infraestructura SHALL provisionar SeaweedFS con volumen persistente, credenciales inyectadas en runtime y procedimientos versionados para crear buckets, políticas y backups. Los ambientes descartables SHALL poder reconstruir sus objetos junto con la base y el seed sintético. Producción MUST tener un backup verificable de los objetos y una prueba documentada de restauración antes de considerarse operativa.
+La infraestructura SHALL provisionar SeaweedFS con volumen persistente, credenciales inyectadas en runtime y procedimientos versionados para crear buckets, políticas y backups. Deploys ordinarios de staging/pr-N MUST conservar buckets, objetos y metadata; su reconstrucción SHALL quedar reservada a inicialización o reset explícito autorizado. Antes de migrar una base existente SHALL crearse un backup conjunto verificable de PostgreSQL y objetos, con escritores conocidos detenidos. Producción MUST tener un backup verificable y una prueba documentada de recuperación antes de considerarse operativa. La recuperación SHALL mantener correspondencia metadata/bytes y aislamiento por ambiente/host; MUST NOT restaurar automáticamente sobre un destino activo o llevar datos productivos a Proxmox/no-prod.
 
 #### Scenario: Provisionamiento repetible
 
@@ -160,12 +172,97 @@ La infraestructura SHALL provisionar SeaweedFS con volumen persistente, credenci
 
 #### Scenario: Restauración de un backup
 
-- **GIVEN** un backup válido de los objetos y metadata del ambiente
-- **WHEN** se restaura sobre un entorno de recuperación
-- **THEN** los archivos disponibles vuelven a ser descargables con la misma metadata e integridad verificable
+- **GIVEN** un backup válido de objetos y metadata del ambiente
+- **WHEN** se restaura sobre un destino de recuperación aislado autorizado
+- **THEN** los archivos disponibles vuelven a ser descargables con metadata e integridad verificables
 
 #### Scenario: Fallo de almacenamiento
 
 - **GIVEN** SeaweedFS no está disponible durante una mutación
 - **WHEN** el backend intenta confirmar o asociar un archivo
-- **THEN** la operación falla de forma explícita, no confirma la mutación ni deja el pedido en un estado que aparente tener documentación disponible
+- **THEN** la operación falla explícitamente, no confirma la mutación ni deja el pedido aparentando documentación disponible
+
+#### Scenario: Redeploy conserva adjuntos
+
+- **GIVEN** un preview o staging con adjuntos disponibles
+- **WHEN** se actualiza su aplicación o se rota su credencial durante mantenimiento
+- **THEN** MUST conservarse su bucket/objetos y la nueva aplicación MUST poder descargar los adjuntos autorizados
+
+#### Scenario: Backup incompleto
+
+- **GIVEN** un snapshot cuyo dump, objetos o checksums no pudieron completarse
+- **WHEN** se verifica antes de migrar
+- **THEN** MUST rechazarse como recuperación válida y bloquearse el deploy
+
+### Requirement: Los bytes publicados corresponden a la versión analizada
+
+La confirmación SHALL publicar únicamente la versión exacta cuyos bytes, tamaño, MIME y hash fueron verificados y analizados. Ninguna carga tardía o concurrente MUST poder sustituirla. Confirmar nuevamente una versión ya disponible SHALL ser idempotente; una versión distinta MUST NOT reutilizar su validación.
+
+#### Scenario: PUT iniciado antes de confirmar
+
+- **GIVEN** una carga A y una segunda carga B del mismo archivo detenida tras superar su control inicial
+- **WHEN** A se confirma y B completa después su cuerpo
+- **THEN** la descarga conserva exactamente los bytes y hash analizados de A, o B se rechaza, sin publicar sus bytes bajo la validación de A
+
+#### Scenario: Dos confirmaciones simultáneas
+
+- **GIVEN** dos confirmaciones de la misma versión cargada
+- **WHEN** se ejecutan concurrentemente
+- **THEN** existe una única publicación coherente y ambas respuestas exitosas, si las hay, identifican esa misma versión
+
+#### Scenario: Revisión interrumpida
+
+- **GIVEN** la revisión se interrumpe antes de publicar
+- **WHEN** se consulta o reintenta la sesión
+- **THEN** no se ofrecen bytes como disponibles sin análisis completo y la recuperación no autoriza una sobrescritura de otra versión publicada
+
+### Requirement: Eliminación y asociación coordinadas
+
+La eliminación lógica, el borrado remoto y la limpieza SHALL coordinarse con asociaciones y revisión concurrentes. Un archivo referenciado MUST NOT perder sus bytes; un archivo reservado para eliminación MUST NOT admitir referencias nuevas ni quedar publicado como disponible. Los fallos remotos SHALL ser explícitos y reintentables sin resucitar estados obsoletos.
+
+#### Scenario: El propietario borra un adjunto de un pedido
+
+- **GIVEN** un archivo disponible todavía referenciado por un pedido
+- **WHEN** su propietario solicita eliminarlo directamente
+- **THEN** recibe conflicto seguro y el pedido mantiene su descarga autorizada
+
+#### Scenario: Asociación contra eliminación
+
+- **GIVEN** una asociación válida y una eliminación del mismo archivo intercaladas
+- **WHEN** ambas intentan confirmar
+- **THEN** no pueden dejar una referencia confirmada a bytes borrados; una de las operaciones se rechaza o se serializa de forma coherente
+
+#### Scenario: Confirmación contra eliminación
+
+- **GIVEN** una confirmación y una eliminación intercaladas
+- **WHEN** la eliminación obtiene la reserva definitiva
+- **THEN** la confirmación no vuelve a publicar el archivo ni responde disponibilidad de un objeto inexistente
+
+#### Scenario: Fallo del proveedor al borrar
+
+- **GIVEN** el archivo ya fue reservado sin referencias para eliminación y el proveedor falla
+- **WHEN** se consulta o reintenta el borrado
+- **THEN** no vuelve a aparecer disponible y el reintento puede terminar la eliminación sin modificar archivos ajenos
+
+### Requirement: Persistencia privada y retención de backups de despliegue
+
+Los backups SHALL persistir en almacenamiento privado separado del workspace efímero, repo e imágenes, con identificación de ambiente, release e integridad. MUST no publicarse como artefactos/comentarios de PR ni exponerse mediante hostnames de usuario. SHALL aplicarse retención configurable sólo a backups completos de despliegues exitosos vencidos del mismo ambiente. Backups de fallas MUST conservarse hasta eliminación explícita; el teardown del preview MUST NOT borrar implícitamente sus respaldos. Un fallo de almacenamiento o de verificación MUST no producir un recibo de backup completo.
+
+#### Scenario: Runner descartado
+
+- **GIVEN** un deploy produjo un backup completo
+- **WHEN** se descarta su runner efímero
+- **THEN** el backup MUST seguir disponible para recuperación autorizada en el host correspondiente
+
+#### Scenario: Retención después de éxito
+
+- **GIVEN** backups exitosos vencidos, recientes y fallidos
+- **WHEN** se aplica la política de retención
+- **THEN** MUST eliminar sólo los exitosos vencidos del ambiente indicado
+- **AND** MUST conservar los recientes, fallidos y de otros ambientes
+
+#### Scenario: Teardown del preview
+
+- **GIVEN** un preview con respaldos retenidos
+- **WHEN** se elimina su aplicación, base y bucket activo
+- **THEN** MUST preservarse el almacenamiento de backups hasta su retención autorizada

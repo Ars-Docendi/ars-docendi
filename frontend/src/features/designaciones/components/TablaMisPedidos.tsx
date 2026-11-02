@@ -1,4 +1,5 @@
 import { Button, Input, Table } from "@ars-docendi/ui";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import type { ReactNode } from "react";
 import type { PedidoDesignacion } from "../types";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
@@ -212,7 +213,12 @@ export function TablaMisPedidos({
                 aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
               >
                 <Table.Cell className="adoc-mp-doc">
-                  <TextoRecortado texto={pedido.docente.nombre} anchoMinimo={ANCHO_DOCENTE} />
+                  <EnlaceFila
+                    ruta={`/designaciones/pedidos/${pedido.id}`}
+                    etiqueta={`Ver el pedido de ${pedido.docente.nombre}`}
+                  >
+                    <TextoRecortado texto={pedido.docente.nombre} anchoMinimo={ANCHO_DOCENTE} />
+                  </EnlaceFila>
                 </Table.Cell>
                 <Table.Cell className="adoc-mp-leg">{pedido.docente.legajo ?? "—"}</Table.Cell>
                 <Table.Cell className="adoc-mp-cat">

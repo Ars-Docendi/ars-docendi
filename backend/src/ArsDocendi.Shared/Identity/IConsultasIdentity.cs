@@ -80,6 +80,23 @@ public interface IConsultasIdentity
     Task<IReadOnlyList<Guid>> ObtenerCarrerasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct);
 
+    /// <summary>
+    /// Ids of the active users who hold the system role <paramref name="codigoRol"/> in the given
+    /// scope: with <paramref name="materiaId"/>, that materia; with <paramref name="carreraId"/>,
+    /// that carrera; with both <c>null</c>, the global role. It is a third-party query: it considers
+    /// all of their assignments, not only the active one of a session. It resolves the recipients of
+    /// a notification without loading every user.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ObtenerUsuarioIdsConRolAsync(
+        string codigoRol, Guid? materiaId, Guid? carreraId, CancellationToken ct);
+
+    /// <summary>
+    /// The usuario (if any) of each given persona, inactive ones included. Personas without an
+    /// account are absent from the dictionary.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, Guid>> ObtenerUsuarioIdsDePersonasAsync(
+        IReadOnlyCollection<Guid> personaIds, CancellationToken ct);
+
     /// <summary>Catálogo de materias canónicas, incluidas las inactivas referenciadas por historiales.</summary>
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
 

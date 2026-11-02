@@ -1,6 +1,6 @@
 import { apiClient } from "../../../shared/api/client";
 
-export type EstadoComponente = "disponible" | "no_disponible" | "desconocido";
+export type EstadoComponente = "disponible" | "no_disponible" | "deshabilitado" | "desconocido";
 
 export interface ComprobacionComponente {
   id: string;
@@ -13,20 +13,23 @@ export interface ComprobacionComponente {
 export interface EstadoSistema {
   modulos: ComprobacionComponente[];
   baseDatos: ComprobacionComponente;
+  inferencia: ComprobacionComponente;
 }
 
 interface RespuestaPing {
   status?: string;
 }
 
-interface RespuestaEstadoBaseDatos {
+interface RespuestaEstadoRemoto {
   estado?: unknown;
   comprobadoEn: string;
   duracionMs: number;
 }
 
 function normalizarEstado(valor: unknown): EstadoComponente {
-  return valor === "disponible" || valor === "no_disponible" ? valor : "desconocido";
+  return valor === "disponible" || valor === "no_disponible" || valor === "deshabilitado"
+    ? valor
+    : "desconocido";
 }
 
 const modulos = [
@@ -58,24 +61,26 @@ async function comprobarModulo(modulo: (typeof modulos)[number]): Promise<Compro
   }
 }
 
-async function comprobarBaseDatos(): Promise<ComprobacionComponente> {
+/** Comprobación hecha por el backend, que informa su propia hora y duración. */
+async function comprobarRemoto(
+  id: string,
+  nombre: string,
+  ruta: string,
+): Promise<ComprobacionComponente> {
   const inicio = performance.now();
   try {
-    const { data } = await apiClient.get<RespuestaEstadoBaseDatos>(
-      "/api/administracion/sistema/estado",
-      { timeout: 5000 },
-    );
+    const { data } = await apiClient.get<RespuestaEstadoRemoto>(ruta, { timeout: 5000 });
     return {
-      id: "postgresql",
-      nombre: "PostgreSQL",
+      id,
+      nombre,
       estado: normalizarEstado(data.estado),
       comprobadoEn: data.comprobadoEn,
       duracionMs: data.duracionMs,
     };
   } catch {
     return {
-      id: "postgresql",
-      nombre: "PostgreSQL",
+      id,
+      nombre,
       estado: "no_disponible",
       comprobadoEn: new Date().toISOString(),
       duracionMs: Math.round(performance.now() - inicio),
@@ -85,11 +90,12 @@ async function comprobarBaseDatos(): Promise<ComprobacionComponente> {
 
 /** Cada sonda es independiente: una falla no convierte el resto del tablero en una sola alarma. */
 export async function consultarEstadoSistema(): Promise<EstadoSistema> {
-  const [resultados, baseDatos] = await Promise.all([
+  const [resultados, baseDatos, inferencia] = await Promise.all([
     Promise.all(modulos.map(comprobarModulo)),
-    comprobarBaseDatos(),
+    comprobarRemoto("postgresql", "PostgreSQL", "/api/administracion/sistema/estado"),
+    comprobarRemoto("inferencia", "Inferencia (IA)", "/api/inferencia/estado"),
   ]);
-  return { modulos: resultados, baseDatos };
+  return { modulos: resultados, baseDatos, inferencia };
 }
 
 export interface FiltrosAuditoria {

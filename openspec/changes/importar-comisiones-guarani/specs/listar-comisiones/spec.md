@@ -60,7 +60,7 @@ La grilla SHALL mostrar, por comisión: Comisión, Materia (nombre y código), C
 
 ### Requirement: Filtros de la grilla de comisiones
 
-La grilla SHALL permitir filtrar dentro del período seleccionado por texto de materia (nombre o código), carrera (nombre o código), docente y modalidad.
+La grilla SHALL permitir filtrar dentro del período seleccionado por texto de materia (nombre o código), carrera (nombre o código), docente y modalidad. El período y los filtros SHALL conservarse en la URL.
 
 #### Scenario: Filtrar por docente
 

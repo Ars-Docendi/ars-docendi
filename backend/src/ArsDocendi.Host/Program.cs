@@ -11,6 +11,8 @@ using ArsDocendi.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
+using Modules.Notificaciones;
+using ArsDocendi.Inferencia;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
@@ -47,9 +49,9 @@ if (origenesPermitidos.Length > 0)
         politica.WithOrigins(origenesPermitidos).AllowAnyHeader().AllowAnyMethod()));
 }
 builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
-builder.Services.AddScoped<ServicioDocentes>();
-builder.Services.AddScoped<ServicioUsuariosAdministracion>();
 builder.Services.AddScoped<ResolutorAlcanceDocentes>();
+builder.Services.AddScoped<ServicioAdministracionPersonas>();
+builder.Services.AddScoped<AlcancePersonas>();
 builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>();
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();
@@ -78,10 +80,12 @@ builder.Services
     .AddArsDocendiShared(builder.Configuration)
     .AddMigracionesIdentity()
     .AddAlmacenamientoModule(builder.Configuration)
+    .AddInferencia(builder.Configuration)
     .AddDesignacionesModule(builder.Configuration)
     .AddAulasModule(builder.Configuration)
     .AddPortalModule(builder.Configuration)
-    .AddTareasModule(builder.Configuration);
+    .AddTareasModule(builder.Configuration)
+    .AddNotificacionesModule(builder.Configuration);
 
 var app = builder.Build();
 
@@ -89,6 +93,13 @@ var app = builder.Build();
 if (solicitud.Modo != ModoMigracion.Ninguno)
 {
     using var scope = app.Services.CreateScope();
+    // Escribe sellos con la clave del host: no es una migración y Migraciones no conoce módulos.
+    if (solicitud.Modo == ModoMigracion.SellarHistorialExistente)
+    {
+        var sellados = await Modules.Designaciones.ModuleExtensions.SellarHistorialExistenteAsync(scope.ServiceProvider, CancellationToken.None);
+        Console.Out.WriteLine($"Eventos sellados retroactivamente: {sellados}");
+        return;
+    }
     Environment.ExitCode = await RunnerMigraciones.EjecutarAsync(solicitud,
         scope.ServiceProvider.GetServices<IMigradorModulo>().ToArray(),
         builder.Configuration.GetConnectionString("ArsDocendi") ?? string.Empty,

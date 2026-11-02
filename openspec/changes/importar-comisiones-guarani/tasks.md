@@ -43,5 +43,12 @@ Fuera del alcance de este change: la resuelve la rama del asistente (`feature/as
 
 ## 9. Documentación
 
-- [x] 9.1 Actualizar `docs/architecture/domains/designaciones.md` (entidades, endpoints, dependencia externa y la decisión revisada sobre Guaraní), `api-contracts-designaciones.md`, `data-model.md` (cinco tablas, FKs nullable `SET NULL` hacia identity, PII parcial y excepción de auditoría), `dependency-graph.md` (nueva lectura de `IConsultasIdentity`), `infrastructure.md` (secretos `Guarani__*`, sólo producción) y el README del módulo; verificar con `pnpm format:check`
+- [x] 9.1 Actualizar `docs/architecture/domains/designaciones.md` (entidades, endpoints, dependencia externa y la decisión revisada sobre Guaraní), `api-contracts-designaciones.md`, `data-model.md` (cinco tablas, FKs nullable `SET NULL` hacia identity, PII parcial y excepción de auditoría), `dependency-graph.md` (nueva lectura de `IConsultasIdentity`), `infrastructure.md` (secretos `Guarani__*`, sólo producción); verificar con `pnpm format:check`
 - [x] 9.2 Verificar `pnpm exec openspec validate --all --strict`
+
+## 10. Adaptación a `develop`
+
+- [x] 10.1 Regenerar las migraciones con un ID posterior a las publicadas en `develop`, porque el validador de historial exige que las aplicadas sean prefijo de las disponibles; verificar con `validate.mjs` y `--validar-recursos`
+- [x] 10.2 Adoptar las convenciones de navegación en Comisiones (`Migas`, `shared/ui/Modal`, período y filtros en la URL con `useFiltrosURL`); verificar con los tests de la página
+- [x] 10.3 Generar los contratos `comisiones-*.json` desde `ComisionesHttpTests` y usarlos en los tests del frontend
+- [x] 10.4 Agregar el artículo del Centro de ayuda `consultar-las-comisiones` y el módulo Comisiones en la pantalla de roles; verificar con `contenido/integridad.test.ts`

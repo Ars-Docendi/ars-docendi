@@ -22,6 +22,7 @@ describe("consultarEstadoSistema", () => {
       if (ruta === "/api/tareas/ping") throw new Error("No exponer este detalle");
       if (ruta === "/api/designaciones/ping") return { data: { status: "maintenance" } } as never;
       if (ruta === "/api/administracion/sistema/estado") return { data: comprobacionDb } as never;
+      if (ruta === "/api/inferencia/estado") return { data: comprobacionDb } as never;
       return { data: { status: "ok" } } as never;
     });
 
@@ -35,7 +36,39 @@ describe("consultarEstadoSistema", () => {
     ]);
     expect(resultado.baseDatos.estado).toBe("disponible");
     expect(JSON.stringify(resultado)).not.toContain("No exponer este detalle");
-    expect(apiClient.get).toHaveBeenCalledTimes(5);
+    expect(resultado.inferencia).toMatchObject({ nombre: "Inferencia (IA)", estado: "disponible" });
+    expect(apiClient.get).toHaveBeenCalledTimes(6);
+  });
+
+  it.each([
+    ["deshabilitado", "deshabilitado"],
+    ["no_disponible", "no_disponible"],
+    ["otro", "desconocido"],
+  ])("mapea el estado de inferencia %s como %s", async (recibido, esperado) => {
+    vi.mocked(apiClient.get).mockImplementation(async (url) =>
+      String(url) === "/api/inferencia/estado"
+        ? ({ data: { ...comprobacionDb, estado: recibido } } as never)
+        : ({ data: comprobacionDb } as never),
+    );
+
+    const resultado = await consultarEstadoSistema();
+
+    expect(resultado.inferencia.estado).toBe(esperado);
+  });
+
+  it("informa la inferencia como no disponible ante una falla de red sin ocultar el resto", async () => {
+    vi.mocked(apiClient.get).mockImplementation(async (url) => {
+      if (String(url) === "/api/inferencia/estado") throw new Error("https://ia.interno");
+      if (String(url) === "/api/administracion/sistema/estado")
+        return { data: comprobacionDb } as never;
+      return { data: { status: "ok" } } as never;
+    });
+
+    const resultado = await consultarEstadoSistema();
+
+    expect(resultado.inferencia.estado).toBe("no_disponible");
+    expect(resultado.baseDatos.estado).toBe("disponible");
+    expect(JSON.stringify(resultado)).not.toContain("ia.interno");
   });
 });
 

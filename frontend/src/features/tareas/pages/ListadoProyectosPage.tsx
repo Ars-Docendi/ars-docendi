@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
+import { Button, InlineAlert } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { ModalProyecto } from "../components/ModalProyecto";
 import { TablaProyectos } from "../components/TablaProyectos";
@@ -8,8 +8,6 @@ import { IconoPlus } from "../components/lucide";
 import { usePermisosTareas } from "../hooks/useActorTareas";
 import { useEstadosProyecto, useListadoProyectos } from "../hooks/useProyectos";
 import { useCrearProyecto } from "../hooks/useAccionesProyecto";
-
-const RUTA_TAREAS = "/tareas";
 
 /**
  * Pestaña Proyectos: listado con TODOS los proyectos, sin importar su Estado — es
@@ -19,7 +17,6 @@ const RUTA_TAREAS = "/tareas";
  * "Nuevo Proyecto".
  */
 export function ListadoProyectosPage() {
-  const navegar = useNavigate();
   const { data: proyectos, isLoading, isError } = useListadoProyectos();
   const { data: estados = [] } = useEstadosProyecto();
   const { puedeGestionarProyectos } = usePermisosTareas();
@@ -28,11 +25,10 @@ export function ListadoProyectosPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Tareas", href: RUTA_TAREAS },
+          { label: "Tareas", href: "/tareas" },
           { label: "Proyectos" },
         ]}
       />
@@ -66,11 +62,7 @@ export function ListadoProyectosPage() {
       )}
 
       {!isLoading && !isError && proyectos && (
-        <TablaProyectos
-          proyectos={proyectos}
-          estados={estados}
-          onSeleccionar={(proyecto) => navegar(`/tareas/proyectos/${proyecto.id}`)}
-        />
+        <TablaProyectos proyectos={proyectos} estados={estados} />
       )}
 
       <ModalProyecto

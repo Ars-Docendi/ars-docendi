@@ -134,7 +134,12 @@
   color: var(--accent-600);
   font-size: 14px;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
+}
+.adoc-tareas-vinculo-link:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 .adoc-tareas-vinculo-link:hover {
   text-decoration: underline;

@@ -35,8 +35,6 @@ public static class DependencyInjection
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IConsultasIdentity, ConsultasIdentity>();
-        services.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();
-        services.AddScoped<ServicioUsuarios>();
         services.AddScoped<ServicioAdministradorInicial>();
         services.AddScoped<IRepositorioRoles, RepositorioRoles>();
         services.AddScoped<ServicioRoles>();

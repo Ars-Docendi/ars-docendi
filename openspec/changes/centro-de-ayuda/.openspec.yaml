@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-21
+goal: Agregar un Centro de ayuda dentro de la app (documentación por módulo con
+  pasos, capturas, búsqueda y preguntas frecuentes), replicando el de OSPESE y
+  filtrado por los permisos de cada persona.

@@ -24,6 +24,15 @@ export const FILTROS_INICIALES: FiltrosMisPedidosState = {
 export type ColumnaOrdenMisPedidos =
   "docente" | "legajo" | "catedra" | "tipo" | "enviado" | "estado";
 
+export const COLUMNAS_ORDEN_MIS_PEDIDOS: ColumnaOrdenMisPedidos[] = [
+  "docente",
+  "legajo",
+  "catedra",
+  "tipo",
+  "enviado",
+  "estado",
+];
+
 export interface OrdenMisPedidos {
   columna: ColumnaOrdenMisPedidos;
   direccion: "asc" | "desc";
@@ -58,6 +67,7 @@ export function etiquetaNovedadCorta(pedido: PedidoDesignacion): string {
 
 export function fechaEnviadoIso(pedido: PedidoDesignacion): string | undefined {
   return (
+    pedido.enviadoEn ??
     pedido.historial.find((evento) => evento.accion === "enviar")?.fecha ??
     pedido.historial.find((evento) => evento.accion === "crear")?.fecha ??
     pedido.historial.at(0)?.fecha
@@ -79,9 +89,9 @@ function coincideEstado(estado: EstadoPedido, filtro: FiltroEstado): boolean {
     case "borrador":
       return estado === "borrador";
     case "revision":
-      return estado.startsWith("en_revision");
+      return estado.startsWith("en_revision") || estado === "en_proceso";
     case "aprobado":
-      return estado === "en_lote";
+      return estado === "en_lote" || estado === "aprobado";
     case "rechazado":
       return estado === "rechazado";
     case "devuelto":

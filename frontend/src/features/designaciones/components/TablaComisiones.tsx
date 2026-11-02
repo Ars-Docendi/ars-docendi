@@ -1,6 +1,6 @@
 import { Input, Table } from "@ars-docendi/ui";
-import { useState } from "react";
 import type { ReactNode } from "react";
+import { useFiltrosURL } from "../../../shared/navegacion/estadoURL";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { Comision } from "../api/comisionesApi";
 import {
@@ -16,9 +16,9 @@ import "./tablaComisiones.css";
 const ALTO_TABLA = "calc(100vh - 340px)";
 const VACIO = "—";
 
-/** Grilla de sólo lectura de las comisiones de un período; filtros locales, sin paginación. */
+/** Grilla de sólo lectura de las comisiones de un período; filtros en el query, sin paginación. */
 export function TablaComisiones({ comisiones }: { comisiones: Comision[] }) {
-  const [filtros, setFiltros] = useState<FiltrosComisiones>(FILTROS_COMISIONES_INICIALES);
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_COMISIONES_INICIALES);
   const visibles = aplicarFiltrosComisiones(comisiones, filtros);
 
   function filtro(campo: keyof FiltrosComisiones, etiqueta: string, placeholder: string) {
@@ -26,16 +26,14 @@ export function TablaComisiones({ comisiones }: { comisiones: Comision[] }) {
       <EncabezadoFiltrable
         etiqueta={etiqueta}
         activo={Boolean(filtros[campo].trim())}
-        onLimpiar={() => setFiltros((actual) => ({ ...actual, [campo]: "" }))}
+        onLimpiar={() => setFiltros({ ...filtros, [campo]: "" })}
       >
         <Input
           className="adoc-filtro-encabezado-campo"
           placeholder={placeholder}
           aria-label={`Buscar ${etiqueta}`}
           value={filtros[campo]}
-          onChange={(evento) =>
-            setFiltros((actual) => ({ ...actual, [campo]: evento.target.value }))
-          }
+          onChange={(evento) => setFiltros({ ...filtros, [campo]: evento.target.value })}
         />
       </EncabezadoFiltrable>
     );

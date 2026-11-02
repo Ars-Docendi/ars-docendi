@@ -1,20 +1,24 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import AppLayout from "./AppLayout";
+import { PaginaDeError, PaginaNoEncontrada } from "../shared/navegacion/PaginasDeEstado";
 import { LoginPage } from "../shared/auth/LoginPage";
 import { RequireAuth } from "../shared/auth/RequireAuth";
+import { TerminosPage } from "../shared/legal/TerminosPage";
 import { routes as designacionesRoutes } from "../features/designaciones/routes";
 import { routes as aulasRoutes } from "../features/aulas/routes";
 import { routes as portalRoutes } from "../features/portal/routes";
 import { routes as tareasRoutes } from "../features/tareas/routes";
-import { routes as usuariosRoutes } from "../features/usuarios/routes";
-import { routes as docentesRoutes } from "../features/docentes/routes";
+import { routes as personasRoutes, redireccionesAnteriores } from "../features/personas/routes";
 import { routes as rolesRoutes } from "../features/roles/routes";
 import { routes as sistemaRoutes } from "../features/sistema/routes";
+import { routes as ayudaRoutes } from "../features/ayuda/routes";
 
 export const router = createBrowserRouter([
   // Full-bleed split-pane login — public, rendered outside the App shell (no header/nav).
   { path: "/login", element: <LoginPage /> },
+  // Términos de uso y privacidad — públicos, enlazados desde el pie del login.
+  { path: "/terminos", element: <TerminosPage /> },
   {
     // Gate — every protected route lives below here; redirects to /login when unauth.
     element: <RequireAuth />,
@@ -23,16 +27,24 @@ export const router = createBrowserRouter([
         path: "/",
         element: <AppLayout />,
         children: [
-          { index: true, element: <Navigate to="/portal" replace /> },
-          designacionesRoutes,
-          aulasRoutes,
-          portalRoutes,
-          tareasRoutes,
-          usuariosRoutes,
-          docentesRoutes,
-          rolesRoutes,
-          ...sistemaRoutes,
-          { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
+          {
+            // Ruta sin path: un error de render queda dentro del shell (menú y barra siguen).
+            errorElement: <PaginaDeError />,
+            children: [
+              { index: true, element: <Navigate to="/portal" replace /> },
+              designacionesRoutes,
+              aulasRoutes,
+              portalRoutes,
+              tareasRoutes,
+              personasRoutes,
+              ...redireccionesAnteriores,
+              rolesRoutes,
+              ...sistemaRoutes,
+              ayudaRoutes,
+              { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
+              { path: "*", element: <PaginaNoEncontrada /> },
+            ],
+          },
         ],
       },
     ],

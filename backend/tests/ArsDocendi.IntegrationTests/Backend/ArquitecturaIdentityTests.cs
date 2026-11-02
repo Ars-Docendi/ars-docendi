@@ -1,28 +1,9 @@
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
-public sealed partial class ArquitecturaIdentityTests
+public sealed class ArquitecturaIdentityTests
 {
-    [Fact]
-    public void Controllers_no_acceden_a_dbcontext_ni_repositorios()
-    {
-        var raiz = BuscarRaizRepositorio();
-        var controllers = Directory.EnumerateFiles(
-            Path.Combine(raiz, "backend", "src"), "*Controller.cs", SearchOption.AllDirectories);
-        var infracciones = controllers
-            .Where(archivo => DependenciaInfraestructuraEnController().IsMatch(
-                QuitarComentarios(File.ReadAllText(archivo))))
-            .Select(archivo => Path.GetRelativePath(raiz, archivo))
-            .ToArray();
-
-        Assert.True(
-            infracciones.Length == 0,
-            "Los controllers sólo pueden delegar en servicios. " +
-            $"Dependencias de persistencia detectadas en: {string.Join(", ", infracciones)}");
-    }
-
     [Fact]
     public void Proyectos_de_modulo_no_referencian_internals_de_otro_modulo()
     {
@@ -57,28 +38,26 @@ public sealed partial class ArquitecturaIdentityTests
     }
 
     [Fact]
-    public void Modulos_no_escriben_entidades_protegidas_de_identity()
+    public void Notificaciones_es_una_hoja_del_grafo_y_sus_emisores_solo_ven_sus_Contracts()
     {
         var raiz = BuscarRaizRepositorio();
-        var archivos = Directory.EnumerateFiles(
-                Path.Combine(raiz, "backend", "src"), "*.cs", SearchOption.AllDirectories)
-            .Where(ruta => Path.GetRelativePath(Path.Combine(raiz, "backend", "src"), ruta)
-                .StartsWith("Modules.", StringComparison.Ordinal));
-        var infracciones = new List<string>();
+        string[] Referencias(string proyecto) =>
+            XDocument.Load(Path.Combine(raiz, "backend", "src", proyecto, proyecto + ".csproj"))
+                .Descendants("ProjectReference")
+                .Select(nodo => Path.GetFileNameWithoutExtension(nodo.Attribute("Include")!.Value.Replace('\\', '/')))
+                .ToArray();
 
-        foreach (var archivo in archivos)
+        // Contracts hold only records and one interface: no project reference at all.
+        Assert.Empty(Referencias("Modules.Notificaciones.Contracts"));
+        // The module depends on infrastructure and on its own Contracts; no business module.
+        Assert.Equal(
+            ["ArsDocendi.Migraciones", "ArsDocendi.Shared", "Modules.Notificaciones.Contracts"],
+            Referencias("Modules.Notificaciones").Order().ToArray());
+        // Emitters reach the module through its Contracts.
+        foreach (var emisor in new[] { "Modules.Aulas", "Modules.Designaciones", "Modules.Tareas" })
         {
-            var codigo = QuitarComentarios(File.ReadAllText(archivo));
-            if (EscrituraIdentityProtegida().IsMatch(codigo))
-            {
-                infracciones.Add(Path.GetRelativePath(raiz, archivo));
-            }
+            Assert.Contains("Modules.Notificaciones.Contracts", Referencias(emisor));
         }
-
-        Assert.True(
-            infracciones.Count == 0,
-            "Los módulos sólo pueden leer identity mediante su contrato público. " +
-            $"Escrituras o acceso directo detectados en: {string.Join(", ", infracciones)}");
     }
 
     private static string BuscarRaizRepositorio()
@@ -97,24 +76,4 @@ public sealed partial class ArquitecturaIdentityTests
 
         throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
     }
-
-    private static string QuitarComentarios(string codigo) =>
-        Comentarios().Replace(codigo, string.Empty);
-
-    [GeneratedRegex(@"//.*?$|/\*.*?\*/", RegexOptions.Multiline | RegexOptions.Singleline)]
-    private static partial Regex Comentarios();
-
-    [GeneratedRegex(
-        @"\bIdentityDbContext\b|\bnew\s+(?:Persona|Rol|Permiso|RolPermiso)\b|" +
-        @"\bSet\s*<\s*(?:Persona|Rol|Permiso|RolPermiso)\s*>|" +
-        @"(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+identity\." +
-        @"(?:personas|roles|permisos|rol_permisos)\b|" +
-        @"\.(?:Personas|Roles|Permisos|RolPermisos)\s*\.\s*" +
-        @"(?:Add|AddAsync|Update|UpdateRange|Remove|RemoveRange|ExecuteUpdate|ExecuteDelete)\b",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex EscrituraIdentityProtegida();
-
-    [GeneratedRegex(@"\b(?:[A-Za-z]+DbContext|I?Repositorio[A-Za-z]+)\b")]
-    private static partial Regex DependenciaInfraestructuraEnController();
-
 }

@@ -19,7 +19,7 @@ El acceso efectivo se controla por `sistema.estado.ver` y `auditoria.ver`; la es
 
 ## Flujo principal
 
-1. La persona abre el dashboard y distingue el estado de cada módulo y de PostgreSQL, incluidos resultados parciales.
+1. La persona abre el dashboard y distingue el estado de cada módulo, de PostgreSQL y de la inferencia (IA), incluidos resultados parciales.
 2. Si hace falta, actualiza las comprobaciones mediante una acción secundaria; durante la consulta el control indica actividad y queda deshabilitado.
 3. Desde la navegación autorizada abre los registros de auditoría, busca por rango, operación, módulo, tabla, nombre del actor o clave de fila y pagina los resultados.
 4. Identifica cada evento por fecha, usuario, acción, módulo y resumen; expande el detalle para ver la clave, el request ID y únicamente valores aprobados por la política de redacción.
@@ -27,7 +27,7 @@ El acceso efectivo se controla por `sistema.estado.ver` y `auditoria.ver`; la es
 ## Layout / IA
 
 - Ambas pantallas reutilizan `PageHeader`, el contenedor y la escala tipográfica del shell institucional; no introducen un sistema visual paralelo.
-- El dashboard presenta una nota breve que diferencia pings HTTP de la comprobación de PostgreSQL y una tabla compacta con componente, estado, duración y última comprobación. Cada comprobación es independiente; no usar un indicador global que oculte fallas parciales.
+- El dashboard presenta una nota breve que diferencia pings HTTP de las comprobaciones de PostgreSQL e inferencia hechas por el backend, y una tabla compacta con componente, estado, duración y última comprobación. Cada comprobación es independiente; no usar un indicador global que oculte fallas parciales.
 - El botón **Actualizar** y las acciones de reintento son secundarias (`Button` `secondary` o `ghost`). La búsqueda del panel de filtros es la acción primaria de esa consulta; las acciones de actualización de datos nunca usan énfasis primario.
 - La auditoría prioriza en escritorio las columnas **Fecha**, **Usuario**, **Acción**, **Módulo** y **Cambio**. Objeto/tabla, clave de fila, request ID y detalle se presentan como contexto secundario sin ocultar que la consulta es de solo lectura.
 - Los filtros se agrupan en un panel compacto con etiquetas persistentes. La búsqueda del actor acepta texto legible y no exige conocer un UUID.
@@ -43,6 +43,7 @@ El acceso efectivo se controla por `sistema.estado.ver` y `auditoria.ver`; la es
 | Error             | Mensaje accionable sin excepción interna y acción secundaria para reintentar                               | Fallo de consulta                      |
 | Success           | Tabla o estados independientes con hora, duración y metadatos comprensibles                                | Respuesta válida                       |
 | Partial / unknown | Cada componente muestra disponible, no disponible o desconocido sin inferir salud de los demás             | Ping, DB o timestamp faltante/inválido |
+| Disabled          | Inferencia "Deshabilitado" con borde punteado neutral, distinto de "No disponible" y de "Desconocido"      | Ambiente sin inferencia configurada    |
 | Awaiting approval | No aplica: estas pantallas son de consulta y no forman un flujo de aprobación                              | Nunca                                  |
 
 ## Decisiones de diseño

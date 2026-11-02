@@ -17,13 +17,24 @@ no evidencia de despliegues reales ni de configuración externa aplicada.
 Los jobs de aplicación conservan **GitHub Actions** como fuente; no hay un
 segundo inventario de credenciales de deploy en archivos locales:
 
-| Scope                    | Variables / secretos consumidos                                                                      |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Repository variables     | `REGISTRO`, `DOMINIO`                                                                                |
-| Repository secrets       | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY` |
-| Environment `prod`       | `APP_DB_PASSWORD_PROD`                                                                               |
-| Environment `staging`    | `APP_DB_PASSWORD_STAGING`                                                                            |
-| Environment `pr-preview` | `APP_DB_PASSWORD_PREVIEW` (sólo en el job aprobado del Environment)                                  |
+| Scope                    | Variables / secretos consumidos                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Repository variables     | `REGISTRO`, `DOMINIO`                                                                                                                      |
+| Repository secrets       | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY`                                       |
+| Environment `prod`       | `APP_DB_PASSWORD_PROD`, `INFERENCIA_CONTRASENA_PROD`                                                                                       |
+| Environment `staging`    | `APP_DB_PASSWORD_STAGING`, `INFERENCIA_CONTRASENA_STAGING`, `INFERENCIA_ACCESS_CLIENT_ID/SECRET`                                           |
+| Environment `pr-preview` | `APP_DB_PASSWORD_PREVIEW`, `INFERENCIA_CONTRASENA_PREVIEW`, `INFERENCIA_ACCESS_CLIENT_ID/SECRET` (sólo en el job aprobado del Environment) |
+
+Las credenciales de inferencia (Ollama compartido) se definen **por Environment**, no
+como secrets de repositorio, para que el job de prod no tenga el Service Token de
+Cloudflare Access. Los workflows fijan la URL y el usuario: prod usa
+`http://traefik:11435` con `prod`; staging y previews usan
+`https://ia.<DOMINIO>` con `staging` y `preview`. El Service Token
+(`INFERENCIA_ACCESS_CLIENT_ID/SECRET`) es el mismo en `staging` y `pr-preview`.
+Un ambiente con la URL fijada y la contraseña ausente no arranca; vaciar
+`INFERENCIA_URL` en el workflow deshabilita la inferencia. Alta de usuarios y
+token en [ollama-compartido.md](ollama-compartido.md#10-entrega-al-backend-por-github).
+El dashboard de sistema muestra el resultado de la conexión en cada ambiente.
 
 `PGHOST=arsdocendi-postgres` puede tener el mismo nombre en ambos hosts porque
 resuelve dentro de su propia red Docker. **Antes de activar cada destino**,
@@ -68,21 +79,7 @@ El workflow de teardown usa los mismos nombres para eliminar sólo el bucket y l
 identidad lógica del `pr-N`. No baja el proyecto/volumen SeaweedFS compartido ni
 necesita permisos sobre otros buckets.
 
-## Secrets legados de MinIO
-
-Los workflows versionados consumen los nombres nuevos. Si aún aparecen los
-anteriores en GitHub, mantenerlos sólo hasta verificar que no exista ningún
-consumidor activo y luego retirarlos desde el repositorio; no reutilizar un
-nombre legado en los jobs nuevos:
-
-| Nombre anterior       | Nombre nuevo                |
-| --------------------- | --------------------------- |
-| `MINIO_ROOT_USER`     | `SEAWEEDFS_ROOT_ACCESS_KEY` |
-| `MINIO_ROOT_PASSWORD` | `SEAWEEDFS_ROOT_SECRET_KEY` |
-
-Los workflows no consumen los nombres `MINIO_*`. Una rotación de los valores
-`SEAWEEDFS_ROOT_*` exige coordinar **ambos hosts** y los environments; cambiar
-sólo GitHub sin actualizar las identidades S3 existentes rompe el deploy.
+Una rotación de `SEAWEEDFS_ROOT_ACCESS_KEY`/`SEAWEEDFS_ROOT_SECRET_KEY` exige coordinar **ambos hosts** y los environments; cambiar sólo GitHub sin actualizar las identidades S3 existentes rompe el deploy.
 
 ## Environments `staging` y `prod`
 
@@ -149,7 +146,7 @@ servicio y volumen no-prod compartidos.
    antes de rotar credenciales o migrar, respalda si hay pendientes en una base
    existente y sólo inicializa fixtures con autorización/marca completa.
 7. Publica `https://pr-<N>.<DOMINIO>` y comenta éxito sólo después de verificar
-   SHA, cuatro pings, identidad DB read-only y cero pendientes. Un smoke fallido
+   SHA, cinco pings, identidad DB read-only y cero pendientes. Un smoke fallido
    deja el backend detenido, sin comentario exitoso.
 
 Los PRs que solo modifican documentación no disparan este workflow debido al

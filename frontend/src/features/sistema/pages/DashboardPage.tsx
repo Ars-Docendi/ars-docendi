@@ -23,13 +23,17 @@ function EtiquetaEstado({ estado }: { estado: ComprobacionComponente["estado"] }
       ? "Disponible"
       : estado === "no_disponible"
         ? "No disponible"
-        : "Desconocido";
+        : estado === "deshabilitado"
+          ? "Deshabilitado"
+          : "Desconocido";
   const clase =
     estado === "disponible"
       ? "sistema-estado--ok"
       : estado === "no_disponible"
         ? "sistema-estado--error"
-        : "sistema-estado--desconocido";
+        : estado === "deshabilitado"
+          ? "sistema-estado--deshabilitado"
+          : "sistema-estado--desconocido";
   return <span className={`sistema-estado ${clase}`}>{etiqueta}</span>;
 }
 
@@ -39,7 +43,9 @@ export function DashboardPage() {
     queryFn: consultarEstadoSistema,
     refetchOnWindowFocus: false,
   });
-  const componentes = consulta.data ? [...consulta.data.modulos, consulta.data.baseDatos] : [];
+  const componentes = consulta.data
+    ? [...consulta.data.modulos, consulta.data.baseDatos, consulta.data.inferencia]
+    : [];
 
   return (
     <main className="administracion-sistema">
@@ -73,12 +79,16 @@ export function DashboardPage() {
           <header className="sistema-panel-encabezado">
             <h2 id="sistema-componentes-titulo">Estado por componente</h2>
             <p className="sistema-nota">
-              Las sondas de módulos verifican su respuesta HTTP; PostgreSQL se comprueba por
-              separado. Cada resultado se informa de forma independiente.
+              Las sondas de módulos verifican su respuesta HTTP; PostgreSQL y la inferencia se
+              comprueban desde el backend. Cada resultado se informa de forma independiente; la
+              inferencia figura como deshabilitada cuando el ambiente no la tiene configurada.
             </p>
           </header>
           <div className="sistema-tabla-contenedor">
-            <table className="sistema-tabla" aria-label="Estado de módulos y base de datos">
+            <table
+              className="sistema-tabla"
+              aria-label="Estado de módulos, base de datos e inferencia"
+            >
               <thead>
                 <tr>
                   <th scope="col">Componente</th>

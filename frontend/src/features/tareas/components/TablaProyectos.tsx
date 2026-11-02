@@ -1,5 +1,8 @@
-import { useState } from "react";
 import { Button, Input, Table } from "@ars-docendi/ui";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
+import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { EstadoProyectoCatalogo, Proyecto } from "../types";
 import { EstadoProyectoBadge } from "./EstadoProyectoBadge";
@@ -10,13 +13,8 @@ import {
   aplicarFiltrosProyectos,
   FILTROS_PROYECTOS_INICIALES,
   responsablesDeProyectos,
-  type FiltrosColumnasProyectos,
 } from "./filtrosProyectos";
-import {
-  ordenarProyectos,
-  type ColumnaOrdenableProyecto,
-  type OrdenProyectos,
-} from "./ordenProyectos";
+import { ordenarProyectos, type ColumnaOrdenableProyecto } from "./ordenProyectos";
 import { siguienteOrden } from "./ordenTareas";
 import "./tablaTareas.css";
 
@@ -24,7 +22,6 @@ interface TablaProyectosProps {
   proyectos: Proyecto[];
   /** Catálogo de estados: define las opciones del filtro Estado y el orden por defecto. */
   estados: EstadoProyectoCatalogo[];
-  onSeleccionar: (proyecto: Proyecto) => void;
 }
 
 const COLUMNAS: { id: ColumnaOrdenableProyecto; etiqueta: string }[] = [
@@ -35,6 +32,8 @@ const COLUMNAS: { id: ColumnaOrdenableProyecto; etiqueta: string }[] = [
   { id: "fechaFin", etiqueta: "Fin" },
   { id: "estado", etiqueta: "Estado" },
 ];
+
+const COLUMNAS_ORDENABLES = COLUMNAS.map((columna) => columna.id);
 
 const COLUMNAS_DE_TEXTO: ColumnaOrdenableProyecto[] = [
   "numero",
@@ -48,9 +47,11 @@ const COLUMNAS_DE_TEXTO: ColumnaOrdenableProyecto[] = [
  * propio header (`FiltroEncabezado`) y orden por header con ciclo asc → desc → default. El
  * orden por defecto es por estado (según el catálogo) y luego por fecha de inicio.
  */
-export function TablaProyectos({ proyectos, estados, onSeleccionar }: TablaProyectosProps) {
-  const [orden, setOrden] = useState<OrdenProyectos | null>(null);
-  const [filtros, setFiltros] = useState<FiltrosColumnasProyectos>(FILTROS_PROYECTOS_INICIALES);
+export function TablaProyectos({ proyectos, estados }: TablaProyectosProps) {
+  const abrir = useAbrirDetalle();
+  // Filtros y orden en el query: sobreviven a Atrás y a recargar.
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_PROYECTOS_INICIALES);
+  const [orden, setOrden] = useOrdenURL<ColumnaOrdenableProyecto>(COLUMNAS_ORDENABLES);
 
   const codigosEstado = estados.map((e) => e.codigo);
   const etiquetasEstado = Object.fromEntries(estados.map((e) => [e.codigo, e.nombre]));
@@ -77,7 +78,7 @@ export function TablaProyectos({ proyectos, estados, onSeleccionar }: TablaProye
                     key={col.id}
                     aria-label={col.etiqueta}
                     sort={orden?.columna === col.id ? orden.direccion : null}
-                    onSortChange={() => setOrden((actual) => siguienteOrden(actual, col.id))}
+                    onSortChange={() => setOrden(siguienteOrden(orden, col.id))}
                   >
                     <span>
                       {col.etiqueta}
@@ -86,9 +87,7 @@ export function TablaProyectos({ proyectos, estados, onSeleccionar }: TablaProye
                         activo={
                           esTexto ? Boolean(texto.trim()) : Array.isArray(valor) && valor.length > 0
                         }
-                        onLimpiar={() =>
-                          setFiltros((actuales) => ({ ...actuales, [col.id]: esTexto ? "" : [] }))
-                        }
+                        onLimpiar={() => setFiltros({ ...filtros, [col.id]: esTexto ? "" : [] })}
                       >
                         {esTexto ? (
                           <Input
@@ -97,10 +96,7 @@ export function TablaProyectos({ proyectos, estados, onSeleccionar }: TablaProye
                             aria-label={`Buscar ${col.etiqueta}`}
                             value={texto}
                             onChange={(evento) =>
-                              setFiltros((actuales) => ({
-                                ...actuales,
-                                [col.id]: evento.target.value,
-                              }))
+                              setFiltros({ ...filtros, [col.id]: evento.target.value })
                             }
                           />
                         ) : (
@@ -109,10 +105,10 @@ export function TablaProyectos({ proyectos, estados, onSeleccionar }: TablaProye
                             valores={Array.isArray(valor) ? valor : []}
                             etiquetas={col.id === "estado" ? etiquetasEstado : undefined}
                             onToggle={(opcion) =>
-                              setFiltros((actuales) => ({
-                                ...actuales,
+                              setFiltros({
+                                ...filtros,
                                 [col.id]: alternarOpcion(Array.isArray(valor) ? valor : [], opcion),
-                              }))
+                              })
                             }
                           />
                         )}
@@ -137,13 +133,20 @@ export function TablaProyectos({ proyectos, estados, onSeleccionar }: TablaProye
               visibles.map((proyecto) => (
                 <Table.Row
                   key={proyecto.id}
-                  className="adoc-tt-row--clicable"
-                  onClick={() => onSeleccionar(proyecto)}
+                  {...propsFilaClickeable(() => abrir(`/tareas/proyectos/${proyecto.id}`))}
+                  className="adoc-fila-clickeable adoc-tt-row--clicable"
                 >
                   <Table.Cell numeric className="adoc-mono">
                     {proyecto.numero}
                   </Table.Cell>
-                  <Table.Cell>{proyecto.nombre}</Table.Cell>
+                  <Table.Cell>
+                    <EnlaceFila
+                      ruta={`/tareas/proyectos/${proyecto.id}`}
+                      etiqueta={`Ver el proyecto ${proyecto.numero}: ${proyecto.nombre}`}
+                    >
+                      {proyecto.nombre}
+                    </EnlaceFila>
+                  </Table.Cell>
                   <Table.Cell>{proyecto.responsable.nombre}</Table.Cell>
                   <Table.Cell>{formatearFecha(proyecto.fechaInicio)}</Table.Cell>
                   <Table.Cell>{formatearFecha(proyecto.fechaFin)}</Table.Cell>
@@ -156,7 +159,7 @@ export function TablaProyectos({ proyectos, estados, onSeleccionar }: TablaProye
                       size="sm"
                       onClick={(evento) => {
                         evento.stopPropagation();
-                        onSeleccionar(proyecto);
+                        abrir(`/tareas/proyectos/${proyecto.id}`);
                       }}
                       aria-label={`Ver el proyecto "${proyecto.nombre}"`}
                     >

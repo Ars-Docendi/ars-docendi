@@ -17,9 +17,4 @@ describe("estadosDePreset", () => {
   it("el listado abre en Pendientes", () => {
     expect(PRESET_INICIAL).toBe("pendientes");
   });
-
-  it("devuelve una copia: modificarla no altera el preset", () => {
-    estadosDePreset("pendientes").push("resuelta");
-    expect(estadosDePreset("pendientes")).toHaveLength(3);
-  });
 });

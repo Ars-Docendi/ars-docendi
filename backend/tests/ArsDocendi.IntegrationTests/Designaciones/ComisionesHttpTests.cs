@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Designaciones.Guarani;
 using ArsDocendi.IntegrationTests.Infraestructura;
@@ -36,13 +37,16 @@ public sealed class ComisionesHttpTests(PostgresFixture postgres)
         using var importar = await cliente.PostAsJsonAsync(
             "/api/designaciones/comisiones/importaciones", new ImportarComisionesDto("152"), Ct);
         Assert.Equal(HttpStatusCode.OK, importar.StatusCode);
-        Assert.Equal(3, (await importar.Content.ReadFromJsonAsync<ResultadoImportacionDto>(Ct))!.Cantidad);
+        var resultado = await importar.Content.ReadAsStringAsync(Ct);
+        ContratoFrontend.Verificar("comisiones-importacion.json", resultado);
+        Assert.Equal(3, JsonDocument.Parse(resultado).RootElement.GetProperty("cantidad").GetInt32());
 
-        var periodos = await cliente.GetFromJsonAsync<PeriodoImportadoDto[]>("/api/designaciones/comisiones/periodos", Ct);
-        Assert.Contains(periodos!, p => p.Id == "152");
-        var comisiones = await cliente.GetFromJsonAsync<ComisionDto[]>(
-            "/api/designaciones/comisiones?periodoLectivoId=152", Ct);
-        Assert.Equal(3, comisiones!.Length);
+        var periodos = await cliente.GetStringAsync("/api/designaciones/comisiones/periodos", Ct);
+        ContratoFrontend.Verificar("comisiones-periodos.json", periodos);
+        Assert.Contains(JsonDocument.Parse(periodos).RootElement.EnumerateArray(), p => p.GetProperty("id").GetString() == "152");
+        var comisiones = await cliente.GetStringAsync("/api/designaciones/comisiones?periodoLectivoId=152", Ct);
+        ContratoFrontend.Verificar("comisiones-listado.json", comisiones);
+        Assert.Equal(3, JsonDocument.Parse(comisiones).RootElement.GetArrayLength());
     }
 
     [Fact]

@@ -89,6 +89,14 @@
   border-color: var(--danger-500);
 }
 
+/* Apagado por configuración: punteado para no confundirlo con "desconocido" ni con una falla. */
+.sistema-estado--deshabilitado {
+  color: var(--color-status-neutral-fg);
+  background: transparent;
+  border-color: var(--color-border-default);
+  border-style: dashed;
+}
+
 .sistema-estado--desconocido {
   color: var(--color-status-neutral-fg);
   background: var(--color-status-neutral-bg);

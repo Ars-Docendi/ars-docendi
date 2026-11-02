@@ -1,6 +1,6 @@
 import { Button, Input, Table } from "@ars-docendi/ui";
-import { useState } from "react";
 import type { ReactNode } from "react";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { PeriodoDesignacion } from "../types";
 import {
@@ -9,10 +9,11 @@ import {
   formatearMesAnio,
   FILTROS_PERIODOS_INICIALES,
   siguienteOrdenPeriodos,
+  COLUMNAS_ORDEN_PERIODOS,
+  type OrdenPeriodos,
   type ColumnaOrdenPeriodos,
   type FiltroEstadoPeriodo,
   type FiltrosPeriodos,
-  type OrdenPeriodos,
 } from "./filtrosPeriodos";
 import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
@@ -31,14 +32,14 @@ interface TablaPeriodosProps {
   onEliminar: (periodo: PeriodoDesignacion) => void;
 }
 
-/** Tabla de períodos; los filtros y el orden son locales porque no hay paginación. */
+/** Tabla de períodos; filtros y orden viven en el query (no hay paginación en el servidor). */
 export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosProps) {
-  const [filtros, setFiltros] = useState<FiltrosPeriodos>(FILTROS_PERIODOS_INICIALES);
-  const [orden, setOrden] = useState<OrdenPeriodos | null>(null);
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_PERIODOS_INICIALES);
+  const [orden, setOrden] = useOrdenURL<ColumnaOrdenPeriodos>(COLUMNAS_ORDEN_PERIODOS);
   const visibles = aplicarFiltrosYOrdenPeriodos(periodos, filtros, orden);
 
   function cambiarFiltro<K extends keyof FiltrosPeriodos>(campo: K, valor: FiltrosPeriodos[K]) {
-    setFiltros((actual) => ({ ...actual, [campo]: valor }));
+    setFiltros({ ...filtros, [campo]: valor });
   }
 
   function alternarActivo(valor: FiltroEstadoPeriodo) {

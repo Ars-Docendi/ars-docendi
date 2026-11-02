@@ -27,6 +27,8 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
     public DbSet<PedidoHistorial> PedidoHistorial => Set<PedidoHistorial>();
     public DbSet<Designacion> Designaciones => Set<Designacion>();
     public DbSet<ComandoIdempotente> ComandosIdempotentes => Set<ComandoIdempotente>();
+    public DbSet<PedidoSello> PedidoSellos => Set<PedidoSello>();
+    public DbSet<PeriodoAncla> PeriodoAnclas => Set<PeriodoAncla>();
     public DbSet<ImportacionComisiones> ImportacionesComisiones => Set<ImportacionComisiones>();
     public DbSet<ComisionGuarani> ComisionesGuarani => Set<ComisionGuarani>();
 
@@ -187,6 +189,38 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
             e.Property(x => x.ResponseBody).HasColumnName("response_body").HasColumnType("jsonb");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.HasIndex(x => new { x.ActorId, x.Ruta, x.Clave }).IsUnique();
+        });
+
+        modelBuilder.Entity<PedidoSello>(e =>
+        {
+            e.ToTable("pedido_sellos", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => new { x.PeriodoId, x.Secuencia });
+            e.Property(x => x.PeriodoId).HasColumnName("periodo_id");
+            e.Property(x => x.Secuencia).HasColumnName("secuencia").ValueGeneratedNever();
+            e.Property(x => x.HistorialId).HasColumnName("historial_id");
+            e.Property(x => x.PedidoId).HasColumnName("pedido_id");
+            e.Property(x => x.HashAnterior).HasColumnName("hash_anterior");
+            e.Property(x => x.HashEstado).HasColumnName("hash_estado");
+            e.Property(x => x.Hash).HasColumnName("hash");
+            e.Property(x => x.Firma).HasColumnName("firma");
+            e.Property(x => x.VersionClave).HasColumnName("version_clave");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            // Sin navegación: la relación sólo ordena el INSERT del sello después del evento.
+            e.HasOne<PedidoHistorial>().WithMany().HasForeignKey(x => x.HistorialId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Pedido>().WithMany().HasForeignKey(x => x.PedidoId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.HistorialId).IsUnique();
+        });
+
+        modelBuilder.Entity<PeriodoAncla>(e =>
+        {
+            e.ToTable("periodo_anclas", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.PeriodoId).HasColumnName("periodo_id");
+            e.Property(x => x.Secuencia).HasColumnName("secuencia");
+            e.Property(x => x.Hash).HasColumnName("hash");
+            e.Property(x => x.Motivo).HasColumnName("motivo");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
 
         MapearComisionesGuarani(modelBuilder);

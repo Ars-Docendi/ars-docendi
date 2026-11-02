@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../../../shared/api/client";
+import contratoImportacion from "../../../test/contratos/comisiones-importacion.json";
 import {
   importarComisiones,
   listarComisiones,
@@ -40,9 +41,9 @@ describe("comisionesApi HTTP", () => {
   });
 
   it("importa enviando sólo el período lectivo elegido", async () => {
-    vi.mocked(apiClient.post).mockResolvedValue({ data: { cantidad: 3 } });
+    vi.mocked(apiClient.post).mockResolvedValue({ data: contratoImportacion });
 
-    await expect(importarComisiones("152")).resolves.toEqual({ cantidad: 3 });
+    await expect(importarComisiones("152")).resolves.toEqual(contratoImportacion);
     expect(apiClient.post).toHaveBeenCalledWith("/api/designaciones/comisiones/importaciones", {
       periodoLectivoId: "152",
     });

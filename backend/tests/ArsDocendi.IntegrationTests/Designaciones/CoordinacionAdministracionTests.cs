@@ -8,7 +8,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Fact]
     public async Task Administracion_de_identidad_y_circuito_sobre_el_propio_actor_no_invierten_locks()
@@ -76,6 +76,7 @@ public sealed partial class VigenciasPedidosTests
         pedido.Horas = 16;
         pedido.Snapshot = new SnapshotPedido("Congelado", "Anterior", 10, "Materia", 1, 2);
         await circuito.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(circuito, pedido, ct);
         await using var administrador = PostgresFixture.CrearDesignaciones(Cadena);
         var repositorio = new RepositorioDesignaciones(administrador);
         var actuales = await repositorio.ListarVigentesDePersonaAsync(pedido.PersonaId, ct);
@@ -122,6 +123,7 @@ public sealed partial class VigenciasPedidosTests
             pedido.Snapshot = new SnapshotPedido("Congelado", "Anterior", 10, "Materia", 1, 2);
             pedido.Horas = 16;
             await circuito.SaveChangesAsync(ct);
+            await SellosPrueba.SellarEtapaForzadaAsync(circuito, pedido, ct);
         }
         // Estado seguido antes de la exclusión: no debe reutilizarse tras esperar.
         var leida = await circuito.Designaciones.SingleAsync(d => d.PersonaId == pedido.PersonaId
@@ -157,6 +159,8 @@ public sealed partial class VigenciasPedidosTests
             && d.MateriaId == pedido.MateriaId && d.VigenteHasta == null, ct);
         Assert.Equal(aprobar ? 16 : 32, vigente.Horas);
         Assert.Equal(aprobar ? PedidoId : null, vigente.OrigenPedidoId);
-        Assert.Single(respuesta.Historial, h => h.Accion == (aprobar ? AccionesHistorial.Aceptar : AccionesHistorial.Enviar));
+        await using var verificacion = PostgresFixture.CrearDesignaciones(Cadena);
+        Assert.Equal(1, await verificacion.PedidoHistorial.CountAsync(h => h.PedidoId == PedidoId
+            && h.Accion == (aprobar ? AccionesHistorial.Aceptar : AccionesHistorial.Enviar), ct));
     }
 }

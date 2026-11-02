@@ -1,0 +1,509 @@
+/* ============================================================
+   Centro de ayuda — layout de dos columnas, sidebar de documentación
+   y piezas de contenido. Primitivos y tokens: @ars-docendi/ui.
+   ============================================================ */
+
+/* El layout ocupa todo el alto/ancho de `.adoc-main`, cancelando su padding. */
+.ayuda-layout {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  align-items: start;
+  margin: -24px -28px -48px;
+  min-height: calc(100% + 72px);
+  font-family: var(--font-sans);
+}
+
+/* ---------- Sidebar de documentación ---------- */
+.ayuda-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: calc(100vh / var(--ui-zoom, 1) - 56px);
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border-right: 1px solid var(--color-border-default);
+}
+.ayuda-sidebar-titulo {
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.ayuda-sidebar-titulo:hover {
+  text-decoration: underline;
+}
+.ayuda-sidebar ul,
+.ayuda-sidebar ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ayuda-sidebar-modulos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ayuda-sidebar-modulo {
+  position: relative;
+  width: 100%;
+  padding: 8px 28px 8px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+.ayuda-sidebar-modulo::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform var(--motion-fast, 0.15s) ease;
+}
+.ayuda-sidebar-modulo[aria-expanded="false"]::after {
+  transform: translateY(-50%) rotate(-45deg);
+}
+.ayuda-sidebar-modulo:hover {
+  background: var(--neutral-200);
+}
+.ayuda-sidebar-articulos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 6px 8px;
+}
+.ayuda-sidebar a,
+.ayuda-sidebar-modulo {
+  outline-offset: -2px;
+}
+.ayuda-sidebar a:focus-visible,
+.ayuda-sidebar-modulo:focus-visible,
+.ayuda-buscador-limpiar:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+}
+.ayuda-sidebar-articulos a {
+  display: block;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  border-left: 3px solid transparent;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+.ayuda-sidebar-articulos a:hover {
+  background: var(--neutral-200);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.ayuda-sidebar-articulos a.activo {
+  background: var(--accent-100);
+  border-left-color: var(--color-accent);
+  color: var(--accent-700);
+  font-weight: var(--weight-semibold);
+}
+.ayuda-sidebar-pasos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+}
+.ayuda-sidebar-pasos a {
+  display: block;
+  padding: 4px 8px 4px 20px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+  text-decoration: none;
+}
+.ayuda-sidebar-pasos a:hover {
+  background: var(--neutral-200);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.ayuda-sidebar-pasos a.activo {
+  color: var(--accent-700);
+  font-weight: var(--weight-semibold);
+}
+
+/* ---------- Buscador (combobox) ---------- */
+.ayuda-buscador {
+  position: relative;
+}
+.ayuda-buscador-campo {
+  position: relative;
+}
+.ayuda-buscador-campo input {
+  width: 100%;
+  padding-right: 32px;
+}
+.ayuda-buscador-limpiar {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 16px;
+  cursor: pointer;
+}
+.ayuda-buscador-limpiar:hover {
+  background: var(--neutral-200);
+  color: var(--color-text-primary);
+}
+.ayuda-buscador-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown);
+  overflow: hidden;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--elev-2);
+}
+.ayuda-buscador-opcion {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.ayuda-buscador-opcion:hover,
+.ayuda-buscador-opcion[aria-selected="true"] {
+  background: var(--accent-100);
+  text-decoration: none;
+}
+.ayuda-buscador-opcion .titulo {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+}
+.ayuda-buscador-opcion .modulo {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+.ayuda-buscador-vacio {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+.ayuda-buscador-todos {
+  display: block;
+  padding: 10px 12px;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-link);
+}
+
+/* ---------- Contenido ---------- */
+.ayuda-contenido {
+  min-width: 0;
+  padding: 24px 28px 48px;
+}
+.ayuda-pagina {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.ayuda-pagina .adoc-crumbs {
+  margin-bottom: var(--space-3);
+}
+.ayuda-lista {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+.ayuda-lista > li + li {
+  border-top: 1px solid var(--color-border-subtle);
+}
+.ayuda-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 14px 16px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+.ayuda-fila:hover {
+  background: var(--neutral-100);
+  text-decoration: none;
+}
+.ayuda-fila:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+.ayuda-fila-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ayuda-fila-etiqueta {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.ayuda-fila-titulo {
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-semibold);
+}
+.ayuda-fila-descripcion {
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+.ayuda-fila-chevron {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: var(--color-text-tertiary);
+}
+.ayuda-vacio {
+  padding: var(--space-6);
+  background: var(--color-bg-raised);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm-size);
+}
+.ayuda-vacio p {
+  margin: 0 0 var(--space-2);
+}
+.ayuda-seccion {
+  margin-top: var(--space-8);
+  scroll-margin-top: var(--space-6);
+}
+.ayuda-seccion h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+/* Los grupos de la página de módulo se leen como sobretítulo en mayúsculas. */
+.ayuda-seccion h2.ayuda-modulo-grupo {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-bold, 700);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.ayuda-seccion p {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-body-size);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- Artículo ---------- */
+.ayuda-articulo-cabecera {
+  scroll-margin-top: 24px;
+}
+.ayuda-introduccion {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-body-size);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+.ayuda-paso {
+  margin-top: var(--space-8);
+  scroll-margin-top: var(--space-6);
+}
+.ayuda-paso h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+}
+.ayuda-paso-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-family: var(--font-mono);
+  font-size: var(--text-body-sm-size);
+}
+.ayuda-paso > p {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-body-size);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+.ayuda-nota {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--info-500);
+  border-radius: var(--radius-xs);
+  background: var(--info-100);
+  color: var(--info-700);
+  font-size: var(--text-body-sm-size);
+}
+.ayuda-nota.importante {
+  border-left-color: var(--warning-500);
+  background: var(--warning-100);
+  color: var(--warning-700);
+}
+.ayuda-nota.consejo {
+  border-left-color: var(--success-500);
+  background: var(--success-100);
+  color: var(--success-700);
+}
+.ayuda-nota p {
+  margin: var(--space-1) 0 0;
+  line-height: 1.5;
+}
+.ayuda-vinetas {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: var(--text-body-size);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+.ayuda-vinetas li + li {
+  margin-top: var(--space-2);
+}
+.ayuda-pregunta {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.ayuda-pregunta summary {
+  padding: var(--space-3) 0;
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+.ayuda-pregunta summary:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.ayuda-pregunta p {
+  margin: 0 0 var(--space-3);
+}
+
+/* ---------- Capturas y visor ---------- */
+.ayuda-captura {
+  margin: var(--space-3) 0 0;
+}
+.ayuda-captura-miniatura {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+.ayuda-captura-miniatura:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+/* Nunca más grande que su tamaño natural: ampliar una captura chica la desenfoca. */
+.ayuda-captura-miniatura img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+.ayuda-captura figcaption {
+  margin-top: var(--space-2);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+/* El visor ocupa casi todo el viewport y la imagen se ajusta dentro sin scroll ni
+   ampliarse más allá de su tamaño natural. */
+.adoc-modal-stage:has(.ayuda-visor) {
+  padding: calc(4vh / var(--ui-zoom, 1)) calc(2.5vw / var(--ui-zoom, 1));
+}
+.adoc-modal.ayuda-visor {
+  width: calc(95vw / var(--ui-zoom, 1));
+  max-width: none;
+  height: calc(92vh / var(--ui-zoom, 1));
+  max-height: none;
+}
+.ayuda-visor .body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-3);
+  overflow: hidden;
+}
+.ayuda-visor-cuerpo {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+}
+.ayuda-visor-cuerpo img {
+  display: block;
+  flex: 0 1 auto;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+.ayuda-visor-cuerpo p {
+  flex: none;
+  margin: var(--space-2) 0 0;
+  text-align: center;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+.ayuda-visor:focus {
+  outline: none;
+}
+
+/* ---------- Pantallas angostas: la sidebar se apila sobre el contenido ---------- */
+@media (max-width: 900px) {
+  .ayuda-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ayuda-sidebar {
+    position: static;
+    height: auto;
+    max-height: 60vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-default);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ayuda-sidebar-modulo::after {
+    transition: none;
+  }
+}

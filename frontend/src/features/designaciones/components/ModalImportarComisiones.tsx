@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Button, Field, InlineAlert, Modal, Select } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Select } from "@ars-docendi/ui";
 import { mensajeProblema } from "../../../shared/api/problemDetails";
+import { Modal } from "../../../shared/ui/Modal";
 import type { ResultadoImportacion } from "../api/comisionesApi";
 import { useImportarComisiones, usePeriodosGuarani } from "../hooks/useComisiones";
 
@@ -45,6 +46,7 @@ export function ModalImportarComisiones({
       open={open}
       onOpenChange={onOpenChange}
       title="Actualizar desde Guaraní"
+      pendiente={importar.isPending}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)}>
@@ -56,7 +58,7 @@ export function ModalImportarComisiones({
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      <div className="adoc-form">
         <p style={{ margin: 0 }}>
           Se reemplazan las comisiones del período elegido con las que informa Guaraní. Los demás
           períodos no cambian.
@@ -78,7 +80,7 @@ export function ModalImportarComisiones({
           </InlineAlert>
         )}
         {anios.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "var(--space-3)" }}>
+          <div className="adoc-form-fila cols-2">
             <Field label="Año" required>
               <Select
                 aria-label="Año"

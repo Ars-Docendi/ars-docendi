@@ -237,6 +237,329 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionCarrera", b =>
+                {
+                    b.Property<string>("ComisionGuaraniId")
+                        .HasColumnType("text")
+                        .HasColumnName("comision_guarani_id");
+
+                    b.Property<string>("CarreraCodigo")
+                        .HasColumnType("text")
+                        .HasColumnName("carrera_codigo");
+
+                    b.Property<Guid?>("CarreraId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("carrera_id");
+
+                    b.Property<string>("CarreraNombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("carrera_nombre");
+
+                    b.HasKey("ComisionGuaraniId", "CarreraCodigo");
+
+                    b.ToTable("sga_comision_carreras", "comisiones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionDocente", b =>
+                {
+                    b.Property<string>("ComisionGuaraniId")
+                        .HasColumnType("text")
+                        .HasColumnName("comision_guarani_id");
+
+                    b.Property<short>("Orden")
+                        .HasColumnType("smallint")
+                        .HasColumnName("orden");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nombre");
+
+                    b.Property<Guid?>("PersonaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("persona_id");
+
+                    b.Property<string>("Responsabilidad")
+                        .HasColumnType("text")
+                        .HasColumnName("responsabilidad");
+
+                    b.HasKey("ComisionGuaraniId", "Orden");
+
+                    b.ToTable("sga_comision_docentes", "comisiones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionGuarani", b =>
+                {
+                    b.Property<string>("ComisionGuaraniId")
+                        .HasColumnType("text")
+                        .HasColumnName("comision_guarani_id");
+
+                    b.Property<int>("AnioAcademico")
+                        .HasColumnType("integer")
+                        .HasColumnName("anio_academico");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("ImportacionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("importacion_id");
+
+                    b.Property<string>("MateriaCodigo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("materia_codigo");
+
+                    b.Property<Guid?>("MateriaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("materia_id");
+
+                    b.Property<string>("MateriaNombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("materia_nombre");
+
+                    b.Property<string>("Modalidad")
+                        .HasColumnType("text")
+                        .HasColumnName("modalidad");
+
+                    b.Property<string>("ModalidadCodigo")
+                        .HasColumnType("text")
+                        .HasColumnName("modalidad_codigo");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nombre");
+
+                    b.Property<string>("PeriodoLectivoGuaraniId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("periodo_lectivo_guarani_id");
+
+                    b.Property<string>("PeriodoLectivoNombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("periodo_lectivo_nombre");
+
+                    b.Property<string>("Ubicacion")
+                        .HasColumnType("text")
+                        .HasColumnName("ubicacion");
+
+                    b.HasKey("ComisionGuaraniId");
+
+                    b.HasIndex("ImportacionId");
+
+                    b.ToTable("sga_comisiones", "comisiones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionHorario", b =>
+                {
+                    b.Property<string>("ComisionGuaraniId")
+                        .HasColumnType("text")
+                        .HasColumnName("comision_guarani_id");
+
+                    b.Property<string>("AsignacionGuaraniId")
+                        .HasColumnType("text")
+                        .HasColumnName("asignacion_guarani_id");
+
+                    b.Property<string>("Aula")
+                        .HasColumnType("text")
+                        .HasColumnName("aula");
+
+                    b.Property<TimeOnly>("Desde")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("desde");
+
+                    b.Property<short>("Dia")
+                        .HasColumnType("smallint")
+                        .HasColumnName("dia");
+
+                    b.Property<TimeOnly>("Hasta")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("hasta");
+
+                    b.HasKey("ComisionGuaraniId", "AsignacionGuaraniId");
+
+                    b.ToTable("sga_comision_horarios", "comisiones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ImportacionComisiones", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("AnioAcademico")
+                        .HasColumnType("integer")
+                        .HasColumnName("anio_academico");
+
+                    b.Property<int?>("Cantidad")
+                        .HasColumnType("integer")
+                        .HasColumnName("cantidad");
+
+                    b.Property<int?>("CarrerasSinVincular")
+                        .HasColumnType("integer")
+                        .HasColumnName("carreras_sin_vincular");
+
+                    b.Property<string>("Causa")
+                        .HasColumnType("text")
+                        .HasColumnName("causa");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("DocentesSinVincular")
+                        .HasColumnType("integer")
+                        .HasColumnName("docentes_sin_vincular");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("estado");
+
+                    b.Property<DateTimeOffset?>("FinalizadaEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("finalizada_at");
+
+                    b.Property<DateTimeOffset>("IniciadaEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("iniciada_at");
+
+                    b.Property<string>("PeriodoLectivoGuaraniId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("periodo_lectivo_guarani_id");
+
+                    b.Property<string>("PeriodoLectivoNombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("periodo_lectivo_nombre");
+
+                    b.Property<Guid?>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("sga_importaciones", "comisiones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.PedidoSello", b =>
+                {
+                    b.Property<Guid>("PeriodoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("periodo_id");
+
+                    b.Property<long>("Secuencia")
+                        .HasColumnType("bigint")
+                        .HasColumnName("secuencia");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("Firma")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("firma");
+
+                    b.Property<byte[]>("Hash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash");
+
+                    b.Property<byte[]>("HashAnterior")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash_anterior");
+
+                    b.Property<byte[]>("HashEstado")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash_estado");
+
+                    b.Property<Guid>("HistorialId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("historial_id");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pedido_id");
+
+                    b.Property<short>("VersionClave")
+                        .HasColumnType("smallint")
+                        .HasColumnName("version_clave");
+
+                    b.HasKey("PeriodoId", "Secuencia");
+
+                    b.HasIndex("HistorialId")
+                        .IsUnique();
+
+                    b.HasIndex("PedidoId");
+
+                    b.ToTable("pedido_sellos", "designaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.PeriodoAncla", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<byte[]>("Hash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("motivo");
+
+                    b.Property<Guid>("PeriodoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("periodo_id");
+
+                    b.Property<long>("Secuencia")
+                        .HasColumnType("bigint")
+                        .HasColumnName("secuencia");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("periodo_anclas", "designaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Pedido", b =>
                 {
                     b.Property<Guid>("Id")
@@ -511,6 +834,57 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Navigation("DedicacionCatalogo");
                 });
 
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionCarrera", b =>
+                {
+                    b.HasOne("Modules.Designaciones.Domain.ComisionGuarani", null)
+                        .WithMany("Carreras")
+                        .HasForeignKey("ComisionGuaraniId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionDocente", b =>
+                {
+                    b.HasOne("Modules.Designaciones.Domain.ComisionGuarani", null)
+                        .WithMany("Docentes")
+                        .HasForeignKey("ComisionGuaraniId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionGuarani", b =>
+                {
+                    b.HasOne("Modules.Designaciones.Domain.ImportacionComisiones", null)
+                        .WithMany()
+                        .HasForeignKey("ImportacionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionHorario", b =>
+                {
+                    b.HasOne("Modules.Designaciones.Domain.ComisionGuarani", null)
+                        .WithMany("Horarios")
+                        .HasForeignKey("ComisionGuaraniId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.PedidoSello", b =>
+                {
+                    b.HasOne("PedidoHistorial", null)
+                        .WithMany()
+                        .HasForeignKey("HistorialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Pedido", null)
+                        .WithMany()
+                        .HasForeignKey("PedidoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Pedido", b =>
                 {
                     b.HasOne("Cargo", "CargoSolicitado")
@@ -554,6 +928,15 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Pedido");
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComisionGuarani", b =>
+                {
+                    b.Navigation("Carreras");
+
+                    b.Navigation("Docentes");
+
+                    b.Navigation("Horarios");
                 });
 
             modelBuilder.Entity("Pedido", b =>

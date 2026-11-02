@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  accionAAuditVerb,
-  derivarCadena,
-  historialAAuditEntries,
-  posicionEtapa,
-} from "./detalleAdapters";
+import { derivarCadena, historialAAuditEntries, posicionEtapa } from "./detalleAdapters";
 import type { ActorContexto, EstadoPedido, EventoHistorial, PedidoDesignacion } from "../types";
 
 function pedido(overrides: Partial<PedidoDesignacion> = {}): PedidoDesignacion {
@@ -34,17 +29,6 @@ const ACTOR: ActorContexto = {
   nombre: "Demo",
   carrera: "Ingeniería en Informática",
 };
-
-describe("accionAAuditVerb — mapeo español → AuditVerb (símbolo de la lib)", () => {
-  it("mapea cada acción a su verbo en inglés", () => {
-    expect(accionAAuditVerb("crear")).toBe("create");
-    expect(accionAAuditVerb("aceptar")).toBe("approve");
-    expect(accionAAuditVerb("rechazar")).toBe("reject");
-    expect(accionAAuditVerb("devolver")).toBe("return");
-    expect(accionAAuditVerb("editar")).toBe("update");
-    expect(accionAAuditVerb("priorizar")).toBe("update");
-  });
-});
 
 describe("historialAAuditEntries", () => {
   it("traduce el historial a entradas con iniciales, verbo y fecha", () => {

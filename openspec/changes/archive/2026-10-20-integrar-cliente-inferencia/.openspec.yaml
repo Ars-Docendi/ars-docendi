@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-20
+goal: Configurar el backend para consumir el servicio Ollama compartido con un
+  único cliente HTTP y configuración por ambiente (prod local; staging y pr-N
+  por Cloudflare Access), entregar sus credenciales desde GitHub Environments y
+  mostrar su estado en el dashboard de sistema, sin funcionalidad de chatbot.

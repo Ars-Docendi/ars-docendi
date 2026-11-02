@@ -2,13 +2,16 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ArsDocendi.Shared.Aplicacion;
+using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Storage.Contracts;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Modules.Designaciones.Api;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
+using Modules.Notificaciones.Contracts;
 
 namespace Modules.Designaciones.Services;
 
@@ -37,7 +40,9 @@ internal sealed class ServicioPedidosApi(
     IConsultasIdentity identity,
     RepositorioIdempotencia repositorioIdempotencia,
     UnidadDeTrabajo unidadDeTrabajo,
-    IAlmacenamientoArchivos? almacenamiento = null) : IServicioPedidosApi
+    IAlmacenamientoArchivos? almacenamiento = null,
+    INotificador? notificador = null,
+    ILogger<ServicioPedidosApi>? logger = null) : IServicioPedidosApi
 {
     private static readonly JsonSerializerOptions OpcionesJson = new(JsonSerializerDefaults.Web);
 
@@ -56,7 +61,10 @@ internal sealed class ServicioPedidosApi(
             .ToLookup(h => h.PedidoId);
         foreach (var pedido in pedidos)
             foreach (var evento in resumenes[pedido.Id]) pedido.Historial.Add(evento);
-        return await MapearAsync(pedidos, ct);
+        // El resumen no trae comentarios: el motivo de devolución se lee aparte.
+        var motivos = await repositorio.ObtenerUltimosMotivosDevolucionAsync(
+            pedidos.Where(p => p.Estado == EstadosPedido.Devuelto).Select(p => p.Id).ToArray(), ct);
+        return await MapearAsync(pedidos, ct, motivos);
     }
 
     public async Task<PedidoDto> ObtenerAsync(Guid id, CancellationToken ct)
@@ -91,8 +99,36 @@ internal sealed class ServicioPedidosApi(
         AccionPedido accion,
         CancellationToken ct)
     {
-        await servicio.AplicarAccionAsync(id, accion, ct);
-        return await ObtenerAsync(id, ct);
+        var (respuesta, aplicado) = await AplicarSinAvisoAsync(id, accion, ct);
+        await AvisarAsync(accion, aplicado);
+        return respuesta;
+    }
+
+    private async Task<(PedidoDto Respuesta, Pedido Aplicado)> AplicarSinAvisoAsync(
+        Guid id, AccionPedido accion, CancellationToken ct)
+    {
+        var aplicado = await servicio.AplicarAccionAsync(id, accion, ct);
+        return (await ObtenerAsync(id, ct), aplicado);
+    }
+
+    /// <summary>
+    /// Notifies who must act next. It runs only once the OUTERMOST transaction committed (the
+    /// idempotent path wraps the transition in one), and any failure is swallowed.
+    /// </summary>
+    private async Task AvisarAsync(AccionPedido accion, Pedido aplicado)
+    {
+        if (notificador is null || accion is not (AccionPedido.Aceptar or AccionPedido.Rechazar or AccionPedido.Devolver))
+            return;
+
+        var logueador = (ILogger?)logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        await EmisionPosterior.IntentarAsync(logueador, "aviso de pedido", async () =>
+        {
+            var docente = await identity.ObtenerPersonaAsync(aplicado.PersonaId, CancellationToken.None);
+            var materias = await identity.ListarMateriasAsync(CancellationToken.None);
+            var materia = materias.FirstOrDefault(m => m.Id == aplicado.MateriaId)?.Nombre ?? "(materia no encontrada)";
+            if (AvisosPedido.Construir(accion, aplicado, docente, materia) is { } aviso)
+                await notificador.NotificarAsync(aviso.Contenido, [aviso.Destino], CancellationToken.None);
+        });
     }
 
     public async Task<PedidoDto> AplicarAccionIdempotenteAsync(
@@ -107,6 +143,7 @@ internal sealed class ServicioPedidosApi(
         var huella = Convert.ToHexString(SHA256.HashData(
             Encoding.UTF8.GetBytes($"{id:N}|{ruta}|{contenidoSolicitud}")));
         PedidoDto? respuesta = null;
+        Pedido? aplicado = null;
 
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
@@ -123,13 +160,12 @@ internal sealed class ServicioPedidosApi(
                         "La clave de idempotencia ya fue usada con otra solicitud.");
                 }
 
-                respuesta = JsonSerializer.Deserialize<PedidoDto>(anterior.ResponseBody, OpcionesJson)
-                    ?? throw new InvalidOperationException(
-                        "La respuesta idempotente almacenada no pudo deserializarse.");
+                // No repite la transición, pero revalida ámbito y vista con los permisos vigentes.
+                respuesta = await ObtenerAsync(id, token);
                 return;
             }
 
-            respuesta = await AplicarAccionAsync(id, accion, token);
+            (respuesta, aplicado) = await AplicarSinAvisoAsync(id, accion, token);
             repositorioIdempotencia.Agregar(new ComandoIdempotente
             {
                 Id = Guid.NewGuid(),
@@ -144,6 +180,9 @@ internal sealed class ServicioPedidosApi(
             });
             await repositorioIdempotencia.GuardarAsync(token);
         }, ct);
+
+        // A replayed response (stored under the idempotency key) applied nothing: no notice.
+        if (aplicado is not null) await AvisarAsync(accion, aplicado);
 
         return respuesta ?? throw new InvalidOperationException(
             "El comando idempotente terminó sin producir una respuesta.");
@@ -168,7 +207,8 @@ internal sealed class ServicioPedidosApi(
 
     private async Task<IReadOnlyList<PedidoDto>> MapearAsync(
         IReadOnlyList<Pedido> pedidos,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyDictionary<Guid, string?>? motivosDevolucion = null)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
         var personas = (await identity.ObtenerPersonasAsync(pedidos.Select(p => p.PersonaId).Distinct().ToArray(), ct))
@@ -181,6 +221,8 @@ internal sealed class ServicioPedidosApi(
         var idsActores = pedidos.SelectMany(p => p.Historial).Where(h => h.ActorId != null)
             .Select(h => h.ActorId!.Value).Distinct().ToArray();
         var usuarios = (await identity.ObtenerUsuariosAsync(idsActores, ct)).ToDictionary(u => u.Id);
+        var conSeguimiento = (await identity.ObtenerCodigosDePermisosAsync(actor.UsuarioId, ct))
+            .Contains(Permisos.DesignacionesVerSeguimiento);
         var resultado = new List<PedidoDto>();
         foreach (var pedido in pedidos)
         {
@@ -190,6 +232,12 @@ internal sealed class ServicioPedidosApi(
                 continue;
             }
             var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
+            var motivo = motivosDevolucion is null
+                ? VistaPedido.UltimoMotivo(pedido)
+                : motivosDevolucion.GetValueOrDefault(pedido.Id);
+            var vista = conSeguimiento
+                ? VistaPedido.Completa(pedido, motivo)
+                : VistaPedido.Simplificada(pedido, actor, motivo);
             resultado.Add(new PedidoDto(
                 pedido.Id,
                 pedido.Numero,
@@ -202,7 +250,7 @@ internal sealed class ServicioPedidosApi(
                     materia.Id, materia.Codigo, materia.Nombre, pedido.CarreraId,
                     carrerasPorMateria.GetValueOrDefault((pedido.MateriaId, pedido.CarreraId), string.Empty)),
                 pedido.Novedad,
-                pedido.Estado,
+                vista.Estado,
                 pedido.Prioritario,
                 pedido.CargoSolicitado is null ? null : new OpcionPedidoDto(
                     pedido.CargoSolicitado.Id,
@@ -215,14 +263,14 @@ internal sealed class ServicioPedidosApi(
                 pedido.Justificacion,
                 pedido.TipoBaja,
                 pedido.TipoBajaDetalle,
-                pedido.EtapaRetorno,
-                pedido.PropietarioActual,
+                vista.EtapaRetorno,
+                vista.PropietarioActual,
                 pedido.Snapshot,
                 pedido.Version,
                 pedido.Adjuntos.Select(a => new AdjuntoPedidoDto(
                     a.Id, a.Tipo, a.Nombre, a.ArchivoId,
                     a.ArchivoId is null ? "legacy" : "disponible")).ToArray(),
-                pedido.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id).Select(h => new HistorialPedidoDto(
+                vista.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id).Select(h => new HistorialPedidoDto(
                     h.Id,
                     h.Accion,
                     h.RolId,
@@ -235,7 +283,11 @@ internal sealed class ServicioPedidosApi(
                     h.Comentario,
                     h.CreadoEn)).ToArray(),
                 AccionesPermitidas(pedido, alcance, actor),
-                pedido.DedicacionSolicitadaId));
+                pedido.DedicacionSolicitadaId,
+                vista.MotivoDevolucion,
+                // Primer envío: lo ve también quien no tiene seguimiento (su propia acción).
+                pedido.Historial.Where(h => h.Accion == AccionesHistorial.Enviar)
+                    .OrderBy(h => h.CreadoEn).FirstOrDefault()?.CreadoEn));
         }
         return resultado;
     }

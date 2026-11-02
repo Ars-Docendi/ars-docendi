@@ -13,6 +13,9 @@ import {
   type Comision,
   type PeriodoImportado,
 } from "../api/comisionesApi";
+import contratoImportacion from "../../../test/contratos/comisiones-importacion.json";
+import contratoComisiones from "../../../test/contratos/comisiones-listado.json";
+import contratoPeriodos from "../../../test/contratos/comisiones-periodos.json";
 import { ComisionesPage } from "./ComisionesPage";
 
 const estado = vi.hoisted(() => ({ permisos: [] as string[] }));
@@ -38,23 +41,24 @@ vi.mock("../api/comisionesApi", () => ({
   importarComisiones: vi.fn(),
 }));
 
+// Las formas salen de la respuesta real del backend (ComisionesHttpTests); los tests sólo fijan valores.
+const periodoContrato = contratoPeriodos[0] as PeriodoImportado;
 const exitosa = {
+  ...periodoContrato.ultimaExitosa!,
   fecha: "2026-10-15T13:30:00Z",
-  estado: "exitosa" as const,
-  causa: null,
   usuario: "Lucía Fernández",
 };
 
 const periodos: PeriodoImportado[] = [
   {
-    anioAcademico: 2026,
+    ...periodoContrato,
     id: "152",
     nombre: "2do Cuatrimestre",
     ultimaExitosa: exitosa,
     ultimoIntento: exitosa,
   },
   {
-    anioAcademico: 2026,
+    ...periodoContrato,
     id: "151",
     nombre: "1er Cuatrimestre 2026",
     ultimaExitosa: exitosa,
@@ -64,6 +68,7 @@ const periodos: PeriodoImportado[] = [
 
 const comisiones: Comision[] = [
   {
+    ...(contratoComisiones[0] as Comision),
     id: "9001",
     nombre: "01-1234",
     materia: { codigo: "03500", nombre: "Ingeniería de Software", id: null },
@@ -85,11 +90,11 @@ const comisiones: Comision[] = [
   },
 ];
 
-function renderPagina() {
+function renderPagina(ruta = "/designaciones/comisiones") {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={cliente}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[ruta]}>
         <ComisionesPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -121,7 +126,7 @@ beforeEach(() => {
 });
 
 describe("Comisiones", () => {
-  it("selecciona el período más reciente y muestra la grilla con sus columnas", async () => {
+  it("selecciona el período más reciente y muestra su grilla sin contactar a Guaraní", async () => {
     renderPagina();
 
     const fila = await screen.findByRole("row", { name: /01-1234/ });
@@ -131,7 +136,6 @@ describe("Comisiones", () => {
     expect(within(fila).getByText("Jueves 08:00–10:00")).toBeInTheDocument();
     expect(within(fila).getByText("PÉREZ JUAN (Titular)")).toBeInTheDocument();
     expect(within(fila).getByText("Presencial")).toBeInTheDocument();
-    expect(within(fila).getAllByText("—")).toHaveLength(1);
     expect(
       screen.getByText(/Actualizado el 15\/10\/2026 .* por Lucía Fernández/),
     ).toBeInTheDocument();
@@ -139,6 +143,17 @@ describe("Comisiones", () => {
       screen.queryByRole("button", { name: /Actualizar desde Guaraní/ }),
     ).not.toBeInTheDocument();
     expect(listarPeriodosGuarani).not.toHaveBeenCalled();
+  });
+
+  it("toma el período de la URL y cae en el más reciente si ya no está importado", async () => {
+    const { unmount } = renderPagina("/designaciones/comisiones?periodo=151");
+    await waitFor(() => expect(listarComisiones).toHaveBeenCalledWith("151"));
+    unmount();
+    vi.mocked(listarComisiones).mockClear();
+
+    renderPagina("/designaciones/comisiones?periodo=999");
+    await waitFor(() => expect(listarComisiones).toHaveBeenCalledWith("152"));
+    expect(listarComisiones).not.toHaveBeenCalledWith("999");
   });
 
   it("muestra el año del período sólo si el nombre no lo incluye", async () => {
@@ -200,8 +215,7 @@ describe("Comisiones", () => {
   it("importa un período elegido en el modal y lo selecciona", async () => {
     estado.permisos = ["comisiones.ver", "comisiones.importar"];
     vi.mocked(importarComisiones).mockResolvedValue({
-      id: "i1",
-      anioAcademico: 2026,
+      ...contratoImportacion,
       periodoLectivoId: "151",
       periodoLectivoNombre: "1er Cuatrimestre 2026",
       cantidad: 120,

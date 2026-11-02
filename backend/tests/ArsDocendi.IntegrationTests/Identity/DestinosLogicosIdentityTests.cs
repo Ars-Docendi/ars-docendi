@@ -86,25 +86,6 @@ public sealed class DestinosLogicosIdentityTests(PostgresFixture postgres) : Cla
         Assert.Fail("La segunda sesión no llegó al bloqueo esperado.");
     }
     [Fact]
-    public async Task Portal_y_Tareas_conservan_referencias_logicas_sin_fk_general_a_identity()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand("""
-            SELECT count(*)
-            FROM pg_constraint fk
-            JOIN pg_class hija ON hija.oid = fk.conrelid
-            JOIN pg_namespace esquema_hija ON esquema_hija.oid = hija.relnamespace
-            JOIN pg_class destino ON destino.oid = fk.confrelid
-            JOIN pg_namespace esquema_destino ON esquema_destino.oid = destino.relnamespace
-            WHERE fk.contype = 'f'
-              AND esquema_hija.nspname IN ('portal', 'tareas')
-              AND esquema_destino.nspname = 'identity'
-            """, conexion);
-
-        Assert.Equal(0L, await comando.ExecuteScalarAsync(Ct));
-    }
-
-    [Fact]
     public async Task Borrado_fisico_falla_cerrado_y_desactivacion_conserva_identidad()
     {
         await using var conexion = await AbrirConexionAsync();

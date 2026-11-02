@@ -43,11 +43,7 @@ Linkear a `docs/business-rules/<modulo>.md`.
 
 - **Hacia adentro**: qué necesita de otros módulos (vía Contracts).
 - **Hacia afuera**: quién consume este módulo (vía sus Contracts).
-- **Externas**: servicios externos (Azure AD, API Guaraní, etc.).
-
-## Specs activas
-
-Listar specs en `openspec/specs/` que tocan este módulo. (Autogenerable a futuro.)
+- **Externas**: servicios externos que el módulo consume directamente.
 
 ## Decisiones registradas
 

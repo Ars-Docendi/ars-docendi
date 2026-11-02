@@ -4,7 +4,7 @@ using Modules.Designaciones.Domain;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class ConcurrenciaVigenciasTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Fact]
     public async Task Version_vigencia_obsoleta_no_pisa_horas_y_origen_confirmados()

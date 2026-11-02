@@ -15,9 +15,11 @@ backend/**/bin
 backend/**/obj
 backend/**/TestResults
 
+# Contratos de API generados por los tests de backend (ACTUALIZAR_CONTRATOS=1)
+frontend/src/test/contratos
+
 # Lock files (manejados por sus tools)
 pnpm-lock.yaml
-package-lock.json
 yarn.lock
 
 # Husky internal

@@ -24,7 +24,7 @@ Review estructurado de un Pull Request. Output: inline comments en GitHub + un s
 2. **Regressions** — ¿Rompe funcionalidad existente? ¿Tests existentes cubren el área?
 3. **Security** — ¿Autorización por rol? ¿Sin secrets? ¿Validación de inputs?
 4. **Error handling** — ¿Maneja errores razonables? ¿Mensajes accionables vs stacktrace al usuario?
-5. **Tests** — ¿Tiene tests significativos? ¿Cubre BR-\* aplicables? ¿Red-green si es bug?
+5. **Tests** — ¿Tiene tests significativos? ¿Cubre BR-\* aplicables? ¿Red-green si es bug? ¿Algún test nuevo duplica otro existente o cae en un "no se agregan" de [golden-principles → Tests](../../../docs/quality/golden-principles.md#tests) (cuenta, verifica forma, es cosmético, mide rendimiento)? Si los hay, pedir que se quiten.
 6. **Maintainability** — ¿Respeta golden-principles? ¿No introduce god classes? ¿Cumple layer rules?
 7. **Documentación** — ¿Spec/plan/BR-\* / dependency-graph actualizados si corresponde?
 

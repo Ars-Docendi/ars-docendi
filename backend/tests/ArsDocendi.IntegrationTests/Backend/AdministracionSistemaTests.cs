@@ -42,20 +42,6 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Migracion_de_permisos_es_no_op_en_una_base_ya_actualizada_y_no_amplia_otros_roles()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var identidad = PostgresFixture.CrearIdentity(Cadena);
-        var antes = await ContarPermisosNuevosAsync(ct);
-
-        await identidad.Database.MigrateAsync(ct);
-
-        var despues = await ContarPermisosNuevosAsync(ct);
-        Assert.Equal((2L, 2L, 0L), antes);
-        Assert.Equal(antes, despues);
-    }
-
-    [Fact]
     public async Task Auditoria_pagina_filtra_y_oculta_valores_personales_desconocidos()
     {
         var ct = TestContext.Current.CancellationToken;

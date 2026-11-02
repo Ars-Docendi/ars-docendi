@@ -51,8 +51,15 @@ export interface CatalogosDesignaciones {
   novedades: string[];
 }
 
-export async function obtenerCatalogosDesignaciones(): Promise<CatalogosDesignaciones> {
-  const dto = (await apiClient.get<CatalogosDesignacionesDto>("/api/designaciones/catalogos")).data;
+/** Con `pedidoId` (edición), la persona de ese pedido sigue en el catálogo aunque su pedido ocupe el cupo. */
+export async function obtenerCatalogosDesignaciones(
+  pedidoId?: string,
+): Promise<CatalogosDesignaciones> {
+  const dto = (
+    await apiClient.get<CatalogosDesignacionesDto>("/api/designaciones/catalogos", {
+      params: pedidoId ? { pedidoId } : undefined,
+    })
+  ).data;
   return {
     ...dto,
     materias: dto.materias.map((m) => ({

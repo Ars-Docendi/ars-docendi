@@ -7,7 +7,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class VigenciasPedidosCasosTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Fact]
     public async Task Cambio_con_inicio_futuro_se_rechaza_sin_eventos_parciales()
@@ -20,6 +20,7 @@ public sealed partial class VigenciasPedidosTests
         vigente.VigenteDesde = new DateOnly(2026, 10, 14);
         pedido.Estado = EstadosPedido.EnRevisionDecanato;
         await db.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         db.ChangeTracker.Clear();
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
         var error = await Assert.ThrowsAsync<ErrorDominioPedido>(() => CrearApi(Decanato, identity, db)
@@ -43,6 +44,7 @@ public sealed partial class VigenciasPedidosTests
         vigente.VigenteDesde = new DateOnly(2026, 10, intradia ? 13 : 12);
         pedido.Estado = EstadosPedido.EnRevisionDecanato;
         await db.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         var horas = vigente.Horas;
         var inicio = vigente.VigenteDesde;
         await using var conexion = await AbrirConexionAsync();

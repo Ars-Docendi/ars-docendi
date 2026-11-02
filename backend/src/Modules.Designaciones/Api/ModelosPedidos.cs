@@ -80,7 +80,9 @@ public sealed record PedidoDto(
     IReadOnlyList<AdjuntoPedidoDto> Adjuntos,
     IReadOnlyList<HistorialPedidoDto> Historial,
     IReadOnlyList<string> AccionesPermitidas,
-    Guid? DedicacionSolicitadaId = null);
+    Guid? DedicacionSolicitadaId = null,
+    string? MotivoDevolucion = null,
+    DateTimeOffset? EnviadoEn = null);
 
 /// <param name="CarreraId">
 /// Carrera elegida para el pedido. Una materia dictada en más de una carrera exige elegir una

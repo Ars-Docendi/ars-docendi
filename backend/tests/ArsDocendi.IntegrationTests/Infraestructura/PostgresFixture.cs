@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using ArsDocendi.Storage.Infrastructure;
+using Modules.Aulas.Infrastructure;
 using Modules.Designaciones.Infrastructure;
+using Modules.Notificaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
 using Modules.Tareas.Infrastructure;
 using Npgsql;
@@ -25,21 +27,60 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public ValueTask DisposeAsync() => new(_contenedor.DisposeAsync().AsTask());
 
+    private const string Plantilla = "plantilla_migrada";
+    // Migrar una vez y clonar evita repetir todas las migraciones en cada test.
+    // PostgreSQL rechaza clonar una plantilla mientras otra copia la está leyendo: se serializa.
+    private readonly SemaphoreSlim _clonado = new(1, 1);
+    private readonly Lock _creacionPlantilla = new();
+    private Task? _plantilla;
+
     public async Task<string> CrearBaseMigradaAsync(string prefijo, string? migracionDesignaciones = null)
     {
-        var nombre = $"{prefijo}_{Guid.NewGuid():N}";
-        await using (var conexion = new NpgsqlConnection(_contenedor.GetConnectionString()))
+        if (migracionDesignaciones is not null)
         {
-            await conexion.OpenAsync();
-            await using var comando = new NpgsqlCommand($"CREATE DATABASE \"{nombre}\"", conexion);
-            await comando.ExecuteNonQueryAsync();
+            return await CrearYMigrarAsync($"{prefijo}_{Guid.NewGuid():N}", migracionDesignaciones);
         }
 
-        var cadena = new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
+        lock (_creacionPlantilla)
+        {
+            _plantilla ??= CrearYMigrarAsync(Plantilla, null);
+        }
+
+        await _plantilla;
+        var nombre = $"{prefijo}_{Guid.NewGuid():N}";
+        await _clonado.WaitAsync();
+        try
+        {
+            await EjecutarEnServidorAsync($"CREATE DATABASE \"{nombre}\" TEMPLATE \"{Plantilla}\"");
+        }
+        finally
+        {
+            _clonado.Release();
+        }
+
+        return Cadena(nombre);
+    }
+
+    private async Task EjecutarEnServidorAsync(string sql)
+    {
+        await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
+        await conexion.OpenAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion);
+        await comando.ExecuteNonQueryAsync();
+    }
+
+    private string Cadena(string nombre) =>
+        new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
         {
             Database = nombre,
             Pooling = false,
         }.ConnectionString;
+
+    private async Task<string> CrearYMigrarAsync(string nombre, string? migracionDesignaciones)
+    {
+        await EjecutarEnServidorAsync($"CREATE DATABASE \"{nombre}\"");
+
+        var cadena = Cadena(nombre);
 
         await using (var identity = CrearIdentity(cadena))
         {
@@ -64,6 +105,16 @@ public sealed class PostgresFixture : IAsyncLifetime
         await using (var designaciones = CrearDesignaciones(cadena))
         {
             await designaciones.GetService<IMigrator>().MigrateAsync(migracionDesignaciones);
+        }
+
+        await using (var aulas = CrearAulas(cadena))
+        {
+            await aulas.Database.MigrateAsync();
+        }
+
+        await using (var notificaciones = CrearNotificaciones(cadena))
+        {
+            await notificaciones.Database.MigrateAsync();
         }
 
         return cadena;
@@ -117,6 +168,24 @@ public sealed class PostgresFixture : IAsyncLifetime
         return new PortalDbContext(opciones);
     }
 
+    public static NotificacionesDbContext CrearNotificaciones(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<NotificacionesDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", NotificacionesDbContext.Schema))
+            .Options;
+        return new NotificacionesDbContext(opciones);
+    }
+
+    public static AulasDbContext CrearAulas(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<AulasDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AulasDbContext.Schema))
+            .Options;
+        return new AulasDbContext(opciones);
+    }
+
     public static AlmacenamientoDbContext CrearAlmacenamiento(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<AlmacenamientoDbContext>()
@@ -150,5 +219,23 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
         var conexion = new NpgsqlConnection(Cadena);
         await conexion.OpenAsync();
         return conexion;
+    }
+
+    /// <summary>
+    /// Asignación vigente de un rol en una materia: la sesión opera con una sola, así
+    /// que quien tiene el rol en varias materias elige con cuál probar.
+    /// </summary>
+    protected async Task<Guid> AsignacionEnMateriaAsync(Guid usuario, string rol, Guid materia)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand("""
+            SELECT ur.id FROM identity.user_roles ur JOIN identity.roles r ON r.id = ur.role_id
+            WHERE ur.user_id = @usuario AND ur.materia_id = @materia AND r.code = @rol
+              AND ur.deleted_at IS NULL
+            """, conexion);
+        comando.Parameters.AddWithValue("usuario", usuario);
+        comando.Parameters.AddWithValue("materia", materia);
+        comando.Parameters.AddWithValue("rol", rol);
+        return (Guid)(await comando.ExecuteScalarAsync())!;
     }
 }

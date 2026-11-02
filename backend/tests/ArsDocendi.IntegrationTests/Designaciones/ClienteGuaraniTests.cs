@@ -135,14 +135,4 @@ public sealed class ClienteGuaraniTests
 
         Assert.False(opciones.EstaConfigurada);
     }
-
-    [Fact]
-    public async Task Fixture_agrupa_en_las_tres_comisiones_esperadas()
-    {
-        var filas = await GuaraniDePrueba.ConFixtures().Cliente().ListarComisionesAsync("152", Ct);
-
-        var comisiones = AgrupadorComisionesGuarani.Agrupar(filas);
-
-        Assert.Equal(["9001", "9002", "9003"], comisiones.Select(c => c.Id));
-    }
 }

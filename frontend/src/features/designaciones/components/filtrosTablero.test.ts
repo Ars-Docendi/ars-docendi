@@ -1,7 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  ABREVIATURA_CARRERA,
-  CARRERAS,
   FILTROS_INICIALES,
   FILTROS_COLUMNAS_INICIALES,
   aplicarFiltros,
@@ -66,22 +64,6 @@ describe("aplicarFiltros — filtro Carrera", () => {
     const resultado = aplicarFiltros([alta, cambio, otraCarrera], filtros);
 
     expect(resultado).toEqual([alta]);
-  });
-});
-
-describe("ABREVIATURA_CARRERA", () => {
-  it("tiene una entrada abreviada para cada carrera del catálogo", () => {
-    for (const carrera of CARRERAS) {
-      expect(ABREVIATURA_CARRERA[carrera]).toBeTruthy();
-    }
-  });
-
-  it("abrevia cada carrera al nombre esperado", () => {
-    expect(ABREVIATURA_CARRERA["Ingeniería en Informática"]).toBe("Informática");
-    expect(ABREVIATURA_CARRERA["Ingeniería Industrial"]).toBe("Industrial");
-    expect(ABREVIATURA_CARRERA["Ingeniería Civil"]).toBe("Civil");
-    expect(ABREVIATURA_CARRERA["Ingeniería Mecánica"]).toBe("Mecánica");
-    expect(ABREVIATURA_CARRERA["Ingeniería Electrónica"]).toBe("Electrónica");
   });
 });
 

@@ -12,6 +12,8 @@ const KIND_POR_ESTADO: Record<EstadoPedido, StatusKind> = {
   en_lote: "aprobado",
   rechazado: "rechazado",
   cancelado: "cancelado",
+  en_proceso: "revision",
+  aprobado: "aprobado",
 };
 
 const ETIQUETA_POR_ESTADO: Record<EstadoPedido, string> = {
@@ -23,6 +25,8 @@ const ETIQUETA_POR_ESTADO: Record<EstadoPedido, string> = {
   en_lote: "En lote",
   rechazado: "Rechazado",
   cancelado: "Cancelado",
+  en_proceso: "En proceso",
+  aprobado: "Aprobado",
 };
 
 interface EstadoPedidoBadgeProps {
