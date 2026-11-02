@@ -31,7 +31,8 @@ ningún catálogo propio en Aulas ni referencia cross-module contemplada para es
 - Dar de alta el permiso `aulas.solicitar` (código + SQL) y completar en código los tres permisos de
   Aulas que ya existían solo como dato (`aulas.ver`, `aulas.gestionar`, `aulas.aprobar`), habilitando
   policies reales.
-- Exponer el ciclo completo por API: crear, listar propias, listar todas, cancelar, asignar aula.
+- Exponer el ciclo completo por API: crear, listar propias, listar todas, cancelar, asignar aula y
+  rechazar con motivo.
 - Construir la pantalla `/aulas` con las dos vistas (Docente / Administrativo) sobre una tabla
   ordenable/filtrable reutilizando los componentes compartidos ya usados en Designaciones.
 
@@ -67,14 +68,16 @@ autoridad" ya aplicado a Pedidos de Designación.
 
 **Alternativa considerada**: modelar el estado como tabla de eventos/historial (como
 `pedidos-designacion`, que sí tiene un circuito multi-etapa con devoluciones). Rechazada: acá el
-circuito es de dos pasos sin retorno (`pendiente` → `aprobada` o `pendiente` → `cancelada`, ambos
-terminales), no amerita la complejidad de un historial de eventos.
+circuito es de dos pasos sin retorno (`pendiente` → `aprobada`, `rechazada` o `cancelada`, sin
+volver a `pendiente`), no amerita la complejidad de un historial de eventos.
 
 ### 2. Estado sin campo de eventos separado
 
 `estado` es una columna simple, no una máquina de estados con historial (a diferencia de
 `MaquinaEstadosPedido`). Transiciones válidas: `pendiente → aprobada` (solo Administrativo, vía asignar
-aula) y `pendiente → cancelada` (solo el Docente dueño, y solo si sigue `pendiente`). Una solicitud
+aula), `pendiente → rechazada` (solo Administrativo, con motivo — ver decisión 9) y
+`pendiente → cancelada` (solo el Docente dueño, y solo si sigue `pendiente`). `rechazada` y `cancelada`
+son terminales. Una solicitud
 `aprobada` no se puede cancelar desde esta pantalla (fuera de alcance: si se necesita, es una iteración
 futura de "reprogramar/liberar aula"). Sí se puede **actualizar el aula asignada** de una solicitud ya
 `aprobada` (mismo endpoint que asignar, sin transición de estado — ver decisión 8): es una corrección de
@@ -138,6 +141,7 @@ Se agregan a `ArsDocendi.Shared/Auth/Permisos.cs` (y a `Todos`): `AulasVer` (`au
 | `POST /api/aulas/solicitudes/{id}/cancelar` | `AulasSolicitar` | Docente, dueño de la fila    |
 | `GET /api/aulas/solicitudes`                | `AulasAprobar`   | Administrativo (todas)       |
 | `POST /api/aulas/solicitudes/{id}/asignar`  | `AulasAprobar`   | Administrativo (asigna aula) |
+| `POST /api/aulas/solicitudes/{id}/rechazar` | `AulasAprobar`   | Administrativo (rechaza)     |
 
 `aulas.gestionar` queda declarado en código (cierra la deuda de `Permisos.cs`) pero sin un endpoint
 propio en esta ronda — ya está asignado a `administrativo`/`secretaria` en la matriz SQL para uso

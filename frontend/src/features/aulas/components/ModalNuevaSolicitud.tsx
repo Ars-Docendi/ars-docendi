@@ -58,7 +58,6 @@ export function ModalNuevaSolicitud({
 }: ModalNuevaSolicitudProps) {
   const materias = useMateriasPropias();
   const [formulario, setFormulario] = useState<DatosNuevaSolicitud>(FORMULARIO_VACIO);
-  const [errores, setErrores] = useState<Errores>({});
   const [mostrarErrores, setMostrarErrores] = useState(false);
   const [openAnterior, setOpenAnterior] = useState(open);
 
@@ -67,7 +66,6 @@ export function ModalNuevaSolicitud({
     setOpenAnterior(open);
     if (open) {
       setFormulario(FORMULARIO_VACIO);
-      setErrores({});
       setMostrarErrores(false);
     }
   }
@@ -79,11 +77,12 @@ export function ModalNuevaSolicitud({
     setFormulario((prev) => ({ ...prev, [campo]: valor }));
   }
 
+  // Derivados del formulario: se actualizan mientras el usuario corrige los campos.
+  const errores: Errores = mostrarErrores ? validar(formulario) : {};
+
   function handleGuardar() {
-    const erroresActuales = validar(formulario);
-    setErrores(erroresActuales);
     setMostrarErrores(true);
-    if (Object.keys(erroresActuales).length > 0) return;
+    if (Object.keys(validar(formulario)).length > 0) return;
     onGuardar(formulario);
   }
 
@@ -130,7 +129,7 @@ export function ModalNuevaSolicitud({
           </InlineAlert>
         )}
 
-        <Field label="Día" required error={mostrarErrores ? errores.dia : undefined}>
+        <Field label="Día" required error={errores.dia}>
           <DatePicker value={formulario.dia} onChange={(e) => actualizar("dia", e.target.value)} />
         </Field>
 
@@ -143,11 +142,7 @@ export function ModalNuevaSolicitud({
             />
           </Field>
 
-          <Field
-            label="Horario hasta"
-            required
-            error={mostrarErrores ? errores.horarioHasta : undefined}
-          >
+          <Field label="Horario hasta" required error={errores.horarioHasta}>
             <Input
               type="time"
               value={formulario.horarioHasta}
@@ -156,11 +151,7 @@ export function ModalNuevaSolicitud({
           </Field>
         </div>
 
-        <Field
-          label="Cantidad aproximada de alumnos"
-          required
-          error={mostrarErrores ? errores.cantidadAlumnosAprox : undefined}
-        >
+        <Field label="Cantidad aproximada de alumnos" required error={errores.cantidadAlumnosAprox}>
           <Input
             type="number"
             min={1}
@@ -169,7 +160,7 @@ export function ModalNuevaSolicitud({
           />
         </Field>
 
-        <Field label="Materia" required error={mostrarErrores ? errores.materiaId : undefined}>
+        <Field label="Materia" required error={errores.materiaId}>
           <Select
             value={formulario.materiaId}
             disabled={materias.isLoading || sinMaterias}
@@ -186,7 +177,7 @@ export function ModalNuevaSolicitud({
           </Select>
         </Field>
 
-        <Field label="Comisión" required error={mostrarErrores ? errores.comision : undefined}>
+        <Field label="Comisión" required error={errores.comision}>
           <Input
             value={formulario.comision}
             placeholder="Ej: K3001"
