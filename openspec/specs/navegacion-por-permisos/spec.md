@@ -24,7 +24,7 @@ El frontend SHALL construir la sesión a partir del rol activo y sus permisos ef
 
 ### Requirement: Navegación derivada de permisos
 
-La sidebar SHALL calcular sus grupos y enlaces desde los permisos efectivos de la sesión mediante un registro de rutas propiedad del código. MUST ocultar los enlaces sin permiso, no mostrar grupos vacíos y conservar una etiqueta accesible para cada enlace. La selección de rutas NO SHALL depender del nombre ni del tipo institucional del rol.
+La sidebar SHALL calcular sus grupos y enlaces desde los permisos efectivos de la sesión mediante un registro de rutas propiedad del código. MUST ocultar los enlaces sin permiso, no mostrar grupos vacíos y conservar una etiqueta accesible para cada enlace. La selección de rutas NO SHALL depender del nombre ni del tipo institucional del rol. El pie fijo de la sidebar SHALL incluir además el ítem "Centro de ayuda", que no pertenece al registro filtrado por permisos y se muestra a todo usuario autenticado (ver `centro-de-ayuda`).
 
 #### Scenario: Permiso habilita una pantalla
 
@@ -43,6 +43,19 @@ La sidebar SHALL calcular sus grupos y enlaces desde los permisos efectivos de l
 - **GIVEN** un rol personalizado con `designaciones.revisar`
 - **WHEN** se renderiza la sidebar
 - **THEN** aparece Revisión aunque el nombre del rol no sea institucional
+
+#### Scenario: Reserva de aulas sólo para quien puede entrar
+
+- **GIVEN** una sesión con `aulas.ver` pero sin `aulas.solicitar` ni `aulas.aprobar`
+- **WHEN** se renderiza la sidebar
+- **THEN** no aparece "Reserva de aulas", y con cualquiera de esos dos permisos sí aparece
+
+#### Scenario: El Centro de ayuda no depende de permisos
+
+- **GIVEN** una sesión sin ningún permiso de navegación
+- **WHEN** se renderiza la sidebar
+- **THEN** no aparece ningún grupo de navegación
+- **AND** aparece el ítem "Centro de ayuda" en el pie
 
 ### Requirement: Guardas de ruta por permiso
 

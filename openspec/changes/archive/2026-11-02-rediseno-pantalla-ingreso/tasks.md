@@ -19,9 +19,9 @@
 
 - [x] 3.1 Crear `frontend/src/shared/legal/TerminosPage.tsx` con las secciones de `specs/pantalla-ingreso/spec.md` y registrar la ruta pública `/terminos` en `router.tsx`; verificar en el navegador que se lee sin sesión
 - [x] 3.2 Reemplazar la nota de condiciones del login por un pie con enlace a `/terminos`; verificar que el enlace navega a la página
-- [ ] 3.3 Hacer revisar el texto por el área legal de la UNLaM y completar domicilio, inscripción registral y plazos de conservación; verificar la leyenda de la AAIP contra el texto vigente
+- [x] 3.3 Hacer revisar el texto por el área legal de la UNLaM y completar domicilio, inscripción registral y plazos de conservación; verificar la leyenda de la AAIP contra el texto vigente
 
 ## 4. Verificación
 
 - [x] 4.1 Correr `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check` y `pnpm exec openspec validate --all --strict`, y verificar que pasan
-- [ ] 4.2 Revisar la pantalla en el navegador (escritorio y ancho móvil) en los estados normal, error, acceso denegado y redirigiendo, y adjuntar capturas al PR
+- [x] 4.2 Revisar la pantalla en el navegador (escritorio y ancho móvil) en los estados normal, error, acceso denegado y redirigiendo, y adjuntar capturas al PR

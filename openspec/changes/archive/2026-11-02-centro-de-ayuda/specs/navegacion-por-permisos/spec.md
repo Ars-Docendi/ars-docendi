@@ -22,6 +22,12 @@ La sidebar SHALL calcular sus grupos y enlaces desde los permisos efectivos de l
 - **WHEN** se renderiza la sidebar
 - **THEN** aparece Revisión aunque el nombre del rol no sea institucional
 
+#### Scenario: Reserva de aulas sólo para quien puede entrar
+
+- **GIVEN** una sesión con `aulas.ver` pero sin `aulas.solicitar` ni `aulas.aprobar`
+- **WHEN** se renderiza la sidebar
+- **THEN** no aparece "Reserva de aulas", y con cualquiera de esos dos permisos sí aparece
+
 #### Scenario: El Centro de ayuda no depende de permisos
 
 - **GIVEN** una sesión sin ningún permiso de navegación

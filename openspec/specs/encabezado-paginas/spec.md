@@ -8,7 +8,7 @@ Definir la estructura, títulos y navegación de los encabezados de las pantalla
 
 ### Requirement: Estructura uniforme del encabezado de página
 
-Toda pantalla autenticada SHALL encabezarse con un breadcrumb seguido de un `PageHeader` con título, y opcionalmente meta y acciones. El encabezado MUST NOT mostrar un pretitle (línea en mayúsculas sobre el título). El meta SHALL mostrar solo información que no aparece en otro lugar de la misma pantalla, y MUST NOT repetir el rol del usuario, que ya se muestra en la barra superior.
+Toda pantalla autenticada SHALL encabezarse con un breadcrumb seguido de un `PageHeader` con título, y opcionalmente meta y acciones. El encabezado MUST NOT mostrar un pretitle (línea en mayúsculas sobre el título). El meta SHALL mostrar solo información que no aparece en otro lugar de la misma pantalla, y MUST NOT repetir el rol del usuario, que ya se muestra en la tarjeta de usuario del shell.
 
 #### Scenario: Ninguna pantalla muestra pretitle
 

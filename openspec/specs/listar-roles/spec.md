@@ -8,17 +8,17 @@ Permite a los operadores autorizados consultar y buscar los roles institucionale
 
 ### Requirement: Visualización de roles en tabla
 
-La pantalla `/roles` SHALL mostrar, con el diseño de Membresía Roles, un panel lateral de roles activos y un panel derecho de permisos para el rol seleccionado. El acceso SHALL requerir `roles.ver`, sin depender del nombre del rol.
+La pantalla `/roles` SHALL mostrar los roles activos e inactivos en la grilla administrativa de la guía de diseño, con las columnas Nombre, Descripción, Ámbito, Tipo (Sistema o Personalizado), Permisos (`asignados/total`), Estado y Acciones. Las acciones SHALL ser "Editar" y, en roles personalizados y con `roles.administrar`, "Desactivar" o "Activar" según su estado. Cada fila SHALL ser clickeable y abrir la pantalla de edición del rol. El acceso SHALL requerir `roles.ver`, sin depender del nombre del rol.
 
 #### Scenario: Acceso autorizado carga la pantalla unificada
 
 - **WHEN** un usuario con `roles.ver` navega a `/roles`
-- **THEN** la pantalla carga la lista de roles activos y el panel de permisos del rol seleccionado
+- **THEN** la pantalla carga la grilla de roles con su estado
 
 #### Scenario: Acceso autorizado carga la tabla
 
 - **WHEN** un usuario con `roles.ver` navega a `/roles`
-- **THEN** la pantalla carga y muestra la lista unificada de roles activos
+- **THEN** cada fila muestra Nombre, Descripción, Ámbito, Tipo, la cantidad de permisos asignados sobre el total y su Estado
 
 #### Scenario: Acceso no autorizado redirige
 
@@ -27,32 +27,32 @@ La pantalla `/roles` SHALL mostrar, con el diseño de Membresía Roles, un panel
 
 #### Scenario: La lista permite seleccionar y administrar
 
-- **WHEN** la pantalla unificada es visible
-- **THEN** cada rol muestra nombre y descripción, permite seleccionarlo y presenta las acciones de edición o eliminación según sus protecciones
+- **WHEN** el operador hace clic en una fila o elige "Editar" en sus acciones
+- **THEN** se abre la pantalla de edición de ese rol, y las acciones de la fila ofrecen "Desactivar" o "Activar" sólo para roles personalizados
 
 #### Scenario: La tabla muestra nombre y descripción
 
-- **WHEN** la lista unificada de roles es visible
+- **WHEN** la grilla de roles es visible
 - **THEN** cada fila muestra el Nombre y la Descripción del rol, y las acciones permitidas
 
 ### Requirement: Buscador de roles
 
-La pantalla `/roles` SHALL incluir en el panel lateral un campo de búsqueda que filtre los roles visibles en tiempo real por Nombre y Descripción, sin distinción de mayúsculas ni tildes.
+La grilla de `/roles` SHALL permitir filtrar por encabezado de columna y ordenar por columna, como las demás grillas administrativas. El filtro de Nombre y Descripción SHALL ignorar mayúsculas y tildes.
 
 #### Scenario: Búsqueda filtra por nombre
 
-- **WHEN** el operador escribe texto en el buscador
-- **THEN** la lista muestra únicamente los roles cuyo Nombre o Descripción contiene el texto ingresado
+- **WHEN** el operador escribe texto en el filtro de la columna Nombre
+- **THEN** la grilla muestra únicamente los roles cuyo Nombre contiene el texto ingresado
 
 #### Scenario: Búsqueda vacía muestra todos
 
-- **WHEN** el campo de búsqueda está vacío
-- **THEN** la lista muestra todos los roles activos sin filtrar
+- **WHEN** no hay filtros aplicados
+- **THEN** la grilla muestra todos los roles, activos e inactivos
 
 #### Scenario: Sin resultados muestra estado vacío
 
-- **WHEN** el texto de búsqueda no coincide con ningún rol
-- **THEN** la lista muestra un estado vacío informativo
+- **WHEN** los filtros no coinciden con ningún rol
+- **THEN** la grilla muestra un estado vacío informativo
 
 ### Requirement: Tipografía administrativa consistente en Roles
 

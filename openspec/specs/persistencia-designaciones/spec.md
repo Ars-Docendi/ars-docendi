@@ -96,7 +96,7 @@ El sistema SHALL congelar en el pedido, al momento de enviarlo a revisión, los 
 
 ### Requirement: Historial del trámite como dato de dominio
 
-El sistema SHALL persistir el historial de cada pedido en `designaciones.pedido_historial`, con la acción, el rol con el que actuó el actor, la etapa del pedido al momento del evento, el comentario o justificativo y la fecha. El historial MUST NOT derivarse de `audit.change_log`: el rol con el que se actuó no es derivable de un usuario que puede tener varios, y el comentario es dato de negocio exigido por BR-designaciones-005. La tabla SHALL estar además auditada mediante `audit.attach`, y sus filas MUST NOT purgarse. El historial consultado y mostrado SHALL estar ordenado por instante ascendente con desempate estable. Cada evento SHALL mostrar fecha y hora en zona America/Argentina/Buenos_Aires, con formato dd/MM/yyyy HH:mm; el orden MUST basarse en el instante original.
+El sistema SHALL persistir el historial de cada pedido en `designaciones.pedido_historial`, con la acción, el rol con el que actuó el actor, la etapa del pedido al momento del evento, el comentario o justificativo y la fecha. El historial MUST NOT derivarse de `audit.change_log`: el rol con el que se actuó no es derivable de un usuario que puede tener varios, y el comentario es dato de negocio exigido por BR-designaciones-005. La tabla SHALL estar además auditada mediante `audit.attach`, y sus filas MUST NOT purgarse. La base MUST rechazar la modificación de cualquier evento y su borrado, salvo el que arrastra la eliminación de un pedido en borrador [BR-designaciones-019]. El historial consultado y mostrado SHALL estar ordenado por instante ascendente con desempate estable. Cada evento SHALL mostrar fecha y hora en zona America/Argentina/Buenos_Aires, con formato dd/MM/yyyy HH:mm; el orden MUST basarse en el instante original.
 
 #### Scenario: Cada transición deja un evento persistido
 
@@ -116,8 +116,15 @@ El sistema SHALL persistir el historial de cada pedido en `designaciones.pedido_
 
 #### Scenario: Una modificación manual del historial deja rastro
 
-- **WHEN** se modifica o elimina directamente una fila de `pedido_historial`
-- **THEN** `audit.change_log` MUST registrar el evento
+- **WHEN** un cliente SQL intenta modificar o eliminar directamente una fila de `pedido_historial`
+- **THEN** la base MUST rechazar la sentencia y conservar el evento
+- **AND** si las protecciones fueron desactivadas, `audit.change_log` MUST registrar el cambio y la verificación de integridad MUST reportarlo
+
+#### Scenario: Eliminar un borrador arrastra su historial
+
+- **GIVEN** un pedido en borrador con eventos `crear` y `editar`
+- **WHEN** el Jefe de Cátedra lo elimina
+- **THEN** el pedido y sus eventos MUST eliminarse sin error
 
 #### Scenario: Eventos del mismo día
 
@@ -330,3 +337,14 @@ El sistema SHALL persistir cada pedido con una materia y carrera canónicas eleg
 - **GIVEN** un usuario cuyo rol de Jefe sobre una materia fue revocado
 - **WHEN** intenta crear un pedido para ella
 - **THEN** se deniega la creación
+
+### Requirement: Un pedido enviado no se borra físicamente
+
+La base SHALL rechazar el borrado físico de un pedido que no esté en `borrador`, cualquiera sea el
+cliente que lo ejecute. Un pedido que dejó de interesar sigue el circuito (cancelar, rechazar).
+
+#### Scenario: Borrado por SQL de un pedido enviado
+
+- **GIVEN** un pedido en `en_revision_decanato`
+- **WHEN** un cliente SQL intenta borrarlo
+- **THEN** la base MUST rechazar la sentencia y conservar el pedido con su historial

@@ -1,7 +1,7 @@
 ---
 status: draft # draft | review | approved
 owner: ""
-feature: "openspec/changes/centro-de-ayuda/specs/"
+feature: "openspec/changes/archive/2026-11-02-centro-de-ayuda/specs/"
 last_updated: 2026-10-21
 ---
 
@@ -73,7 +73,7 @@ Por debajo de 900 px la sidebar de documentación se apila sobre el contenido; n
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)
-- Change OpenSpec: [`openspec/changes/centro-de-ayuda/`](../../../openspec/changes/centro-de-ayuda/)
+- Change OpenSpec: [`openspec/changes/archive/2026-11-02-centro-de-ayuda/`](../../../openspec/changes/archive/2026-11-02-centro-de-ayuda/)
 
 ## Open questions de diseño
 

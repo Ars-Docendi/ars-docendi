@@ -24,7 +24,7 @@ El sistema SHALL ofrecer al docente **dos listas de tags distintas**: **Habilida
 
 ### Requirement: Administración de tags desde el vocabulario
 
-El sistema SHALL permitir al docente agregar y quitar tags en cada lista, seleccionándolos desde un vocabulario compartido. Los cambios MUST persistirse mediante la API del Portal.
+El sistema SHALL permitir al docente agregar y quitar tags en cada lista, seleccionándolos desde el vocabulario compartido que devuelve la API del Portal. Los cambios MUST persistirse mediante la API del Portal. Un término guardado que fue fusionado MUST registrarse como su término canónico [BR-portal-004], y una lista MUST NOT contener dos veces el mismo término normalizado [BR-portal-002].
 
 #### Scenario: Agregar un tag desde el vocabulario
 
@@ -43,6 +43,12 @@ El sistema SHALL permitir al docente agregar y quitar tags en cada lista, selecc
 - **GIVEN** un docente sin habilidades cargadas
 - **WHEN** abre `/portal`
 - **THEN** la sección Habilidades se presenta como fila compacta con su control de alta
+
+#### Scenario: Guardar una variante fusionada [BR-portal-004]
+
+- **GIVEN** "BD" fusionado en "Bases de datos"
+- **WHEN** un perfil guarda "BD"
+- **THEN** el perfil queda con "Bases de datos"
 
 ### Requirement: Sugerir un término nuevo
 

@@ -106,7 +106,7 @@ Resultados y límites: [evidencia 3.6–3.8](../../openspec/changes/archive/2026
 
 `BR-designaciones-019` y `BR-designaciones-020` provienen del change
 `integridad-sellada-pedidos`, no de normativa institucional. Su comportamiento vive en las specs
-[`integridad-circuito-pedidos`](../../openspec/changes/integridad-sellada-pedidos/specs/integridad-circuito-pedidos/spec.md)
+[`integridad-circuito-pedidos`](../../openspec/changes/archive/2026-11-02-integridad-sellada-pedidos/specs/integridad-circuito-pedidos/spec.md)
 y [`exportacion-lote-designaciones`](../../openspec/specs/exportacion-lote-designaciones/spec.md).
 
 | Regla                                                                                                                    | Tests persistentes                                                | Tipo                   |
