@@ -8,6 +8,8 @@ import { etiquetaAmbito, useElegirRol } from "../../shared/auth/rolActivo";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { chevronIcon } from "./icons";
 import { Modal } from "../../shared/ui/Modal";
+import { DialogoSalida } from "../../shared/navegacion/GestorDeNavegacion";
+import { hayCambiosPendientes, liberarGuardias } from "../../shared/navegacion/guardias";
 
 /**
  * Nombre corto para la tarjeta: primer nombre y primer apellido a partir del
@@ -131,14 +133,21 @@ export function ModalCambiarRol({
   const navigate = useNavigate();
   const elegir = useElegirRol();
   const actual = user.asignacion?.id;
-  function elegirAsignacion(id: string) {
-    if (id === actual && !alIngresar) return onCerrar();
+  // Cambiar de rol descarta la página en curso: con cambios sin guardar se confirma ANTES de
+  // cambiarlo (el rol sólo cambia si se descartan).
+  const [aDescartar, setADescartar] = useState<string | null>(null);
+  function aplicarAsignacion(id: string) {
     elegir.mutate(id, {
       onSuccess: () => {
         onCerrar();
         if (id !== actual) navigate("/", { replace: true });
       },
     });
+  }
+  function elegirAsignacion(id: string) {
+    if (id === actual && !alIngresar) return onCerrar();
+    if (id !== actual && hayCambiosPendientes()) return setADescartar(id);
+    aplicarAsignacion(id);
   }
   return (
     <Modal
@@ -173,6 +182,17 @@ export function ModalCambiarRol({
         }))}
         onSelect={elegirAsignacion}
       />
+      {aDescartar && (
+        <DialogoSalida
+          alSeguir={() => setADescartar(null)}
+          alDescartar={() => {
+            const id = aDescartar;
+            setADescartar(null);
+            liberarGuardias();
+            aplicarAsignacion(id);
+          }}
+        />
+      )}
     </Modal>
   );
 }

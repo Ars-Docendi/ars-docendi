@@ -13,7 +13,7 @@ import { hayCambiosPendientes } from "./guardias";
  * 3. cambiar sólo el query de la misma página nunca bloquea.
  */
 /** Diálogo compartido de salida (mismo texto que la confirmación de los modales). */
-function DialogoSalida({
+export function DialogoSalida({
   alSeguir,
   alDescartar,
 }: {

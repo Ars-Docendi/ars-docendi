@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
+import { reiniciarGuardias, useGuardiaDeCambios } from "../../shared/navegacion/guardias";
 import { MenuUsuario, ModalCambiarRol } from "./MenuUsuario";
 
 const elegir = vi.hoisted(() => ({ mutate: vi.fn(), isPending: false, isError: false }));
@@ -40,6 +41,13 @@ const usuario = (asignaciones = [ADMIN, JEFE], requiereElegirRol = false): Curre
   requiereElegirRol,
 });
 
+function FormularioConCambios() {
+  useGuardiaDeCambios(true);
+  return null;
+}
+
+afterEach(reiniciarGuardias);
+
 describe("rol activo", () => {
   it("al ingresar, cerrar el modal confirma la asignación por defecto", async () => {
     elegir.mutate.mockClear();
@@ -66,6 +74,28 @@ describe("rol activo", () => {
     await userEvent.click(screen.getByText("Administrador de Sistemas"));
     expect(elegir.mutate).not.toHaveBeenCalled();
     await userEvent.click(screen.getByText("Jefe de Cátedra"));
+    expect(elegir.mutate).toHaveBeenCalledWith("a-jefe", expect.anything());
+  });
+
+  it("con cambios sin guardar pide confirmar antes de cambiar de rol y no lo cambia hasta descartar", async () => {
+    elegir.mutate.mockClear();
+    render(
+      <MemoryRouter>
+        <FormularioConCambios />
+        <ModalCambiarRol user={usuario()} onCerrar={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByText("Jefe de Cátedra"));
+    expect(await screen.findByText("Tenés cambios sin guardar.")).toBeInTheDocument();
+    expect(elegir.mutate).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Seguir editando" }));
+    expect(screen.queryByText("Tenés cambios sin guardar.")).not.toBeInTheDocument();
+    expect(elegir.mutate).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByText("Jefe de Cátedra"));
+    await userEvent.click(await screen.findByRole("button", { name: "Descartar cambios" }));
     expect(elegir.mutate).toHaveBeenCalledWith("a-jefe", expect.anything());
   });
 

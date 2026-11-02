@@ -4,11 +4,16 @@ import { useEffect, useRef } from "react";
  * Cambios sin guardar. Las páginas se marcan sucias con `useGuardiaDeCambios`; un único
  * `GestorDeNavegacion` (react-router sólo admite un bloqueador activo) decide qué hacer.
  */
-const guardias = new Set<{ activa: () => boolean }>();
+const guardias = new Set<{ activa: () => boolean; liberar: () => void }>();
 
 export function hayCambiosPendientes() {
   for (const guardia of guardias) if (guardia.activa()) return true;
   return false;
+}
+
+/** El usuario confirmó descartar los cambios de la página: ninguna guardia vuelve a preguntar. */
+export function liberarGuardias() {
+  for (const guardia of guardias) guardia.liberar();
 }
 
 function alDescargarPagina(evento: BeforeUnloadEvent) {
@@ -31,7 +36,12 @@ export function useGuardiaDeCambios(sucio: boolean): { permitirSalida: () => voi
   }, [sucio]);
 
   useEffect(() => {
-    const guardia = { activa: () => sucioRef.current && !liberada.current };
+    const guardia = {
+      activa: () => sucioRef.current && !liberada.current,
+      liberar: () => {
+        liberada.current = true;
+      },
+    };
     if (guardias.size === 0) window.addEventListener("beforeunload", alDescargarPagina);
     guardias.add(guardia);
     return () => {
