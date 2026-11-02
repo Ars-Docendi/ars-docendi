@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
+import { AlertaConReintento } from "../components/AlertaConReintento";
 import { TablaMisSolicitudes } from "../components/TablaMisSolicitudes";
 import { TablaTodasLasSolicitudes } from "../components/TablaTodasLasSolicitudes";
 import { ModalNuevaSolicitud } from "../components/ModalNuevaSolicitud";
 import { ModalCancelarSolicitud } from "../components/ModalCancelarSolicitud";
-import { ModalAsignarAula, type ModoAsignarAula } from "../components/ModalAsignarAula";
-import { ModalRechazarSolicitud } from "../components/ModalRechazarSolicitud";
-import { ModalDetalleSolicitud } from "../components/ModalDetalleSolicitud";
 import { IconoPlus } from "../components/lucide";
 import {
   aplicarFiltrosYOrdenSolicitudes,
@@ -17,12 +16,8 @@ import {
   type OrdenSolicitudes,
 } from "../components/filtrosSolicitudes";
 import { useMisSolicitudes, useTodasLasSolicitudes } from "../hooks/useSolicitudesAula";
-import {
-  useAsignarAula,
-  useCancelarSolicitud,
-  useCrearSolicitud,
-  useRechazarSolicitud,
-} from "../hooks/useAccionesSolicitud";
+import { useCancelarSolicitud } from "../hooks/useAccionesSolicitud";
+import { rutaDetalleSolicitud } from "../rutas";
 import type { SolicitudReservaAula } from "../types";
 import "./reservaAulas.css";
 
@@ -51,15 +46,14 @@ export function IndexPage() {
 }
 
 function SeccionMisSolicitudes() {
+  const navegar = useNavigate();
   const { data: solicitudes, isLoading, isError, refetch } = useMisSolicitudes();
-  const crear = useCrearSolicitud();
   const cancelar = useCancelarSolicitud();
 
   const [filtros, setFiltros] = useState<FiltrosSolicitudesState>(FILTROS_INICIALES);
   const [orden, setOrden] = useState<OrdenSolicitudes | null>(null);
   const [modalNuevaAbierto, setModalNuevaAbierto] = useState(false);
   const [solicitudACancelar, setSolicitudACancelar] = useState<SolicitudReservaAula | undefined>();
-  const [solicitudDetalle, setSolicitudDetalle] = useState<SolicitudReservaAula | undefined>();
 
   const filtradas = useMemo(
     () => aplicarFiltrosYOrdenSolicitudes(solicitudes ?? [], filtros, orden),
@@ -68,18 +62,17 @@ function SeccionMisSolicitudes() {
 
   const total = solicitudes?.length ?? 0;
 
-  function handleConfirmarCancelar() {
-    if (!solicitudACancelar) return;
-    cancelar.mutate(solicitudACancelar.id, {
-      onSuccess: () => setSolicitudACancelar(undefined),
-    });
+  function cerrarCancelar() {
+    cancelar.reset();
+    setSolicitudACancelar(undefined);
   }
 
   return (
-    <section className="adoc-aulas-section">
+    <section className="adoc-aulas-section" aria-label="Mis solicitudes">
       <div className="adoc-aulas-section-header">
         <h2>Mis solicitudes</h2>
         <Button
+          id="nueva-solicitud"
           variant="primary"
           leadingIcon={<IconoPlus />}
           onClick={() => setModalNuevaAbierto(true)}
@@ -93,10 +86,13 @@ function SeccionMisSolicitudes() {
       )}
 
       {isError && (
-        <InlineAlert severity="danger" title="No se pudieron cargar tus solicitudes">
-          Hubo un problema al obtener tus solicitudes.{" "}
-          <button onClick={() => refetch()}>Reintentar</button>.
-        </InlineAlert>
+        <AlertaConReintento
+          id="mias-reintentar"
+          titulo="No se pudieron cargar tus solicitudes"
+          onReintentar={() => void refetch()}
+        >
+          Hubo un problema al obtener tus solicitudes.
+        </AlertaConReintento>
       )}
 
       {!isLoading && !isError && total === 0 && (
@@ -120,52 +116,32 @@ function SeccionMisSolicitudes() {
             onFiltrosChange={setFiltros}
             onOrdenChange={setOrden}
             onCancelar={setSolicitudACancelar}
-            onVerDetalle={setSolicitudDetalle}
+            onAbrir={(solicitud) => navegar(rutaDetalleSolicitud(solicitud.id))}
           />
         </>
       )}
 
-      <ModalNuevaSolicitud
-        open={modalNuevaAbierto}
-        onOpenChange={setModalNuevaAbierto}
-        error={crear.isError ? crear.error.message : undefined}
-        guardando={crear.isPending}
-        onGuardar={(datos) => crear.mutate(datos, { onSuccess: () => setModalNuevaAbierto(false) })}
-      />
+      {modalNuevaAbierto && <ModalNuevaSolicitud onCerrar={() => setModalNuevaAbierto(false)} />}
 
-      <ModalCancelarSolicitud
-        open={solicitudACancelar !== undefined}
-        onOpenChange={(open) => {
-          if (!open) setSolicitudACancelar(undefined);
-        }}
-        solicitud={solicitudACancelar}
-        error={cancelar.isError ? cancelar.error.message : undefined}
-        cancelando={cancelar.isPending}
-        onConfirmar={handleConfirmarCancelar}
-      />
-
-      <ModalDetalleSolicitud
-        open={solicitudDetalle !== undefined}
-        onOpenChange={(open) => {
-          if (!open) setSolicitudDetalle(undefined);
-        }}
-        solicitud={solicitudDetalle}
-      />
+      {solicitudACancelar && (
+        <ModalCancelarSolicitud
+          solicitud={solicitudACancelar}
+          onCerrar={cerrarCancelar}
+          error={cancelar.isError ? cancelar.error.message : undefined}
+          cancelando={cancelar.isPending}
+          onConfirmar={() => cancelar.mutate(solicitudACancelar.id, { onSuccess: cerrarCancelar })}
+        />
+      )}
     </section>
   );
 }
 
 function SeccionTodasLasSolicitudes() {
+  const navegar = useNavigate();
   const { data: solicitudes, isLoading, isError, refetch } = useTodasLasSolicitudes();
-  const asignar = useAsignarAula();
-  const rechazar = useRechazarSolicitud();
 
   const [filtros, setFiltros] = useState<FiltrosSolicitudesState>(FILTROS_INICIALES);
   const [orden, setOrden] = useState<OrdenSolicitudes | null>(null);
-  const [edicionAula, setEdicionAula] = useState<
-    { solicitud: SolicitudReservaAula; modo: ModoAsignarAula } | undefined
-  >();
-  const [solicitudARechazar, setSolicitudARechazar] = useState<SolicitudReservaAula | undefined>();
 
   const filtradas = useMemo(
     () => aplicarFiltrosYOrdenSolicitudes(solicitudes ?? [], filtros, orden),
@@ -174,24 +150,8 @@ function SeccionTodasLasSolicitudes() {
 
   const total = solicitudes?.length ?? 0;
 
-  function handleConfirmarAsignar(aulaAsignada: string) {
-    if (!edicionAula) return;
-    asignar.mutate(
-      { id: edicionAula.solicitud.id, aulaAsignada },
-      { onSuccess: () => setEdicionAula(undefined) },
-    );
-  }
-
-  function handleConfirmarRechazar(motivo: string) {
-    if (!solicitudARechazar) return;
-    rechazar.mutate(
-      { id: solicitudARechazar.id, motivo },
-      { onSuccess: () => setSolicitudARechazar(undefined) },
-    );
-  }
-
   return (
-    <section className="adoc-aulas-section">
+    <section className="adoc-aulas-section" aria-label="Todas las solicitudes">
       <div className="adoc-aulas-section-header">
         <h2>Todas las solicitudes</h2>
       </div>
@@ -199,10 +159,13 @@ function SeccionTodasLasSolicitudes() {
       {isLoading && <p style={{ color: "var(--color-text-secondary)" }}>Cargando solicitudes…</p>}
 
       {isError && (
-        <InlineAlert severity="danger" title="No se pudieron cargar las solicitudes">
-          Hubo un problema al obtener las solicitudes.{" "}
-          <button onClick={() => refetch()}>Reintentar</button>.
-        </InlineAlert>
+        <AlertaConReintento
+          id="todas-reintentar"
+          titulo="No se pudieron cargar las solicitudes"
+          onReintentar={() => void refetch()}
+        >
+          Hubo un problema al obtener las solicitudes.
+        </AlertaConReintento>
       )}
 
       {!isLoading && !isError && total === 0 && (
@@ -225,40 +188,10 @@ function SeccionTodasLasSolicitudes() {
             orden={orden}
             onFiltrosChange={setFiltros}
             onOrdenChange={setOrden}
-            onAsignarAula={(solicitud) => setEdicionAula({ solicitud, modo: "asignar" })}
-            onActualizarAula={(solicitud) => setEdicionAula({ solicitud, modo: "actualizar" })}
+            onAbrir={(solicitud) => navegar(rutaDetalleSolicitud(solicitud.id))}
           />
         </>
       )}
-
-      <ModalAsignarAula
-        key={edicionAula ? `${edicionAula.solicitud.id}-${edicionAula.modo}` : "asignar-cerrado"}
-        open={edicionAula !== undefined}
-        modo={edicionAula?.modo ?? "asignar"}
-        onOpenChange={(open) => {
-          if (!open) setEdicionAula(undefined);
-        }}
-        solicitud={edicionAula?.solicitud}
-        error={asignar.isError ? asignar.error.message : undefined}
-        asignando={asignar.isPending}
-        onConfirmar={handleConfirmarAsignar}
-        onRechazar={(solicitud) => {
-          setEdicionAula(undefined);
-          setSolicitudARechazar(solicitud);
-        }}
-      />
-
-      <ModalRechazarSolicitud
-        key={solicitudARechazar?.id ?? "rechazar-cerrado"}
-        open={solicitudARechazar !== undefined}
-        onOpenChange={(open) => {
-          if (!open) setSolicitudARechazar(undefined);
-        }}
-        solicitud={solicitudARechazar}
-        error={rechazar.isError ? rechazar.error.message : undefined}
-        rechazando={rechazar.isPending}
-        onConfirmar={handleConfirmarRechazar}
-      />
     </section>
   );
 }

@@ -25,8 +25,12 @@ export interface SolicitudReservaAula {
   estado: EstadoSolicitudAula;
   aulaAsignada?: string;
   motivoRechazo?: string;
+  /** Sólo en una reserva aprobada que un Administrativo canceló. */
+  motivoCancelacion?: string;
   creadoEn: string;
   docente?: DocenteSolicitud;
+  /** La solicitud es de quien consulta. El backend lo calcula; no se infiere en el cliente. */
+  esPropia: boolean;
 }
 
 export interface DatosNuevaSolicitud {

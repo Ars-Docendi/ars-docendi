@@ -1,7 +1,10 @@
 import { Input, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import type { SolicitudReservaAula } from "../types";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { rutaDetalleSolicitud } from "../rutas";
 import {
   etiquetaEstado,
   fechaSolicitud,
@@ -21,18 +24,17 @@ interface TablaTodasLasSolicitudesProps {
   orden?: OrdenSolicitudes | null;
   onFiltrosChange?: (filtros: FiltrosSolicitudesState) => void;
   onOrdenChange?: (orden: OrdenSolicitudes | null) => void;
-  /** Doble click sobre una fila Pendiente: abre "Asignar aula". */
-  onAsignarAula: (solicitud: SolicitudReservaAula) => void;
-  /** Doble click sobre una fila Aprobada: abre "Actualizar aula asignada". */
-  onActualizarAula: (solicitud: SolicitudReservaAula) => void;
+  /** Un click en cualquier parte de la fila (o Enter con el foco en ella) abre el detalle. */
+  onAbrir: (solicitud: SolicitudReservaAula) => void;
 }
 
 const SIN_CAMBIOS = () => {};
 
 /**
  * Tabla "Todas las solicitudes" del Administrativo, con filtros y orden por encabezado. Sin columna
- * Acciones: doble click en la fila abre el modal correspondiente según el estado (ver
- * openspec/changes/reserva-aulas/design.md, decisión 8). Una `Cancelada` no responde al doble click.
+ * Acciones: un click en cualquier fila (de cualquier estado) abre la página de detalle, donde se
+ * resuelve la solicitud. Reemplaza el doble click por estado de la decisión 8 del change
+ * reserva-aulas (ver reserva-aulas-detalle-y-cancelacion/design.md).
  */
 export function TablaTodasLasSolicitudes({
   solicitudes,
@@ -41,8 +43,7 @@ export function TablaTodasLasSolicitudes({
   orden = null,
   onFiltrosChange = SIN_CAMBIOS,
   onOrdenChange = SIN_CAMBIOS,
-  onAsignarAula,
-  onActualizarAula,
+  onAbrir,
 }: TablaTodasLasSolicitudesProps) {
   const estados = opcionesEstados(solicitudesParaOpciones);
 
@@ -176,28 +177,19 @@ export function TablaTodasLasSolicitudes({
             </Table.Row>
           ) : (
             solicitudes.map((solicitud) => {
-              const accionable =
-                solicitud.estado === "pendiente" || solicitud.estado === "aprobada";
+              const nombreDocente = solicitud.docente
+                ? `${solicitud.docente.apellido}, ${solicitud.docente.nombre}`
+                : "docente sin asignar";
               return (
-                <Table.Row
-                  key={solicitud.id}
-                  className={accionable ? "adoc-aulas-row--accionable" : undefined}
-                  title={
-                    solicitud.estado === "pendiente"
-                      ? "Doble click para asignar o rechazar"
-                      : solicitud.estado === "aprobada"
-                        ? "Doble click para actualizar el aula asignada"
-                        : undefined
-                  }
-                  onDoubleClick={() => {
-                    if (solicitud.estado === "pendiente") onAsignarAula(solicitud);
-                    else if (solicitud.estado === "aprobada") onActualizarAula(solicitud);
-                  }}
-                >
+                <Table.Row key={solicitud.id} {...propsFilaClickeable(() => onAbrir(solicitud))}>
                   <Table.Cell>
-                    {solicitud.docente
-                      ? `${solicitud.docente.apellido}, ${solicitud.docente.nombre}`
-                      : "—"}
+                    <Link
+                      to={rutaDetalleSolicitud(solicitud.id)}
+                      className="adoc-fila-enlace"
+                      aria-label={`Ver la solicitud de ${nombreDocente} del ${fechaSolicitud(solicitud)}`}
+                    >
+                      {solicitud.docente ? nombreDocente : "—"}
+                    </Link>
                   </Table.Cell>
                   <Table.Cell>{fechaSolicitud(solicitud)}</Table.Cell>
                   <Table.Cell>{horarioSolicitud(solicitud)}</Table.Cell>

@@ -1,0 +1,92 @@
+/* Página de detalle de una solicitud de reserva de aula: dos columnas (datos / acciones). */
+.adoc-aulas-detalle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-5);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .adoc-aulas-detalle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.adoc-aulas-detalle-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.adoc-aulas-card {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+}
+.adoc-aulas-panel {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.adoc-aulas-panel h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.adoc-aulas-dl {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+.adoc-aulas-dl dt {
+  color: var(--color-text-secondary);
+}
+.adoc-aulas-dl dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 559.98px) {
+  /* Pantallas angostas: la etiqueta arriba del valor, para no apretar fechas y pills en media tarjeta. */
+  .adoc-aulas-dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .adoc-aulas-dl dt {
+    margin-top: 12px;
+    font-size: var(--text-micro-size);
+    color: var(--color-text-tertiary);
+  }
+  .adoc-aulas-dl dt:first-child {
+    margin-top: 0;
+  }
+  .adoc-estado-pill {
+    white-space: nowrap;
+  }
+}
+.adoc-aulas-acc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+.adoc-aulas-codigo {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.adoc-aulas-acc-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.adoc-aulas-bloque {
+  width: 100%;
+}
+/* "Volver": un enlace real con el aspecto del botón secundario. */
+a.adoc-btn.adoc-aulas-volver {
+  color: var(--color-text-primary);
+  text-decoration: none;
+}

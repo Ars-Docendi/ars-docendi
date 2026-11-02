@@ -62,3 +62,10 @@ export const IconoCircleX = () => (
     <path d="m9 9 6 6" />
   </Svg>
 );
+
+export const IconoArrowLeft = () => (
+  <Svg>
+    <path d="m12 19-7-7 7-7" />
+    <path d="M19 12H5" />
+  </Svg>
+);
