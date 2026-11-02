@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Field, InlineAlert, Radio, Select, Textarea } from "@ars-docendi/ui";
 import type { UploadedFile } from "@ars-docendi/ui";
 import type {
@@ -41,6 +41,8 @@ interface PedidoFormProps {
   /** `opciones.enviar` pide guardar y, en el mismo paso, enviar/reenviar a revisión. */
   onGuardar: (datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) => void;
   onCancelar: () => void;
+  /** Avisa si el formulario tiene cambios sin guardar (la página decide si bloquear la salida). */
+  onSucioChange?: (sucio: boolean) => void;
   docentes: DocenteExistente[];
   materias?: MateriaPedido[];
   cargos: string[];
@@ -81,6 +83,7 @@ export function PedidoForm({
   guardando = false,
   onGuardar,
   onCancelar,
+  onSucioChange,
   docentes,
   materias = [],
   cargos,
@@ -91,6 +94,9 @@ export function PedidoForm({
     datosIniciales(catedra, pedidoInicial),
   );
   const [errores, setErrores] = useState<ErroresValidacion>({});
+  const [inicial] = useState(() => JSON.stringify(datos));
+  const sucio = JSON.stringify(datos) !== inicial;
+  useEffect(() => onSucioChange?.(sucio), [sucio, onSucioChange]);
 
   function actualizar<K extends keyof DatosEditablesPedido>(
     campo: K,

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { InlineAlert } from "@ars-docendi/ui";
 import { Migas } from "../../../shared/navegacion/Migas";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { PedidoForm } from "../components/PedidoForm";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
@@ -37,9 +39,18 @@ export function PedidoFormPage() {
   const reenviar = useReenviarPedido();
   const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : RUTA_MIS_PEDIDOS;
 
+  // El formulario avisa si tiene cambios; tras guardar se sale sin preguntar.
+  const [sucio, setSucio] = useState(false);
+  const { permitirSalida } = useGuardiaDeCambios(sucio);
+
   function volver() {
     // Reemplaza la edición en el historial y conserva el origen del detalle.
     navegar(rutaRetorno, { replace: true, state: location.state });
+  }
+
+  function volverTrasGuardar() {
+    permitirSalida();
+    volver();
   }
 
   function handleGuardar(datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) {
@@ -57,11 +68,11 @@ export function PedidoFormPage() {
         {
           onSuccess: () => {
             if (!opciones?.enviar) {
-              volver();
+              volverTrasGuardar();
               return;
             }
             const mutacion = pedidoInicial?.estado === "devuelto" ? reenviar : enviar;
-            mutacion.mutate(id, { onSuccess: volver });
+            mutacion.mutate(id, { onSuccess: volverTrasGuardar });
           },
         },
       );
@@ -69,10 +80,10 @@ export function PedidoFormPage() {
       crear.mutate(datos, {
         onSuccess: (creado) => {
           if (!opciones?.enviar) {
-            volver();
+            volverTrasGuardar();
             return;
           }
-          enviar.mutate(creado.id, { onSuccess: volver });
+          enviar.mutate(creado.id, { onSuccess: volverTrasGuardar });
         },
       });
     }
@@ -153,6 +164,7 @@ export function PedidoFormPage() {
           guardando={guardando}
           onGuardar={handleGuardar}
           onCancelar={volver}
+          onSucioChange={setSucio}
           docentes={docentesDesdeCatalogo(catalogos.data)}
           cargos={catalogos.data.cargos.map((c) => c.nombre)}
           dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
@@ -174,6 +186,7 @@ export function PedidoFormPage() {
             guardando={guardando}
             onGuardar={handleGuardar}
             onCancelar={volver}
+            onSucioChange={setSucio}
             docentes={docentesDesdeCatalogo(catalogos.data)}
             cargos={catalogos.data.cargos.map((c) => c.nombre)}
             dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
