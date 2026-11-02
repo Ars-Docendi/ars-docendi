@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 /**
@@ -7,6 +7,9 @@ import { useSearchParams } from "react-router-dom";
  * estado. Dos tablas en una misma página usan prefijos (`mias.`, `todas.`) para no pisarse.
  */
 type Valor = string | string[];
+
+/** Cuánto sostiene el eco local si la URL no llega a coincidir con él. */
+const ECO_MAXIMO_MS = 1000;
 
 function clave(prefijo: string | undefined, nombre: string) {
   return prefijo ? `${prefijo}.${nombre}` : nombre;
@@ -28,7 +31,7 @@ export function useFiltrosURL<T extends { [K in keyof T]: Valor }>(
   const [params, setParams] = useSearchParams();
   const lectura = params.toString();
 
-  const filtros = useMemo(() => {
+  const desdeURL = useMemo(() => {
     const actuales = new URLSearchParams(lectura);
     const resultado: Record<string, Valor> = {};
     for (const [nombre, defecto] of Object.entries(porDefecto) as [string, Valor][]) {
@@ -39,8 +42,22 @@ export function useFiltrosURL<T extends { [K in keyof T]: Valor }>(
     return resultado as T;
   }, [lectura, porDefecto, prefijo]);
 
+  // Eco local de lo último que escribió el usuario: la URL se actualiza con una navegación
+  // asíncrona y, si el campo esperara a que vuelva, las teclas siguientes se pisarían y se
+  // perderían letras. El eco se suelta cuando la URL lo alcanza (o, si la URL tomó otro rumbo
+  // —Atrás, un enlace— tras una breve espera).
+  const [eco, setEco] = useState<T | null>(null);
+  const alcanzado = eco !== null && JSON.stringify(eco) === JSON.stringify(desdeURL);
+  const filtros = eco !== null && !alcanzado ? eco : desdeURL;
+  useEffect(() => {
+    if (eco === null) return;
+    const reloj = window.setTimeout(() => setEco(null), alcanzado ? 0 : ECO_MAXIMO_MS);
+    return () => window.clearTimeout(reloj);
+  }, [eco, alcanzado]);
+
   const actualizar = useCallback(
     (nuevos: T) => {
+      setEco(nuevos);
       setParams(
         (previos) => {
           const siguientes = new URLSearchParams(previos);
