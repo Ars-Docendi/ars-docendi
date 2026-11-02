@@ -30,8 +30,7 @@ export function useCancelarSolicitud() {
 export function useAsignarAula() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, aulaAsignada }: { id: string; aulaAsignada: string }) =>
-      asignarAula(id, aulaAsignada),
+    mutationFn: ({ id, aulaId }: { id: string; aulaId: string }) => asignarAula(id, aulaId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["aulas", "solicitudes"] }),
   });
 }

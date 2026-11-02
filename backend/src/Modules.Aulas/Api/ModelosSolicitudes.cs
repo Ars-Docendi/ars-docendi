@@ -18,7 +18,8 @@ public sealed record SolicitudReservaAulaDto(
     DateTimeOffset CreadoEn,
     DocenteSolicitudDto? Docente = null,
     string? MotivoCancelacion = null,
-    bool EsPropia = false);
+    bool EsPropia = false,
+    Guid? AulaId = null);
 
 public sealed record CrearSolicitudReservaAulaDto(
     DateOnly Dia,
@@ -28,7 +29,8 @@ public sealed record CrearSolicitudReservaAulaDto(
     Guid MateriaId,
     string Comision);
 
-public sealed record AsignarAulaDto(string AulaAsignada);
+/// <summary>Se elige el aula del catálogo por id; la respuesta trae su nombre en <c>AulaAsignada</c>.</summary>
+public sealed record AsignarAulaDto(Guid AulaId);
 
 public sealed record RechazarSolicitudDto(string Motivo);
 

@@ -24,7 +24,7 @@
   <!--
     DDL del schema `notificaciones`, autorado en SQL versionado bajo database/ y
     embebido acá como recurso. Las migraciones EF lo ejecutan con
-    AplicarRecursosSql; ver openspec/changes/notificaciones-in-app/design.md.
+    AplicarRecursosSql; ver openspec/changes/archive/2026-11-02-notificaciones-in-app/design.md.
   -->
   <ItemGroup>
     <SqlNotificaciones Include="$(MSBuildThisFileDirectory)..\..\..\database\notificaciones\*.sql" />

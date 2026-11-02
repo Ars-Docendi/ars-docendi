@@ -22,5 +22,18 @@ export const routes: RouteObject = {
         },
       ],
     },
+    {
+      path: "catalogo",
+      element: <RequirePermission permission="aulas.gestionar" />,
+      children: [
+        {
+          index: true,
+          lazy: () =>
+            import("./pages/CatalogoAulasPage").then(({ CatalogoAulasPage }) => ({
+              Component: CatalogoAulasPage,
+            })),
+        },
+      ],
+    },
   ],
 };

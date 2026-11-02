@@ -47,6 +47,7 @@ Una **sola página scrolleable, sin pestañas**. `Breadcrumbs` (Inicio › Mi po
 | 6   | **Certificaciones**             | lista          | Nombre, emisor, fecha, vencimiento opcional                                              |
 | 7   | **Proyectos**                   | lista          | Nombre, rol, años, descripción, PDF o DOI                                                |
 | 8   | **Habilidades** / **Intereses** | tags           | Dos listas separadas, mismo vocabulario                                                  |
+| 9   | **Designaciones vigentes**      | solo lectura   | Materia · carrera, cargo · dedicación, horas por tipo y total; fila compacta sin datos   |
 
 El orden va de lo más estable e identitario a lo más discrecional, con lo que más se edita (Contacto) y lo de mayor valor por esfuerzo (CV) arriba.
 
@@ -173,7 +174,7 @@ La librería no tiene `Tag`, `Chip`, `Combobox` ni `MultiSelect`. El selector de
 
 ## Open questions de diseño
 
-- ~~**Vocabulario de habilidades e intereses.**~~ **Resuelto el 2026-09-03:** no se cura un catálogo de antemano —hay demasiadas especialidades de ingeniería— sino que el vocabulario se forma por uso, con **autocompletado sobre lo ya cargado** por otros docentes. Ver D13 en el design del change. La pantalla de esta iteración todavía usa el `Select` de catálogo; la migración del widget está registrada como TD-007.
+- ~~**Vocabulario de habilidades e intereses.**~~ **Resuelto el 2026-09-03:** no se cura un catálogo de antemano —hay demasiadas especialidades de ingeniería— sino que el vocabulario se forma por uso, con **autocompletado sobre lo ya cargado** por otros docentes. Ver D13 en el design del change. **Actualizado el 2026-11-02** (change `catalogo-aulas-y-vocabulario-portal`): el `Select` se alimenta del vocabulario de la base (términos incorporados y no fusionados); un término sugerido conserva la marca "Sugerido" hasta que la Secretaría lo incorpora desde "Vocabulario de experticia" (`/portal/vocabulario`, grupo Configuración, permiso `portal.vocabulario.administrar`), donde también lo renombra o lo fusiona en otro. El autocompletado sobre lo ya cargado sigue pendiente.
 - **Se le pide el CV dos veces**, subido y cargado a mano. Es la causa típica de que estos módulos queden vacíos. Se mitiga poniendo el CV como puerta de entrada, pero la redundancia queda.
 - **Quién consume estos datos y cuándo** (concursos, categorización, informes a la Facultad). El uso define qué campos importan de verdad.
 - **Qué ve en `/portal` alguien que no es docente**, por ejemplo un administrativo de Secretaría. La raíz redirige ahí para los seis perfiles de rol.

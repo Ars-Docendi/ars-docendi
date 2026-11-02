@@ -51,6 +51,7 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         Assert.Equal("cancelada", Assert.Single(luego!).Estado);
     }
 
+    // [BR-aulas-004]
     [Fact]
     public async Task No_se_puede_cancelar_dos_veces_ni_una_solicitud_ajena()
     {
@@ -101,7 +102,7 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
 
         var asignada = await clienteAdministrativo.PostAsJsonAsync(
             $"/api/aulas/solicitudes/{creada.Id}/asignar",
-            new AsignarAulaDto("Aula 204"), ct);
+            new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct)), ct);
         Assert.Equal(HttpStatusCode.OK, asignada.StatusCode);
         var dto = (await asignada.Content.ReadFromJsonAsync<SolicitudReservaAulaDto>(ct))!;
         Assert.Equal("aprobada", dto.Estado);
@@ -129,18 +130,18 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         using var clienteAdministrativo = host.CreateClient();
         Autenticar(clienteAdministrativo, Administrativo, "administrativo");
         Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{aprobar.Id}/asignar", new AsignarAulaDto("Aula 204"), ct))
+            $"/api/aulas/solicitudes/{aprobar.Id}/asignar", new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct)), ct))
                 .StatusCode);
 
         var actualizada = await clienteAdministrativo.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{aprobar.Id}/asignar", new AsignarAulaDto("Aula 305"), ct);
+            $"/api/aulas/solicitudes/{aprobar.Id}/asignar", new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 305", ct)), ct);
         Assert.Equal(HttpStatusCode.OK, actualizada.StatusCode);
         var dto = (await actualizada.Content.ReadFromJsonAsync<SolicitudReservaAulaDto>(ct))!;
         Assert.Equal("aprobada", dto.Estado);
         Assert.Equal("Aula 305", dto.AulaAsignada);
 
         var sobreCancelada = await clienteAdministrativo.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{cancelar.Id}/asignar", new AsignarAulaDto("Aula 999"), ct);
+            $"/api/aulas/solicitudes/{cancelar.Id}/asignar", new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 999", ct)), ct);
         Assert.Equal(HttpStatusCode.Conflict, sobreCancelada.StatusCode);
     }
 
@@ -173,10 +174,11 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         Assert.Equal("El aula solicitada no está disponible en ese horario", propia.MotivoRechazo);
 
         var sobreRechazada = await clienteAdministrativo.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct);
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct)), ct);
         Assert.Equal(HttpStatusCode.Conflict, sobreRechazada.StatusCode);
     }
 
+    // [BR-aulas-003]
     [Fact]
     public async Task No_se_puede_rechazar_sin_motivo_ni_una_solicitud_que_no_este_pendiente()
     {
@@ -196,7 +198,7 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.BadRequest, sinMotivo.StatusCode);
 
         Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{aprobada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct))
+            $"/api/aulas/solicitudes/{aprobada.Id}/asignar", new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct)), ct))
                 .StatusCode);
         var sobreAprobada = await clienteAdministrativo.PostAsJsonAsync(
             $"/api/aulas/solicitudes/{aprobada.Id}/rechazar", new RechazarSolicitudDto("Motivo"), ct);
@@ -232,11 +234,12 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         var creada = await CrearSolicitud(cliente, ct);
 
         Assert.Equal(HttpStatusCode.Forbidden, (await cliente.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct)).StatusCode);
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto(Guid.NewGuid()), ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await cliente.PostAsJsonAsync(
             $"/api/aulas/solicitudes/{creada.Id}/rechazar", new RechazarSolicitudDto("Motivo"), ct)).StatusCode);
     }
 
+    // [BR-aulas-002]
     [Fact]
     public async Task Rechaza_horario_invalido_y_cantidad_de_alumnos_invalida()
     {
@@ -269,6 +272,7 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.BadRequest, alumnosInvalidos.StatusCode);
     }
 
+    // [BR-aulas-001]
     [Fact]
     public async Task Lista_las_materias_propias_y_rechaza_una_solicitud_con_materia_ajena()
     {
@@ -347,7 +351,7 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         using var clienteAdministrativo = host.CreateClient();
         Autenticar(clienteAdministrativo, Administrativo, "administrativo");
         Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct)).StatusCode);
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct)), ct)).StatusCode);
 
         var cancelada = await clienteAdministrativo.PostAsJsonAsync(
             $"/api/aulas/solicitudes/{creada.Id}/cancelar-reserva",
@@ -369,6 +373,7 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         Assert.Contains("solicitud-no-aprobada", await otraVez.Content.ReadAsStringAsync(ct));
     }
 
+    // [BR-aulas-003]
     [Fact]
     public async Task No_se_cancela_una_reserva_sin_motivo_ni_fuera_de_aprobada_ni_sin_permiso()
     {
@@ -383,7 +388,7 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         using var clienteAdministrativo = host.CreateClient();
         Autenticar(clienteAdministrativo, Administrativo, "administrativo");
         Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
-            $"/api/aulas/solicitudes/{aprobada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct)).StatusCode);
+            $"/api/aulas/solicitudes/{aprobada.Id}/asignar", new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct)), ct)).StatusCode);
 
         var sinMotivo = await clienteAdministrativo.PostAsJsonAsync(
             $"/api/aulas/solicitudes/{aprobada.Id}/cancelar-reserva", new CancelarReservaDto("   "), ct);
@@ -429,19 +434,145 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         Assert.Equal("solicitudes_reserva_motivo_cancelacion_si_cancelada", error.ConstraintName);
     }
 
-    private static object DatosSolicitud(Guid? materiaId = null) => new
+    // [BR-aulas-005]
+    [Fact]
+    public async Task Un_aula_no_se_asigna_a_dos_reservas_superpuestas_pero_si_a_horarios_contiguos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        var primera = await CrearSolicitud(clienteDocente, ct);
+        var superpuesta = await CrearSolicitud(clienteDocente, ct, "09:00:00", "11:00:00");
+        var contigua = await CrearSolicitud(clienteDocente, ct, "10:00:00", "12:00:00");
+
+        using var clienteAdministrativo = host.CreateClient();
+        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
+        var aula = await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct);
+        Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{primera.Id}/asignar", new AsignarAulaDto(aula), ct)).StatusCode);
+
+        var ocupada = await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{superpuesta.Id}/asignar", new AsignarAulaDto(aula), ct);
+        Assert.Equal(HttpStatusCode.Conflict, ocupada.StatusCode);
+        Assert.Contains("aula-ocupada", await ocupada.Content.ReadAsStringAsync(ct));
+        var intacta = (await clienteAdministrativo.GetFromJsonAsync<SolicitudReservaAulaDto>(
+            $"/api/aulas/solicitudes/{superpuesta.Id}", ct))!;
+        Assert.Equal("pendiente", intacta.Estado);
+
+        Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{contigua.Id}/asignar", new AsignarAulaDto(aula), ct)).StatusCode);
+    }
+
+    // [BR-aulas-005] El chequeo previo no alcanza bajo carrera: la exclusión de la base decide.
+    [Fact]
+    public async Task Dos_asignaciones_concurrentes_del_mismo_aula_dejan_una_sola_reserva_aprobada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        var solicitudes = new[] { await CrearSolicitud(clienteDocente, ct), await CrearSolicitud(clienteDocente, ct) };
+
+        using var clienteAdministrativo = host.CreateClient();
+        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
+        var aula = await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct);
+
+        var respuestas = await Task.WhenAll(solicitudes.Select(s => clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{s.Id}/asignar", new AsignarAulaDto(aula), ct)));
+
+        Assert.Single(respuestas, r => r.StatusCode == HttpStatusCode.OK);
+        Assert.Single(respuestas, r => r.StatusCode == HttpStatusCode.Conflict);
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            "SELECT count(*) FROM aulas.solicitudes_reserva WHERE aula_id = @aula AND estado = 'aprobada'", conexion);
+        comando.Parameters.AddWithValue("aula", aula);
+        Assert.Equal(1L, await comando.ExecuteScalarAsync(ct));
+    }
+
+    // [BR-aulas-006] [BR-aulas-007]
+    [Fact]
+    public async Task Se_asigna_solo_un_aula_activa_aunque_la_capacidad_quede_corta()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        var creada = await CrearSolicitud(clienteDocente, ct);
+
+        using var clienteAdministrativo = host.CreateClient();
+        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
+        var chica = await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula chica", ct, capacidad: 10);
+        var inactiva = await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula cerrada", ct);
+        var aulaInactiva = (await clienteAdministrativo.GetFromJsonAsync<AulaDto[]>("/api/aulas/catalogo", ct))!
+            .Single(a => a.Id == inactiva);
+        Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/catalogo/{inactiva}/desactivar", new CambiarEstadoAulaDto(aulaInactiva.Version), ct)).StatusCode);
+
+        var sobreInactiva = await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto(inactiva), ct);
+        Assert.Equal(HttpStatusCode.BadRequest, sobreInactiva.StatusCode);
+        Assert.Contains("aulaId", await sobreInactiva.Content.ReadAsStringAsync(ct));
+
+        // 30 alumnos en un aula de 10: la interfaz advierte, el backend no bloquea.
+        var asignada = await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto(chica), ct);
+        Assert.Equal(HttpStatusCode.OK, asignada.StatusCode);
+        Assert.Equal("Aula chica", (await asignada.Content.ReadFromJsonAsync<SolicitudReservaAulaDto>(ct))!.AulaAsignada);
+    }
+
+    // [BR-aulas-006]
+    [Fact]
+    public async Task El_catalogo_exige_aulas_gestionar_nombres_unicos_y_no_borra_un_aula_en_uso()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        Assert.Equal(HttpStatusCode.Forbidden, (await clienteDocente.GetAsync("/api/aulas/catalogo", ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await clienteDocente.PostAsJsonAsync(
+            "/api/aulas/catalogo", new GuardarAulaDto("Aula 1", "aula", 30, null), ct)).StatusCode);
+        var creada = await CrearSolicitud(clienteDocente, ct);
+
+        using var clienteAdministrativo = host.CreateClient();
+        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
+        var enUso = await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula 204", ct);
+        var repetida = await clienteAdministrativo.PostAsJsonAsync(
+            "/api/aulas/catalogo", new GuardarAulaDto(" aula 204 ", "aula", 30, null), ct);
+        Assert.Equal(HttpStatusCode.Conflict, repetida.StatusCode);
+        Assert.Contains("aula-nombre-repetido", await repetida.Content.ReadAsStringAsync(ct));
+
+        Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto(enUso), ct)).StatusCode);
+        var borrarEnUso = await clienteAdministrativo.DeleteAsync($"/api/aulas/catalogo/{enUso}", ct);
+        Assert.Equal(HttpStatusCode.Conflict, borrarEnUso.StatusCode);
+        Assert.Contains("aula-en-uso", await borrarEnUso.Content.ReadAsStringAsync(ct));
+
+        var libre = await CatalogoAulasPrueba.IdAsync(clienteAdministrativo, "Aula libre", ct);
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await clienteAdministrativo.DeleteAsync($"/api/aulas/catalogo/{libre}", ct)).StatusCode);
+    }
+
+    private static object DatosSolicitud(
+        Guid? materiaId = null, string desde = "08:00:00", string hasta = "10:00:00") => new
     {
         dia = "2026-10-01",
-        horarioDesde = "08:00:00",
-        horarioHasta = "10:00:00",
+        horarioDesde = desde,
+        horarioHasta = hasta,
         cantidadAlumnosAprox = 30,
         materiaId = materiaId ?? MateriaDelDocente,
         comision = "K3001",
     };
 
-    private static async Task<SolicitudReservaAulaDto> CrearSolicitud(HttpClient cliente, CancellationToken ct)
+    private static async Task<SolicitudReservaAulaDto> CrearSolicitud(
+        HttpClient cliente, CancellationToken ct, string desde = "08:00:00", string hasta = "10:00:00")
     {
-        var respuesta = await cliente.PostAsJsonAsync("/api/aulas/solicitudes", DatosSolicitud(), ct);
+        var respuesta = await cliente.PostAsJsonAsync(
+            "/api/aulas/solicitudes", DatosSolicitud(desde: desde, hasta: hasta), ct);
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
         return (await respuesta.Content.ReadFromJsonAsync<SolicitudReservaAulaDto>(ct))!;
     }

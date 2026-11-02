@@ -6,6 +6,7 @@ import { usePerfilDocente } from "../../../shared/perfil/hooks/usePerfilDocente"
 import { AvisoGuardado } from "../../../shared/perfil/components/AvisoGuardado";
 import { PerfilSecciones } from "../../../shared/perfil/components/PerfilSecciones";
 import "../../../shared/perfil/components/portal.css";
+import { SeccionDesignaciones } from "../components/SeccionDesignaciones";
 
 /**
  * "Mi Portal" — el perfil del docente autenticado.
@@ -60,6 +61,7 @@ export function IndexPage() {
         cargarCv={(archivo) => void cargarCv(archivo)}
         borrarCv={() => void borrarCv()}
       />
+      <SeccionDesignaciones />
 
       <AvisoGuardado visible={guardado} onCerrar={ocultarAviso} />
     </>

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, Field, InlineAlert, Input } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Select } from "@ars-docendi/ui";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import {
   useAsignarAula,
@@ -7,6 +8,7 @@ import {
   useCancelarSolicitud,
   useRechazarSolicitud,
 } from "../hooks/useAccionesSolicitud";
+import { useAulasActivas } from "../hooks/useCatalogoAulas";
 import type { SolicitudReservaAula } from "../types";
 import { ModalCancelarReserva } from "./ModalCancelarReserva";
 import { ModalCancelarSolicitud } from "./ModalCancelarSolicitud";
@@ -55,7 +57,7 @@ export function ResolucionSolicitud({ solicitud, puedeAprobar }: ResolucionSolic
       {resoluble && (
         <PanelResolver
           // Un cambio de aula o de estado (otra pestaña, otra acción) reinicia el campo.
-          key={`${solicitud.estado}-${solicitud.aulaAsignada ?? ""}`}
+          key={`${solicitud.estado}-${solicitud.aulaId ?? ""}`}
           solicitud={solicitud}
           alRechazar={() => setModal("rechazar")}
           alCancelarReserva={() => setModal("cancelar-reserva")}
@@ -125,18 +127,21 @@ interface PanelResolverProps {
 
 function PanelResolver({ solicitud, alRechazar, alCancelarReserva }: PanelResolverProps) {
   const asignar = useAsignarAula();
-  const [aula, setAula] = useState(solicitud.aulaAsignada ?? "");
+  const aulas = useAulasActivas();
+  const [aulaId, setAulaId] = useState(solicitud.aulaId ?? "");
   const [faltaAula, setFaltaAula] = useState(false);
   const textos = TEXTOS_ASIGNAR[solicitud.estado === "pendiente" ? "asignar" : "actualizar"];
-  // El aula escrita y sin confirmar se pierde al salir de la página: se avisa.
-  useGuardiaDeCambios(aula.trim() !== (solicitud.aulaAsignada ?? ""));
+  // El aula elegida y sin confirmar se pierde al salir de la página: se avisa.
+  useGuardiaDeCambios(aulaId !== (solicitud.aulaId ?? ""));
+  const elegida = aulas.data?.find((aula) => aula.id === aulaId);
+  const sinAulas = aulas.isSuccess && aulas.data.length === 0;
 
   function enviarAula() {
-    if (!aula.trim()) {
+    if (!aulaId) {
       setFaltaAula(true);
       return;
     }
-    asignar.mutate({ id: solicitud.id, aulaAsignada: aula.trim() });
+    asignar.mutate({ id: solicitud.id, aulaId });
   }
 
   return (
@@ -144,21 +149,45 @@ function PanelResolver({ solicitud, alRechazar, alCancelarReserva }: PanelResolv
       <h2 className="adoc-aulas-acc-title">Acciones</h2>
       {asignar.isError && (
         <InlineAlert severity="danger" title={textos.errorTitulo}>
-          {asignar.error.message}
+          {mensajeProblema(asignar.error, "Intentá de nuevo.")}
+        </InlineAlert>
+      )}
+      {aulas.isError && (
+        <InlineAlert severity="danger" title="No se pudo cargar el catálogo de aulas">
+          {mensajeProblema(aulas.error, "Recargá la página para reintentar.")}
         </InlineAlert>
       )}
       <Field
         label="Aula o laboratorio"
         required
-        error={faltaAula && !aula.trim() ? "Indicá el aula a asignar." : undefined}
+        error={
+          sinAulas
+            ? "No hay aulas activas en el catálogo."
+            : faltaAula && !aulaId
+              ? "Elegí el aula a asignar."
+              : undefined
+        }
       >
-        <Input
+        <Select
           id="resolver-aula"
-          value={aula}
-          placeholder="Ej: Aula 204"
-          onChange={(e) => setAula(e.target.value)}
-        />
+          value={aulaId}
+          disabled={!aulas.isSuccess || sinAulas}
+          onChange={(e) => setAulaId(e.target.value)}
+        >
+          <option value="">{aulas.isLoading ? "Cargando aulas…" : "Seleccioná un aula…"}</option>
+          {aulas.data?.map((aula) => (
+            <option key={aula.id} value={aula.id}>
+              {`${aula.nombre} · ${aula.tipo === "laboratorio" ? "Laboratorio" : "Aula"} · ${aula.capacidad} lugares`}
+            </option>
+          ))}
+        </Select>
       </Field>
+      {/* BR-aulas-007: la cantidad es aproximada; se advierte y se permite asignar igual. */}
+      {elegida && solicitud.cantidadAlumnosAprox > elegida.capacidad && (
+        <InlineAlert severity="warning" title="Capacidad insuficiente">
+          {`${elegida.nombre} tiene ${elegida.capacidad} lugares y la solicitud indica ${solicitud.cantidadAlumnosAprox} alumnos. Podés asignarla igual.`}
+        </InlineAlert>
+      )}
       <Button
         id="resolver-confirmar"
         variant="primary"

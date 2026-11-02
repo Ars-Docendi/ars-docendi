@@ -27,6 +27,7 @@ public static class Permisos
     public const string PersonasVerAmbito = "personas.ver_ambito";
     public const string PersonasAdministrar = "personas.administrar";
     public const string PortalAdministrar = "portal.administrar";
+    public const string PortalVocabularioAdministrar = "portal.vocabulario.administrar";
 
     public static readonly string[] Todos =
     [
@@ -34,6 +35,7 @@ public static class Permisos
         PersonasVerAmbito,
         PersonasAdministrar,
         PortalAdministrar,
+        PortalVocabularioAdministrar,
         RolesVer,
         RolesAdministrar,
         RolesGestionarMembresia,

@@ -76,6 +76,7 @@ public sealed class PersonasHttpTests(PostgresFixture postgres)
         Assert.False(verificacion.GetProperty("existe").GetBoolean());
     }
 
+    // [BR-portal-005]
     [Fact]
     public async Task Portal_de_otra_persona_se_corrige_con_permiso_y_ambito()
     {

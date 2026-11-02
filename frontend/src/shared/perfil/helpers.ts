@@ -10,25 +10,6 @@ import type {
   Tag,
 } from "./types";
 
-export const VOCABULARIO_EXPERTICIA = [
-  "Algoritmos",
-  "Arquitectura de software",
-  "Bases de datos",
-  "Ciberseguridad",
-  "Ciencia de datos",
-  "Cloud computing",
-  "Computación gráfica",
-  "Desarrollo web",
-  "DevOps",
-  "Machine learning",
-  "Matemática discreta",
-  "Programación orientada a objetos",
-  "Redes de computadoras",
-  "Robótica",
-  "Sistemas embebidos",
-  "Sistemas operativos",
-  "Testing y calidad",
-];
 export const agregarExperiencia = (
   lista: Experiencia[],
   datos: DatosExperiencia,
@@ -64,20 +45,21 @@ export const editarProyecto = (lista: Proyecto[], id: string, datos: DatosProyec
   lista.map((x) => (x.id === id ? { ...datos, id } : x));
 export const eliminarPorId = <T extends { id: string }>(lista: T[], id: string): T[] =>
   lista.filter((x) => x.id !== id);
-export const agregarTag = (lista: Tag[], termino: string): Tag[] => {
+/** Un término fuera del vocabulario queda sugerido hasta que la Secretaría lo incorpore. */
+export const agregarTag = (lista: Tag[], termino: string, vocabulario: string[]): Tag[] => {
   const limpio = termino.trim();
   if (!limpio || lista.some((x) => x.termino.toLowerCase() === limpio.toLowerCase())) return lista;
   return [
     ...lista,
     {
       termino: limpio,
-      sugerido: !VOCABULARIO_EXPERTICIA.some((x) => x.toLowerCase() === limpio.toLowerCase()),
+      sugerido: !vocabulario.some((x) => x.toLowerCase() === limpio.toLowerCase()),
     },
   ];
 };
 export const quitarTag = (lista: Tag[], termino: string): Tag[] =>
   lista.filter((x) => x.termino !== termino);
-export const vocabularioDisponible = (lista: Tag[]): string[] => {
+export const vocabularioDisponible = (lista: Tag[], vocabulario: string[]): string[] => {
   const usados = new Set(lista.map((x) => x.termino.toLowerCase()));
-  return VOCABULARIO_EXPERTICIA.filter((x) => !usados.has(x.toLowerCase()));
+  return vocabulario.filter((x) => !usados.has(x.toLowerCase()));
 };

@@ -16,6 +16,7 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
 {
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
 
+    // [BR-portal-001]
     [Fact]
     public async Task Todos_los_endpoints_ejecutan_el_crud_completo()
     {

@@ -77,6 +77,11 @@ export const entenderTuPerfil: ArticuloAyuda = {
         "Significa que el mismo dato se modificó desde otra pestaña o sesión mientras lo editabas. El sistema no pisa el valor nuevo. Cerrá el formulario, revisá cómo quedó la lista y volvé a hacer tu cambio.",
     },
     {
+      pregunta: "¿Dónde veo mis designaciones y mis horas?",
+      respuesta:
+        "Al final de Mi portal, en Designaciones vigentes: cada materia con su cargo, dedicación y horas, y el total. Es de solo lectura; los cambios se tramitan con un pedido de designación.",
+    },
+    {
       pregunta: "¿Mi legajo o mi DNI están mal, cómo los cambio?",
       respuesta:
         "No se cambian desde Mi portal. Son datos institucionales: escribí a Secretaría Académica para que los corrija.",

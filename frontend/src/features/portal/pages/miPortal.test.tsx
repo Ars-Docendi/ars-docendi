@@ -75,6 +75,7 @@ vi.mock("../../../shared/perfil/api/portalApi", async () => {
   );
   return {
     ...real,
+    listarVocabulario: async () => ["Bases de datos", "Machine learning", "Robótica"],
     obtenerPerfil: async () => {
       const perfil = perfiles[sesion.upn as keyof typeof perfiles];
       if (!perfil) throw new Error("no encontrado");
@@ -84,6 +85,9 @@ vi.mock("../../../shared/perfil/api/portalApi", async () => {
 });
 
 const sesion = vi.hoisted(() => ({ upn: "admin.aulas@unlam.edu.ar" }));
+
+const designaciones = vi.hoisted(() => ({ listarDesignacionesVigentes: vi.fn() }));
+vi.mock("../api/designacionesApi", () => designaciones);
 
 vi.mock("../../../shared/auth/useCurrentUser", () => ({
   useCurrentUser: () => ({
@@ -119,6 +123,7 @@ function seccion(titulo: string): HTMLElement {
 
 beforeEach(() => {
   sesion.upn = "admin.aulas@unlam.edu.ar";
+  designaciones.listarDesignacionesVigentes.mockResolvedValue([]);
   for (const metodo of [apiClient.get, apiClient.post, apiClient.put, apiClient.delete]) {
     vi.mocked(metodo)
       .mockReset()
@@ -379,5 +384,64 @@ describe("perfil con datos cargados", () => {
     expect(within(seccion("Habilidades")).getByText("Bases de datos")).toBeInTheDocument();
     expect(within(seccion("Intereses")).getByText("Machine learning")).toBeInTheDocument();
     expect(within(seccion("Habilidades")).queryByText("Machine learning")).not.toBeInTheDocument();
+  });
+});
+
+describe("vocabulario de habilidades e intereses", () => {
+  // BR-portal-003
+  it("ofrece los términos de la API y deja sugerido un término nuevo", async () => {
+    const usuario = userEvent.setup();
+    sesion.upn = "marina.diaz@unlam.edu.ar";
+    render(<IndexPage />);
+    await screen.findByRole("heading", { name: "Perfil" });
+    const habilidades = seccion("Habilidades");
+    await usuario.click(within(habilidades).getByRole("button", { name: "Editar" }));
+
+    const selector = within(habilidades).getByLabelText("Agregar a habilidades");
+    await vi.waitFor(() =>
+      expect(within(selector).getByRole("option", { name: "Robótica" })).toBeInTheDocument(),
+    );
+    // Ya cargado en el perfil: no se ofrece de nuevo.
+    expect(within(selector).queryByRole("option", { name: "Bases de datos" })).toBeNull();
+
+    await usuario.type(
+      within(habilidades).getByLabelText("Sugerir un término nuevo para habilidades"),
+      "Docencia virtual",
+    );
+    await usuario.click(within(habilidades).getByRole("button", { name: "Sugerir" }));
+    const nuevo = within(habilidades).getByText("Docencia virtual").closest(".portal-tag");
+    expect(within(nuevo as HTMLElement).getByText("Sugerido")).toBeInTheDocument();
+  });
+});
+
+describe("designaciones vigentes", () => {
+  it("muestra cada designación con sus horas y el total", async () => {
+    designaciones.listarDesignacionesVigentes.mockResolvedValue([
+      {
+        id: "d1",
+        materia: "Ingeniería de Software",
+        carrera: "Ingeniería en Informática",
+        cargo: "Jefe de Trabajos Prácticos",
+        dedicacion: "Categoría 2",
+        horas: 10,
+        horasInvestigacion: 2,
+        horasExternas: null,
+        vigenteDesde: "2026-03-01",
+      },
+    ]);
+    render(<IndexPage />);
+
+    const titulo = await screen.findByRole("heading", { name: "Designaciones vigentes" });
+    const contenedor = titulo.closest("section") as HTMLElement;
+    expect(within(contenedor).getByText(/Ingeniería de Software/)).toBeInTheDocument();
+    expect(
+      within(contenedor).getByText("10 h de materia · 2 h de investigación"),
+    ).toBeInTheDocument();
+    expect(within(contenedor).getByText("Total de horas: 12")).toBeInTheDocument();
+  });
+
+  it("sin designaciones muestra la fila compacta", async () => {
+    render(<IndexPage />);
+    expect(await screen.findByText("Sin designaciones vigentes")).toBeInTheDocument();
   });
 });

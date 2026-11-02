@@ -23,6 +23,53 @@ namespace Modules.Aulas.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Modules.Aulas.Domain.Aula", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("boolean")
+                        .HasColumnName("activa");
+
+                    b.Property<int>("Capacidad")
+                        .HasColumnType("integer")
+                        .HasColumnName("capacidad");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Equipamiento")
+                        .HasColumnType("text")
+                        .HasColumnName("equipamiento");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nombre");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("tipo");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("aulas", "aulas", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Modules.Aulas.Domain.SolicitudReservaAula", b =>
                 {
                     b.Property<Guid>("Id")
@@ -30,9 +77,9 @@ namespace Modules.Aulas.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("AulaAsignada")
-                        .HasColumnType("text")
-                        .HasColumnName("aula_asignada");
+                    b.Property<Guid?>("AulaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aula_id");
 
                     b.Property<int>("CantidadAlumnosAprox")
                         .HasColumnType("integer")

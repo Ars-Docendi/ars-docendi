@@ -103,18 +103,18 @@ Rutas, DTOs, permisos y códigos de error: [api-contracts-designaciones.md](./ap
 
 ### Aulas (`/api/aulas/`)
 
-| Método | Path                                 | Permiso                 | Descripción                                                                             |
-| ------ | ------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------- |
-| GET    | `/ping`                              | (anónimo)               | Health check del módulo                                                                 |
-| POST   | `/solicitudes`                       | `aulas.solicitar`       | Crear una solicitud de reserva propia                                                   |
-| GET    | `/solicitudes/materias-propias`      | `aulas.solicitar`       | Listar las materias asignadas al docente autenticado                                    |
-| GET    | `/solicitudes/mias`                  | `aulas.solicitar`       | Listar las solicitudes propias del Docente autenticado                                  |
-| POST   | `/solicitudes/{id}/cancelar`         | `aulas.solicitar`       | Cancelar una solicitud propia en estado `pendiente`                                     |
-| GET    | `/solicitudes`                       | `aulas.aprobar`         | Listar todas las solicitudes (todos los docentes)                                       |
-| POST   | `/solicitudes/{id}/asignar`          | `aulas.aprobar`         | Asignar aula a una `pendiente` (→ `aprobada`) o actualizar el aula de una ya `aprobada` |
-| POST   | `/solicitudes/{id}/rechazar`         | `aulas.aprobar`         | Rechazar una `pendiente` con motivo obligatorio (→ `rechazada`)                         |
-| GET    | `/solicitudes/{id}`                  | dueño o `aulas.aprobar` | Detalle de una solicitud (ver abajo)                                                    |
-| POST   | `/solicitudes/{id}/cancelar-reserva` | `aulas.aprobar`         | Cancelar una reserva `aprobada` con motivo obligatorio (→ `cancelada`, libera el aula)  |
+| Método | Path                                 | Permiso                 | Descripción                                                                                    |
+| ------ | ------------------------------------ | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| GET    | `/ping`                              | (anónimo)               | Health check del módulo                                                                        |
+| POST   | `/solicitudes`                       | `aulas.solicitar`       | Crear una solicitud de reserva propia                                                          |
+| GET    | `/solicitudes/materias-propias`      | `aulas.solicitar`       | Listar las materias asignadas al docente autenticado                                           |
+| GET    | `/solicitudes/mias`                  | `aulas.solicitar`       | Listar las solicitudes propias del Docente autenticado                                         |
+| POST   | `/solicitudes/{id}/cancelar`         | `aulas.solicitar`       | Cancelar una solicitud propia en estado `pendiente`                                            |
+| GET    | `/solicitudes`                       | `aulas.aprobar`         | Listar todas las solicitudes (todos los docentes)                                              |
+| POST   | `/solicitudes/{id}/asignar`          | `aulas.aprobar`         | Asignar un aula del catálogo a una `pendiente` (→ `aprobada`) o actualizarla en una `aprobada` |
+| POST   | `/solicitudes/{id}/rechazar`         | `aulas.aprobar`         | Rechazar una `pendiente` con motivo obligatorio (→ `rechazada`)                                |
+| GET    | `/solicitudes/{id}`                  | dueño o `aulas.aprobar` | Detalle de una solicitud (ver abajo)                                                           |
+| POST   | `/solicitudes/{id}/cancelar-reserva` | `aulas.aprobar`         | Cancelar una reserva `aprobada` con motivo obligatorio (→ `cancelada`, libera el aula)         |
 
 `GET /solicitudes/{id}` no lleva policy de permiso: lo ve el dueño (con `aulas.solicitar`) o quien tiene
 `aulas.aprobar`. Para cualquier otro, incluso un rol sin permisos de Aulas, responde `404`
@@ -128,16 +128,34 @@ de `aprobada`: `409` `solicitud-no-aprobada` ("Sólo se puede cancelar una reser
 Sin `aulas.aprobar`: `403`. Éxito: `200` con la solicitud en estado `cancelada`, `aulaAsignada` nulo y el
 motivo guardado.
 
+`POST /solicitudes/{id}/asignar` recibe `{ "aulaId": uuid }`. Un aula inexistente o inactiva: `400`
+`solicitud-invalida` en el campo `aulaId`. Otra reserva aprobada de la misma aula se superpone ese día:
+`409` `aula-ocupada` (la base lo garantiza también bajo asignaciones concurrentes). La capacidad no se
+valida. El DTO de solicitud trae `aulaId` y `aulaAsignada` (nombre del aula).
+
+| Método | Path                                 | Permiso                             | Descripción                                                                            |
+| ------ | ------------------------------------ | ----------------------------------- | -------------------------------------------------------------------------------------- |
+| GET    | `/catalogo?activas=`                 | `aulas.gestionar` o `aulas.aprobar` | `AulaDto[]` (`id`, `nombre`, `tipo`, `capacidad`, `equipamiento`, `activa`, `version`) |
+| POST   | `/catalogo`                          | `aulas.gestionar`                   | `GuardarAulaDto` → `201`; `409` `aula-nombre-repetido`                                 |
+| PUT    | `/catalogo/{id}`                     | `aulas.gestionar`                   | `GuardarAulaDto` con `version` → `AulaDto`                                             |
+| POST   | `/catalogo/{id}/activar\|desactivar` | `aulas.gestionar`                   | `{ "version" }` → `AulaDto`                                                            |
+| DELETE | `/catalogo/{id}`                     | `aulas.gestionar`                   | `204`; `409` `aula-en-uso` si tiene reservas                                           |
+
 ### Portal (`/api/portal/`)
 
-| Método          | Path                                                                                       | Rol mínimo  | Descripción                     |
-| --------------- | ------------------------------------------------------------------------------------------ | ----------- | ------------------------------- |
-| GET             | `/ping`                                                                                    | (anónimo)   | Health check del módulo         |
-| GET             | `/perfil`                                                                                  | autenticado | Perfil propio completo          |
-| PUT             | `/perfil/contacto`                                                                         | autenticado | Contacto                        |
-| PUT/DELETE      | `/perfil/cv`                                                                               | autenticado | Metadata de CV                  |
-| POST/PUT/DELETE | `/perfil/experiencia`, `/perfil/educacion`, `/perfil/certificaciones`, `/perfil/proyectos` | autenticado | CRUD propio                     |
-| PUT             | `/perfil/habilidades`, `/perfil/intereses`                                                 | autenticado | Reemplazo independiente de tags |
+| Método          | Path                                                                                       | Rol mínimo                       | Descripción                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------ | -------------------------------- | ------------------------------------------------------------------------------- |
+| GET             | `/ping`                                                                                    | (anónimo)                        | Health check del módulo                                                         |
+| GET             | `/perfil`                                                                                  | autenticado                      | Perfil propio completo                                                          |
+| PUT             | `/perfil/contacto`                                                                         | autenticado                      | Contacto                                                                        |
+| PUT/DELETE      | `/perfil/cv`                                                                               | autenticado                      | Metadata de CV                                                                  |
+| POST/PUT/DELETE | `/perfil/experiencia`, `/perfil/educacion`, `/perfil/certificaciones`, `/perfil/proyectos` | autenticado                      | CRUD propio                                                                     |
+| PUT             | `/perfil/habilidades`, `/perfil/intereses`                                                 | autenticado                      | Reemplazo independiente de tags                                                 |
+| GET             | `/vocabulario`                                                                             | autenticado                      | Términos para elegir (`string[]`)                                               |
+| GET             | `/vocabulario/terminos`                                                                    | `portal.vocabulario.administrar` | `TerminoVocabularioDto[]` (`id`, `termino`, `sugerido`, `canonico`, `docentes`) |
+| POST            | `/vocabulario/terminos/{id}/incorporar`                                                    | `portal.vocabulario.administrar` | `204`                                                                           |
+| PUT             | `/vocabulario/terminos/{id}`                                                               | `portal.vocabulario.administrar` | `{ "termino" }` → `204`; `409` `termino-repetido`                               |
+| POST            | `/vocabulario/terminos/{id}/fusionar`                                                      | `portal.vocabulario.administrar` | `{ "destinoId" }` → `204`; `409` `termino-no-fusionable`                        |
 
 Las respuestas de contacto, CV e ítems de trayectoria/proyectos contienen `version`.
 PUT y DELETE de secciones existentes requieren la versión observada; DELETE la

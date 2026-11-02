@@ -16,6 +16,7 @@ interface SolicitudReservaAulaDto {
   comision: string;
   estado: string;
   aulaAsignada: string | null;
+  aulaId: string | null;
   motivoRechazo: string | null;
   motivoCancelacion: string | null;
   creadoEn: string;
@@ -56,11 +57,11 @@ export async function cancelarSolicitud(id: string): Promise<void> {
   await apiClient.post(`/api/aulas/solicitudes/${id}/cancelar`);
 }
 
-export async function asignarAula(id: string, aulaAsignada: string): Promise<SolicitudReservaAula> {
+export async function asignarAula(id: string, aulaId: string): Promise<SolicitudReservaAula> {
   return mapear(
     (
       await apiClient.post<SolicitudReservaAulaDto>(`/api/aulas/solicitudes/${id}/asignar`, {
-        aulaAsignada,
+        aulaId,
       })
     ).data,
   );
@@ -100,6 +101,7 @@ function mapear(dto: SolicitudReservaAulaDto): SolicitudReservaAula {
     comision: dto.comision,
     estado: dto.estado as SolicitudReservaAula["estado"],
     aulaAsignada: dto.aulaAsignada ?? undefined,
+    aulaId: dto.aulaId ?? undefined,
     motivoRechazo: dto.motivoRechazo ?? undefined,
     motivoCancelacion: dto.motivoCancelacion ?? undefined,
     creadoEn: dto.creadoEn,

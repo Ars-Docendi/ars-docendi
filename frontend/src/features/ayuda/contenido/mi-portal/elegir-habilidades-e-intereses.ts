@@ -36,7 +36,7 @@ export const elegirHabilidadesEIntereses: ArticuloAyuda = {
       titulo: "Elegí un término del vocabulario",
       etiquetaIndice: "Elegir un término",
       cuerpo:
-        "Abrí el selector Elegí un término… y elegí uno de la lista. Se agrega al instante a tu perfil; no hace falta confirmar. Los términos que ya tenés no se repiten en la lista.",
+        "Abrí el selector Elegí un término… y elegí uno de la lista. Se agrega al instante a tu perfil; no hace falta confirmar. La lista muestra el vocabulario que mantiene Secretaría Académica, sin los términos que ya tenés.",
     },
     {
       titulo: "Sugerí un término nuevo",
@@ -64,13 +64,18 @@ export const elegirHabilidadesEIntereses: ArticuloAyuda = {
   despues: {
     titulo: "¿Qué sucede después?",
     cuerpo:
-      "Tus términos quedan en tu perfil, separados por lista. Los términos que sugeriste pasan a formar parte del vocabulario.",
+      "Tus términos quedan en tu perfil, separados por lista. Un término que sugeriste queda marcado como Sugerido hasta que Secretaría Académica lo incorpora al vocabulario; desde entonces se ofrece a todos los docentes.",
   },
   preguntas: [
     {
       pregunta: "¿Por qué mis términos dicen «Sugerido»?",
       respuesta:
-        "Esa marca indica que el término se incorporó por sugerencia de una persona y no figuraba en el vocabulario original. No afecta cómo se usa.",
+        "Esa marca indica que el término no figura todavía en el vocabulario: Secretaría Académica tiene que revisarlo. Mientras tanto queda en tu perfil igual que cualquier otro.",
+    },
+    {
+      pregunta: "Un término mío cambió de nombre. ¿Qué pasó?",
+      respuesta:
+        "Secretaría Académica unificó variantes del mismo término (por ejemplo, «BD» y «Bases de datos»). Tu perfil pasa a tener el término unificado, una sola vez.",
     },
     {
       pregunta: "Quité una habilidad. ¿Se quitó también de Intereses?",

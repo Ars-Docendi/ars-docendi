@@ -87,9 +87,13 @@ igual que en Mis Pedidos.
 
 ## Decisiones de diseño
 
-- **Aula asignada es texto libre**, no un selector de un catálogo: no existe todavía un catálogo de
-  aulas/laboratorios (capacidad, equipamiento) — es responsabilidad futura de Secretaría Académica
-  ("Configurables del módulo", fuera de alcance de este change).
+- **Aula asignada se elige del catálogo** (change `catalogo-aulas-y-vocabulario-portal`): el panel de
+  acciones del detalle ofrece un `Select` de aulas activas con "nombre · tipo · capacidad". Si la
+  cantidad aproximada de alumnos supera la capacidad, un `InlineAlert` de advertencia lo dice y la
+  asignación sigue habilitada (BR-aulas-007). Un aula ocupada en ese horario vuelve como error del
+  panel (`aula-ocupada`). El catálogo se administra en `/aulas/catalogo` ("Catálogo de aulas", grupo
+  Configuración de la barra lateral, permiso `aulas.gestionar`): tabla con nombre, tipo, capacidad,
+  equipamiento y estado, y acciones Editar, Activar/Desactivar y Eliminar.
 - **Materia es un desplegable acotado a las materias del docente** (ajuste posterior a la primera
   versión, que la pedía como texto libre): sale de `identity.materias` vía las membresías del docente,
   no de un catálogo abierto ni de texto libre — evita typos y solicitudes sobre materias que el docente
@@ -99,8 +103,8 @@ igual que en Mis Pedidos.
   deshabilitado cuando la solicitud no está Pendiente, mismo lenguaje que Mis Pedidos de Designaciones
   (acciones fijas en la fila, atenuadas cuando no aplican).
 - **Las dos tablas abren un detalle con un click en la fila** (reemplaza el doble click por estado de
-  "Todas las solicitudes", decisión 8 de `openspec/changes/reserva-aulas/design.md`, superada por
-  `openspec/changes/reserva-aulas-detalle-y-cancelacion/`): un solo gesto para todas las filas, un enlace
+  "Todas las solicitudes", decisión 8 de `openspec/changes/archive/2026-11-02-reserva-aulas/design.md`, superada por
+  `openspec/changes/archive/2026-11-02-reserva-aulas-detalle-y-cancelacion/`): un solo gesto para todas las filas, un enlace
   real en la celda principal (teclado, click medio, barra de estado) y la resolución en una página con
   dirección propia, que es el destino de las notificaciones.
 - **Actualizar el aula de una Aprobada no es "editar el pedido"**: es una corrección puntual del dato
@@ -113,7 +117,7 @@ igual que en Mis Pedidos.
 - **Rechazar y Cancelar reserva viven junto a "Asignar" en el panel de acciones del detalle**: una
   Pendiente tiene dos desenlaces (aprobar o rechazar) y una Aprobada dos (actualizar el aula o cancelar
   la reserva), siempre a la vista. "Rechazar solicitud" sólo aparece en una Pendiente y "Cancelar
-  reserva" sólo en una Aprobada. Ver `openspec/changes/reserva-aulas/design.md` (decisión 9).
+  reserva" sólo en una Aprobada. Ver `openspec/changes/archive/2026-11-02-reserva-aulas/design.md` (decisión 9).
 - **Diálogos con la carcasa compartida de la app** (`ModalDeFormulario`): 480 px para confirmaciones,
   `min(600px, 100vw - 32px)` para formularios (con el zoom de la app), hoja a pantalla completa debajo de
   560 px, foco inicial en el primer campo (o en el botón menos destructivo), foco de vuelta al abridor,
@@ -151,11 +155,11 @@ igual que en Mis Pedidos.
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)
-- Spec funcional: [`openspec/changes/reserva-aulas/specs/reserva-aulas/spec.md`](../../../openspec/changes/reserva-aulas/specs/reserva-aulas/spec.md)
+- Spec funcional: [`openspec/specs/reserva-aulas/spec.md`](../../../openspec/specs/reserva-aulas/spec.md)
 - Patrón de tabla de referencia: `/designaciones/mis-pedidos` (`TablaMisPedidos`, filtro por
   encabezado con `FiltroEncabezado`).
 
 ## Open questions de diseño
 
-- ¿Debería "Asignar aula" validar contra una capacidad conocida del aula vs. la cantidad aproximada de
-  alumnos? Requiere el catálogo de aulas todavía inexistente — a confirmar con el cliente si se prioriza.
+- ~~¿Debería "Asignar aula" validar contra la capacidad del aula?~~ **Resuelto el 2026-11-02:** advierte
+  y permite asignar (la cantidad de alumnos es aproximada).

@@ -23,7 +23,9 @@ export interface SolicitudReservaAula {
   materia: MateriaOpcion;
   comision: string;
   estado: EstadoSolicitudAula;
+  /** Nombre del aula del catálogo; sólo en una solicitud aprobada. */
   aulaAsignada?: string;
+  aulaId?: string;
   motivoRechazo?: string;
   /** Sólo en una reserva aprobada que un Administrativo canceló. */
   motivoCancelacion?: string;
@@ -40,4 +42,25 @@ export interface DatosNuevaSolicitud {
   cantidadAlumnosAprox: number;
   materiaId: string;
   comision: string;
+}
+
+export type TipoAula = "aula" | "laboratorio";
+
+/** Aula o laboratorio del catálogo que administra quien tiene `aulas.gestionar`. */
+export interface Aula {
+  id: string;
+  nombre: string;
+  tipo: TipoAula;
+  capacidad: number;
+  equipamiento?: string;
+  activa: boolean;
+  version: number;
+}
+
+export interface DatosAula {
+  nombre: string;
+  tipo: TipoAula;
+  capacidad: number;
+  equipamiento?: string;
+  version?: number;
 }

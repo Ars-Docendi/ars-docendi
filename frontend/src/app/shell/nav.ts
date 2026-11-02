@@ -89,6 +89,18 @@ export const NAVEGACION: NavGroup[] = [
         permiso: ["personas.ver", "personas.ver_ambito"],
       },
       { to: "/roles", icon: "roles", label: "Roles", permiso: "roles.ver" },
+      {
+        to: "/aulas/catalogo",
+        icon: "catalogoAulas",
+        label: "Catálogo de aulas",
+        permiso: "aulas.gestionar",
+      },
+      {
+        to: "/portal/vocabulario",
+        icon: "vocabulario",
+        label: "Vocabulario de experticia",
+        permiso: "portal.vocabulario.administrar",
+      },
     ],
   },
 ];

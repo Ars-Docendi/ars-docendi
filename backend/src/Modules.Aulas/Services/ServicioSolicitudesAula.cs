@@ -92,7 +92,7 @@ internal sealed class ServicioSolicitudesAula(
         repositorio.Agregar(solicitud);
         await repositorio.GuardarCambiosAsync(ct);
 
-        return Mapear(solicitud, MapearMateria(materia), esPropia: true);
+        return Mapear(solicitud, MapearMateria(materia), aula: null, esPropia: true);
     }
 
     public async Task<IReadOnlyList<SolicitudReservaAulaDto>> ListarMiasAsync(CancellationToken ct)
@@ -100,7 +100,8 @@ internal sealed class ServicioSolicitudesAula(
         var (_, docenteId) = await ActorActualAsync(ct);
         var solicitudes = await repositorio.ListarPorDocenteAsync(docenteId, ct);
         var materias = await CatalogoMateriasAsync(ct);
-        return solicitudes.Select(s => Mapear(s, ResolverMateria(materias, s.MateriaId), esPropia: true)).ToList();
+        var aulas = await NombresAulasAsync(ct);
+        return solicitudes.Select(s => Mapear(s, ResolverMateria(materias, s.MateriaId), NombreAula(aulas, s), esPropia: true)).ToList();
     }
 
     public async Task<IReadOnlyList<SolicitudReservaAulaDto>> ListarTodasAsync(CancellationToken ct)
@@ -108,11 +109,12 @@ internal sealed class ServicioSolicitudesAula(
         var solicitudes = await repositorio.ListarTodasAsync(ct);
         var materias = await CatalogoMateriasAsync(ct);
         var personaActual = await PersonaActualOpcionalAsync(ct);
+        var aulas = await NombresAulasAsync(ct);
         var personas = (await identity.ObtenerPersonasAsync(
                 solicitudes.Select(s => s.DocenteId).Distinct().ToList(), ct))
             .ToDictionary(p => p.Id);
 
-        return solicitudes.Select(s => Mapear(s, ResolverMateria(materias, s.MateriaId),
+        return solicitudes.Select(s => Mapear(s, ResolverMateria(materias, s.MateriaId), NombreAula(aulas, s),
             personas.TryGetValue(s.DocenteId, out var persona)
                 ? new DocenteSolicitudDto(persona.Id, persona.Nombre, persona.Apellido, persona.Legajo)
                 : null,
@@ -137,7 +139,8 @@ internal sealed class ServicioSolicitudesAula(
         var docente = persona is null
             ? null
             : new DocenteSolicitudDto(persona.Id, persona.Nombre, persona.Apellido, persona.Legajo);
-        return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId), docente, esPropia);
+        return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId),
+            NombreAula(await NombresAulasAsync(ct), solicitud), docente, esPropia);
     }
 
     public async Task<SolicitudReservaAulaDto> CancelarReservaAsync(
@@ -160,9 +163,9 @@ internal sealed class ServicioSolicitudesAula(
 
         // The room is released: CHECK solicitudes_reserva_aula_si_aprobada requires NULL outside Aprobada.
         // The notice names it, so it is read before it is cleared.
-        var aulaLiberada = solicitud.AulaAsignada;
+        var aulaLiberada = NombreAula(await NombresAulasAsync(ct), solicitud);
         solicitud.Estado = EstadosSolicitudAula.Cancelada;
-        solicitud.AulaAsignada = null;
+        solicitud.AulaId = null;
         solicitud.MotivoCancelacion = datos.Motivo.Trim();
         await repositorio.GuardarCambiosAsync(ct);
 
@@ -174,6 +177,7 @@ internal sealed class ServicioSolicitudesAula(
         return Mapear(
             solicitud,
             ResolverMateria(materias, solicitud.MateriaId),
+            aula: null,
             esPropia: personaActual == solicitud.DocenteId);
     }
 
@@ -217,9 +221,11 @@ internal sealed class ServicioSolicitudesAula(
 
     public async Task<SolicitudReservaAulaDto> AsignarAulaAsync(Guid id, AsignarAulaDto datos, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(datos.AulaAsignada))
+        var aula = await repositorio.ObtenerAulaAsync(datos.AulaId, false, ct);
+        // BR-aulas-006: sólo aulas activas del catálogo. La capacidad no se valida (BR-aulas-007).
+        if (aula is not { Activa: true })
         {
-            throw ErrorValidacion("aulaAsignada", "Debés indicar el aula a asignar.");
+            throw ErrorValidacion("aulaId", "Elegí un aula activa del catálogo.");
         }
 
         var solicitud = await repositorio.ObtenerPorIdAsync(id, ct) ?? throw NoEncontrada();
@@ -235,26 +241,30 @@ internal sealed class ServicioSolicitudesAula(
                 "No se puede asignar ni actualizar el aula de una solicitud cancelada o rechazada.");
         }
 
+        // BR-aulas-005: el EXCLUDE de la base es la garantía; esto sólo da el mensaje sin esperar al choque.
+        if (await repositorio.AulaOcupadaAsync(aula.Id, solicitud, ct)) throw ErroresAulas.AulaOcupada();
+
         var eraAprobada = solicitud.Estado == EstadosSolicitudAula.Aprobada;
-        var aulaAnterior = solicitud.AulaAsignada;
+        var aulaAnterior = NombreAula(await NombresAulasAsync(ct), solicitud);
+        var aulaAnteriorId = solicitud.AulaId;
         solicitud.Estado = EstadosSolicitudAula.Aprobada;
-        solicitud.AulaAsignada = datos.AulaAsignada.Trim();
+        solicitud.AulaId = aula.Id;
         await repositorio.GuardarCambiosAsync(ct);
 
         if (!eraAprobada)
         {
             await AvisarAlDuenoAsync(TiposEventoNotificacion.AulaAsignada, solicitud,
-                materia => AvisosAulas.AulaAsignada(solicitud, materia, datos.AulaAsignada.Trim()));
+                materia => AvisosAulas.AulaAsignada(solicitud, materia, aula.Nombre));
         }
-        else if (aulaAnterior != solicitud.AulaAsignada)
+        else if (aulaAnteriorId != aula.Id)
         {
             // An update that changes nothing is not worth a notice.
             await AvisarAlDuenoAsync(TiposEventoNotificacion.AulaActualizada, solicitud,
-                materia => AvisosAulas.AulaActualizada(solicitud, materia, aulaAnterior ?? "", datos.AulaAsignada.Trim()));
+                materia => AvisosAulas.AulaActualizada(solicitud, materia, aulaAnterior ?? "", aula.Nombre));
         }
 
         var materias = await CatalogoMateriasAsync(ct);
-        return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId));
+        return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId), aula.Nombre);
     }
 
     public async Task<SolicitudReservaAulaDto> RechazarAsync(
@@ -283,7 +293,7 @@ internal sealed class ServicioSolicitudesAula(
             materia => AvisosAulas.SolicitudRechazada(solicitud, materia, datos.Motivo.Trim()));
 
         var materias = await CatalogoMateriasAsync(ct);
-        return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId));
+        return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId), aula: null);
     }
 
     /// <summary>
@@ -343,6 +353,12 @@ internal sealed class ServicioSolicitudesAula(
         return catalogo.Where(m => materiaIds.Contains(m.Id)).ToList();
     }
 
+    private async Task<IReadOnlyDictionary<Guid, string>> NombresAulasAsync(CancellationToken ct) =>
+        (await repositorio.ListarAulasAsync(ct)).ToDictionary(a => a.Id, a => a.Nombre);
+
+    private static string? NombreAula(IReadOnlyDictionary<Guid, string> aulas, SolicitudReservaAula s) =>
+        s.AulaId is { } id && aulas.TryGetValue(id, out var nombre) ? nombre : null;
+
     private async Task<IReadOnlyDictionary<Guid, Materia>> CatalogoMateriasAsync(CancellationToken ct) =>
         (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
 
@@ -362,8 +378,8 @@ internal sealed class ServicioSolicitudesAula(
         new(TipoErrorAplicacion.NoEncontrado, "solicitud-not-found", "No se encontró la solicitud.");
 
     private static SolicitudReservaAulaDto Mapear(
-        SolicitudReservaAula s, MateriaOpcionDto materia, DocenteSolicitudDto? docente = null,
+        SolicitudReservaAula s, MateriaOpcionDto materia, string? aula, DocenteSolicitudDto? docente = null,
         bool esPropia = false) =>
         new(s.Id, s.Dia, s.HorarioDesde, s.HorarioHasta, s.CantidadAlumnosAprox, materia, s.Comision,
-            s.Estado, s.AulaAsignada, s.MotivoRechazo, s.CreadoEn, docente, s.MotivoCancelacion, esPropia);
+            s.Estado, aula, s.MotivoRechazo, s.CreadoEn, docente, s.MotivoCancelacion, esPropia, s.AulaId);
 }

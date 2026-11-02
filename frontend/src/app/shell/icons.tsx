@@ -108,6 +108,18 @@ export const navIcons = {
       <path d="M6.5 8.5h5M9 6v5" />
     </svg>
   ),
+  catalogoAulas: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M3 15V5l6-2.5L15 5v10" />
+      <path d="M2 15h14M7 15v-4h4v4M6 7.5h1M11 7.5h1" />
+    </svg>
+  ),
+  vocabulario: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M2.5 3.5h6l7 7-5 5-7-7v-5Z" />
+      <circle cx="6" cy="7" r="1" />
+    </svg>
+  ),
   membresiaRoles: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <path d="M9 2.5l5.5 2v4.1c0 3.2-2.3 5.5-5.5 6.9-3.2-1.4-5.5-3.7-5.5-6.9V4.5l5.5-2Z" />

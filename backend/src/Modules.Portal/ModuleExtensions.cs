@@ -25,6 +25,8 @@ public static class ModuleExtensions
         services.AddScoped<ArsDocendi.Storage.Contracts.IParticipanteTransaccionArchivos>(sp => sp.GetRequiredService<ReferenciasArchivosPortal>());
         services.AddScoped<RepositorioPortal>();
         services.AddScoped<ServicioPortal>();
+        services.AddScoped<RepositorioVocabulario>();
+        services.AddScoped<ServicioVocabulario>();
         services.AddScoped<Modules.Portal.Contracts.Queries.IPortalQueries>(sp => sp.GetRequiredService<ServicioPortal>());
         services.AddScoped<Modules.Portal.Contracts.Administracion.IAdministracionPortal, Application.AdministracionPortal>();
 

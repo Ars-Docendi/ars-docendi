@@ -168,25 +168,32 @@ Ver [evidencia Designaciones 3.6–3.8](../../openspec/changes/archive/2026-10-2
 
 ### Aulas (`schema: aulas`)
 
-Primera tabla real del schema, sin catálogo propio: `materia_id` referencia `identity.materias`
-(acotada por el backend a las materias del docente solicitante), `comision` y `aula_asignada` son texto
-libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
+`materia_id` referencia `identity.materias` (acotada por el backend a las materias del docente
+solicitante). `comision` es texto libre: su catálogo depende de la integración con Guaraní (ver
 `docs/architecture/domains/aulas.md`).
 
 | Tabla                 | Descripción                                                                                                                                                                                           | PII |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
+| `aulas`               | Catálogo de aulas y laboratorios: `nombre` (único por `lower(btrim(nombre))`), `tipo` (`aula`/`laboratorio`), `capacidad > 0`, `equipamiento`, `activa`                                               | No  |
 
 `solicitudes_reserva` suma, desde la migración `20261102030524_MotivoCancelacionYRolSolicitanteAulas`:
 
 - `motivo_cancelacion TEXT NULL`: motivo con que un Administrativo cancela una reserva ya aprobada
   (`aprobada` → `cancelada`). El CHECK `solicitudes_reserva_motivo_cancelacion_si_cancelada` sólo lo
   admite con `estado = 'cancelada'` y no en blanco. Es `NULL` cuando el docente cancela su propia
-  solicitud pendiente. Al cancelar una reserva el aula se libera (`aula_asignada` pasa a `NULL`, como
+  solicitud pendiente. Al cancelar una reserva el aula se libera (`aula_id` pasa a `NULL`, como
   exige `solicitudes_reserva_aula_si_aprobada`).
 - `rol_solicitante TEXT NULL`: rol activo de la sesión que creó la solicitud. Lo usan las notificaciones
   internas para elegir el destino del enlace. `NULL` en las filas anteriores a la migración (sin backfill);
   sin CHECK contra el catálogo de roles porque los roles son datos y pueden renombrarse.
+
+Desde `20261102181055_CatalogoAulasAulas`, `aula_asignada` (texto libre) se reemplaza por
+`aula_id UUID NULL` con FK `ON DELETE RESTRICT` a `aulas.aulas`. `solicitudes_reserva_aula_si_aprobada`
+exige `(estado = 'aprobada') = (aula_id IS NOT NULL)` y el `EXCLUDE USING gist`
+`solicitudes_reserva_aula_sin_superposicion` impide dos reservas aprobadas del mismo aula con
+`tsrange(dia + horario_desde, dia + horario_hasta, '[)')` superpuestos (BR-aulas-005; requiere
+`btree_gist`).
 
 ### Notificaciones (`schema: notificaciones`)
 
@@ -207,6 +214,11 @@ Una fila por usuario destinatario (fan-out al momento del evento): varios Jefes 
 referencia lógica `archivo_id` a `storage.archivos`; las URI históricas se
 conservan solo como metadata de transición y nunca se convierten en destinos
 descargables. Todas las tablas tienen `created_at` y `audit.attach`.
+
+`habilidades` es el vocabulario compartido: `termino_norm` único (`Trim` + `ToUpperInvariant`),
+`sugerido` hasta que la Secretaría incorpora el término y `canonica_id` cuando se fusionó en otro
+(CHECK `habilidades_canonica_distinta`: nunca en sí mismo). La migración
+`20261102181056_VocabularioExperticiaPortal` siembra el vocabulario base.
 
 Los accesos por `perfil_id` a experiencias, educaciones, certificaciones y proyectos
 usan índices SQL incrementales, no propiedades EF generadoras de DDL. La evidencia

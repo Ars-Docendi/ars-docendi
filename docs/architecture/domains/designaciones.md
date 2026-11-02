@@ -102,6 +102,7 @@ ni a repositorios de Identity.
 | Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`          | permisos y visibilidad resueltos por backend                        |
 | Transiciones       | `/api/designaciones/pedidos/{id}/{accion}`   | máquina de estados, permiso de etapa e idempotencia                 |
 | Lote XLSX          | `/api/designaciones/periodos/{id}/lote.xlsx` | Secretaría, Decanato o Administración departamental; período activo |
+| Mis designaciones  | `/api/designaciones/vigentes/mias`           | autenticado; sólo las de su persona (Mi Portal)                     |
 
 El contrato completo está en [api-contracts-designaciones.md](../api-contracts-designaciones.md).
 

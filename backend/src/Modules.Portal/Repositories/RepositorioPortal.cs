@@ -95,7 +95,9 @@ public sealed class RepositorioPortal(PortalDbContext db)
         {
             var normalizado = Normalizar(original);
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO portal.habilidades (termino,termino_norm,sugerido) VALUES ({original},{normalizado},true) ON CONFLICT (termino_norm) DO NOTHING", ct);
-            var id = await db.Habilidades.Where(x => x.TerminoNorm == normalizado).Select(x => x.Id).SingleAsync(ct);
+            // BR-portal-004: una variante fusionada se guarda como su canónica. FOR SHARE serializa con
+            // una fusión en curso, que bloquea la fila del término antes de mover sus usos.
+            var id = await db.Database.SqlQuery<Guid>($"SELECT COALESCE(canonica_id, id) AS \"Value\" FROM portal.habilidades WHERE termino_norm={normalizado} FOR SHARE").SingleAsync(ct);
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO portal.docente_habilidades (perfil_id,habilidad_id,tipo) VALUES ({perfil.Id},{id},{tipo}) ON CONFLICT DO NOTHING", ct);
         }
         await tx.CommitAsync(ct);
@@ -108,5 +110,5 @@ public sealed class RepositorioPortal(PortalDbContext db)
         .Include(x => x.Habilidades).ThenInclude(x => x.Habilidad)
         .Where(x => x.PersonaId == personaId);
 
-    private static string Normalizar(string texto) => texto.Trim().ToUpperInvariant();
+    internal static string Normalizar(string texto) => texto.Trim().ToUpperInvariant();
 }

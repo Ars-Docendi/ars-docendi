@@ -22,6 +22,7 @@ public static class ModuleExtensions
 
         services.AddScoped<RepositorioSolicitudesAula>();
         services.AddScoped<IServicioSolicitudesAula, ServicioSolicitudesAula>();
+        services.AddScoped<IServicioCatalogoAulas, ServicioCatalogoAulas>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

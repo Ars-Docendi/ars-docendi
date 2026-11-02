@@ -7,7 +7,7 @@
 ## Roles que interactúan
 
 - **Docente** — Autogestiona sus datos.
-- **Secretaría Académica** — Vista de todos los docentes, parametrización (áreas de experticia disponibles, etc.).
+- **Secretaría Académica** — Ve el perfil de cualquier docente desde Personas (pestaña "Datos docentes") y cura el vocabulario de habilidades e intereses (`portal.vocabulario.administrar`).
 
 ## Bounded context
 
@@ -26,17 +26,26 @@
 
 ## API pública (contract)
 
-| Interfaz         | Métodos              | Consumido por                   |
-| ---------------- | -------------------- | ------------------------------- |
-| `IPortalQueries` | `ObtenerPerfilAsync` | Futuros consumidores de lectura |
+| Interfaz         | Métodos              | Consumido por                                                 |
+| ---------------- | -------------------- | ------------------------------------------------------------- |
+| `IPortalQueries` | `ObtenerPerfilAsync` | `Modules.Designaciones` (correo del perfil al exportar altas) |
 
 ## Endpoints HTTP
 
-| Método          | Path                                                                   | Rol         | Descripción                 |
-| --------------- | ---------------------------------------------------------------------- | ----------- | --------------------------- |
-| GET             | `/api/portal/ping`                                                     | (anónimo)   | Health check                |
-| PUT             | `/api/portal/perfil/contacto`, `/cv`, `/habilidades`, `/intereses`     | autenticado | Actualización independiente |
-| POST/PUT/DELETE | `/api/portal/perfil/{experiencia,educacion,certificaciones,proyectos}` | autenticado | CRUD de colecciones         |
+| Método          | Path                                                                   | Rol                              | Descripción                                                                            |
+| --------------- | ---------------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------- |
+| GET             | `/api/portal/ping`                                                     | (anónimo)                        | Health check                                                                           |
+| PUT             | `/api/portal/perfil/contacto`, `/cv`, `/habilidades`, `/intereses`     | autenticado                      | Actualización independiente                                                            |
+| POST/PUT/DELETE | `/api/portal/perfil/{experiencia,educacion,certificaciones,proyectos}` | autenticado                      | CRUD de colecciones                                                                    |
+| GET             | `/api/portal/vocabulario`                                              | autenticado                      | Términos incorporados y no fusionados, para elegir                                     |
+| GET             | `/api/portal/vocabulario/terminos`                                     | `portal.vocabulario.administrar` | Todos los términos con estado, canónico y cantidad de docentes                         |
+| POST            | `/api/portal/vocabulario/terminos/{id}/incorporar`                     | `portal.vocabulario.administrar` | Incorporar un término sugerido                                                         |
+| PUT             | `/api/portal/vocabulario/terminos/{id}`                                | `portal.vocabulario.administrar` | Renombrar; 409 `termino-repetido` si ya existe                                         |
+| POST            | `/api/portal/vocabulario/terminos/{id}/fusionar`                       | `portal.vocabulario.administrar` | Fusionar en `destinoId`; mueve los usos y sube las versiones de los perfiles afectados |
+
+Mi Portal también muestra las designaciones vigentes del docente; las lee desde
+`GET /api/designaciones/vigentes/mias` (ver [designaciones.md](./designaciones.md)), sin que
+`Modules.Portal` dependa de Designaciones.
 
 ## Lecturas, versiones y referencias documentales
 
@@ -68,7 +77,7 @@ un SLA productivo.
 
 ## Reglas de negocio
 
-Este módulo todavía no tiene reglas provenientes de normativa institucional registradas.
+Ver [docs/business-rules/portal.md](../../business-rules/portal.md) (`BR-portal-001` a `005`).
 
 ## Dependencias
 
@@ -79,4 +88,4 @@ Este módulo todavía no tiene reglas provenientes de normativa institucional re
 ## Decisiones registradas
 
 - **PII sensible**: ver `data-model.md` para tratamiento de PII (encriptación, logs, backup).
-- **Vocabulario de experticia por folksonomía**: no hay catálogo curado de antemano. Los docentes escriben el término y el autocompletado sobre lo ya cargado evita que se fragmente; `nombre_norm` (único) corta duplicados y `canonica_id` permite fusionar variantes sin perder datos. Ver `openspec/specs/experticia-docente/spec.md`.
+- **Vocabulario de experticia curado desde el uso**: la migración `VocabularioExperticiaPortal` siembra un vocabulario base y los docentes pueden sugerir términos nuevos, que quedan `sugerido` hasta que la Secretaría los incorpora. `termino_norm` (único) corta duplicados y `canonica_id` registra una fusión: guardar la variante resuelve al canónico. Ver `openspec/specs/experticia-docente/spec.md` y `openspec/changes/archive/2026-11-02-catalogo-aulas-y-vocabulario-portal/`.

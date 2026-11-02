@@ -50,6 +50,7 @@ por haber registrado la persona en un Alta.
 | POST   | `/api/designaciones/periodos/{id}/desactivar` | `periodos.administrar`                          | `PeriodoDto`                                                                                         |
 | DELETE | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `204`                                                                                                |
 | GET    | `/api/designaciones/catalogos`                | `designaciones.ver` o `designaciones.gestionar` | `CatalogosDto` acotado al actor; `?pedidoId=` (edición) mantiene elegible a la persona de ese pedido |
+| GET    | `/api/designaciones/vigentes/mias`            | autenticado                                     | `DesignacionPropiaDto[]` de la persona autenticada (Mi Portal); vacío sin persona vinculada          |
 
 ## Exportación del lote
 

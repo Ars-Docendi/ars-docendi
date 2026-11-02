@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.Extensions.DependencyInjection;
+using ArsDocendi.IntegrationTests.Aulas;
 using Modules.Aulas.Api;
 using Modules.Notificaciones.Contracts;
 
@@ -28,8 +29,9 @@ public sealed class EmisionAulasTests(PostgresFixture postgres)
         return (await respuesta.Content.ReadFromJsonAsync<SolicitudReservaAulaDto>(Ct))!;
     }
 
-    private static Task<HttpResponseMessage> AsignarAsync(HttpClient administrativo, Guid id, string aula) =>
-        administrativo.PostAsJsonAsync($"/api/aulas/solicitudes/{id}/asignar", new { aulaAsignada = aula }, Ct);
+    private static async Task<HttpResponseMessage> AsignarAsync(HttpClient administrativo, Guid id, string aula) =>
+        await administrativo.PostAsJsonAsync($"/api/aulas/solicitudes/{id}/asignar",
+            new AsignarAulaDto(await CatalogoAulasPrueba.IdAsync(administrativo, aula, Ct)), Ct);
 
     [Fact]
     public async Task Asignar_un_aula_avisa_al_docente_dueno_con_el_aula_y_bajo_su_perfil()
@@ -184,7 +186,7 @@ public sealed class EmisionAulasTests(PostgresFixture postgres)
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         Assert.Equal("aprobada", (await respuesta.Content.ReadFromJsonAsync<SolicitudReservaAulaDto>(Ct))!.Estado);
-        Assert.Equal(1, await EscalarAsync("SELECT count(*) FROM aulas.solicitudes_reserva WHERE id = @id AND estado = 'aprobada' AND aula_asignada = 'Aula 204'", ("id", solicitud.Id)));
+        Assert.Equal(1, await EscalarAsync("SELECT count(*) FROM aulas.solicitudes_reserva WHERE id = @id AND estado = 'aprobada' AND aula_id IS NOT NULL", ("id", solicitud.Id)));
     }
 
     [Fact]

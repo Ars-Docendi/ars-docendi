@@ -41,6 +41,7 @@ public sealed class AltasConcurrentesTests(PostgresFixture postgres) : ClasePost
         Assert.True(await identity.Personas.AnyAsync(p => p.Id == persona, ct));
     }
 
+    // [BR-portal-002]
     [Fact]
     public async Task Dos_perfiles_sugieren_un_termino_normalizado_y_conservan_tipos_independientes()
     {

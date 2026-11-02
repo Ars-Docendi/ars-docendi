@@ -11,6 +11,11 @@ import type {
 
 export const perfilKey = ["portal", "perfil"] as const;
 
+/** Términos incorporados al vocabulario compartido de habilidades e intereses. */
+export async function listarVocabulario(): Promise<string[]> {
+  return (await apiClient.get<string[]>("/api/portal/vocabulario")).data;
+}
+
 /**
  * Operaciones sobre un perfil de Mi Portal. La misma API sirve al perfil propio
  * (`/api/portal/perfil`) y al de otra persona desde la administración

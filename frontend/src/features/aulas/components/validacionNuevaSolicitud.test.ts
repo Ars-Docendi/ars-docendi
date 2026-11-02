@@ -41,6 +41,7 @@ describe("validarNuevaSolicitud", () => {
     expect(errores.horarioDesde).toBe("Ingresá un horario válido (hh:mm).");
   });
 
+  // BR-aulas-002
   it("requires the end time to be after the start time", () => {
     const errores = validarNuevaSolicitud({
       ...VALIDO,
@@ -50,6 +51,7 @@ describe("validarNuevaSolicitud", () => {
     expect(errores.horarioHasta).toBe("El horario hasta debe ser posterior al horario desde.");
   });
 
+  // BR-aulas-002
   it("rejects zero and negative attendance", () => {
     expect(
       validarNuevaSolicitud({ ...VALIDO, cantidadAlumnosAprox: "0" }).cantidadAlumnosAprox,

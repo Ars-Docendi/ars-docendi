@@ -3,13 +3,15 @@ import { Button, Input, Select, StatusBadge } from "@ars-docendi/ui";
 
 import type { Tag } from "../types";
 import { vocabularioDisponible } from "../helpers";
+import { useVocabulario } from "../hooks/useVocabulario";
 import { SeccionPerfil } from "./SeccionPerfil";
 import "./portal.css";
 
 interface SeccionTagsProps {
   titulo: string;
   tags: Tag[];
-  onAgregar: (termino: string) => void;
+  /** Recibe también el vocabulario vigente, para marcar si el término queda sugerido. */
+  onAgregar: (termino: string, vocabulario: string[]) => void;
   onQuitar: (termino: string) => void;
 }
 
@@ -25,12 +27,13 @@ export function SeccionTags({ titulo, tags, onAgregar, onQuitar }: SeccionTagsPr
   const [editando, setEditando] = useState(false);
   const [sugerencia, setSugerencia] = useState("");
 
-  const disponibles = vocabularioDisponible(tags);
+  const vocabulario = useVocabulario();
+  const disponibles = vocabularioDisponible(tags, vocabulario);
 
   function confirmarSugerencia() {
     const limpio = sugerencia.trim();
     if (!limpio) return;
-    onAgregar(limpio);
+    onAgregar(limpio, vocabulario);
     setSugerencia("");
   }
 
@@ -79,7 +82,7 @@ export function SeccionTags({ titulo, tags, onAgregar, onQuitar }: SeccionTagsPr
               value=""
               aria-label={`Agregar a ${titulo.toLowerCase()}`}
               onChange={(e) => {
-                if (e.target.value) onAgregar(e.target.value);
+                if (e.target.value) onAgregar(e.target.value, vocabulario);
               }}
             >
               <option value="">Elegí un término…</option>

@@ -29,8 +29,11 @@ public sealed class SolicitudReservaAula
     public required string Comision { get; set; }
 
     public required string Estado { get; set; }
-    /// <summary>Sólo con <c>Estado == Aprobada</c>: identificador de aula en texto libre.</summary>
-    public string? AulaAsignada { get; set; }
+    /// <summary>
+    /// Sólo con <c>Estado == Aprobada</c>: aula del catálogo. La base impide dos reservas
+    /// aprobadas superpuestas en la misma aula (BR-aulas-005).
+    /// </summary>
+    public Guid? AulaId { get; set; }
     /// <summary>Sólo con <c>Estado == Rechazada</c>: motivo ingresado por el Administrativo.</summary>
     public string? MotivoRechazo { get; set; }
     /// <summary>
@@ -45,6 +48,26 @@ public sealed class SolicitudReservaAula
     public string? RolSolicitante { get; set; }
 
     public DateTimeOffset CreadoEn { get; set; }
+}
+
+/// <summary>Aula o laboratorio del catálogo que administra quien tiene <c>aulas.gestionar</c>.</summary>
+public sealed class Aula
+{
+    public Guid Id { get; set; }
+    public required string Nombre { get; set; }
+    public required string Tipo { get; set; }
+    public int Capacidad { get; set; }
+    public string? Equipamiento { get; set; }
+    public bool Activa { get; set; }
+    public DateTimeOffset CreadoEn { get; set; }
+    public uint Version { get; set; }
+}
+
+/// <summary>Tipos de aula. Coincide con el CHECK <c>aulas_tipo_valido</c>.</summary>
+public static class TiposAula
+{
+    public const string Aula = "aula";
+    public const string Laboratorio = "laboratorio";
 }
 
 /// <summary>Estados de la solicitud. Coincide con el CHECK <c>solicitudes_reserva_estado_valido</c>.</summary>

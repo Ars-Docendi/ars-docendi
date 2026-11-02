@@ -61,14 +61,18 @@ export function PerfilSecciones({
       <SeccionTags
         titulo="Habilidades"
         tags={perfil.habilidades}
-        onAgregar={(t) => actualizar((p) => ({ ...p, habilidades: agregarTag(p.habilidades, t) }))}
+        onAgregar={(t, vocabulario) =>
+          actualizar((p) => ({ ...p, habilidades: agregarTag(p.habilidades, t, vocabulario) }))
+        }
         onQuitar={(t) => actualizar((p) => ({ ...p, habilidades: quitarTag(p.habilidades, t) }))}
       />
 
       <SeccionTags
         titulo="Intereses"
         tags={perfil.intereses}
-        onAgregar={(t) => actualizar((p) => ({ ...p, intereses: agregarTag(p.intereses, t) }))}
+        onAgregar={(t, vocabulario) =>
+          actualizar((p) => ({ ...p, intereses: agregarTag(p.intereses, t, vocabulario) }))
+        }
         onQuitar={(t) => actualizar((p) => ({ ...p, intereses: quitarTag(p.intereses, t) }))}
       />
     </div>

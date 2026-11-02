@@ -360,14 +360,16 @@ INSERT INTO portal.proyecto_documentos (id, proyecto_id, nombre, fecha_carga, ur
     ('f0700000-0000-4000-8000-000000000001', 'f0600000-0000-4000-8000-000000000001', 'informe-plataforma.pdf', TIMESTAMPTZ '2026-08-20 12:00:00+00', 'synthetic://portal/proyectos/plataforma')
 ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, fecha_carga = EXCLUDED.fecha_carga, uri = EXCLUDED.uri;
 
+-- "Bases de datos" ya viene del vocabulario base (migración VocabularioExperticiaPortal);
+-- sólo se siembra un término sugerido.
 INSERT INTO portal.habilidades (id, termino, termino_norm, sugerido) VALUES
-    ('f0800000-0000-4000-8000-000000000001', 'Bases de datos', 'BASES DE DATOS', FALSE),
     ('f0800000-0000-4000-8000-000000000002', 'Investigación educativa', 'INVESTIGACIÓN EDUCATIVA', TRUE)
 ON CONFLICT (id) DO UPDATE SET termino = EXCLUDED.termino, termino_norm = EXCLUDED.termino_norm, sugerido = EXCLUDED.sugerido;
 
-INSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo) VALUES
-    ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000001', 'habilidad'),
-    ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000002', 'interes')
+INSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo)
+SELECT 'f0000000-0000-4000-8000-000000000001'::uuid, id, 'habilidad' FROM portal.habilidades WHERE termino_norm = 'BASES DE DATOS'
+UNION ALL
+SELECT 'f0000000-0000-4000-8000-000000000001'::uuid, 'f0800000-0000-4000-8000-000000000002'::uuid, 'interes'
 ON CONFLICT (perfil_id, habilidad_id, tipo) DO NOTHING;
 
 -- Tareas y proyectos de ejemplo. Fechas relativas a "hoy" para que el semáforo de

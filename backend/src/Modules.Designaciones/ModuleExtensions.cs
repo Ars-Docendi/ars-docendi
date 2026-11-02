@@ -52,6 +52,7 @@ public static class ModuleExtensions
         services.AddScoped<ServicioPeriodos>();
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
+        services.AddScoped<IServicioDesignacionesPropias, ServicioDesignacionesPropias>();
         services.AddHostedService<LimpiezaComandosIdempotentes>();
 
         services.AddControllers()

@@ -16,6 +16,9 @@ const api = vi.hoisted(() => ({
 }));
 vi.mock("../api/solicitudesApi", () => api);
 
+const catalogo = vi.hoisted(() => ({ listarAulas: vi.fn() }));
+vi.mock("../api/catalogoApi", () => catalogo);
+
 const sesion = vi.hoisted(() => ({ permisos: [] as string[] }));
 vi.mock("../../../shared/auth/useCurrentUser", () => ({
   useCurrentUser: () => ({
@@ -57,6 +60,17 @@ function renderizar(estado?: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   sesion.permisos = [];
+  catalogo.listarAulas.mockResolvedValue([
+    { id: "a204", nombre: "Aula 204", tipo: "aula", capacidad: 40, activa: true, version: 1 },
+    {
+      id: "lab1",
+      nombre: "Laboratorio 1",
+      tipo: "laboratorio",
+      capacidad: 20,
+      activa: true,
+      version: 1,
+    },
+  ]);
 });
 
 describe("DetalleSolicitudPage — Volver", () => {
@@ -150,12 +164,12 @@ describe("DetalleSolicitudPage", () => {
     renderizar();
 
     await usuario.click(await screen.findByRole("button", { name: "Asignar y aprobar" }));
-    expect(screen.getByText("Indicá el aula a asignar.")).toBeInTheDocument();
+    expect(screen.getByText("Elegí el aula a asignar.")).toBeInTheDocument();
     expect(api.asignarAula).not.toHaveBeenCalled();
 
-    await usuario.type(screen.getByLabelText(/Aula o laboratorio/), "Aula 204");
+    await usuario.selectOptions(await screen.findByLabelText(/Aula o laboratorio/), "a204");
     await usuario.click(screen.getByRole("button", { name: "Asignar y aprobar" }));
-    expect(api.asignarAula).toHaveBeenCalledWith("s1", "Aula 204");
+    expect(api.asignarAula).toHaveBeenCalledWith("s1", "a204");
 
     await usuario.click(screen.getByRole("button", { name: "Rechazar solicitud" }));
     const dialogo = screen.getByRole("dialog", { name: "Rechazar solicitud" });
@@ -165,6 +179,29 @@ describe("DetalleSolicitudPage", () => {
     await usuario.type(within(dialogo).getByLabelText(/Motivo/), "No hay aula");
     await usuario.click(within(dialogo).getByRole("button", { name: "Rechazar solicitud" }));
     expect(api.rechazarSolicitud).toHaveBeenCalledWith("s1", "No hay aula");
+  });
+
+  // BR-aulas-007
+  it("warns when the chosen room is smaller than the request but still lets it be assigned", async () => {
+    const usuario = userEvent.setup();
+    sesion.permisos = ["aulas.aprobar"];
+    api.obtenerSolicitud.mockResolvedValue(BASE);
+    api.asignarAula.mockResolvedValue({
+      ...BASE,
+      estado: "aprobada",
+      aulaAsignada: "Laboratorio 1",
+    });
+    renderizar();
+
+    const selector = await screen.findByLabelText(/Aula o laboratorio/);
+    await vi.waitFor(() => expect(selector).toBeEnabled());
+    await usuario.selectOptions(selector, "a204");
+    expect(screen.queryByText("Capacidad insuficiente")).not.toBeInTheDocument();
+
+    await usuario.selectOptions(selector, "lab1");
+    expect(screen.getByText("Capacidad insuficiente")).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Asignar y aprobar" }));
+    expect(api.asignarAula).toHaveBeenCalledWith("s1", "lab1");
   });
 
   it("cancels an approved reservation with a mandatory reason and protects a half-typed one", async () => {

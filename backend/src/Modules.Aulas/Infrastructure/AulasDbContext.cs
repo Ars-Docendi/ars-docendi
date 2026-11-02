@@ -16,6 +16,7 @@ public sealed class AulasDbContext(DbContextOptions<AulasDbContext> options) : D
     public const string Schema = "aulas";
 
     public DbSet<SolicitudReservaAula> SolicitudesReserva => Set<SolicitudReservaAula>();
+    public DbSet<Aula> Aulas => Set<Aula>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,7 +35,7 @@ public sealed class AulasDbContext(DbContextOptions<AulasDbContext> options) : D
             e.Property(x => x.MateriaId).HasColumnName("materia_id");
             e.Property(x => x.Comision).HasColumnName("comision");
             e.Property(x => x.Estado).HasColumnName("estado");
-            e.Property(x => x.AulaAsignada).HasColumnName("aula_asignada");
+            e.Property(x => x.AulaId).HasColumnName("aula_id");
             e.Property(x => x.MotivoRechazo).HasColumnName("motivo_rechazo");
             e.Property(x => x.MotivoCancelacion).HasColumnName("motivo_cancelacion");
             e.Property(x => x.RolSolicitante).HasColumnName("rol_solicitante");
@@ -45,6 +46,20 @@ public sealed class AulasDbContext(DbContextOptions<AulasDbContext> options) : D
             e.HasIndex(x => x.DocenteId);
             e.HasIndex(x => x.Estado);
             e.HasIndex(x => x.MateriaId);
+        });
+
+        modelBuilder.Entity<Aula>(e =>
+        {
+            e.ToTable("aulas", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Nombre).HasColumnName("nombre");
+            e.Property(x => x.Tipo).HasColumnName("tipo");
+            e.Property(x => x.Capacidad).HasColumnName("capacidad");
+            e.Property(x => x.Equipamiento).HasColumnName("equipamiento");
+            e.Property(x => x.Activa).HasColumnName("activa");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.Property(x => x.Version).HasColumnName("xmin").IsRowVersion();
         });
 
         base.OnModelCreating(modelBuilder);
