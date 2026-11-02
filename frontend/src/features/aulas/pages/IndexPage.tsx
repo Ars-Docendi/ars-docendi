@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
+import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { AlertaConReintento } from "../components/AlertaConReintento";
 import { TablaMisSolicitudes } from "../components/TablaMisSolicitudes";
@@ -12,9 +13,8 @@ import { ModalCancelarSolicitud } from "../components/ModalCancelarSolicitud";
 import { IconoPlus } from "../components/lucide";
 import {
   aplicarFiltrosYOrdenSolicitudes,
+  COLUMNAS_ORDEN_SOLICITUDES,
   FILTROS_INICIALES,
-  type FiltrosSolicitudesState,
-  type OrdenSolicitudes,
 } from "../components/filtrosSolicitudes";
 import { useMisSolicitudes, useTodasLasSolicitudes } from "../hooks/useSolicitudesAula";
 import { useCancelarSolicitud } from "../hooks/useAccionesSolicitud";
@@ -44,12 +44,13 @@ export function IndexPage() {
 }
 
 function SeccionMisSolicitudes() {
-  const navegar = useNavigate();
+  const abrir = useAbrirDetalle();
   const { data: solicitudes, isLoading, isError, refetch } = useMisSolicitudes();
   const cancelar = useCancelarSolicitud();
 
-  const [filtros, setFiltros] = useState<FiltrosSolicitudesState>(FILTROS_INICIALES);
-  const [orden, setOrden] = useState<OrdenSolicitudes | null>(null);
+  // Dos tablas en la página: el query de cada una lleva su prefijo.
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_INICIALES, "mias");
+  const [orden, setOrden] = useOrdenURL(COLUMNAS_ORDEN_SOLICITUDES, "mias");
   const [modalNuevaAbierto, setModalNuevaAbierto] = useState(false);
   const [solicitudACancelar, setSolicitudACancelar] = useState<SolicitudReservaAula | undefined>();
 
@@ -114,7 +115,7 @@ function SeccionMisSolicitudes() {
             onFiltrosChange={setFiltros}
             onOrdenChange={setOrden}
             onCancelar={setSolicitudACancelar}
-            onAbrir={(solicitud) => navegar(rutaDetalleSolicitud(solicitud.id))}
+            onAbrir={(solicitud) => abrir(rutaDetalleSolicitud(solicitud.id))}
           />
         </>
       )}
@@ -135,11 +136,11 @@ function SeccionMisSolicitudes() {
 }
 
 function SeccionTodasLasSolicitudes() {
-  const navegar = useNavigate();
+  const abrir = useAbrirDetalle();
   const { data: solicitudes, isLoading, isError, refetch } = useTodasLasSolicitudes();
 
-  const [filtros, setFiltros] = useState<FiltrosSolicitudesState>(FILTROS_INICIALES);
-  const [orden, setOrden] = useState<OrdenSolicitudes | null>(null);
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_INICIALES, "todas");
+  const [orden, setOrden] = useOrdenURL(COLUMNAS_ORDEN_SOLICITUDES, "todas");
 
   const filtradas = useMemo(
     () => aplicarFiltrosYOrdenSolicitudes(solicitudes ?? [], filtros, orden),
@@ -186,7 +187,7 @@ function SeccionTodasLasSolicitudes() {
             orden={orden}
             onFiltrosChange={setFiltros}
             onOrdenChange={setOrden}
-            onAbrir={(solicitud) => navegar(rutaDetalleSolicitud(solicitud.id))}
+            onAbrir={(solicitud) => abrir(rutaDetalleSolicitud(solicitud.id))}
           />
         </>
       )}

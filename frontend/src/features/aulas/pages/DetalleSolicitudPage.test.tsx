@@ -40,11 +40,11 @@ const BASE: SolicitudReservaAula = {
   esPropia: false,
 };
 
-function renderizar() {
+function renderizar(estado?: unknown) {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={cliente}>
-      <MemoryRouter initialEntries={["/aulas/solicitudes/s1"]}>
+      <MemoryRouter initialEntries={[{ pathname: "/aulas/solicitudes/s1", state: estado }]}>
         <Routes>
           <Route path="/aulas/solicitudes/:id" element={<DetalleSolicitudPage />} />
           <Route path="/aulas" element={<p>Listado de reservas</p>} />
@@ -57,6 +57,26 @@ function renderizar() {
 beforeEach(() => {
   vi.clearAllMocks();
   sesion.permisos = [];
+});
+
+describe("DetalleSolicitudPage — Volver", () => {
+  it("returns to the list the request was opened from, with its filters", async () => {
+    sesion.permisos = ["aulas.solicitar"];
+    api.obtenerSolicitud.mockResolvedValue({ ...BASE, esPropia: true });
+    renderizar({ volverA: "/aulas?mias.estado=pendiente" });
+
+    const volver = await screen.findByRole("link", { name: "Volver a Reserva de aulas" });
+    expect(volver).toHaveAttribute("href", "/aulas?mias.estado=pendiente");
+  });
+
+  it("ignores an origin outside the allowlist", async () => {
+    sesion.permisos = ["aulas.solicitar"];
+    api.obtenerSolicitud.mockResolvedValue({ ...BASE, esPropia: true });
+    renderizar({ volverA: "https://example.test/aulas" });
+
+    const volver = await screen.findByRole("link", { name: "Volver a Reserva de aulas" });
+    expect(volver).toHaveAttribute("href", "/aulas");
+  });
 });
 
 describe("DetalleSolicitudPage", () => {

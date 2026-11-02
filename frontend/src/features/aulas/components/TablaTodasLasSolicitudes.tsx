@@ -1,8 +1,8 @@
 import { Input, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
 import type { SolicitudReservaAula } from "../types";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { rutaDetalleSolicitud } from "../rutas";
 import {
@@ -183,13 +183,12 @@ export function TablaTodasLasSolicitudes({
               return (
                 <Table.Row key={solicitud.id} {...propsFilaClickeable(() => onAbrir(solicitud))}>
                   <Table.Cell>
-                    <Link
-                      to={rutaDetalleSolicitud(solicitud.id)}
-                      className="adoc-fila-enlace"
-                      aria-label={`Ver la solicitud de ${nombreDocente} del ${fechaSolicitud(solicitud)}`}
+                    <EnlaceFila
+                      ruta={rutaDetalleSolicitud(solicitud.id)}
+                      etiqueta={`Ver la solicitud de ${nombreDocente} del ${fechaSolicitud(solicitud)}`}
                     >
                       {solicitud.docente ? nombreDocente : "—"}
-                    </Link>
+                    </EnlaceFila>
                   </Table.Cell>
                   <Table.Cell>{fechaSolicitud(solicitud)}</Table.Cell>
                   <Table.Cell>{horarioSolicitud(solicitud)}</Table.Cell>

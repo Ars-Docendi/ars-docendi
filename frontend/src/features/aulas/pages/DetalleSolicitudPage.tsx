@@ -1,17 +1,16 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { InlineAlert } from "@ars-docendi/ui";
+import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
 import { Migas } from "../../../shared/navegacion/Migas";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
+import { migaDeVolver } from "../../../shared/navegacion/volver";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { DatosSolicitud } from "../components/DatosSolicitud";
 import { fechaSolicitud } from "../components/filtrosSolicitudes";
-import { IconoArrowLeft } from "../components/lucide";
 import { ResolucionSolicitud } from "../components/ResolucionSolicitud";
 import { useSolicitud } from "../hooks/useSolicitudesAula";
 import "./detalleSolicitud.css";
-
-const RUTA_LISTADO = "/aulas";
-const ETIQUETA_LISTADO = "Reserva de aulas";
 
 /**
  * Detalle de una solicitud de reserva de aula: la ve su dueño o quien resuelve solicitudes. Acá se
@@ -22,28 +21,15 @@ export function DetalleSolicitudPage() {
   const { user } = useCurrentUser();
   const { data: solicitud, isError } = useSolicitud(id);
   const puedeAprobar = Boolean(user?.permissions.includes("aulas.aprobar"));
+  const destino = useDestinoVolver("solicitud");
 
-  const volver = (
-    <Link
-      id="solicitud-volver"
-      to={RUTA_LISTADO}
-      className="adoc-btn v-secondary adoc-aulas-volver"
-    >
-      <span className="adoc-ico">
-        <IconoArrowLeft />
-      </span>
-      Volver a {ETIQUETA_LISTADO}
-    </Link>
-  );
+  const volver = <EnlaceVolver id="solicitud-volver" destino={destino} />;
 
   return (
     <>
       <Migas
-        items={[
-          { label: "Inicio", href: "/" },
-          { label: ETIQUETA_LISTADO, href: RUTA_LISTADO },
-          { label: "Solicitud" },
-        ]}
+        conVolver
+        items={[{ label: "Inicio", href: "/" }, migaDeVolver(destino), { label: "Solicitud" }]}
       />
 
       {isError && (

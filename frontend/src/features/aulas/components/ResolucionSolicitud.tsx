@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Field, InlineAlert, Input } from "@ars-docendi/ui";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import {
   useAsignarAula,
   useCancelarReserva,
@@ -127,6 +128,8 @@ function PanelResolver({ solicitud, alRechazar, alCancelarReserva }: PanelResolv
   const [aula, setAula] = useState(solicitud.aulaAsignada ?? "");
   const [faltaAula, setFaltaAula] = useState(false);
   const textos = TEXTOS_ASIGNAR[solicitud.estado === "pendiente" ? "asignar" : "actualizar"];
+  // El aula escrita y sin confirmar se pierde al salir de la página: se avisa.
+  useGuardiaDeCambios(aula.trim() !== (solicitud.aulaAsignada ?? ""));
 
   function enviarAula() {
     if (!aula.trim()) {
