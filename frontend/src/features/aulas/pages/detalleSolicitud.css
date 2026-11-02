@@ -90,3 +90,16 @@ a.adoc-btn.adoc-aulas-volver {
   color: var(--color-text-primary);
   text-decoration: none;
 }
+
+@media (max-width: 559.98px) {
+  .adoc-aulas-panel,
+  .adoc-aulas-acc {
+    padding: var(--space-3);
+  }
+  .adoc-aulas-detalle {
+    gap: var(--space-3);
+  }
+  .adoc-aulas-bloque {
+    min-height: 44px;
+  }
+}

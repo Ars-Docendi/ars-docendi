@@ -42,3 +42,21 @@
   align-items: center;
   gap: var(--space-2) var(--space-3);
 }
+
+/* Debajo de 560 px (como el Portal): menos padding, encabezados de sección que se acomodan y la
+   tabla ancha desplaza dentro de su propio contenedor. */
+@media (max-width: 559.98px) {
+  .adoc-aulas-section {
+    margin-top: var(--space-4);
+  }
+  .adoc-aulas-section-header {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+  }
+  .adoc-aulas-section-header .adoc-btn {
+    min-height: 44px;
+  }
+  .adoc-aulas-table {
+    max-width: 100%;
+  }
+}

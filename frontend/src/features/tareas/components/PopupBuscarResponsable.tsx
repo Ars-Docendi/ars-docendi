@@ -6,6 +6,7 @@ import "./tablaTareas.css";
 import "./selectorResponsable.css";
 import "../../../shared/ui/modalEstirable.css";
 import "./modalesEstirables.css";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { Modal } from "../../../shared/ui/Modal";
 
 interface PopupBuscarResponsableProps {
@@ -125,11 +126,12 @@ export function PopupBuscarResponsable({
                 visibles.map((persona) => (
                   <Table.Row
                     key={persona.id}
-                    className="adoc-tt-row--clicable"
-                    onClick={() => {
+                    {...propsFilaClickeable(() => {
                       onSeleccionar(persona);
                       cerrar();
-                    }}
+                    })}
+                    className="adoc-fila-clickeable adoc-tt-row--clicable"
+                    aria-label={`Elegir a ${persona.nombre}`}
                   >
                     <Table.Cell>{persona.nombre}</Table.Cell>
                     <Table.Cell>{persona.rol}</Table.Cell>

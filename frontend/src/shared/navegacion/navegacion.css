@@ -63,3 +63,40 @@
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* ====================== Pantallas angostas (portal.css: 560 px) ======================
+   Sin scroll horizontal de la página, encabezados que se acomodan, paddings como los del Portal y
+   objetivos táctiles de al menos 24 px (44 px los controles primarios). */
+@media (max-width: 559.98px) {
+  .adoc-page-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .adoc-page-head .title-area {
+    min-width: 0;
+  }
+  .adoc-page-head h1 {
+    overflow-wrap: anywhere;
+  }
+  .adoc-page-actions,
+  .adoc-page-actions > div {
+    flex-wrap: wrap;
+  }
+  .adoc-main .adoc-btn.v-primary,
+  .adoc-main a.adoc-enlace-volver {
+    min-height: 44px;
+  }
+  .adoc-main .adoc-btn.sz-sm {
+    min-height: 32px;
+  }
+  /* Celdas con enlace: el área de toque no baja de 24 px. */
+  .adoc-fila-enlace {
+    display: inline-block;
+    min-height: 24px;
+    line-height: 24px;
+  }
+  .adoc-crumbs {
+    flex-wrap: wrap;
+  }
+}

@@ -437,3 +437,20 @@
   line-height: 14px;
   text-align: center;
 }
+
+/* Pantallas angostas: el panel ocupa el ancho, con paddings más chicos y botones de al menos 44 px
+   en lo primario (cerrar) y 32 px en pestañas y acciones. */
+@media (max-width: 559.98px) {
+  .adoc-notif-panel {
+    width: 100%;
+  }
+  .adoc-notif-cerrar {
+    width: 44px;
+    height: 44px;
+  }
+  .adoc-notif-tab,
+  .adoc-notif-accion {
+    min-height: 32px;
+    min-width: 32px;
+  }
+}
