@@ -44,7 +44,7 @@ public sealed class ArquitecturaIdentityTests
         string[] Referencias(string proyecto) =>
             XDocument.Load(Path.Combine(raiz, "backend", "src", proyecto, proyecto + ".csproj"))
                 .Descendants("ProjectReference")
-                .Select(nodo => Path.GetFileNameWithoutExtension(nodo.Attribute("Include")!.Value))
+                .Select(nodo => Path.GetFileNameWithoutExtension(nodo.Attribute("Include")!.Value.Replace('\\', '/')))
                 .ToArray();
 
         // Contracts hold only records and one interface: no project reference at all.
