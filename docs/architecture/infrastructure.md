@@ -197,14 +197,17 @@ Compose project, base y storage únicamente en la VM.
   protegidas en cada máquina para funcionar fuera de un job; son distintas de
   las credenciales de deploy de la aplicación.
 - **Guaraní**: la API sólo responde dentro de la red de UNLaM, así que la sección
-  `Guarani` (`UrlBase`, `Usuario`, `Contrasena`, `RutaPeriodosLectivos`,
-  `RutaComisiones`, `TimeoutSegundos`) sólo se configura en producción y en el
-  entorno local conectado a esa red (`dotnet user-secrets` en local). En prod,
-  `GUARANI_USUARIO` y `GUARANI_CONTRASENA` son secrets del Environment `prod` y
-  `GUARANI_URL_BASE`, `GUARANI_RUTA_PERIODOS_LECTIVOS` y `GUARANI_RUTA_COMISIONES`
-  repository variables; `compose.base.yml` los mapea a `Guarani__*`. Staging, previews y CI la dejan vacía:
-  el backend arranca igual, la pantalla de Comisiones muestra el dataset
-  sintético y la importación responde `503 guarani-no-configurado`.
+  `Guarani` (`UrlBase`, `RutaPeriodosLectivos`, `RutaComisiones` con
+  `{periodoLectivo}`, `TimeoutSegundos`) sólo se configura en producción y en el
+  entorno local conectado a esa red (`dotnet user-secrets` en local). Las credenciales
+  salen de las variables de entorno `guarani_user` y `guarani_pass`: son obligatorias
+  salvo en Development, y si faltan la importación responde
+  `503 guarani-no-configurado` y el log indica cuáles definir. En prod, los secrets
+  `GUARANI_USER` y `GUARANI_PASS` del Environment `prod` llegan como esas variables;
+  `GUARANI_URL_BASE`, `GUARANI_RUTA_PERIODOS_LECTIVOS` y `GUARANI_RUTA_COMISIONES` son
+  repository variables que `compose.base.yml` mapea a `Guarani__*`. Staging, previews y CI
+  dejan la integración vacía: el backend arranca igual y la pantalla de Comisiones
+  muestra el dataset sintético.
 - Lista documentada en [`.env.example`](../../.env.example) (raíz) y el runbook.
 
 ## Estrategia de backup

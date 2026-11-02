@@ -23,6 +23,17 @@ public sealed class ComisionesController(ServicioComisiones servicio) : Controll
     public Task<IReadOnlyList<ComisionDto>> Listar([FromQuery] string periodoLectivoId, CancellationToken ct) =>
         servicio.ListarAsync(periodoLectivoId, ct);
 
+    [HttpPost("exportacion")]
+    [Authorize(Policy = Permisos.ComisionesVer)]
+    public async Task<IActionResult> Exportar(ExportarComisionesDto datos, CancellationToken ct)
+    {
+        var archivo = await servicio.ExportarAsync(datos, ct);
+        return File(
+            archivo.Contenido,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            archivo.NombreArchivo);
+    }
+
     [HttpGet("guarani/periodos-lectivos")]
     [Authorize(Policy = Permisos.ComisionesImportar)]
     public Task<IReadOnlyList<PeriodoLectivoGuaraniDto>> ListarPeriodosGuarani(CancellationToken ct) =>

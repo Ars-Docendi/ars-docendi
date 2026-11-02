@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../../../shared/api/client";
 import contratoImportacion from "../../../test/contratos/comisiones-importacion.json";
 import {
+  exportarComisiones,
   importarComisiones,
   listarComisiones,
   listarPeriodosGuarani,
@@ -37,6 +38,24 @@ describe("comisionesApi HTTP", () => {
     ]);
     expect(apiClient.get).toHaveBeenCalledWith(
       "/api/designaciones/comisiones/guarani/periodos-lectivos",
+    );
+  });
+
+  it("exporta pidiendo un archivo y toma su nombre de la respuesta", async () => {
+    const archivo = new Blob(["x"]);
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: archivo,
+      headers: { "content-disposition": 'attachment; filename="comisiones-2026.xlsx"' },
+    });
+
+    await expect(exportarComisiones("152", ["9001"])).resolves.toEqual({
+      archivo,
+      nombre: "comisiones-2026.xlsx",
+    });
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/designaciones/comisiones/exportacion",
+      { periodoLectivoId: "152", comisionIds: ["9001"] },
+      { responseType: "blob" },
     );
   });
 

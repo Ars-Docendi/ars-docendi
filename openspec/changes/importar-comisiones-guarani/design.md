@@ -88,7 +88,7 @@ La llamada externa no ocurre dentro de la transacción de escritura, para no ret
 
 ### 6. Cliente concreto `ClienteGuarani` con `HttpClient` tipado
 
-Registrado con `services.AddHttpClient<ClienteGuarani>()`, configurado desde `IOptions<OpcionesGuarani>` (`UrlBase`, `Usuario`, `Contrasena`, `RutaPeriodosLectivos`, `RutaComisiones` con el marcador `{periodoLectivo}`, `TimeoutSegundos`, default 60). Las rutas son configuración y no código porque el equipo todavía no fijó los paths. Autenticación HTTP Basic con usuario/contraseña. Expone dos operaciones: listar períodos lectivos de un año y listar comisiones de un período, cada una en una sola respuesta sin paginación. Los DTOs de Guaraní son internos al cliente; hacia el servicio devuelve registros propios ya normalizados.
+Registrado con `services.AddHttpClient<ClienteGuarani>()`, configurado desde `IOptions<OpcionesGuarani>` (`UrlBase`, `RutaPeriodosLectivos`, `RutaComisiones` con el marcador `{periodoLectivo}`, `TimeoutSegundos`, default 60; usuario y contraseña desde las variables `guarani_user` y `guarani_pass`). Las rutas son configuración y no código porque el equipo todavía no fijó los paths. Autenticación HTTP Basic con usuario/contraseña, obligatoria salvo en Development, donde la API local no la pide y no se envía el header. Expone dos operaciones: listar períodos lectivos de un año y listar comisiones de un período, cada una en una sola respuesta sin paginación. Los DTOs de Guaraní son internos al cliente; hacia el servicio devuelve registros propios ya normalizados.
 
 Sin interfaz: hay una sola implementación y los tests sustituyen el `HttpMessageHandler`, que ejercita también el mapeo real. Errores traducidos a una excepción de dominio con la causa genérica; `ServicioComisiones` la convierte en 502/504/503. El log Serilog registra causa, status HTTP y período, nunca credenciales ni cuerpo de respuesta (puede contener PII de docentes).
 
@@ -138,6 +138,10 @@ La aplica la rama del asistente al integrarse, siguiendo esta tabla; este change
 
 En `features/designaciones`: `api/comisionesApi.ts`, `hooks/useComisiones.ts` (React Query; invalidar listado y períodos al importar), `pages/ComisionesPage.tsx`, `components/TablaComisiones.tsx`, `components/ModalImportarComisiones.tsx` y `filtrosComisiones.ts`. Ruta bajo `RequirePermission permission="comisiones.ver"`; entrada "Comisiones" en el grupo Designaciones de `nav.ts`. La grilla reutiliza los componentes de grilla compartidos (scroll interno, encabezado fijo, textos recortados con tooltip). El modal sigue el patrón de `ModalPeriodo` y muestra los errores 409/502/503/504 con mensajes diferenciados.
 
+### 12. Exportación a Excel de lo filtrado
+
+`POST /api/designaciones/comisiones/exportacion` (`comisiones.ver`) recibe el período y los ids de las comisiones visibles. Los filtros viven en el frontend: mandar ids evita duplicar en C# su normalización y garantiza que el archivo coincida con la grilla. El backend vuelve a leer esas comisiones del snapshot, restringidas al período, así que un id ajeno no agrega nada. El libro se arma con `ZipArchive` y XML, como el lote, sin sumar dependencias; los textos van como `inlineStr`, de modo que Excel no evalúa como fórmula un valor traído de Guaraní. Cada exportación se registra en el log con actor, período y cantidad, sin datos de docentes.
+
 ## Risks / Trade-offs
 
 - [El contrato real de la API de Guaraní (paths, paginación, nombres de campos de modalidad/ubicación) todavía no está confirmado] → Queda encapsulado en `ClienteGuarani` y sus DTOs; los tests usan respuestas grabadas de la API real (anonimizadas) apenas se obtengan. Specs y endpoints propios no dependen de ese contrato.
@@ -153,14 +157,14 @@ En `features/designaciones`: `api/comisionesApi.ts`, `hooks/useComisiones.ts` (R
 ## Migration Plan
 
 1. Desplegar SQL + migración (tablas nuevas y permisos). Aditivo, sin impacto en datos existentes.
-2. Configurar `Guarani__UrlBase`, `Guarani__Usuario`, `Guarani__Contrasena` sólo en producción (secretos del pipeline de deploy), el único ambiente desplegado con acceso a la red de Guaraní.
+2. Configurar `Guarani__UrlBase`, las rutas, `guarani_user` y `guarani_pass` sólo en producción (secretos del pipeline de deploy), el único ambiente desplegado con acceso a la red de Guaraní.
 3. Primera importación manual del período vigente por Secretaría.
 
 Rollback: revertir la versión de la app. Las tablas y permisos quedan sin uso y no afectan nada existente; la migración no revierte DDL (convención del repo: `Down` lanza `NotSupportedException` y la recuperación es desde respaldo). Si hubiera que eliminarlos, se agrega una migración incremental.
 
 ## Confirmado con el equipo
 
-- **Autenticación**: usuario y contraseña de una cuenta técnica, cargados como secretos (user-secrets en local, variables `Guarani__*` en el deploy).
+- **Autenticación**: usuario y contraseña de una cuenta técnica, en las variables de entorno `guarani_user` y `guarani_pass` (a definir). Sin ellas, fuera de Development la importación responde 503 y el log indica cuáles faltan; en Development la API local se usa sin credenciales.
 - **Alcance**: la API devuelve sólo las comisiones del Departamento de Ingeniería; la importación no filtra por carrera.
 - **Endpoints**: el equipo provee dos, uno de comisiones por período lectivo y otro que lista los períodos lectivos. Este último alimenta el modal de importación.
 - **Identificador**: `comision_guarani_id` es la PK de la comisión en Guaraní, estable entre consultas.
@@ -168,7 +172,7 @@ Rollback: revertir la versión de la app. Las tablas y permisos quedan sin uso y
 - **Forma del payload: filas planas**, una por combinación carrera × docente × banda horaria, con `LEFT JOIN` hacia docentes, bandas, aula y modalidad, para que una comisión sin docentes o sin bandas llegue igual (con esos campos nulos). Columnas: `comision`, `asignacion`, `comision_nombre`, `comision_ubicacion`, `elemento_codigo`, `elemento_nombre`, `propuesta_codigo`, `propuesta_nombre`, `dia_semana`, `hora_inicio`, `hora_finalizacion`, `aula`, `modalidad_codigo`, `modalidad_descripcion`, `docente_nombre`, `docente_tipo_documento`, `docente_documento`, `docente_responsabilidad`. El agrupamiento y la eliminación de duplicados se hacen de nuestro lado (decisión 5).
 - **Responsabilidad del docente**: se guarda y se muestra tal como se carga en Guaraní (`sga_docentes_responsabilidades.nombre`). En la muestra casi todas dicen "Ingenieria"; es el dato de origen y no se reinterpreta.
 - **Muestra real (período 152, 634 comisiones, 515 docentes, 132 aulas)**: `dia_semana` llega como texto sin tildes (`Lunes` … `Sabado`) y se mapea a 1–7; las horas llegan como `HH:mm:ss`; los documentos son numéricos de 7–8 dígitos, sin puntos, y los tipos son DNI o DNI temporario, por lo que se vincula sólo por número; el nombre llega en un único campo `apellido_nombres`; la modalidad llega como `modalidad_codigo` + `modalidad_descripcion` (7 valores, p. ej. `A`/Presencial); 4 comisiones llegan sin docentes y 1 sin bandas; cada `asignacion` tiene un único día, horario y aula; 62 de 567 asignaciones se comparten entre 2 y 5 comisiones, y una comisión tiene dos asignaciones en el mismo horario con aulas distintas. Contra las personas de `sga.sql`, 388 de 515 docentes (75 %) se vinculan por documento. Comisiones compartidas: 15 se ofrecen a 5 carreras a la vez.
-- **Períodos lectivos**: el endpoint devuelve `periodo_lectivo` (id, p. ej. `152`), `periodo_lectivo_nombre` (p. ej. "2do Cuatrimestre") y `periodo_lectivo_anio` (p. ej. `2026`). Como el nombre puede incluir o no el año según cómo se cargó en Guaraní, el año se toma siempre de `periodo_lectivo_anio` y el nombre se guarda y se muestra tal cual. El modal arma el selector de año con los años distintos de la respuesta y filtra los períodos en el cliente, así que nuestro endpoint no recibe parámetros. Se guardan como `periodo_lectivo_guarani_id`, `periodo_lectivo_nombre` y `anio_academico`; el orden "más reciente primero" usa año y luego id descendentes.
+- **Períodos lectivos**: el endpoint devuelve `periodo_lectivo` (id, p. ej. `152`), `nombre` (p. ej. "2do Cuatrimestre") y `anio_academico` (p. ej. `2026`). Como el nombre puede incluir o no el año según cómo se cargó en Guaraní, el año se toma siempre de `anio_academico` y el nombre se guarda y se muestra tal cual. El modal arma el selector de año con los años distintos de la respuesta y filtra los períodos en el cliente, así que nuestro endpoint no recibe parámetros. Se guardan como `periodo_lectivo_guarani_id`, `periodo_lectivo_nombre` y `anio_academico`; el orden "más reciente primero" usa año y luego id descendentes, con los ids no numéricos (dataset de ejemplo) al final de su año.
 - **Sin paginación**: ambos endpoints devuelven todo en una sola respuesta (un período son unas 2000 filas, alrededor de 0,5 MB).
 - **Red**: la API sólo responde dentro de la red de UNLaM. Llegan a ella el entorno local de desarrollo (conectado a esa red) y el servidor productivo. Los ambientes que no están en la red (staging, efímeros, CI) quedan sin la sección `Guarani` configurada: la pantalla funciona con datos sembrados y la importación responde 503.
 
@@ -176,7 +180,7 @@ Rollback: revertir la versión de la app. Las tablas y permisos quedan sin uso y
 
 Las filas se mantienen planas a propósito, aunque propuestas y docentes multipliquen las filas de una comisión: `AgrupadorComisionesGuarani` las unifica al importar y el snapshot `sga_*` queda normalizado, que es lo que consulta el asistente. No agregar propuestas ni docentes en listas JSON: el cliente lee estas columnas por nombre y, si faltan, importa las comisiones sin carreras ni docentes y sin error.
 
-`:periodo_lectivo` es el período que recibe el endpoint (`{periodoLectivo}` en `RutaComisiones`).
+`:periodo_lectivo` y `:responsable_academica` son parámetros del endpoint: el primero es `{periodoLectivo}` en `RutaComisiones` y el segundo un valor fijo de esa ruta (`3`, Ingeniería).
 
 ```sql
 select
@@ -215,9 +219,9 @@ left join negocio.sga_espacios on sga_espacios.espacio = sga_asignaciones.espaci
 left join negocio_Unlam.u817_sga_comisiones on u817_sga_comisiones.comision_fk = sga_comisiones.comision
 left join negocio_unlam.comisiones_tipo_modalidad on comisiones_tipo_modalidad.modalidad = u817_sga_comisiones.modalidad
 where sga_comisiones.periodo_lectivo = :periodo_lectivo
-and sga_elementos_ra.responsable_academica = '3'
+and sga_elementos_ra.responsable_academica = :responsable_academica
 ```
 
 ## Open Questions
 
-- Valores de `UrlBase`, `RutaPeriodosLectivos` y `RutaComisiones` en prod. Son configuración (`GUARANI_*` en el deploy); no requieren cambios de código. Se asume HTTP Basic con la cuenta técnica; si la API usara otro esquema, el cambio queda confinado a `ClienteGuarani`.
+- Valores de `UrlBase`, `RutaPeriodosLectivos` y `RutaComisiones` en prod. Son configuración (`GUARANI_*` en el deploy); no requieren cambios de código. Se asume HTTP Basic con `guarani_user` y `guarani_pass`; si la API usara otro esquema, el cambio queda confinado a `ClienteGuarani`.

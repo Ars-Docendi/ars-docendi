@@ -52,3 +52,13 @@ Fuera del alcance de este change: la resuelve la rama del asistente (`feature/as
 - [x] 10.2 Adoptar las convenciones de navegación en Comisiones (`Migas`, `shared/ui/Modal`, período y filtros en la URL con `useFiltrosURL`); verificar con los tests de la página
 - [x] 10.3 Generar los contratos `comisiones-*.json` desde `ComisionesHttpTests` y usarlos en los tests del frontend
 - [x] 10.4 Agregar el artículo del Centro de ayuda `consultar-las-comisiones` y el módulo Comisiones en la pantalla de roles; verificar con `contenido/integridad.test.ts`
+
+## 11. Exportación a Excel
+
+- [x] 11.1 Agregar `POST /api/designaciones/comisiones/exportacion` y `ExportadorComisionesExcel`; verificar con tests HTTP que incluye sólo lo pedido del período, que no contacta a Guaraní, que no incluye documentos y que responde 403 sin `comisiones.ver`
+- [x] 11.2 Agregar "Exportar a Excel" en `ComisionesPage`, enviando las comisiones visibles; verificar con un test de página que respeta el filtro aplicado
+- [x] 11.3 Actualizar `api-contracts-designaciones.md` y el artículo del Centro de ayuda
+
+## 12. Selección por año y período
+
+- [x] 12.1 Separar el selector en año y período lectivo, ambos en la URL; verificar con tests de página el cambio de año y el período por defecto

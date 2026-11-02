@@ -98,8 +98,8 @@ jobs:
       GUARANI_URL_BASE: ${{ vars.GUARANI_URL_BASE }}
       GUARANI_RUTA_PERIODOS_LECTIVOS: ${{ vars.GUARANI_RUTA_PERIODOS_LECTIVOS }}
       GUARANI_RUTA_COMISIONES: ${{ vars.GUARANI_RUTA_COMISIONES }}
-      GUARANI_USUARIO: ${{ secrets.GUARANI_USUARIO }}
-      GUARANI_CONTRASENA: ${{ secrets.GUARANI_CONTRASENA }}
+      guarani_user: ${{ secrets.GUARANI_USER }}
+      guarani_pass: ${{ secrets.GUARANI_PASS }}
       # Sólo se usa si todavía no existe un usuario con ese UPN (arranque --migrate).
       ADMIN_INICIAL_UPN: ${{ secrets.ADMIN_INICIAL_UPN }}
       ADMIN_INICIAL_NOMBRE: ${{ secrets.ADMIN_INICIAL_NOMBRE }}

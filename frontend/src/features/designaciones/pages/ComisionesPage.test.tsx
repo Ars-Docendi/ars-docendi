@@ -6,6 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  exportarComisiones,
   importarComisiones,
   listarComisiones,
   listarPeriodosGuarani,
@@ -39,6 +40,7 @@ vi.mock("../api/comisionesApi", () => ({
   listarComisiones: vi.fn(),
   listarPeriodosGuarani: vi.fn(),
   importarComisiones: vi.fn(),
+  exportarComisiones: vi.fn(),
 }));
 
 // Las formas salen de la respuesta real del backend (ComisionesHttpTests); los tests sólo fijan valores.
@@ -146,26 +148,40 @@ describe("Comisiones", () => {
   });
 
   it("toma el período de la URL y cae en el más reciente si ya no está importado", async () => {
-    const { unmount } = renderPagina("/designaciones/comisiones?periodo=151");
+    const { unmount } = renderPagina("/designaciones/comisiones?anio=2026&periodo=151");
     await waitFor(() => expect(listarComisiones).toHaveBeenCalledWith("151"));
     unmount();
     vi.mocked(listarComisiones).mockClear();
 
-    renderPagina("/designaciones/comisiones?periodo=999");
+    renderPagina("/designaciones/comisiones?anio=2026&periodo=999");
     await waitFor(() => expect(listarComisiones).toHaveBeenCalledWith("152"));
     expect(listarComisiones).not.toHaveBeenCalledWith("999");
   });
 
-  it("muestra el año del período sólo si el nombre no lo incluye", async () => {
+  it("muestra sólo los períodos del año y al cambiarlo elige el más reciente de ese año", async () => {
+    vi.mocked(listarPeriodosImportados).mockResolvedValue([
+      ...periodos,
+      { ...periodos[0], anioAcademico: 2025, id: "140", nombre: "2do Cuatrimestre" },
+      { ...periodos[0], anioAcademico: 2025, id: "139", nombre: "1er Cuatrimestre" },
+    ]);
     renderPagina();
 
     const selector = await screen.findByRole("combobox", { name: "Período lectivo" });
+    await waitFor(() => expect(listarComisiones).toHaveBeenCalledWith("152"));
     expect(
-      within(selector).getByRole("option", { name: "2do Cuatrimestre 2026" }),
-    ).toBeInTheDocument();
+      within(selector)
+        .getAllByRole("option")
+        .map((o) => o.getAttribute("value")),
+    ).toEqual(["152", "151"]);
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Año" }), "2025");
+
+    await waitFor(() => expect(listarComisiones).toHaveBeenLastCalledWith("140"));
     expect(
-      within(selector).getByRole("option", { name: "1er Cuatrimestre 2026" }),
-    ).toBeInTheDocument();
+      within(screen.getByRole("combobox", { name: "Período lectivo" }))
+        .getAllByRole("option")
+        .map((o) => o.getAttribute("value")),
+    ).toEqual(["140", "139"]);
   });
 
   it("filtra por docente desde el encabezado", async () => {
@@ -181,6 +197,45 @@ describe("Comisiones", () => {
 
     expect(screen.queryByRole("row", { name: /01-5678/ })).not.toBeInTheDocument();
     expect(screen.getByRole("row", { name: /01-1234/ })).toBeInTheDocument();
+  });
+
+  it("exporta sólo las comisiones que deja el filtro y descarga con el nombre del backend", async () => {
+    vi.mocked(listarComisiones).mockResolvedValue([
+      ...comisiones,
+      { ...comisiones[0], id: "9002", nombre: "01-5678", docentes: [] },
+    ]);
+    vi.mocked(exportarComisiones).mockResolvedValue({
+      archivo: new Blob(["x"]),
+      nombre: "comisiones-2026.xlsx",
+    });
+    const crearUrl = vi.fn(() => "blob:prueba");
+    Object.assign(URL, { createObjectURL: crearUrl, revokeObjectURL: vi.fn() });
+    const descargas: string[] = [];
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      descargas.push(this.download);
+    });
+    renderPagina();
+    await screen.findByRole("row", { name: /01-5678/ });
+
+    await userEvent.click(screen.getByRole("button", { name: /Filtrar Docentes/i }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Buscar Docentes" }), "perez");
+    await userEvent.click(screen.getByRole("button", { name: "Exportar a Excel" }));
+
+    await waitFor(() => expect(descargas).toEqual(["comisiones-2026.xlsx"]));
+    expect(exportarComisiones).toHaveBeenCalledWith("152", ["9001"]);
+    click.mockRestore();
+  });
+
+  it("no permite exportar si el filtro no deja comisiones", async () => {
+    renderPagina();
+    await screen.findByRole("row", { name: /01-1234/ });
+
+    await userEvent.click(screen.getByRole("button", { name: /Filtrar Docentes/i }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Buscar Docentes" }), "zzz");
+
+    expect(screen.getByRole("button", { name: "Exportar a Excel" })).toBeDisabled();
   });
 
   it("avisa cuando el último intento falló y conserva la grilla", async () => {

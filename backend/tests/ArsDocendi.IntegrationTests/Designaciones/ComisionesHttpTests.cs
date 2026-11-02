@@ -1,6 +1,8 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Xml.Linq;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Designaciones.Guarani;
 using ArsDocendi.IntegrationTests.Infraestructura;
@@ -8,8 +10,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Modules.Designaciones.Api;
 using Modules.Designaciones.Infrastructure.Guarani;
+using Modules.Designaciones.Services;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
@@ -104,6 +108,94 @@ public sealed class ComisionesHttpTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Exportacion_incluye_solo_lo_pedido_del_periodo_sin_contactar_a_guarani()
+    {
+        await SembrarAsync();
+        var guarani = GuaraniDePrueba.ConFixtures();
+        using var host = CrearHost(guarani);
+        using var cliente = Cliente(host, Secretaria, "secretaria");
+        using var importar = await cliente.PostAsJsonAsync(
+            "/api/designaciones/comisiones/importaciones", new ImportarComisionesDto("152"), Ct);
+        importar.EnsureSuccessStatusCode();
+        var comisiones = await cliente.GetFromJsonAsync<ComisionDto[]>("/api/designaciones/comisiones?periodoLectivoId=152", Ct);
+        var (elegida, excluida) = (comisiones![0], comisiones[1]);
+        var llamadas = guarani.Solicitudes.Count;
+
+        // SINT-0001 es de otro período: pedirla no la agrega al archivo.
+        using var respuesta = await cliente.PostAsJsonAsync(
+            "/api/designaciones/comisiones/exportacion",
+            new ExportarComisionesDto("152", [elegida.Id, "SINT-0001"]), Ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Equal("comisiones-2026-2do-cuatrimestre.xlsx", respuesta.Content.Headers.ContentDisposition?.FileName);
+        var hoja = LeerHoja(await respuesta.Content.ReadAsByteArrayAsync(Ct));
+        Assert.Contains(elegida.Nombre, hoja, StringComparison.Ordinal);
+        Assert.DoesNotContain($">{excluida.Nombre}<", hoja, StringComparison.Ordinal);
+        Assert.DoesNotContain("01-0001", hoja, StringComparison.Ordinal);
+        Assert.DoesNotContain("28341567", hoja, StringComparison.Ordinal);
+        Assert.DoesNotContain("28.341.567", hoja, StringComparison.Ordinal);
+        Assert.Equal(llamadas, guarani.Solicitudes.Count);
+    }
+
+    [Fact]
+    public async Task Exportacion_exige_comisiones_ver_y_rechaza_pedidos_invalidos()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(GuaraniDePrueba.ConFixtures());
+        using var docente = Cliente(host, Docente, "docente");
+        using var secretaria = Cliente(host, Secretaria, "secretaria");
+        const string Ruta = "/api/designaciones/comisiones/exportacion";
+
+        using var sinPermiso = await docente.PostAsJsonAsync(Ruta, new ExportarComisionesDto("sintetico-2026-2", ["SINT-0001"]), Ct);
+        using var sinIds = await secretaria.PostAsJsonAsync(Ruta, new ExportarComisionesDto("sintetico-2026-2", []), Ct);
+        using var ajena = await secretaria.PostAsJsonAsync(Ruta, new ExportarComisionesDto("sintetico-2026-2", ["no-existe"]), Ct);
+
+        Assert.Equal(HttpStatusCode.Forbidden, sinPermiso.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, sinIds.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, ajena.StatusCode);
+    }
+
+    [Fact]
+    public void Libro_exportado_es_xml_valido_con_caracteres_especiales()
+    {
+        var comision = new ComisionDto(
+            "1", "=SUMA(A1) & <x>\u0001", new MateriaComisionDto("03500", "Materia", null), [], [], [], null, null, null);
+
+        var hoja = LeerHoja(ExportadorComisionesExcel.Generar([comision]));
+
+        var celda = XDocument.Parse(hoja).Descendants().Single(e => e.Attribute("r")?.Value == "A2");
+        Assert.Equal("inlineStr", celda.Attribute("t")?.Value);
+        Assert.Equal("=SUMA(A1) & <x>", celda.Value);
+    }
+
+    private static string LeerHoja(byte[] libro)
+    {
+        using var zip = new ZipArchive(new MemoryStream(libro), ZipArchiveMode.Read);
+        using var lector = new StreamReader(zip.GetEntry("xl/worksheets/sheet1.xml")!.Open());
+        return lector.ReadToEnd();
+    }
+
+    [Theory]
+    [InlineData("Development", false)]
+    [InlineData("Staging", true)]
+    public void Credenciales_salen_de_las_variables_y_se_exigen_fuera_de_development(string ambiente, bool exige)
+    {
+        using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment(ambiente);
+            builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
+            builder.UseSetting(OpcionesGuarani.VariableUsuario, "usuario-variable");
+            builder.UseSetting(OpcionesGuarani.VariableContrasena, "clave-variable");
+        });
+
+        var opciones = host.Services.GetRequiredService<IOptions<OpcionesGuarani>>().Value;
+
+        Assert.Equal("usuario-variable", opciones.Usuario);
+        Assert.Equal("clave-variable", opciones.Contrasena);
+        Assert.Equal(exige, opciones.ExigeCredenciales);
+    }
+
+    [Fact]
     public async Task Credenciales_rechazadas_responden_502_sin_exponerlas()
     {
         await SembrarAsync();
@@ -137,6 +229,8 @@ public sealed class ComisionesHttpTests(PostgresFixture postgres)
                     o.Contrasena = configurada ? opciones.Contrasena : string.Empty;
                     o.RutaPeriodosLectivos = opciones.RutaPeriodosLectivos;
                     o.RutaComisiones = opciones.RutaComisiones;
+                    // Development no exige credenciales: "sin configurar" reproduce a producción sin ellas.
+                    o.ExigeCredenciales = !configurada;
                 });
                 services.AddHttpClient<ClienteGuarani>().ConfigurePrimaryHttpMessageHandler(() => guarani);
             });

@@ -45,8 +45,8 @@ services:
       # Integración Guaraní: sólo responde dentro de la red de UNLaM, así que únicamente
       # prod la configura. Vacía, el backend arranca y la importación responde 503.
       Guarani__UrlBase: ${GUARANI_URL_BASE:-}
-      Guarani__Usuario: ${GUARANI_USUARIO:-}
-      Guarani__Contrasena: ${GUARANI_CONTRASENA:-}
+      guarani_user: ${guarani_user:-}
+      guarani_pass: ${guarani_pass:-}
       Guarani__RutaPeriodosLectivos: ${GUARANI_RUTA_PERIODOS_LECTIVOS:-}
       Guarani__RutaComisiones: ${GUARANI_RUTA_COMISIONES:-}
       AdministradorInicial__Upn: ${ADMIN_INICIAL_UPN:-}

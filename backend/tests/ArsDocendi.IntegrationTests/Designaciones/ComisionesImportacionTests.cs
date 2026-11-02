@@ -249,8 +249,8 @@ public sealed class ComisionesImportacionTests(PostgresFixture postgres)
 
         var periodos = await Servicio(new GuaraniDePrueba()).ListarPeriodosAsync(Ct);
 
-        Assert.Equal(["152", "151"], periodos.Select(p => p.Id).Where(id => id is "152" or "151"));
-        Assert.True(periodos.ToList().FindIndex(p => p.Id == "152") < periodos.ToList().FindIndex(p => p.Id == "151"));
+        // Un id no numérico (el período de ejemplo del seed) nunca queda antes que uno real del mismo año.
+        Assert.Equal(["152", "151", "sintetico-2026-2"], periodos.Select(p => p.Id));
     }
 
     [Fact]

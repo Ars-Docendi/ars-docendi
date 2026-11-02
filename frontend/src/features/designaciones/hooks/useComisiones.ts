@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  exportarComisiones,
   importarComisiones,
   listarComisiones,
   listarPeriodosGuarani,
@@ -32,6 +33,13 @@ export function usePeriodosGuarani(habilitado: boolean) {
     queryFn: () => listarPeriodosGuarani(),
     enabled: habilitado,
     retry: false,
+  });
+}
+
+export function useExportarComisiones() {
+  return useMutation({
+    mutationFn: ({ periodoId, comisionIds }: { periodoId: string; comisionIds: string[] }) =>
+      exportarComisiones(periodoId, comisionIds),
   });
 }
 

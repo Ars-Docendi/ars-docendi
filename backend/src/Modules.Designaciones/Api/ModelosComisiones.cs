@@ -4,6 +4,8 @@ public sealed record PeriodoLectivoGuaraniDto(string Id, string Nombre, int Anio
 
 public sealed record ImportarComisionesDto(string PeriodoLectivoId);
 
+public sealed record ExportarComisionesDto(string PeriodoLectivoId, IReadOnlyList<string> ComisionIds);
+
 public sealed record ResultadoImportacionDto(
     Guid Id,
     int AnioAcademico,

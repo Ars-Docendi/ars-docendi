@@ -27,8 +27,8 @@ public sealed class ClienteGuarani(
         foreach (var fila in json.RootElement.EnumerateArray())
         {
             var id = Texto(fila, "periodo_lectivo");
-            var nombre = Texto(fila, "periodo_lectivo_nombre");
-            if (id is null || nombre is null || !int.TryParse(Texto(fila, "periodo_lectivo_anio"), out var anio))
+            var nombre = Texto(fila, "nombre");
+            if (id is null || nombre is null || !int.TryParse(Texto(fila, "anio_academico"), out var anio))
                 throw Invalida("Período lectivo incompleto en la respuesta.", null);
             periodos.Add(new PeriodoLectivoGuarani(id, nombre, anio));
         }
@@ -65,8 +65,9 @@ public sealed class ClienteGuarani(
     private async Task<JsonDocument> ObtenerArregloAsync(string ruta, string? periodo, CancellationToken ct)
     {
         using var solicitud = new HttpRequestMessage(HttpMethod.Get, ruta);
-        solicitud.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(
-            Encoding.UTF8.GetBytes($"{opciones.Value.Usuario}:{opciones.Value.Contrasena}")));
+        if (opciones.Value.TieneCredenciales)
+            solicitud.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(
+                Encoding.UTF8.GetBytes($"{opciones.Value.Usuario}:{opciones.Value.Contrasena}")));
         solicitud.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         HttpResponseMessage respuesta;

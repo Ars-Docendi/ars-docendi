@@ -5,7 +5,8 @@ export const consultarLasComisiones: ArticuloAyuda = {
   moduloSlug: "designaciones",
   grupo: "Comisiones",
   titulo: "Cómo consultar las comisiones importadas de Guaraní",
-  resumen: "Ver las comisiones de un período lectivo, filtrarlas y actualizarlas desde Guaraní.",
+  resumen:
+    "Ver las comisiones de un período lectivo, filtrarlas, exportarlas a Excel y actualizarlas desde Guaraní.",
   introduccion:
     "La pantalla Comisiones muestra las comisiones importadas desde Guaraní para cada período lectivo: materia, carreras, aulas, bandas horarias, docentes, modalidad y ubicación. Es de solo lectura: lo que ves es la última importación, y los datos se corrigen en Guaraní.",
   permisos: ["comisiones.ver"],
@@ -20,6 +21,9 @@ export const consultarLasComisiones: ArticuloAyuda = {
     "horarios",
     "aula",
     "modalidad",
+    "excel",
+    "exportar",
+    "descargar",
   ],
   pasos: [
     {
@@ -29,16 +33,22 @@ export const consultarLasComisiones: ArticuloAyuda = {
         "En el menú, grupo Designaciones, elegí Comisiones. Si todavía no se importó ningún período, la pantalla lo indica. Debajo del encabezado ves cuándo y quién hizo la última actualización.",
     },
     {
-      titulo: "Elegí el período lectivo",
-      etiquetaIndice: "Elegir período",
+      titulo: "Elegí el año y el período lectivo",
+      etiquetaIndice: "Elegir año y período",
       cuerpo:
-        "El selector ofrece los períodos con comisiones importadas y arranca en el más reciente. Al cambiarlo, la tabla muestra las comisiones de ese período, sin paginación.",
+        "Los selectores ofrecen los años y períodos con comisiones importadas, y arrancan en el más reciente. Al cambiar de año se elige el período más reciente de ese año. La tabla muestra las comisiones del período elegido, sin paginación.",
     },
     {
       titulo: "Filtrá la tabla",
       etiquetaIndice: "Filtrar",
       cuerpo:
-        "Los encabezados Materia, Carreras, Docentes y Modalidad tienen filtros de texto, que no distinguen mayúsculas ni tildes. Materia y Carreras buscan por nombre o por código. El período y los filtros quedan en la dirección de la página, así que se conservan al recargar.",
+        "Los encabezados Materia, Carreras, Docentes y Modalidad tienen filtros de texto, que no distinguen mayúsculas ni tildes. Materia y Carreras buscan por nombre o por código. El año, el período y los filtros quedan en la dirección de la página, así que se conservan al recargar.",
+    },
+    {
+      titulo: "Exportá lo filtrado a Excel",
+      etiquetaIndice: "Exportar",
+      cuerpo:
+        "Pulsá Exportar a Excel para descargar las comisiones que estás viendo, con el período y los filtros aplicados. Cada comisión ocupa una fila, con las mismas columnas de la tabla. El botón se deshabilita si los filtros no dejan ninguna comisión. Sale de los datos ya importados, así que no hace falta conexión con Guaraní.",
     },
     {
       titulo: "Actualizá un período desde Guaraní",

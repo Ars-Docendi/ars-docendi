@@ -138,6 +138,8 @@ public sealed class RepositorioComisiones(DesignacionesDbContext db)
                     delPeriodo.FirstOrDefault());
             })
             .OrderByDescending(p => p.AnioAcademico)
+            // Los ids de Guaraní son numéricos: uno que no lo es (dataset de ejemplo) nunca es el más reciente.
+            .ThenByDescending(p => p.PeriodoLectivoId.All(char.IsAsciiDigit))
             .ThenByDescending(p => p.PeriodoLectivoId.Length)
             .ThenByDescending(p => p.PeriodoLectivoId, StringComparer.Ordinal)
             .ToArray();

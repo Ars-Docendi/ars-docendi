@@ -28,13 +28,19 @@ Ver la pantalla de Comisiones y consultar su API MUST requerir el permiso efecti
 
 ### Requirement: Selección del período lectivo a consultar
 
-La pantalla SHALL ofrecer un selector con los períodos lectivos que tienen comisiones importadas, ordenados del más reciente al más antiguo, y MUST seleccionar por defecto el más reciente. Si no hay ningún período importado, SHALL mostrar un estado vacío que lo explique; a quien tenga `comisiones.importar` SHALL indicarle que puede usar "Actualizar desde Guaraní".
+La pantalla SHALL ofrecer un selector de año y otro de período lectivo con lo que tiene comisiones importadas, del más reciente al más antiguo, y MUST seleccionar por defecto el período más reciente. El selector de período SHALL mostrar sólo los períodos del año elegido; al cambiar de año MUST seleccionar el período más reciente de ese año. Si no hay ningún período importado, SHALL mostrar un estado vacío que lo explique; a quien tenga `comisiones.importar` SHALL indicarle que puede usar "Actualizar desde Guaraní".
 
 #### Scenario: Varios períodos importados
 
 - **GIVEN** comisiones importadas para "2026 – 1.º Cuatrimestre" y "2026 – 2.º Cuatrimestre"
 - **WHEN** el actor abre la pantalla
-- **THEN** el selector muestra ambos períodos y "2026 – 2.º Cuatrimestre" está seleccionado
+- **THEN** el año 2026 está seleccionado, el selector de período muestra ambos y "2.º Cuatrimestre" está seleccionado
+
+#### Scenario: Cambiar de año
+
+- **GIVEN** comisiones importadas para 2026 y para "2.º Cuatrimestre" de 2025
+- **WHEN** el actor elige el año 2025
+- **THEN** el selector de período muestra sólo los de 2025 y la grilla muestra "2.º Cuatrimestre" de 2025
 
 #### Scenario: Sin importaciones
 
@@ -67,6 +73,28 @@ La grilla SHALL permitir filtrar dentro del período seleccionado por texto de m
 - **GIVEN** 120 comisiones en el período y 3 de ellas con el docente "Pérez"
 - **WHEN** el actor filtra por docente "pérez"
 - **THEN** la grilla muestra esas 3 comisiones
+
+### Requirement: Exportación a Excel de lo filtrado
+
+La pantalla SHALL ofrecer "Exportar a Excel" a quien tenga `comisiones.ver`, validado en backend. El archivo MUST contener sólo las comisiones visibles con el período y los filtros aplicados, una fila por comisión, con las columnas de la grilla. Los datos MUST salir del snapshot local: exportar MUST NOT contactar a Guaraní y MUST NOT incluir documentos. Sin comisiones visibles, la acción SHALL estar deshabilitada.
+
+#### Scenario: Exportar con un filtro aplicado
+
+- **GIVEN** 120 comisiones en el período y 3 de ellas con el docente "Pérez" filtradas en la grilla
+- **WHEN** el actor pulsa "Exportar a Excel"
+- **THEN** descarga un archivo `.xlsx` con esas 3 comisiones
+
+#### Scenario: Comisión de otro período
+
+- **GIVEN** una solicitud de exportación con el id de una comisión de otro período
+- **WHEN** el backend la procesa
+- **THEN** esa comisión no se incluye en el archivo
+
+#### Scenario: Actor sin permiso
+
+- **GIVEN** un actor sin `comisiones.ver`
+- **WHEN** llama a la API de exportación
+- **THEN** la API responde 403
 
 ### Requirement: Información de la última importación
 

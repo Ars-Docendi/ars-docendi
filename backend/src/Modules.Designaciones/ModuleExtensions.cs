@@ -3,6 +3,7 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Modules.Designaciones.Contracts.Administracion;
 using Modules.Designaciones.Infrastructure;
@@ -56,7 +57,14 @@ public static class ModuleExtensions
         services.AddHostedService<LimpiezaComandosIdempotentes>();
 
         // Guaraní: sin configuración completa la integración queda deshabilitada (503) y el Host arranca igual.
-        services.Configure<OpcionesGuarani>(configuration.GetSection(OpcionesGuarani.Seccion));
+        services.AddOptions<OpcionesGuarani>()
+            .Bind(configuration.GetSection(OpcionesGuarani.Seccion))
+            .Configure<IHostEnvironment>((opciones, ambiente) =>
+            {
+                opciones.Usuario = configuration[OpcionesGuarani.VariableUsuario] ?? string.Empty;
+                opciones.Contrasena = configuration[OpcionesGuarani.VariableContrasena] ?? string.Empty;
+                opciones.ExigeCredenciales = !ambiente.IsDevelopment();
+            });
         services.AddHttpClient<ClienteGuarani>((sp, http) =>
         {
             var opciones = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpcionesGuarani>>().Value;

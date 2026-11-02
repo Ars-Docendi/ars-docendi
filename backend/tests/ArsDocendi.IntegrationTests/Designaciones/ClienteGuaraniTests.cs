@@ -113,18 +113,38 @@ public sealed class ClienteGuaraniTests
     }
 
     [Theory]
-    [InlineData("", "u", "c", false)]
-    [InlineData("https://g.invalid/", "", "c", false)]
-    [InlineData("https://g.invalid/", "u", "", false)]
-    [InlineData("https://g.invalid/", "u", "c", true)]
-    public void Configuracion_incompleta_deshabilita_la_integracion(string url, string usuario, string contrasena, bool esperada)
+    [InlineData("", "u", "c", true, false)]
+    [InlineData("https://g.invalid/", "", "c", true, false)]
+    [InlineData("https://g.invalid/", "u", "", true, false)]
+    [InlineData("https://g.invalid/", "u", "c", true, true)]
+    [InlineData("https://g.invalid/", "", "", false, true)]
+    [InlineData("", "", "", false, false)]
+    public void Configuracion_incompleta_deshabilita_la_integracion(
+        string url, string usuario, string contrasena, bool exigeCredenciales, bool esperada)
     {
         var opciones = GuaraniDePrueba.Opciones();
         opciones.UrlBase = url;
         opciones.Usuario = usuario;
         opciones.Contrasena = contrasena;
+        opciones.ExigeCredenciales = exigeCredenciales;
 
         Assert.Equal(esperada, opciones.EstaConfigurada);
+    }
+
+    [Fact]
+    public async Task Sin_credenciales_no_envia_autenticacion_y_con_credenciales_usa_basic()
+    {
+        var sinCredenciales = GuaraniDePrueba.ConFixtures();
+        var opciones = GuaraniDePrueba.Opciones();
+        opciones.Usuario = string.Empty;
+        opciones.Contrasena = string.Empty;
+        opciones.ExigeCredenciales = false;
+        await sinCredenciales.Cliente(opciones).ListarPeriodosLectivosAsync(Ct);
+        Assert.Null(Assert.Single(sinCredenciales.Solicitudes).Headers.Authorization);
+
+        var conCredenciales = GuaraniDePrueba.ConFixtures();
+        await conCredenciales.Cliente().ListarPeriodosLectivosAsync(Ct);
+        Assert.Equal("Basic", Assert.Single(conCredenciales.Solicitudes).Headers.Authorization?.Scheme);
     }
 
     [Fact]

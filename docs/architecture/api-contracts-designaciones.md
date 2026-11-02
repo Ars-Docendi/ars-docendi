@@ -53,16 +53,18 @@ por haber registrado la persona en un Alta.
 
 ## Comisiones importadas desde Guaraní
 
-| Método | Ruta                                                      | Autorización          | Contrato                                            |
-| ------ | --------------------------------------------------------- | --------------------- | --------------------------------------------------- |
-| GET    | `/api/designaciones/comisiones/periodos`                  | `comisiones.ver`      | `PeriodoImportadoDto[]` (más reciente primero)      |
-| GET    | `/api/designaciones/comisiones?periodoLectivoId=…`        | `comisiones.ver`      | `ComisionDto[]` (período completo, sin paginación)  |
-| GET    | `/api/designaciones/comisiones/guarani/periodos-lectivos` | `comisiones.importar` | `PeriodoLectivoGuaraniDto[]` (consulta Guaraní)     |
-| POST   | `/api/designaciones/comisiones/importaciones`             | `comisiones.importar` | `ImportarComisionesDto` → `ResultadoImportacionDto` |
+| Método | Ruta                                                      | Autorización          | Contrato                                                                                                                                                                                                             |
+| ------ | --------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/designaciones/comisiones/periodos`                  | `comisiones.ver`      | `PeriodoImportadoDto[]` (más reciente primero)                                                                                                                                                                       |
+| GET    | `/api/designaciones/comisiones?periodoLectivoId=…`        | `comisiones.ver`      | `ComisionDto[]` (período completo, sin paginación)                                                                                                                                                                   |
+| POST   | `/api/designaciones/comisiones/exportacion`               | `comisiones.ver`      | `ExportarComisionesDto` → archivo `.xlsx` de las comisiones pedidas que pertenecen al período. Lee sólo el snapshot. `400` sin ids o con más de 5000; `404 comisiones-no-encontradas` si ninguna está en el período. |
+| GET    | `/api/designaciones/comisiones/guarani/periodos-lectivos` | `comisiones.importar` | `PeriodoLectivoGuaraniDto[]` (consulta Guaraní)                                                                                                                                                                      |
+| POST   | `/api/designaciones/comisiones/importaciones`             | `comisiones.importar` | `ImportarComisionesDto` → `ResultadoImportacionDto`                                                                                                                                                                  |
 
 ```text
 PeriodoLectivoGuaraniDto = { id, nombre, anio }
 ImportarComisionesDto    = { periodoLectivoId }
+ExportarComisionesDto    = { periodoLectivoId, comisionIds[] }
 ResultadoImportacionDto  = { id, anioAcademico, periodoLectivoId, periodoLectivoNombre,
                              cantidad, docentesSinVincular, carrerasSinVincular }
 PeriodoImportadoDto      = { anioAcademico, id, nombre, ultimaExitosa?, ultimoIntento? }

@@ -141,13 +141,20 @@ Cada intento de importación SHALL registrarse con período lectivo, actor, fech
 
 ### Requirement: Credenciales de Guaraní en el servidor
 
-Las credenciales de la API de Guaraní MUST provenir de la configuración del servidor de cada ambiente. MUST NOT solicitarse al usuario, enviarse al navegador, persistirse en la base ni escribirse en logs. Si la configuración está incompleta, los endpoints que contactan a Guaraní MUST responder con un error identificable de integración no configurada, sin intentar la llamada.
+Las credenciales de la API de Guaraní MUST provenir de las variables de entorno `guarani_user` y `guarani_pass` del servidor. MUST NOT solicitarse al usuario, enviarse al navegador, persistirse en la base ni escribirse en logs. Son obligatorias salvo en Development, donde la API local se usa sin credenciales. Si la configuración está incompleta, los endpoints que contactan a Guaraní MUST responder con un error identificable de integración no configurada, sin intentar la llamada.
 
 #### Scenario: Integración no configurada
 
-- **GIVEN** un ambiente sin usuario o contraseña de Guaraní configurados
+- **GIVEN** un ambiente distinto de Development sin `guarani_user` o `guarani_pass`
 - **WHEN** un actor con `comisiones.importar` pide los períodos lectivos o confirma una importación
 - **THEN** la API responde 503 indicando que la integración con Guaraní no está configurada
+- **AND** el log indica qué variables definir, sin mostrar valores
+
+#### Scenario: API local sin credenciales
+
+- **GIVEN** el ambiente Development con la URL y las rutas de Guaraní configuradas, sin `guarani_user` ni `guarani_pass`
+- **WHEN** un actor con `comisiones.importar` confirma una importación
+- **THEN** la llamada a Guaraní se hace sin autenticación
 
 #### Scenario: Credenciales rechazadas por Guaraní
 

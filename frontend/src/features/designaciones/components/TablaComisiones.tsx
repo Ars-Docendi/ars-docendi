@@ -1,39 +1,36 @@
 import { Input, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
-import { useFiltrosURL } from "../../../shared/navegacion/estadoURL";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { Comision } from "../api/comisionesApi";
-import {
-  aplicarFiltrosComisiones,
-  aulasDeComision,
-  FILTROS_COMISIONES_INICIALES,
-  formatearBanda,
-  type FiltrosComisiones,
-} from "./filtrosComisiones";
+import { aulasDeComision, formatearBanda, type FiltrosComisiones } from "./filtrosComisiones";
 import "./tablaComisiones.css";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
 const ALTO_TABLA = "calc(100vh - 340px)";
 const VACIO = "—";
 
-/** Grilla de sólo lectura de las comisiones de un período; filtros en el query, sin paginación. */
-export function TablaComisiones({ comisiones }: { comisiones: Comision[] }) {
-  const [filtros, setFiltros] = useFiltrosURL(FILTROS_COMISIONES_INICIALES);
-  const visibles = aplicarFiltrosComisiones(comisiones, filtros);
+interface TablaComisionesProps {
+  /** Comisiones que cumplen los filtros; la página las necesita también para exportar. */
+  visibles: Comision[];
+  filtros: FiltrosComisiones;
+  onFiltros: (filtros: FiltrosComisiones) => void;
+}
 
+/** Grilla de sólo lectura de las comisiones de un período, sin paginación. */
+export function TablaComisiones({ visibles, filtros, onFiltros }: TablaComisionesProps) {
   function filtro(campo: keyof FiltrosComisiones, etiqueta: string, placeholder: string) {
     return (
       <EncabezadoFiltrable
         etiqueta={etiqueta}
         activo={Boolean(filtros[campo].trim())}
-        onLimpiar={() => setFiltros({ ...filtros, [campo]: "" })}
+        onLimpiar={() => onFiltros({ ...filtros, [campo]: "" })}
       >
         <Input
           className="adoc-filtro-encabezado-campo"
           placeholder={placeholder}
           aria-label={`Buscar ${etiqueta}`}
           value={filtros[campo]}
-          onChange={(evento) => setFiltros({ ...filtros, [campo]: evento.target.value })}
+          onChange={(evento) => onFiltros({ ...filtros, [campo]: evento.target.value })}
         />
       </EncabezadoFiltrable>
     );

@@ -24,6 +24,8 @@ public sealed partial class ServicioComisiones(
     IOptions<OpcionesGuarani> opciones,
     ILogger<ServicioComisiones> logger)
 {
+    private const int MaximoExportacion = 5000;
+
     public async Task<IReadOnlyList<PeriodoImportadoDto>> ListarPeriodosAsync(CancellationToken ct)
     {
         var periodos = await repositorio.ListarPeriodosImportadosAsync(ct);
@@ -49,6 +51,32 @@ public sealed partial class ServicioComisiones(
     {
         ValidarPeriodoId(periodoLectivoId);
         return (await repositorio.ListarComisionesAsync(periodoLectivoId, ct)).Select(Mapear).ToArray();
+    }
+
+    /// <summary>Exporta sólo las comisiones pedidas que pertenecen al período; nunca contacta a Guaraní.</summary>
+    public async Task<ArchivoComisiones> ExportarAsync(ExportarComisionesDto datos, CancellationToken ct)
+    {
+        ValidarPeriodoId(datos.PeriodoLectivoId);
+        if (datos.ComisionIds is not { Count: > 0 and <= MaximoExportacion })
+            throw new ExcepcionAplicacion(
+                TipoErrorAplicacion.Validacion, "validation", "Comisiones a exportar inválidas.",
+                new Dictionary<string, string[]> { ["comisionIds"] = [$"Debe incluir entre 1 y {MaximoExportacion} comisiones."] });
+
+        var pedidas = datos.ComisionIds.ToHashSet(StringComparer.Ordinal);
+        var comisiones = (await repositorio.ListarComisionesAsync(datos.PeriodoLectivoId, ct))
+            .Where(c => pedidas.Contains(c.ComisionGuaraniId))
+            .ToArray();
+        if (comisiones.Length == 0)
+            throw new ExcepcionAplicacion(
+                TipoErrorAplicacion.NoEncontrado, "comisiones-no-encontradas",
+                "Las comisiones pedidas no están en el período. Actualizá la pantalla y reintentá.");
+
+        logger.LogInformation(
+            "Exportación de comisiones: actor {ActorId}, período {Periodo}, cantidad {Cantidad}",
+            UsuarioActualId(), datos.PeriodoLectivoId, comisiones.Length);
+        return new ArchivoComisiones(
+            ExportadorComisionesExcel.Generar(comisiones.Select(Mapear).ToArray()),
+            ExportadorComisionesExcel.NombreArchivo(comisiones[0].AnioAcademico, comisiones[0].PeriodoLectivoNombre));
     }
 
     public async Task<IReadOnlyList<PeriodoLectivoGuaraniDto>> ListarPeriodosGuaraniAsync(CancellationToken ct)
@@ -180,6 +208,10 @@ public sealed partial class ServicioComisiones(
 
     private void ExigirConfiguracion()
     {
+        if (opciones.Value.TieneEndpoints && opciones.Value.FaltanCredenciales)
+            logger.LogError(
+                "Integración Guaraní sin credenciales: definir las variables de entorno {VariableUsuario} y {VariableContrasena}",
+                OpcionesGuarani.VariableUsuario, OpcionesGuarani.VariableContrasena);
         if (!guarani.EstaConfigurado)
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.ServicioExternoNoConfigurado,

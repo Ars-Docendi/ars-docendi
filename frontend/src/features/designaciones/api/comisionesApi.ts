@@ -63,6 +63,26 @@ export async function listarComisiones(periodoLectivoId: string): Promise<Comisi
   return (await apiClient.get<Comision[]>(BASE, { params: { periodoLectivoId } })).data;
 }
 
+export interface ArchivoExportado {
+  archivo: Blob;
+  nombre: string;
+}
+
+/** Descarga el Excel de las comisiones indicadas; el nombre del archivo lo decide el backend. */
+export async function exportarComisiones(
+  periodoLectivoId: string,
+  comisionIds: string[],
+): Promise<ArchivoExportado> {
+  const respuesta = await apiClient.post<Blob>(
+    `${BASE}/exportacion`,
+    { periodoLectivoId, comisionIds },
+    { responseType: "blob" },
+  );
+  const disposicion = String(respuesta.headers["content-disposition"] ?? "");
+  const nombre = /filename="?([^";]+)"?/.exec(disposicion)?.[1] ?? "comisiones.xlsx";
+  return { archivo: respuesta.data, nombre };
+}
+
 export async function listarPeriodosGuarani(): Promise<PeriodoLectivoGuarani[]> {
   return (await apiClient.get<PeriodoLectivoGuarani[]>(`${BASE}/guarani/periodos-lectivos`)).data;
 }

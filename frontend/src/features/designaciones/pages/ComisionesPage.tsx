@@ -7,26 +7,53 @@ import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import type { PeriodoImportado, ResultadoImportacion } from "../api/comisionesApi";
 import { ModalImportarComisiones } from "../components/ModalImportarComisiones";
 import { TablaComisiones } from "../components/TablaComisiones";
-import { formatearFechaHora } from "../components/filtrosComisiones";
-import { useComisionesDelPeriodo, usePeriodosImportados } from "../hooks/useComisiones";
+import {
+  aplicarFiltrosComisiones,
+  FILTROS_COMISIONES_INICIALES,
+  formatearFechaHora,
+} from "../components/filtrosComisiones";
+import {
+  useComisionesDelPeriodo,
+  useExportarComisiones,
+  usePeriodosImportados,
+} from "../hooks/useComisiones";
 
-const PERIODO_POR_DEFECTO = { periodo: "" };
+const SELECCION_POR_DEFECTO = { anio: "", periodo: "" };
 
 /** Comisiones importadas desde Guaraní; consultarlas nunca contacta a Guaraní. */
 export function ComisionesPage() {
   const { user } = useCurrentUser();
   const puedeImportar = user?.permissions.includes("comisiones.importar") ?? false;
   const periodos = usePeriodosImportados();
-  const [{ periodo: periodoElegido }, setPeriodoElegido] = useFiltrosURL(PERIODO_POR_DEFECTO);
+  const [seleccion, setSeleccion] = useFiltrosURL(SELECCION_POR_DEFECTO);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [claveModal, setClaveModal] = useState(0);
   const [ultimoResultado, setUltimoResultado] = useState<ResultadoImportacion | undefined>();
 
   const lista = periodos.data ?? [];
-  // Un período de la URL que ya no está importado cae en el más reciente.
-  const periodo = lista.find((p) => p.id === periodoElegido) ?? lista[0];
+  // La lista llega del más reciente al más antiguo; una selección de la URL que ya no está
+  // importada cae en el período más reciente del año o, sin ese año, en el más reciente de todos.
+  const delAnioElegido = lista.filter((p) => String(p.anioAcademico) === seleccion.anio);
+  const periodo =
+    delAnioElegido.find((p) => p.id === seleccion.periodo) ??
+    delAnioElegido[0] ??
+    lista.find((p) => p.id === seleccion.periodo) ??
+    lista[0];
+  const anios = [...new Set(lista.map((p) => p.anioAcademico))].sort((a, b) => b - a);
+  const delAnio = lista.filter((p) => p.anioAcademico === periodo?.anioAcademico);
   const comisiones = useComisionesDelPeriodo(periodo?.id);
   const filas = comisiones.data ?? [];
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_COMISIONES_INICIALES);
+  const visibles = aplicarFiltrosComisiones(filas, filtros);
+  const exportar = useExportarComisiones();
+
+  function exportarVisibles() {
+    if (!periodo) return;
+    exportar.mutate(
+      { periodoId: periodo.id, comisionIds: visibles.map((c) => c.id) },
+      { onSuccess: ({ archivo, nombre }) => descargar(archivo, nombre) },
+    );
+  }
 
   function abrirModal() {
     setClaveModal((c) => c + 1);
@@ -35,7 +62,10 @@ export function ComisionesPage() {
 
   function alImportar(resultado: ResultadoImportacion) {
     setUltimoResultado(resultado);
-    setPeriodoElegido({ periodo: resultado.periodoLectivoId });
+    setSeleccion({
+      anio: String(resultado.anioAcademico),
+      periodo: resultado.periodoLectivoId,
+    });
   }
 
   return (
@@ -47,17 +77,44 @@ export function ComisionesPage() {
         actions={
           <>
             {lista.length > 0 && (
-              <Select
-                aria-label="Período lectivo"
-                value={periodo?.id ?? ""}
-                onChange={(e) => setPeriodoElegido({ periodo: e.target.value })}
+              <>
+                <Select
+                  aria-label="Año"
+                  value={String(periodo?.anioAcademico ?? "")}
+                  onChange={(e) => setSeleccion({ anio: e.target.value, periodo: "" })}
+                >
+                  {anios.map((anio) => (
+                    <option key={anio} value={anio}>
+                      {anio}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  aria-label="Período lectivo"
+                  value={periodo?.id ?? ""}
+                  onChange={(e) =>
+                    setSeleccion({
+                      anio: String(periodo?.anioAcademico ?? ""),
+                      periodo: e.target.value,
+                    })
+                  }
+                >
+                  {delAnio.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
+                    </option>
+                  ))}
+                </Select>
+              </>
+            )}
+            {periodo && (
+              <Button
+                variant="secondary"
+                onClick={exportarVisibles}
+                disabled={visibles.length === 0 || exportar.isPending}
               >
-                {lista.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {etiquetaPeriodo(p)}
-                  </option>
-                ))}
-              </Select>
+                {exportar.isPending ? "Exportando…" : "Exportar a Excel"}
+              </Button>
             )}
             {puedeImportar && (
               <Button variant="primary" onClick={abrirModal}>
@@ -75,6 +132,11 @@ export function ComisionesPage() {
           <button onClick={() => periodos.refetch()}>Reintentar</button>
         </p>
       )}
+      {exportar.isError && (
+        <InlineAlert severity="danger" title="No se pudo exportar">
+          No se pudo generar el archivo. Actualizá la pantalla y reintentá.
+        </InlineAlert>
+      )}
       {ultimoResultado && (
         <InlineAlert severity="success" title="Importación completa">
           {resumenImportacion(ultimoResultado)}
@@ -90,7 +152,9 @@ export function ComisionesPage() {
       {periodo && <EstadoImportacion periodo={periodo} />}
       {comisiones.isLoading && <p role="status">Cargando comisiones…</p>}
       {comisiones.isError && <p role="alert">No se pudieron cargar las comisiones.</p>}
-      {periodo && comisiones.isSuccess && <TablaComisiones comisiones={filas} />}
+      {periodo && comisiones.isSuccess && (
+        <TablaComisiones visibles={visibles} filtros={filtros} onFiltros={setFiltros} />
+      )}
 
       {puedeImportar && (
         <ModalImportarComisiones
@@ -104,10 +168,13 @@ export function ComisionesPage() {
   );
 }
 
-function etiquetaPeriodo(periodo: PeriodoImportado): string {
-  return periodo.nombre.includes(String(periodo.anioAcademico))
-    ? periodo.nombre
-    : `${periodo.nombre} ${periodo.anioAcademico}`;
+function descargar(archivo: Blob, nombre: string) {
+  const url = URL.createObjectURL(archivo);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  enlace.click();
+  URL.revokeObjectURL(url);
 }
 
 function resumenImportacion(r: ResultadoImportacion): string {
