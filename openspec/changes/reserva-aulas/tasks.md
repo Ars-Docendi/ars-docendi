@@ -168,13 +168,13 @@ motivo; y ambas grillas deben mostrar el código de materia y renombrar dos enca
 - [x] 10.1 DDL: `database/aulas/001_aulas_solicitudes.sql` — agregar `'rechazada'` al CHECK
       `solicitudes_reserva_estado_valido`; agregar columna `motivo_rechazo TEXT NULL` +
       `CONSTRAINT solicitudes_reserva_motivo_si_rechazada CHECK ((estado = 'rechazada' AND
-  motivo_rechazo IS NOT NULL) OR (estado <> 'rechazada' AND motivo_rechazo IS NULL))`. Se edita el
+motivo_rechazo IS NOT NULL) OR (estado <> 'rechazada' AND motivo_rechazo IS NULL))`. Se edita el
       archivo 001 in place (mismo criterio que decisión 9.1: el schema `aulas` todavía no se desplegó a
       ningún ambiente real).
 - [x] 10.2 Dominio: `EstadosSolicitudAula.Rechazada = "rechazada"`; `SolicitudReservaAula.MotivoRechazo`
       (`string?`). `AulasDbContext` mapea la nueva columna.
 - [x] 10.3 Backend: `IServicioSolicitudesAula.RechazarAsync(Guid id, string motivo, CancellationToken
-  ct)` — valida motivo no vacío, rechaza con Conflicto si la solicitud no está `Pendiente`,
+ct)` — valida motivo no vacío, rechaza con Conflicto si la solicitud no está `Pendiente`,
       transiciona a `Rechazada` y persiste el motivo. `AsignarAulaAsync` pasa a rechazar también sobre
       `Rechazada` (además de `Cancelada`).
 - [x] 10.4 API: `RechazarSolicitudDto(string Motivo)`; `POST /api/aulas/solicitudes/{id}/rechazar`,
