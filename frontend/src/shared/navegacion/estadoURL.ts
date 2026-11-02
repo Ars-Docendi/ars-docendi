@@ -21,14 +21,17 @@ function iguales(a: Valor, b: Valor) {
  * `actualizar` recibe el estado completo nuevo y reemplaza la entrada del historial: escribir en
  * un filtro de texto no debe llenar el botón Atrás.
  */
-export function useFiltrosURL<T extends Record<string, Valor>>(porDefecto: T, prefijo?: string) {
+export function useFiltrosURL<T extends { [K in keyof T]: Valor }>(
+  porDefecto: T,
+  prefijo?: string,
+) {
   const [params, setParams] = useSearchParams();
   const lectura = params.toString();
 
   const filtros = useMemo(() => {
     const actuales = new URLSearchParams(lectura);
     const resultado: Record<string, Valor> = {};
-    for (const [nombre, defecto] of Object.entries(porDefecto)) {
+    for (const [nombre, defecto] of Object.entries(porDefecto) as [string, Valor][]) {
       const crudo = actuales.get(clave(prefijo, nombre));
       if (crudo === null) resultado[nombre] = defecto;
       else resultado[nombre] = Array.isArray(defecto) ? crudo.split(",").filter(Boolean) : crudo;
@@ -41,8 +44,8 @@ export function useFiltrosURL<T extends Record<string, Valor>>(porDefecto: T, pr
       setParams(
         (previos) => {
           const siguientes = new URLSearchParams(previos);
-          for (const [nombre, defecto] of Object.entries(porDefecto)) {
-            const valor = nuevos[nombre];
+          for (const [nombre, defecto] of Object.entries(porDefecto) as [string, Valor][]) {
+            const valor = (nuevos as Record<string, Valor>)[nombre];
             const k = clave(prefijo, nombre);
             const vacio = Array.isArray(valor) ? valor.length === 0 : valor === "";
             if (vacio || iguales(valor, defecto)) siguientes.delete(k);

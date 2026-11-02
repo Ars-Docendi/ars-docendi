@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useEstadoVolver } from "../../../shared/navegacion/useEstadoVolver";
 import { TablaTareas } from "./TablaTareas";
 import type { PresetEstado } from "./presetEstado";
 import type { Proyecto, Tarea } from "../types";
@@ -8,7 +9,6 @@ interface CuadroProyectoProps {
   /** `null` = el cuadro fijo "Generales" (tareas sin proyecto; su título no navega a ningún lado). */
   proyecto: Proyecto | null;
   tareas: Tarea[];
-  onSeleccionarTarea: (tarea: Tarea) => void;
   preset?: PresetEstado;
 }
 
@@ -18,28 +18,23 @@ interface CuadroProyectoProps {
  * `TablaTareas` que antes, sin cambios en sus columnas. El título de un
  * cuadro de Proyecto navega a su Detalle; el de "Generales" no.
  */
-export function CuadroProyecto({
-  proyecto,
-  tareas,
-  onSeleccionarTarea,
-  preset,
-}: CuadroProyectoProps) {
-  const navegar = useNavigate();
+export function CuadroProyecto({ proyecto, tareas, preset }: CuadroProyectoProps) {
+  const estado = useEstadoVolver();
 
   return (
     <section className="adoc-cuadro-proyecto" aria-label={proyecto?.nombre ?? "Generales"}>
       {proyecto ? (
-        <button
-          type="button"
+        <Link
+          to={`/tareas/proyectos/${proyecto.id}`}
+          state={estado}
           className="adoc-cuadro-proyecto-titulo adoc-cuadro-proyecto-titulo--link"
-          onClick={() => navegar(`/tareas/proyectos/${proyecto.id}`)}
         >
           {proyecto.nombre}
-        </button>
+        </Link>
       ) : (
         <h2 className="adoc-cuadro-proyecto-titulo">Generales</h2>
       )}
-      <TablaTareas tareas={tareas} onSeleccionar={onSeleccionarTarea} preset={preset} />
+      <TablaTareas tareas={tareas} preset={preset} />
     </section>
   );
 }

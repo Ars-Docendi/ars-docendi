@@ -1,7 +1,15 @@
 import { useResaltado } from "../../../shared/ui/resaltado";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { AuditLog, Breadcrumbs, Button, InlineAlert, Modal, TrafficLight } from "@ars-docendi/ui";
+import { Link, useParams } from "react-router-dom";
+import { AuditLog, Button, InlineAlert, Modal, TrafficLight } from "@ars-docendi/ui";
+import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
+import {
+  migaDeVolver,
+  propagarVolver,
+  type DestinoVolver,
+} from "../../../shared/navegacion/volver";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoTareaBadge } from "../components/EstadoTareaBadge";
 import { AccionesEstadoTarea } from "../components/AccionesEstadoTarea";
@@ -9,7 +17,7 @@ import { ComentariosTarea } from "../components/ComentariosTarea";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
 import { TareasRelacionadas } from "../components/TareasRelacionadas";
 import { TareasHijas } from "../components/TareasHijas";
-import { IconoArrowLeft, IconoBan, IconoSquarePen } from "../components/lucide";
+import { IconoBan, IconoSquarePen } from "../components/lucide";
 import { formatearFecha, historialAAuditEntries } from "../components/detalleAdapters";
 import { estadoSemaforo, muestraSemaforo } from "../components/semaforoTarea";
 import { puedeCambiarEstado, puedeEditarCampos } from "../api/maquinaEstadosTarea";
@@ -35,8 +43,6 @@ import type {
 } from "../types";
 import "./tareas.css";
 
-const RUTA_TAREAS = "/tareas";
-
 const ETIQUETA_PRIORIDAD: Record<Tarea["prioridad"], string> = {
   alta: "Alta",
   media: "Media",
@@ -54,7 +60,7 @@ const ETIQUETA_TIPO: Record<TipoTarea, string> = {
 
 export function DetalleTareaPage() {
   const { id } = useParams();
-  const navegar = useNavigate();
+  const volver = useDestinoVolver("tarea");
   const actor = useActorTareas();
   const { data: tarea, isLoading, isError } = useTarea(id);
   const { data: todas = [] } = useListadoTareas();
@@ -71,11 +77,11 @@ export function DetalleTareaPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
+        conVolver
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Tareas", href: RUTA_TAREAS },
+          migaDeVolver(volver),
           { label: "Detalle de la tarea" },
         ]}
       />
@@ -88,7 +94,7 @@ export function DetalleTareaPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se encontró la tarea">
-          No pudimos cargar la tarea solicitada. <a href={RUTA_TAREAS}>Volver a Tareas</a>.
+          No pudimos cargar la tarea solicitada. <Link to={volver.ruta}>{volver.texto}</Link>.
         </InlineAlert>
       )}
 
@@ -100,7 +106,7 @@ export function DetalleTareaPage() {
           proyectos={proyectos}
           enviando={enviando}
           errorEstado={cambiarEstado.isError ? cambiarEstado.error.message : undefined}
-          onVolver={() => navegar(-1)}
+          volver={volver}
           onCambiarEstado={(estadoDestino, opciones) =>
             cambiarEstado.mutate({
               id: tarea.id,
@@ -146,7 +152,7 @@ interface DetalleCargadoProps {
   proyectos: Proyecto[];
   enviando: boolean;
   errorEstado?: string;
-  onVolver: () => void;
+  volver: DestinoVolver;
   onCambiarEstado: (
     estadoDestino: EstadoTarea,
     opciones?: { comentario?: string; solucion?: string },
@@ -173,7 +179,7 @@ function DetalleCargado({
   proyectos,
   enviando,
   errorEstado,
-  onVolver,
+  volver,
   onCambiarEstado,
   onEditarAvance,
   onCancelar,
@@ -189,7 +195,6 @@ function DetalleCargado({
   onQuitarRelacion,
   enviandoRelacion,
 }: DetalleCargadoProps) {
-  const navegar = useNavigate();
   const resaltada = useResaltado(tarea.id);
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
   const [versionEditar, setVersionEditar] = useState(tarea.version);
@@ -210,9 +215,7 @@ function DetalleCargado({
         meta={`Prioridad ${ETIQUETA_PRIORIDAD[tarea.prioridad]} · Responsable ${tarea.responsable.nombre}`}
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Button variant="secondary" leadingIcon={<IconoArrowLeft />} onClick={onVolver}>
-              Volver
-            </Button>
+            <EnlaceVolver id="tarea-volver" destino={volver} />
             {puedeEditar && (
               <Button
                 variant="secondary"
@@ -339,13 +342,13 @@ function DetalleCargado({
                   <dt>Proyecto</dt>
                   <dd>
                     {proyecto ? (
-                      <button
-                        type="button"
+                      <Link
                         className="adoc-tareas-vinculo-link"
-                        onClick={() => navegar(`/tareas/proyectos/${proyecto.id}`)}
+                        to={`/tareas/proyectos/${proyecto.id}`}
+                        state={propagarVolver(volver)}
                       >
                         {proyecto.nombre}
-                      </button>
+                      </Link>
                     ) : (
                       "Sin proyecto"
                     )}
@@ -355,13 +358,13 @@ function DetalleCargado({
                   <div className="adoc-det-tarea-dato">
                     <dt>Tarea padre</dt>
                     <dd>
-                      <button
-                        type="button"
+                      <Link
                         className="adoc-tareas-vinculo-link"
-                        onClick={() => navegar(`/tareas/${padre.id}`)}
+                        to={`/tareas/${padre.id}`}
+                        state={propagarVolver(volver)}
                       >
                         N° {padre.numero} — {padre.titulo}
-                      </button>
+                      </Link>
                     </dd>
                   </div>
                 )}

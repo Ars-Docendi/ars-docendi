@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert, Select } from "@ars-docendi/ui";
+import { useSearchParams } from "react-router-dom";
+import { Button, InlineAlert, Select } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { usePestanaURL } from "../../../shared/navegacion/estadoURL";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { CuadroProyecto } from "../components/CuadroProyecto";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
@@ -13,24 +15,45 @@ import {
   type AlcanceTareas,
 } from "../components/alcanceTareas";
 import { ETIQUETA_PRESET, PRESET_INICIAL, type PresetEstado } from "../components/presetEstado";
+
+const PRESETS = Object.keys(ETIQUETA_PRESET) as PresetEstado[];
+const ALCANCES = Object.keys(ETIQUETA_ALCANCE) as AlcanceTareas[];
+/** Prefijo de los filtros de columna de la tabla única, en el query. */
+const PREFIJO_TABLA = "t";
 import { IconoPlus } from "../components/lucide";
 import { useActorTareas, usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
 import { useCrearTarea } from "../hooks/useAccionesTarea";
-import type { Tarea } from "../types";
 import "./tareas.css";
 
 export function IndexPage() {
-  const navegar = useNavigate();
   const { puedeCrearTarea } = usePermisosTareas();
   const actor = useActorTareas();
   const { data: tareas, isLoading, isError } = useListadoTareas();
   const { data: proyectos = [] } = useListadoProyectos();
   const crearTarea = useCrearTarea();
 
-  const [preset, setPreset] = useState<PresetEstado>(PRESET_INICIAL);
-  const [alcance, setAlcance] = useState<AlcanceTareas>(ALCANCE_INICIAL);
+  // Preset y alcance viven en el query (defaults omitidos): Atrás y recargar los restauran.
+  const [, setParams] = useSearchParams();
+  const [preset] = usePestanaURL(PRESETS, PRESET_INICIAL, { nombre: "estado" });
+  const [alcance, setAlcance] = usePestanaURL(ALCANCES, ALCANCE_INICIAL, {
+    nombre: "alcance",
+    reemplazar: true,
+  });
+  function elegirPreset(nuevo: PresetEstado) {
+    setParams(
+      (previos) => {
+        const siguientes = new URLSearchParams(previos);
+        if (nuevo === PRESET_INICIAL) siguientes.delete("estado");
+        else siguientes.set("estado", nuevo);
+        // Un preset nuevo recarga el filtro de la columna Estado.
+        siguientes.delete(`${PREFIJO_TABLA}.estado`);
+        return siguientes;
+      },
+      { replace: true },
+    );
+  }
   const [modalNuevaTareaAbierto, setModalNuevaTareaAbierto] = useState(false);
 
   const total = tareas?.length ?? 0;
@@ -39,7 +62,7 @@ export function IndexPage() {
 
   return (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Tareas" }]} />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Tareas" }]} />
       <PageHeader
         title="Tareas"
         meta={
@@ -70,7 +93,7 @@ export function IndexPage() {
         <div className="adoc-preset-estado" role="group" aria-label="Filtros del listado">
           <label>
             Estado:{" "}
-            <Select value={preset} onChange={(e) => setPreset(e.target.value as PresetEstado)}>
+            <Select value={preset} onChange={(e) => elegirPreset(e.target.value as PresetEstado)}>
               {(Object.keys(ETIQUETA_PRESET) as PresetEstado[]).map((opcion) => (
                 <option key={opcion} value={opcion}>
                   {ETIQUETA_PRESET[opcion]}
@@ -112,7 +135,7 @@ export function IndexPage() {
       {!isLoading && !isError && total > 0 && !puedeCrearTarea && (
         <TablaTareas
           tareas={visibles}
-          onSeleccionar={(tarea: Tarea) => navegar(`/tareas/${tarea.id}`)}
+          prefijoURL={PREFIJO_TABLA}
           preset={preset}
           proyectos={proyectos}
         />
@@ -127,7 +150,6 @@ export function IndexPage() {
             key={cuadro.proyecto?.id ?? "generales"}
             proyecto={cuadro.proyecto}
             tareas={cuadro.tareas}
-            onSeleccionarTarea={(tarea: Tarea) => navegar(`/tareas/${tarea.id}`)}
             preset={preset}
           />
         ))}

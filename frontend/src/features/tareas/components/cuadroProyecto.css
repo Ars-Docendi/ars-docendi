@@ -24,8 +24,13 @@
   border: none;
   padding: 0;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   width: fit-content;
+}
+.adoc-cuadro-proyecto-titulo--link:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 .adoc-cuadro-proyecto-titulo--link:hover {
   text-decoration: underline;
