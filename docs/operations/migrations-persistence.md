@@ -118,25 +118,37 @@ Cada evento del circuito fuera de borrador queda sellado y firmado con HMAC-SHA2
 [data-model → Cadena de sellos](../architecture/data-model.md#cadena-de-sellos-del-circuito).
 
 - **Clave.** `Integridad__ClavesSellado__<versión>` (base64, ≥ 32 bytes) e
-  `Integridad__VersionVigente` (default `1`). En prod llega del secret de Environment
-  `SELLADO_CLAVE_PROD` como `SELLADO_CLAVE`; sin ella el backend no arranca. Staging/PR la
-  dejan vacía y usan la clave de desarrollo: sus datos son sintéticos. La clave nunca va a
+  `Integridad__VersionVigente` (default `1`). Compose las toma de `SELLADO_CLAVE` (versión 1),
+  `SELLADO_CLAVE_2` (versión 2) y `SELLADO_VERSION_VIGENTE`. En prod llegan de los secrets de
+  Environment `SELLADO_CLAVE_PROD` y `SELLADO_CLAVE_2_PROD` y de la variable
+  `SELLADO_VERSION_VIGENTE`; el workflow falla antes del spin-up si falta la clave vigente, y sin
+  ella el backend tampoco arranca. Staging/PR las dejan vacías y usan la clave de desarrollo: sus
+  datos son sintéticos. La clave nunca va a
   la base, al repo ni a logs. Respaldarla como cualquier secret de prod: perderla deja los
   sellos sin verificación.
-- **Rotación.** Agregar la versión nueva sin quitar la anterior y subir `VersionVigente`.
+- **Rotación.** Cargar `SELLADO_CLAVE_2_PROD` sin quitar `SELLADO_CLAVE_PROD` y subir
+  `SELLADO_VERSION_VIGENTE` a `2`. Una tercera versión requiere agregar su variable en Compose y
+  en el workflow.
   Los sellos viejos se siguen verificando con su versión; una versión retirada los marca
   `sello-firma-invalida`.
 - **Sellado retroactivo.** `--sellar-historial-existente` sella, con la clave vigente, el
   historial sin sello de pedidos fuera de borrador y registra un ancla `retroactivo`. Es
-  idempotente. `spin-up.sh` lo corre sólo después de sembrar una base nueva; en prod se
-  ejecuta una única vez, a mano, tras el primer deploy con esta versión. **No repetirlo
-  como reparación:** sellaría también cambios hechos por SQL desde el último sello. Ante
-  hallazgos, el procedimiento es el de [Preflight de integridad](#preflight-de-integridad-y-saneamiento-autorizado).
+  idempotente. La transacción del seed registra `seed_metadata.sellado_inicial = pendiente`:
+  `spin-up.sh` y `scripts/setup.sh` sellan sólo mientras esa marca exista y la borran al
+  terminar; si el sellado falla, el próximo deploy o setup lo reintenta. Una base que ya existía
+  antes de esta versión no tiene la marca: en prod, staging, cada PR viva y dev local se ejecuta
+  **una única vez, a mano**, tras el primer deploy con esta versión, con escritores detenidos y
+  antes de exportar (`compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll
+--sellar-historial-existente` con el mismo `.env` del spin-up, o `dotnet run` en local). Es
+  una inicialización por ambiente, no una reparación automática. **No repetirlo ante
+  hallazgos:** sellaría también cambios hechos por SQL desde el último sello; el procedimiento es
+  el de [Preflight de integridad](#preflight-de-integridad-y-saneamiento-autorizado).
 - **Verificación.** `GET /api/designaciones/periodos/{id}/integridad` (`auditoria.ver`) y
   `--diagnosticar-integridad` reportan las categorías `designaciones-sello-*`,
   `designaciones-historial-sin-sello`, `designaciones-pedido-estado-divergente` y
   `designaciones-ancla-no-reproducida`. La exportación del lote responde 409 mientras la
-  cadena no verifique.
+  cadena no verifique, y una transición o edición sobre un pedido que no coincide con su último
+  sello responde 409 `pedido-integridad-comprometida`.
 - **Límite.** El runtime es owner de la base: puede deshabilitar los triggers de sólo
   inserción. La garantía es la firma y el ancla impresa en cada lote exportado. Separar el
   rol dueño/migrador del rol de la aplicación y la custodia de la clave del acceso a la
@@ -156,7 +168,8 @@ La consulta administrativa de auditoría pagina hasta 50 filas por defecto y eje
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | Repository variables                         | `REGISTRO`, `DOMINIO`                                                                                |
 | Repository secrets                           | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY` |
-| Environment `prod` secret                    | `APP_DB_PASSWORD_PROD`, `SELLADO_CLAVE_PROD`                                                         |
+| Environment `prod` secret                    | `APP_DB_PASSWORD_PROD`, `SELLADO_CLAVE_PROD`, `SELLADO_CLAVE_2_PROD` (sólo al rotar)                 |
+| Environment `prod` var opcional              | `SELLADO_VERSION_VIGENTE` (default `1`)                                                              |
 | Environment `staging` secret                 | `APP_DB_PASSWORD_STAGING`                                                                            |
 | Environment `pr-preview` secret              | `APP_DB_PASSWORD_PREVIEW`                                                                            |
 | Vars opcionales de cada Environment anterior | `BACKUP_VOLUME_PREFIX`, `BACKUP_RETENTION_DAYS`                                                      |

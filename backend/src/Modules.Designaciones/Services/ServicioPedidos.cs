@@ -126,6 +126,7 @@ internal sealed partial class ServicioPedidos(
         {
             await designaciones.ValidarDestinosAsync([actor.UsuarioId],
                 pedido.PersonaId == personaId ? [] : [personaId], token);
+            await sellador.VerificarEstadoPrevioAsync(pedido, token);
             pedidos.EsperarVersion(pedido, datos.Version.Value);
             pedido.PeriodoId = datos.PeriodoId;
             pedido.PersonaId = personaId;
@@ -162,6 +163,8 @@ internal sealed partial class ServicioPedidos(
         {
             await designaciones.ValidarDestinosAsync([actor.UsuarioId], [pedido.PersonaId], token);
             await designaciones.BloquearAsync(pedido.PersonaId, pedido.MateriaId, token);
+            // Después del lock de designaciones, mismo orden que el sellado.
+            await sellador.VerificarEstadoPrevioAsync(pedido, token);
             if (accion is AccionPedido.Enviar or AccionPedido.Reenviar or AccionPedido.Aceptar)
             {
                 await ValidarCompletitudCircuitoAsync(pedido, token);

@@ -69,7 +69,8 @@ cd ..
 # Primera inicialización local: ejecuta ambos datasets en una transacción,
 # registra la marca completa y no vuelve a sembrar sobre ediciones existentes.
 bash infra/scripts/seed-local.sh
-# Sella el historial sembrado; sin esto la exportación del lote responde 409.
+# Sella el historial sembrado; sin esto la exportación del lote responde 409. Sólo tras
+# sembrar: scripts/setup.sh lo hace mientras seed_metadata.sellado_inicial esté pendiente.
 dotnet run --project backend/src/ArsDocendi.Host -- --sellar-historial-existente
 ```
 

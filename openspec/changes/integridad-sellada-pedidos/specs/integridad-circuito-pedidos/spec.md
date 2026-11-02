@@ -29,6 +29,13 @@ sellarse.
 - **WHEN** lo envía a revisión
 - **THEN** el evento `enviar` MUST ser el primer sello del pedido y cubrir sus datos completos
 
+#### Scenario: Un pedido alterado fuera del circuito no avanza
+
+- **GIVEN** un pedido sellado cuyo estado se modificó después por SQL
+- **WHEN** un actor lo transiciona o edita
+- **THEN** la operación MUST rechazarse con conflicto, sin sellar el estado alterado
+- **AND** la verificación MUST seguir reportando el pedido como divergente
+
 #### Scenario: Un borrador sigue siendo eliminable
 
 - **GIVEN** un borrador que nunca se envió

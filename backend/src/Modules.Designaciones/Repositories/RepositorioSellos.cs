@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
@@ -27,6 +28,15 @@ public sealed class RepositorioSellos(DesignacionesDbContext db)
             .OrderByDescending(s => s.Secuencia)
             .FirstOrDefaultAsync(ct);
 
+    /// <summary>Último sello del pedido en el orden del historial, el mismo que usa la verificación.</summary>
+    public Task<PedidoSello?> ObtenerUltimoSelloDePedidoAsync(Guid pedidoId, CancellationToken ct) =>
+        db.PedidoSellos.AsNoTracking()
+            .Where(s => s.PedidoId == pedidoId)
+            .Join(db.PedidoHistorial, s => s.HistorialId, h => h.Id, (s, h) => new { s, h })
+            .OrderByDescending(x => x.h.CreadoEn).ThenByDescending(x => x.h.Id)
+            .Select(x => x.s)
+            .FirstOrDefaultAsync(ct);
+
     public Task<PeriodoAncla?> ObtenerUltimaAnclaAsync(Guid periodoId, CancellationToken ct) =>
         db.PeriodoAnclas.AsNoTracking()
             .Where(a => a.PeriodoId == periodoId)
@@ -48,6 +58,15 @@ public sealed class RepositorioSellos(DesignacionesDbContext db)
     /// eventos y todos sus sellos (un pedido editado puede haber cambiado de período).
     /// </summary>
     public async Task<CadenaPeriodo> LeerCadenaAsync(Guid periodoId, CancellationToken ct)
+    {
+        // Una sola instantánea: un evento confirmado entre consultas parecería un hallazgo.
+        CadenaPeriodo cadena = null!;
+        await new UnidadDeTrabajo(db).EjecutarEnTransaccionAsync(
+            async token => cadena = await LeerCadenaEnInstantaneaAsync(periodoId, token), ct, IsolationLevel.RepeatableRead);
+        return cadena;
+    }
+
+    private async Task<CadenaPeriodo> LeerCadenaEnInstantaneaAsync(Guid periodoId, CancellationToken ct)
     {
         var sellos = await db.PedidoSellos.AsNoTracking()
             .Where(s => s.PeriodoId == periodoId)

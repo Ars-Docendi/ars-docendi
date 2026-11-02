@@ -72,7 +72,10 @@ etapa_retorno, propietario_actual, prioritario, snapshot` y los adjuntos ordenad
 Antes del envío el pedido es un borrador privado del Jefe de Cátedra, editable y eliminable. Sellar
 desde `enviar` mantiene la eliminación de borradores sin excepciones en la cadena, y el sello de
 `enviar` cubre el contenido completo vía `hash_estado`. `SelladorPedidos.SellarAsync` se llama
-desde `RegistrarEnHistorialAsync` y omite los eventos con `etapa = 'borrador'`: no hay camino de
+desde `RegistrarEnHistorialAsync` y omite los eventos con `etapa = 'borrador'`. Antes de mutar el
+pedido, transiciones y ediciones llaman a `VerificarEstadoPrevioAsync`, que con el lock del período
+compara el estado actual contra el último sello del pedido y rechaza con conflicto
+`pedido-integridad-comprometida` si diverge: sellar encima legitimaría un cambio hecho por SQL: no hay camino de
 vuelta a borrador, así que la etapa del evento basta y no hace falta consultar sellos previos. El
 verificador exige sello a todo evento fuera de borrador y a cualquier evento de borrador posterior
 al primer sello del pedido; un pedido fuera de borrador sin ningún sello cuenta como divergente.
@@ -126,7 +129,9 @@ Categorías: `sello-hash-invalido`, `sello-firma-invalida`, `sello-secuencia-rot
 con `ValidateOnStart`: en `Production` falla sin clave; fuera de producción, sin claves definidas,
 `ClavesSellado` usa una clave fija de desarrollo (staging/PR tienen datos sintéticos). Un valor
 vacío cuenta como ausente porque Compose interpola así una variable no definida. Prod recibe la
-clave del secret `SELLADO_CLAVE_PROD` vía `Integridad__ClavesSellado__1`. La clave nunca se
+clave del secret `SELLADO_CLAVE_PROD` vía `Integridad__ClavesSellado__1`; para rotar, la versión 2
+llega de `SELLADO_CLAVE_2_PROD` y `Integridad__VersionVigente` de la variable `SELLADO_VERSION_VIGENTE`
+del Environment. El workflow falla antes de tocar el ambiente si falta la clave vigente. La clave nunca se
 loguea; los errores nombran la sección, no el valor.
 
 ### D8. Sellado retroactivo como comando del host
@@ -138,8 +143,11 @@ pasar por `RunnerMigraciones` y sin interfaz nueva en Shared: no hay segunda imp
 cada período, en una transacción con el lock del período, sella en orden `(creado_en, id)` los
 eventos sin sello con `etapa <> 'borrador'` de pedidos que ya salieron de borrador, con el estado
 actual del pedido, y registra un ancla `retroactivo` si selló algo. No corre en migraciones (la
-base no tiene la clave) ni al arrancar. `spin-up.sh` y `scripts/setup.sh` lo ejecutan sólo después
-de sembrar una base nueva; repetirlo en cada deploy legitimaría cambios hechos por SQL.
+base no tiene la clave) ni al arrancar. La transacción del seed registra
+`seed_metadata.sellado_inicial = pendiente`; `spin-up.sh` y `scripts/setup.sh` sellan sólo mientras
+esa marca exista y la borran al terminar, así que un sellado fallido se reintenta en la siguiente
+ejecución y una base conservada no se vuelve a sellar. Repetirlo en cada deploy legitimaría cambios
+hechos por SQL.
 
 ## Risks / Trade-offs
 
@@ -164,9 +172,15 @@ de sembrar una base nueva; repetirlo en cada deploy legitimaría cambios hechos 
 
 1. Configurar `Integridad__ClavesSellado__1` e `Integridad__VersionVigente=1` en cada ambiente.
 2. Desplegar (la migración incremental corre con el runner habitual).
-3. Ejecutar `--sellar-historial-existente` una vez por ambiente (en dev, después del seed).
+3. Ejecutar `--sellar-historial-existente` una única vez, a mano, en cada base que ya existía antes
+   de esta versión (prod, staging y PR vivas, dev local), con escritores detenidos. Las bases nuevas
+   lo hacen por la marca del seed.
 4. Verificar con el diagnóstico o el endpoint de integridad.
 
-Rollback: desplegar la versión anterior de la app. La migración es aditiva; los triggers
-append-only no interfieren con la versión anterior salvo que intente borrar un pedido enviado o
-editar historial, cosas que hoy no hace. Retirar los triggers requiere una migración nueva.
+Rollback: la migración es aditiva y los triggers append-only no interfieren con la versión
+anterior, pero esa versión registra eventos sin sello: cada uno queda como `historial-sin-sello` y
+bloquea la exportación del período. Por eso un rollback MUST detener los escritores (backend y
+cualquier escritor externo) mientras la versión anterior no pueda reemplazarse, o desplegar una
+versión de rollback que conserve el sellado. MUST NOT sellarse retroactivamente lo que escribió la
+versión anterior: sería legitimar eventos fuera de la cadena; esos hallazgos siguen el
+procedimiento de saneamiento autorizado. Retirar los triggers requiere una migración nueva.

@@ -110,8 +110,17 @@ ok "Migraciones aplicadas"
 infra/scripts/seed-local.sh
 
 # El historial sembrado no pasó por la aplicación: se sella para que el lote exporte.
-dotnet run --project backend/src/ArsDocendi.Host -- --sellar-historial-existente
-ok "Historial sembrado sellado"
+# Sólo mientras el seed lo marque pendiente; una base local conservada no se vuelve a sellar.
+consultar_local() {
+    docker compose exec -T postgres psql -X -qtA -v ON_ERROR_STOP=1 \
+        -U "${POSTGRES_USER:-arsdocendi}" -d "${POSTGRES_DB:-arsdocendi}" -c "$1"
+}
+if [ "$(consultar_local "SELECT count(*) FROM public.seed_metadata WHERE clave = 'sellado_inicial'")" != 0 ]; then
+    dotnet run --project backend/src/ArsDocendi.Host -- --sellar-historial-existente \
+        || { err "Sellado inicial fallido: queda pendiente y se reintenta en el próximo setup"; exit 1; }
+    consultar_local "DELETE FROM public.seed_metadata WHERE clave = 'sellado_inicial'" >/dev/null
+    ok "Historial sembrado sellado"
+fi
 
 echo
 ok "Setup completo."

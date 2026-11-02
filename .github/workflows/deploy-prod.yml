@@ -83,8 +83,11 @@ jobs:
       INFERENCIA_URL: http://traefik:11435
       INFERENCIA_USUARIO: prod
       INFERENCIA_CONTRASENA: ${{ secrets.INFERENCIA_CONTRASENA_PROD }}
-      # Sin esta clave el backend no arranca en Production [BR-designaciones-019].
+      # Sin la clave vigente el backend no arranca en Production [BR-designaciones-019].
+      # Rotar conserva la versión anterior para seguir verificando sus sellos.
       SELLADO_CLAVE: ${{ secrets.SELLADO_CLAVE_PROD }}
+      SELLADO_CLAVE_2: ${{ secrets.SELLADO_CLAVE_2_PROD }}
+      SELLADO_VERSION_VIGENTE: ${{ vars.SELLADO_VERSION_VIGENTE }}
       ASPNETCORE_ENVIRONMENT: Production
       DEVELOPMENT_AUTHENTICATION_ENABLED: "false"
       # En prod el ingreso con Microsoft es obligatorio: sin estos valores el backend no arranca.
@@ -110,6 +113,15 @@ jobs:
           printf '%s' "$GHCR_TOKEN" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
           docker pull "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
           docker pull "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
+
+      - name: Exigir la clave de sellado vigente
+        run: |
+          version="${SELLADO_VERSION_VIGENTE:-1}"
+          case "$version" in 1) clave="$SELLADO_CLAVE" ;; 2) clave="$SELLADO_CLAVE_2" ;; *) clave="" ;; esac
+          if [[ -z "$clave" ]]; then
+            printf '::error::Falta la clave de sellado de la versión vigente %s (secret SELLADO_CLAVE_PROD o SELLADO_CLAVE_2_PROD del Environment prod).\n' "$version" >&2
+            exit 1
+          fi
 
       - name: Spin-up prod en principal
         run: infra/scripts/spin-up.sh prod

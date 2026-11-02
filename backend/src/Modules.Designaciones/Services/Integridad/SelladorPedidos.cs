@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Aplicacion;
 using Microsoft.Extensions.Logging;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
@@ -26,6 +27,21 @@ internal sealed class SelladorPedidos(
         await sellos.BloquearCadenaAsync(pedido.PeriodoId, ct);
         var cabeza = await sellos.ObtenerCabezaAsync(pedido.PeriodoId, ct);
         sellos.Agregar(Crear(pedido, evento, cabeza));
+    }
+
+    /// <summary>
+    /// Rechaza continuar el circuito de un pedido que no coincide con su último sello:
+    /// sellar encima legitimaría un cambio hecho fuera de la aplicación. Toma el lock del
+    /// período, así que ningún sello del pedido se confirma en el medio.
+    /// </summary>
+    public async Task VerificarEstadoPrevioAsync(Pedido pedido, CancellationToken ct)
+    {
+        await sellos.BloquearCadenaAsync(pedido.PeriodoId, ct);
+        var ultimo = await sellos.ObtenerUltimoSelloDePedidoAsync(pedido.Id, ct);
+        if (ultimo is not null && !CanonicoSellos.HashEstado(pedido).SequenceEqual(ultimo.HashEstado))
+            throw new ExcepcionAplicacion(
+                TipoErrorAplicacion.Conflicto, "pedido-integridad-comprometida",
+                "El pedido no coincide con su último sello; no puede continuar el circuito.");
     }
 
     /// <summary>

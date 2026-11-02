@@ -147,6 +147,26 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Una_transicion_no_sella_encima_de_un_cambio_hecho_por_SQL()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await PrepararAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var pedido = await EnviarAsync(identityDb, db, PersonaLibre, ct);
+        await EjecutarAsync("UPDATE designaciones.pedidos SET horas = 40 WHERE id = @id", ct,
+            new NpgsqlParameter("id", pedido.Id));
+
+        await using var otraDb = PostgresFixture.CrearDesignaciones(Cadena);
+        var error = await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() =>
+            CrearServicio(Coordinador, identityDb, otraDb).AplicarAccionAsync(pedido.Id, new AccionPedido.Aceptar(), ct));
+
+        Assert.Equal("pedido-integridad-comprometida", error.Codigo);
+        var resultado = await SellosPrueba.Verificador(otraDb).VerificarAsync(Periodo, ct);
+        Assert.Contains(new HallazgoCadena(CategoriasIntegridad.PedidoEstadoDivergente, pedido.Id), resultado.Hallazgos);
+    }
+
+    [Fact]
     public async Task Base_rechaza_alterar_el_circuito_y_saltear_sus_protecciones_rompe_el_hash()
     {
         var ct = TestContext.Current.CancellationToken;
