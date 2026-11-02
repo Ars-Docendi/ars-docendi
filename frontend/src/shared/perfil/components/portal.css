@@ -412,3 +412,63 @@
   font-size: var(--text-caption-size);
   color: var(--color-text-danger);
 }
+
+/* --- Pantallas angostas: mismo perfil, menos aire --- */
+@media (max-width: 559px) {
+  .portal-seccion-head,
+  .portal-fila-vacia,
+  .portal-fila {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+  .portal-seccion-body,
+  .portal-identidad-head,
+  .portal-identidad-datos {
+    padding: var(--space-3);
+  }
+  .portal-seccion-body-filas {
+    padding: 0;
+  }
+  /* El Toast de la lib trae 360 px fijos: acá ocupa el ancho disponible. */
+  .portal-aviso {
+    left: var(--space-4);
+    right: var(--space-4);
+    bottom: var(--space-4);
+    max-width: none;
+  }
+  .portal-aviso .adoc-toast {
+    width: auto;
+  }
+  /* Fila de archivo (CV y documentos): el tamaño baja debajo del nombre,
+     si no se come todo el ancho y el nombre queda en cero. */
+  .portal-seccion .adoc-file-row,
+  .portal-form .adoc-file-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: var(--space-3);
+    row-gap: 2px;
+  }
+  .portal-seccion .adoc-file-row .ico,
+  .portal-form .adoc-file-row .ico {
+    grid-row: span 2;
+  }
+  .portal-seccion .adoc-file-row .size,
+  .portal-form .adoc-file-row .size {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .portal-seccion .adoc-file-row > :last-child:not(.size),
+  .portal-form .adoc-file-row > :last-child:not(.size) {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+  /* Área de toque mínima para quitar un tag con el dedo. */
+  .portal-tag-quitar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    min-height: 24px;
+    margin: -4px -6px -4px 0;
+  }
+}

@@ -1,92 +1,70 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Button, RoleBadge } from "@ars-docendi/ui";
+import { useState, useSyncExternalStore } from "react";
+import { Drawer } from "@ars-docendi/ui";
 
-import { useCerrarSesion } from "../../shared/auth/auth";
-import { IsotipoArsDocendi } from "../../shared/marca/IsotipoArsDocendi";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
-// import { collapseIcon } from "./icons";
+import { menuIcon } from "./icons";
+import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
+import { MarcaArsDocendi } from "./MarcaArsDocendi";
+import { MenuUsuario } from "./MenuUsuario";
 
-interface TopBarProps {
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-  user: CurrentUser;
+/** Mismo corte que `shell.css`: debajo de esto la barra lateral fija no se muestra. */
+const CONSULTA_ANGOSTA = "(max-width: 767px)";
+
+function suscribirAncho(avisar: () => void) {
+  const consulta = window.matchMedia?.(CONSULTA_ANGOSTA);
+  consulta?.addEventListener("change", avisar);
+  return () => consulta?.removeEventListener("change", avisar);
 }
 
-export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+function usePantallaAngosta(): boolean {
+  return useSyncExternalStore(
+    suscribirAncho,
+    () => window.matchMedia?.(CONSULTA_ANGOSTA).matches ?? false,
+    () => false,
+  );
+}
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function closeOnOutsideClick(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
-
-  const cerrarSesion = useCerrarSesion();
-
-  async function handleLogout() {
-    try {
-      await cerrarSesion();
-    } finally {
-      navigate("/login", { replace: true });
-    }
-  }
+/**
+ * Barra superior fina, sólo en pantallas angostas (ahí no hay barra lateral
+ * fija): botón "Menú" que abre el panel de navegación y la marca.
+ */
+export function TopBar({ user }: { user: CurrentUser }) {
+  // Si la ventana se agranda con el panel abierto, el panel se cierra solo:
+  // ahí ya está la barra lateral.
+  const angosta = usePantallaAngosta();
+  const [navegacionAbierta, setNavegacionAbierta] = useState(false);
+  const panelVisible = angosta && navegacionAbierta;
+  const cerrar = () => setNavegacionAbierta(false);
 
   return (
     <header className="adoc-topbar">
+      <button
+        type="button"
+        className="adoc-menu-btn"
+        onClick={() => setNavegacionAbierta(true)}
+        aria-expanded={panelVisible}
+        aria-label="Abrir menú de navegación"
+      >
+        <span className="ico">{menuIcon}</span>
+      </button>
+      <Drawer
+        open={panelVisible}
+        onOpenChange={setNavegacionAbierta}
+        side="left"
+        title="Menú"
+        className="adoc-nav-drawer"
+      >
+        <nav aria-label="Navegación principal">
+          <ListaNavegacion permissions={user.permissions} onNavegar={cerrar} />
+          <div className="adoc-nav-drawer-pie">
+            <EnlaceAyuda onNavegar={cerrar} />
+            <MenuUsuario user={user} />
+          </div>
+        </nav>
+      </Drawer>
+
       <div className="adoc-brand">
-        {/* La marca lleva a Mi portal, el inicio de la aplicación. */}
-        <Link to="/portal" className="adoc-brand-link" aria-label="Ars Docendi, ir a Mi portal">
-          <IsotipoArsDocendi className="mark" />
-          <span>Ars Docendi</span>
-        </Link>
-        <span className="sub">Ingeniería · UNLaM</span>
-
-        {/* Collapse button, comentado hasta que se me ocurra un buen diseño.
-        <button
-          type="button"
-          className="adoc-collapse-btn"
-          onClick={onToggleCollapse}
-          aria-pressed={collapsed}
-          aria-label={collapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
-        >
-          <span className="ico">{collapseIcon}</span>
-        </button>
-        */}
-      </div>
-
-      <div className="adoc-topbar-right">
-        <div className="adoc-user-menu" ref={menuRef}>
-          <RoleBadge
-            name={user.name}
-            initials={user.initials}
-            role={user.role}
-            multi
-            onSwitchClick={() => setMenuOpen((open) => !open)}
-            switchLabel="Abrir menú de usuario"
-          />
-          {menuOpen && (
-            <div className="adoc-user-menu-pop" role="menu">
-              <div className="adoc-user-menu-foot">
-                <Button variant="ghost" size="sm" onClick={() => void handleLogout()}>
-                  Cerrar sesión
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+        <MarcaArsDocendi />
       </div>
     </header>
   );
