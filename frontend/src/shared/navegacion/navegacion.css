@@ -68,15 +68,17 @@
    Sin scroll horizontal de la página, encabezados que se acomodan, paddings como los del Portal y
    objetivos táctiles de al menos 24 px (44 px los controles primarios). */
 @media (max-width: 559.98px) {
-  .adoc-page-head {
+  /* `.adoc-main` sube la especificidad: shell.css (cargado después) define `.adoc-page-head` con
+     `align-items: flex-end` y, sin esto, el título queda pegado a la derecha en columna. */
+  .adoc-main .adoc-page-head {
     flex-direction: column;
     align-items: stretch;
     gap: var(--space-3);
   }
-  .adoc-page-head .title-area {
+  .adoc-main .adoc-page-head .title-area {
     min-width: 0;
   }
-  .adoc-page-head h1 {
+  .adoc-main .adoc-page-head h1 {
     overflow-wrap: anywhere;
   }
   .adoc-page-actions,
