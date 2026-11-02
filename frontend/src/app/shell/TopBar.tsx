@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Drawer } from "@ars-docendi/ui";
 
+import { Drawer } from "../../shared/ui/Drawer";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { menuIcon } from "./icons";
 import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
