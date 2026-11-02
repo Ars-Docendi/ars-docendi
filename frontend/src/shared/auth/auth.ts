@@ -1,11 +1,17 @@
-import { limpiarSesionDesarrollo, obtenerSesionDesarrollo } from "./dev/session";
+import { useQueryClient } from "@tanstack/react-query";
+import { limpiarSesionDesarrollo } from "./dev/session";
 import { developmentAuthEnabled } from "./developmentAuth";
+import { cerrarSesion, microsoftLoginEnabled, sesionKeys } from "./sesionMicrosoft";
 
-/** Adaptador temporal: desarrollo usa la selección sembrada; producción espera SSO. */
-export function isAuthenticated(): boolean {
-  return developmentAuthEnabled && obtenerSesionDesarrollo() !== null;
-}
-
-export function clearToken(): void {
-  if (developmentAuthEnabled) limpiarSesionDesarrollo();
+/**
+ * Cierra la sesión de Ars Docendi: la selección de desarrollo y la cookie del
+ * ingreso con Microsoft. La sesión de la persona en Microsoft no se toca.
+ */
+export function useCerrarSesion(): () => Promise<void> {
+  const cliente = useQueryClient();
+  return async () => {
+    if (developmentAuthEnabled) limpiarSesionDesarrollo();
+    if (microsoftLoginEnabled) await cerrarSesion();
+    cliente.setQueryData(sesionKeys.actual, null);
+  };
 }

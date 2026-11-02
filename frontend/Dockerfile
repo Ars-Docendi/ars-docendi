@@ -23,6 +23,8 @@ RUN pnpm install --frozen-lockfile --filter frontend...
 COPY frontend frontend
 ARG VITE_DEVELOPMENT_AUTH_ENABLED=false
 ENV VITE_DEVELOPMENT_AUTH_ENABLED=${VITE_DEVELOPMENT_AUTH_ENABLED}
+ARG VITE_MICROSOFT_LOGIN_ENABLED=false
+ENV VITE_MICROSOFT_LOGIN_ENABLED=${VITE_MICROSOFT_LOGIN_ENABLED}
 RUN pnpm --filter frontend build
 
 # --- Stage runtime: nginx sirviendo el bundle estático ---

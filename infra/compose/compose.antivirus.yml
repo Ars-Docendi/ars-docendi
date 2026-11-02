@@ -1,0 +1,21 @@
+# ClamAV compartido por prod, staging y previews.
+# Sólo escucha en la red interna de datos; no se publica por Traefik.
+services:
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    networks:
+      red-datos:
+        aliases:
+          - ${CLAMAV_HOSTNAME:-clamav-shared}
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+networks:
+  red-datos:
+    external: true
+    name: ${RED_DATOS:-arsdocendi-datos}

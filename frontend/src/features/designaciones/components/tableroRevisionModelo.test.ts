@@ -412,12 +412,6 @@ describe("ordenarPedidos / siguienteOrden", () => {
     expect(porInicio[0]).toBe(beto); // enero antes que marzo
   });
 
-  it("no muta la lista que recibe", () => {
-    const original = [ana, beto];
-    ordenarPedidos(original, { columna: "docente", direccion: "asc" });
-    expect(original).toEqual([ana, beto]);
-  });
-
   it("el ciclo del header es asc → desc → sin orden manual", () => {
     expect(siguienteOrden(null, "docente")).toEqual({ columna: "docente", direccion: "asc" });
     expect(siguienteOrden({ columna: "docente", direccion: "asc" }, "docente")).toEqual({

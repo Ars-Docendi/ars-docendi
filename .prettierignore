@@ -8,15 +8,18 @@ build
 out
 publish
 artifacts
+.artifacts
 
 # .NET artifacts
 backend/**/bin
 backend/**/obj
 backend/**/TestResults
 
+# Contratos de API generados por los tests de backend (ACTUALIZAR_CONTRATOS=1)
+frontend/src/test/contratos
+
 # Lock files (manejados por sus tools)
 pnpm-lock.yaml
-package-lock.json
 yarn.lock
 
 # Husky internal
@@ -34,3 +37,8 @@ docs/**/_index.md
 
 # Git
 .git
+
+# Generados por `openspec update`: se sobrescriben en cada actualización
+.agents/skills/openspec-*
+.claude/skills/openspec-*
+.claude/commands/opsx

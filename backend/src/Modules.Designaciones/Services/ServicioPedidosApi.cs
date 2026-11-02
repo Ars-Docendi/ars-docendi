@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Storage.Contracts;
 using Microsoft.AspNetCore.Http;
 using Modules.Designaciones.Api;
 using Modules.Designaciones.Domain;
@@ -15,6 +16,7 @@ public interface IServicioPedidosApi
 {
     Task<IReadOnlyList<PedidoDto>> ListarAsync(Guid? periodoId, CancellationToken ct);
     Task<PedidoDto> ObtenerAsync(Guid id, CancellationToken ct);
+    Task<DescargaArchivo?> DescargarAdjuntoAsync(Guid id, Guid archivoId, CancellationToken ct);
     Task<PedidoDto> CrearAsync(GuardarPedidoDto datos, CancellationToken ct);
     Task<PedidoDto> EditarAsync(Guid id, GuardarPedidoDto datos, CancellationToken ct);
     Task EliminarAsync(Guid id, CancellationToken ct);
@@ -34,7 +36,8 @@ internal sealed class ServicioPedidosApi(
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
     RepositorioIdempotencia repositorioIdempotencia,
-    UnidadDeTrabajo unidadDeTrabajo) : IServicioPedidosApi
+    UnidadDeTrabajo unidadDeTrabajo,
+    IAlmacenamientoArchivos? almacenamiento = null) : IServicioPedidosApi
 {
     private static readonly JsonSerializerOptions OpcionesJson = new(JsonSerializerDefaults.Web);
 
@@ -49,6 +52,10 @@ internal sealed class ServicioPedidosApi(
                 "resource-not-found",
                 "No hay un período activo para listar pedidos.");
         var pedidos = await servicio.ListarPorAmbitoAsync(id, ct);
+        var resumenes = (await repositorio.ObtenerResumenesAsync(pedidos.Select(p => p.Id).ToArray(), ct))
+            .ToLookup(h => h.PedidoId);
+        foreach (var pedido in pedidos)
+            foreach (var evento in resumenes[pedido.Id]) pedido.Historial.Add(evento);
         return await MapearAsync(pedidos, ct);
     }
 
@@ -56,6 +63,13 @@ internal sealed class ServicioPedidosApi(
     {
         var pedido = await ObtenerAutorizadoAsync(id, ct);
         return (await MapearAsync([pedido], ct))[0];
+    }
+
+    public async Task<DescargaArchivo?> DescargarAdjuntoAsync(Guid id, Guid archivoId, CancellationToken ct)
+    {
+        var pedido = await ObtenerAutorizadoAsync(id, ct);
+        if (pedido.Adjuntos.All(x => x.ArchivoId != archivoId) || almacenamiento is null) return null;
+        return await almacenamiento.AbrirDescargaAsync(archivoId, ct);
     }
 
     public async Task<PedidoDto> CrearAsync(GuardarPedidoDto datos, CancellationToken ct)
@@ -141,8 +155,8 @@ internal sealed class ServicioPedidosApi(
             ?? throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.NoEncontrado, "resource-not-found", "No se encontró el pedido solicitado.");
         var actor = await resolutorActor.ResolverAsync(ct);
-        var carrera = await repositorio.ObtenerCarreraDelPedidoAsync(id, ct);
-        if (!MaquinaEstadosPedido.AlcanzaAmbito(pedido, carrera, actor))
+        var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
+        if (!MaquinaEstadosPedido.AlcanzaAmbito(alcance, actor))
         {
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.Prohibido,
@@ -157,9 +171,16 @@ internal sealed class ServicioPedidosApi(
         CancellationToken ct)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
-        var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
+        var personas = (await identity.ObtenerPersonasAsync(pedidos.Select(p => p.PersonaId).Distinct().ToArray(), ct))
+            .ToDictionary(p => p.Id);
         var materias = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
-        var usuarios = (await identity.ListarUsuariosAsync(ct)).ToDictionary(u => u.Id);
+        // Nombre de carrera: catálogo informativo materia–plan, sin FK desde pedidos.
+        var carrerasPorMateria = (await identity.ListarMateriasPlanAsync(ct))
+            .GroupBy(mp => (mp.MateriaId, CarreraId: mp.Plan!.CarreraId))
+            .ToDictionary(g => g.Key, g => g.First().Plan!.Carrera!.Nombre);
+        var idsActores = pedidos.SelectMany(p => p.Historial).Where(h => h.ActorId != null)
+            .Select(h => h.ActorId!.Value).Distinct().ToArray();
+        var usuarios = (await identity.ObtenerUsuariosAsync(idsActores, ct)).ToDictionary(u => u.Id);
         var resultado = new List<PedidoDto>();
         foreach (var pedido in pedidos)
         {
@@ -168,7 +189,7 @@ internal sealed class ServicioPedidosApi(
             {
                 continue;
             }
-            var carrera = materia.CarreraId;
+            var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
             resultado.Add(new PedidoDto(
                 pedido.Id,
                 pedido.Numero,
@@ -178,8 +199,8 @@ internal sealed class ServicioPedidosApi(
                 new PersonaPedidoDto(
                     persona.Id, persona.Nombre, persona.Apellido, persona.Documento, persona.Legajo),
                 new MateriaPedidoDto(
-                    materia.Id, materia.Codigo, materia.Nombre, materia.CarreraId,
-                    materia.Carrera?.Nombre ?? string.Empty),
+                    materia.Id, materia.Codigo, materia.Nombre, pedido.CarreraId,
+                    carrerasPorMateria.GetValueOrDefault((pedido.MateriaId, pedido.CarreraId), string.Empty)),
                 pedido.Novedad,
                 pedido.Estado,
                 pedido.Prioritario,
@@ -199,7 +220,8 @@ internal sealed class ServicioPedidosApi(
                 pedido.Snapshot,
                 pedido.Version,
                 pedido.Adjuntos.Select(a => new AdjuntoPedidoDto(
-                    a.Id, a.Tipo, a.Nombre, a.Uri)).ToArray(),
+                    a.Id, a.Tipo, a.Nombre, a.ArchivoId,
+                    a.ArchivoId is null ? "legacy" : "disponible")).ToArray(),
                 pedido.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id).Select(h => new HistorialPedidoDto(
                     h.Id,
                     h.Accion,
@@ -212,7 +234,7 @@ internal sealed class ServicioPedidosApi(
                     h.Etapa,
                     h.Comentario,
                     h.CreadoEn)).ToArray(),
-                AccionesPermitidas(pedido, carrera, actor),
+                AccionesPermitidas(pedido, alcance, actor),
                 pedido.DedicacionSolicitadaId));
         }
         return resultado;
@@ -220,7 +242,7 @@ internal sealed class ServicioPedidosApi(
 
     private static IReadOnlyList<string> AccionesPermitidas(
         Pedido pedido,
-        Guid carrera,
+        AlcancePedido alcance,
         ActorContexto actor)
     {
         var acciones = new List<string>();
@@ -239,7 +261,7 @@ internal sealed class ServicioPedidosApi(
         {
             try
             {
-                MaquinaEstadosPedido.AplicarAccion(pedido, carrera, accion, actor);
+                MaquinaEstadosPedido.AplicarAccion(pedido, alcance, accion, actor);
                 acciones.Add(nombre);
             }
             catch (ErrorDominioPedido)

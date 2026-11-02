@@ -24,6 +24,21 @@ entryPoints:
       middlewares:
         - headers-seguridad@file
 
+  # IA privada (sólo pc-prod). Llegan: cloudflared por `ia.<DOMINIO>` tras
+  # Cloudflare Access (staging/pr-N) y prod por la red Docker `traefik`.
+  # Publicar en el host sólo como 127.0.0.1:11435:11435 (CLI del operador).
+  # Ollama declara routers explícitos para ESTE entrypoint, nunca `web`.
+  # Sin forwardedHeaders: rateLimit usa la IP remota real, no X-Forwarded-For.
+  ollama:
+    address: ":11435"
+    transport:
+      respondingTimeouts:
+        readTimeout: 30s
+        writeTimeout: 0s # no cortar generación streaming por tiempo total
+        idleTimeout: 60s
+    observability:
+      accessLogs: false # no registrar solicitudes/prompts de inferencia
+
   # API/dashboard de Traefik: SOLO loopback. Nunca en el ingress del túnel (3.3).
   # Se alcanza por la red de administración (Tailscale) vía SSH port-forward.
   traefik:

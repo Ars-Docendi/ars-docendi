@@ -2,6 +2,9 @@ import { Button, Input, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
 import type { PedidoDesignacion } from "../types";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
+import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import {
   etiquetaEstadoFiltro,
   etiquetaNovedadCorta,
@@ -14,7 +17,14 @@ import {
   type OrdenMisPedidos,
 } from "./filtrosMisPedidos";
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
-import { IconoX } from "./lucide";
+
+/** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
+const ALTO_TABLA = "calc(100vh - 310px)";
+
+/** Ancho mínimo de las columnas de texto variable: usan el espacio que haya y recortan con "…" solo si no alcanza. */
+const ANCHO_DOCENTE = 160;
+const ANCHO_CATEDRA = 140;
+const ANCHO_TIPO = 110;
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
@@ -36,7 +46,6 @@ export function TablaMisPedidos({
   pedidosParaOpciones = pedidos,
   filtros = {
     docente: "",
-    numero: "",
     legajo: "",
     catedra: "",
     enviado: "",
@@ -80,26 +89,9 @@ export function TablaMisPedidos({
 
   return (
     <Table className="adoc-mp-table">
-      <Table.Root aria-label="Mis pedidos de designación">
+      <Table.Root aria-label="Mis pedidos de designación" maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
-            <Encabezado
-              etiqueta="N°"
-              columna="numero"
-              orden={orden}
-              onOrden={cambiarOrden}
-              filtro={
-                <Input
-                  className="adoc-filtro-encabezado-campo"
-                  placeholder="Buscar número…"
-                  aria-label="Buscar N°"
-                  value={filtros.numero}
-                  onChange={(evento) => cambiarFiltro("numero", evento.target.value)}
-                />
-              }
-              activo={Boolean(filtros.numero.trim())}
-              onLimpiar={() => limpiar("numero")}
-            />
             <Encabezado
               etiqueta="Docente"
               columna="docente"
@@ -208,70 +200,45 @@ export function TablaMisPedidos({
         <Table.Body>
           {pedidos.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={8} className="empty">
+              <Table.Cell colSpan={7} className="empty">
                 Sin resultados para los filtros aplicados.
               </Table.Cell>
             </Table.Row>
           ) : (
             pedidos.map((pedido) => (
               <Table.Row
-                className="adoc-mp-row adoc-mp-row--clickeable"
+                {...propsFilaClickeable(() => onVerDetalle(pedido))}
                 key={pedido.id}
-                tabIndex={0}
                 aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
-                onClick={() => onVerDetalle(pedido)}
-                onKeyDown={(evento) => {
-                  if (evento.key === "Enter" || evento.key === " ") {
-                    evento.preventDefault();
-                    onVerDetalle(pedido);
-                  }
-                }}
               >
-                <Table.Cell className="adoc-mp-num">{pedido.numero ?? "—"}</Table.Cell>
-                <Table.Cell className="adoc-mp-doc">{pedido.docente.nombre}</Table.Cell>
+                <Table.Cell className="adoc-mp-doc">
+                  <TextoRecortado texto={pedido.docente.nombre} anchoMinimo={ANCHO_DOCENTE} />
+                </Table.Cell>
                 <Table.Cell className="adoc-mp-leg">{pedido.docente.legajo ?? "—"}</Table.Cell>
-                <Table.Cell className="adoc-mp-cat">{pedido.catedra}</Table.Cell>
-                <Table.Cell className="adoc-mp-nov">{etiquetaNovedadCorta(pedido)}</Table.Cell>
+                <Table.Cell className="adoc-mp-cat">
+                  <TextoRecortado texto={pedido.catedra} anchoMinimo={ANCHO_CATEDRA} />
+                </Table.Cell>
+                <Table.Cell className="adoc-mp-nov">
+                  <TextoRecortado texto={etiquetaNovedadCorta(pedido)} anchoMinimo={ANCHO_TIPO} />
+                </Table.Cell>
                 <Table.Cell className="adoc-mp-env">{fechaEnviado(pedido)}</Table.Cell>
                 <Table.Cell className="adoc-mp-est">
                   <EstadoPedidoPill estado={pedido.estado} />
                 </Table.Cell>
-                <Table.Cell className="adoc-mp-acc">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(evento) => {
-                      evento.stopPropagation();
-                      onVerDetalle(pedido);
-                    }}
-                  >
-                    Ver
-                  </Button>
-                  {pedido.accionesPermitidas?.includes("editar") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(evento) => {
-                        evento.stopPropagation();
-                        onEditar(pedido);
-                      }}
-                    >
-                      Editar
-                    </Button>
-                  )}
-                  {pedido.accionesPermitidas?.includes("eliminar") && (
-                    <button
-                      type="button"
-                      className="adoc-mp-eliminar"
-                      aria-label={`Eliminar pedido de ${pedido.docente.nombre}`}
-                      onClick={(evento) => {
-                        evento.stopPropagation();
-                        onEliminar(pedido);
-                      }}
-                    >
-                      <IconoX />
-                    </button>
-                  )}
+                <Table.Cell>
+                  <div className="adoc-mp-acc adoc-acciones-fila">
+                    {pedido.accionesPermitidas?.includes("editar") && (
+                      <Button variant="ghost" size="sm" onClick={() => onEditar(pedido)}>
+                        Editar
+                      </Button>
+                    )}
+                    {pedido.accionesPermitidas?.includes("eliminar") && (
+                      <BotonEliminarFila
+                        aria-label={`Eliminar pedido de ${pedido.docente.nombre}`}
+                        onClick={() => onEliminar(pedido)}
+                      />
+                    )}
+                  </div>
                 </Table.Cell>
               </Table.Row>
             ))

@@ -3,6 +3,7 @@ import { apiClient } from "../../../shared/api/client";
 import {
   aceptarPedido,
   crearPedido,
+  descargarAdjuntoPedido,
   despriorizarPedido,
   devolverPedido,
   eliminarPedido,
@@ -22,7 +23,7 @@ const dto = {
   periodo: { id: "periodo-1", nombre: "2C 2026" },
   persona: { id: "persona-1", nombre: "Ana", apellido: "Pérez", documento: "123", legajo: "7" },
   materia: {
-    id: "materia-1",
+    materiaId: "materia-1",
     codigo: "03500",
     nombre: "Software",
     carreraId: "carrera-1",
@@ -58,7 +59,15 @@ const catalogos = {
     activo: true,
   },
   periodos: [],
-  materias: [{ id: "materia-1", codigo: "03500", nombre: "Software", carreraId: "carrera-1" }],
+  materias: [
+    {
+      id: "materia-1",
+      codigo: "03500",
+      nombre: "Software",
+      carreraId: "carrera-1",
+      carreraNombre: "Informática",
+    },
+  ],
   personas: [
     {
       id: "persona-1",
@@ -162,6 +171,48 @@ describe("pedidosApi HTTP", () => {
     });
   });
 
+  it("conserva la disponibilidad de los adjuntos y distingue un legacy", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          adjuntos: [
+            {
+              id: "adjunto-1",
+              tipo: "cv",
+              nombre: "cv.pdf",
+              archivoId: "archivo-1",
+              estadoArchivo: "disponible",
+            },
+            {
+              id: "adjunto-2",
+              tipo: "justificativo",
+              nombre: "legacy.pdf",
+              archivoId: null,
+              estadoArchivo: "legacy",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0].adjuntos).toEqual([
+      {
+        id: "adjunto-1",
+        tipo: "cv",
+        nombre: "cv.pdf",
+        archivoId: "archivo-1",
+        estadoArchivo: "disponible",
+      },
+      {
+        id: "adjunto-2",
+        tipo: "justificativo",
+        nombre: "legacy.pdf",
+        estadoArchivo: "legacy",
+      },
+    ]);
+  });
+
   it("crea un Alta con los datos de la persona y la materia canónica", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
     await crearPedido(
@@ -175,6 +226,7 @@ describe("pedidosApi HTTP", () => {
         },
         catedra: "Software",
         materiaId: "materia-1",
+        carreraId: "carrera-1",
         horas: 10,
         cargoActual: null,
         dedicacionActual: null,
@@ -192,6 +244,7 @@ describe("pedidosApi HTTP", () => {
       expect.objectContaining({
         periodoId: "periodo-1",
         materiaId: "materia-1",
+        carreraId: "carrera-1",
         persona: { documento: "123", nombre: "Ana", apellido: "Pérez" },
         cargoSolicitadoId: "cargo-1",
         dedicacionSolicitadaId: "dedicacion-2",
@@ -236,5 +289,17 @@ describe("pedidosApi HTTP", () => {
     });
     vi.mocked(apiClient.post).mockRejectedValue(conflicto);
     await expect(aceptarPedido("pedido-1")).rejects.toBe(conflicto);
+  });
+
+  it("descarga un adjunto del pedido como contenido binario autenticado", async () => {
+    const contenido = new Blob(["%PDF-1.7"], { type: "application/pdf" });
+    vi.mocked(apiClient.get).mockResolvedValue({ data: contenido });
+
+    await expect(descargarAdjuntoPedido("pedido-1", "archivo-1")).resolves.toBe(contenido);
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/api/designaciones/pedidos/pedido-1/adjuntos/archivo-1",
+      { responseType: "blob" },
+    );
   });
 });

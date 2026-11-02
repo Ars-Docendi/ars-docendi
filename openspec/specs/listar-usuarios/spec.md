@@ -1,6 +1,6 @@
 ## Purpose
 
-Listado y filtrado de los usuarios del sistema en la página `/usuarios`, accesible solo para los roles `Secretaría` y `Administración`. Presenta una tabla con los datos de persona, roles y estado de cada usuario, con una barra de filtros en dos filas y entrada de navegación en el sidebar.
+Listado y filtrado de los usuarios del sistema en la página `/usuarios`, accesible con el permiso efectivo de consulta de usuarios. Presenta una tabla con los datos de persona, roles y estado de cada usuario, con una barra de filtros en dos filas y entrada de navegación en el sidebar.
 
 ## Requirements
 
@@ -20,42 +20,27 @@ La página de usuarios MUST obtener el listado desde la API de administración y
 - **WHEN** el operador refresca el listado
 - **THEN** la tabla refleja el nuevo estado persistido
 
-### Requirement: Tabla de usuarios visible para Secretaría y Administración
+### Requirement: Tabla de usuarios visible con permiso de consulta
 
 La página `/usuarios` SHALL mostrar una tabla con todos los usuarios del sistema. El acceso SHALL requerir el permiso efectivo de consulta de usuarios, no un nombre o conjunto fijo de roles; cualquier usuario sin ese permiso SHALL ser redirigido a `/`.
 
 #### Scenario: Usuario con permiso accede a la página
 
 - **WHEN** un usuario autenticado con el permiso de consulta de usuarios navega a `/usuarios`
-- **THEN** se muestra la tabla con columnas: Apellido y Nombre, Documento, Legajo, UPN/Email, Roles, Estado, Acciones
-
-#### Scenario: Secretaría accede a la página
-
-- **WHEN** un usuario Secretaría con el permiso de consulta de usuarios navega a `/usuarios`
-- **THEN** se muestra la tabla con columnas: Apellido y Nombre, Documento, Legajo, UPN/Email, Roles, Estado, Acciones
-
-#### Scenario: Administración accede a la página
-
-- **WHEN** un usuario Administración con el permiso de consulta de usuarios navega a `/usuarios`
-- **THEN** se muestra la tabla con las mismas columnas
+- **THEN** se muestra la tabla con columnas: Nombre, Documento, Legajo, Email, Roles, Perfil docente, Estado, Acciones
 
 #### Scenario: Usuario sin permiso intenta acceder directamente
 
 - **WHEN** un usuario autenticado sin el permiso de consulta de usuarios navega a `/usuarios`
 - **THEN** es redirigido a `/` sin ver el contenido
 
-#### Scenario: Otro rol intenta acceder directamente
-
-- **WHEN** un usuario autenticado sin el permiso de consulta de usuarios navega a `/usuarios`
-- **THEN** es redirigido a `/` sin ver el contenido
-
 ### Requirement: Columnas y datos de la tabla
 
-La tabla SHALL mostrar por fila: Apellido y Nombre, Documento, Legajo, UPN/email, roles resumidos sin repetir, indicador de perfil docente, estado visual y acciones. SHALL conservar scroll horizontal cuando el contenido supere el ancho del viewport.
+La tabla SHALL mostrar por fila: Nombre, Documento, Legajo, email, roles resumidos sin repetir, indicador de perfil docente, estado visual y acciones. SHALL conservar scroll horizontal cuando el contenido supere el ancho del viewport.
 
 #### Scenario: Formato del nombre
 
-- **WHEN** se muestra la columna "Apellido y Nombre"
+- **WHEN** se muestra la columna "Nombre"
 - **THEN** el texto es "Apellido, Nombre"
 
 #### Scenario: Usuario con un rol en varias materias
@@ -99,7 +84,7 @@ Cada fila SHALL tener botones ghost: "Editar" (siempre) y "Desactivar" o "Activa
 
 ### Requirement: Filtros por encabezado en la tabla de usuarios
 
-La página SHALL ofrecer un control de filtro accesible en cada encabezado filtrable de la tabla de Usuarios. Los encabezados filtrables SHALL ser Apellido y Nombre, Documento, Legajo, UPN/Email, Roles, Perfil docente y Estado. La columna Acciones MUST NOT ofrecer filtro.
+La página SHALL ofrecer un control de filtro accesible en cada encabezado filtrable de la tabla de Usuarios. Los encabezados filtrables SHALL ser Nombre, Documento, Legajo, Email, Roles, Perfil docente y Estado. La columna Acciones MUST NOT ofrecer filtro.
 
 El menú de una columna textual SHALL permitir buscar por coincidencia parcial sin distinguir mayúsculas ni tildes. El menú de una columna categórica SHALL permitir seleccionar uno o más valores presentes en los datos cargados, incluyendo la opción de valores sin dato cuando corresponda. Los filtros de distintas columnas SHALL combinarse con lógica AND.
 
@@ -110,7 +95,7 @@ El menú de una columna textual SHALL permitir buscar por coincidencia parcial s
 
 #### Scenario: Buscar una columna textual
 
-- **WHEN** el operador escribe "lopez" en el filtro de Apellido y Nombre
+- **WHEN** el operador escribe "lopez" en el filtro de Nombre
 - **THEN** la tabla muestra sólo usuarios cuyo apellido o nombre normalizado contiene "lopez"
 
 #### Scenario: Seleccionar valores de una columna categórica
@@ -135,13 +120,13 @@ El menú de una columna textual SHALL permitir buscar por coincidencia parcial s
 
 ### Requirement: Ordenamiento por encabezado en la tabla de usuarios
 
-La tabla SHALL permitir ordenar desde los encabezados Apellido y Nombre, Documento, Legajo, UPN/Email y Estado. El orden SHALL aplicarse únicamente sobre las filas que cumplen los filtros activos. La columna Acciones MUST NOT ser ordenable.
+La tabla SHALL permitir ordenar desde los encabezados Nombre, Documento, Legajo, Email y Estado. El orden SHALL aplicarse únicamente sobre las filas que cumplen los filtros activos. La columna Acciones MUST NOT ser ordenable.
 
-Cada encabezado ordenable SHALL alternar entre orden ascendente, descendente y sin orden manual. Al quitar el orden manual, la tabla SHALL recuperar su orden predeterminado por Apellido y Nombre.
+Cada encabezado ordenable SHALL alternar entre orden ascendente, descendente y sin orden manual. Al quitar el orden manual, la tabla SHALL recuperar su orden predeterminado por Nombre.
 
 #### Scenario: Ordenar usuarios por apellido
 
-- **WHEN** el operador activa el orden ascendente del encabezado Apellido y Nombre
+- **WHEN** el operador activa el orden ascendente del encabezado Nombre
 - **THEN** las filas visibles se presentan por apellido y nombre en orden alfabético, sin distinguir tildes
 
 #### Scenario: Ordenar legajos numéricos
@@ -173,16 +158,16 @@ Los controles de filtro y ordenamiento SHALL poder operarse con teclado y SHALL 
 - **WHEN** el operador enfoca el control de filtro y presiona Enter o Espacio
 - **THEN** se abre el menú de esa columna sin requerir el uso del mouse
 
-### Requirement: Sidebar muestra entrada "Usuarios" para Secretaría y Administración
+### Requirement: Sidebar muestra entrada "Usuarios" con permiso de consulta
 
 El sidebar SHALL mostrar el ítem de navegación "Usuarios" dentro del grupo "Configuración" únicamente a los usuarios cuya sesión tenga el permiso de consulta de usuarios. Para cualquier otro usuario el ítem SHALL estar oculto.
 
-#### Scenario: Secretaría ve el ítem
+#### Scenario: Usuario con permiso ve el ítem
 
 - **WHEN** el usuario logueado tiene el permiso de consulta de usuarios
 - **THEN** el sidebar muestra "Usuarios" en el grupo "Configuración"
 
-#### Scenario: Otro rol no ve el ítem
+#### Scenario: Usuario sin permiso no ve el ítem
 
 - **WHEN** el usuario logueado no tiene el permiso de consulta de usuarios
 - **THEN** el ítem "Usuarios" no aparece en el sidebar

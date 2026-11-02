@@ -8,7 +8,7 @@ Permite recorrer roles y ámbitos reales del dataset sintético durante el desar
 
 ### Requirement: Catálogo de identidades de desarrollo desde backend
 
-En ambientes no productivos habilitados explícitamente, el sistema SHALL ofrecer las identidades sintéticas seleccionables con su rol activo, código, nombre, permisos efectivos y ámbitos obtenidos desde la persistencia canónica, independientemente de que el frontend se ejecute mediante un servidor de desarrollo o un bundle optimizado.
+En ambientes no productivos habilitados explícitamente, el sistema SHALL ofrecer las identidades sintéticas seleccionables con su rol activo, código, nombre, permisos efectivos y ámbitos obtenidos desde la persistencia canónica, independientemente de que el frontend se ejecute mediante un servidor de desarrollo o un bundle optimizado. Cuando el ingreso con Microsoft también está habilitado, el botón principal de la pantalla de login SHALL iniciar ese ingreso y el selector SHALL ofrecerse como acceso secundario.
 
 #### Scenario: Abrir selector en desarrollo
 
@@ -30,9 +30,15 @@ En ambientes no productivos habilitados explícitamente, el sistema SHALL ofrece
 
 #### Scenario: Abrir selector en un despliegue no productivo
 
-- **GIVEN** un ambiente de staging o preview con frontend optimizado, suplantación habilitada y una base sembrada
+- **GIVEN** un ambiente de staging o preview con frontend optimizado, suplantación habilitada, ingreso con Microsoft deshabilitado y una base sembrada
 - **WHEN** el usuario pulsa el botón de ingreso
 - **THEN** el sistema abre el selector de identidades y consulta el catálogo del backend
+
+#### Scenario: Convivencia con el ingreso con Microsoft
+
+- **GIVEN** un ambiente no productivo con suplantación e ingreso con Microsoft habilitados
+- **WHEN** el usuario abre la pantalla de login
+- **THEN** el botón principal inicia el ingreso con Microsoft y un acceso secundario abre el selector de identidades
 
 ### Requirement: Ausencia absoluta en producción
 

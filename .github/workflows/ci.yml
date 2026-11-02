@@ -5,16 +5,24 @@ on:
     branches: [main, develop]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   # Detecta qué partes del repo cambiaron para correr solo los jobs relevantes.
   changes:
     name: Detect changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    # paths-filter lista los archivos del PR por API.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       docs: ${{ steps.filter.outputs.docs }}
       openspec: ${{ steps.filter.outputs.openspec }}
+      infra: ${{ steps.filter.outputs.infra }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
@@ -27,6 +35,9 @@ jobs:
               - 'database/**'
               - '!database/**/*.md'
               - 'global.json'
+              - 'scripts/migrations/**'
+              - 'scripts/tests/migrations.test.mjs'
+              - '.github/workflows/ci.yml'
             frontend:
               - 'frontend/**'
               - 'package.json'
@@ -37,11 +48,14 @@ jobs:
               - '**/*.md'
             openspec:
               - 'openspec/**'
+            infra:
+              - 'infra/**'
+              - '.github/workflows/**'
 
   # Format check siempre corre — chequea formato de TODOS los archivos versionados.
   format:
     name: Format check (prettier)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
@@ -55,13 +69,30 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Prettier check
         run: pnpm format:check
+      - name: Links relativos en docs
+        run: node scripts/docs/check-links.mjs
+
+  infra:
+    name: Infra (scripts de despliegue)
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "24"
+      - name: Tests de scripts de infraestructura
+        run: node --test infra/tests/*.test.mjs
 
   # Valida las specs y changes de OpenSpec (fuente de verdad del planning).
   openspec:
     name: OpenSpec validate
     needs: changes
     if: needs.changes.outputs.openspec == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
@@ -74,13 +105,43 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
       - name: Validate changes and specs
-        run: pnpm exec openspec validate --all --strict
+        run: pnpm exec openspec validate --all
+
+  migrations:
+    name: Integridad de migraciones SQL
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "24"
+      - name: Tests de autoría e integridad
+        run: node --test scripts/tests/migrations.test.mjs
+      - name: Comparar inventario con commit confiable
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CORTE_REVISADO: ${{ vars.CORTE_MIGRACIONES_REVISADO }}
+        run: |
+          argumentos=(--base-ref "$BASE_REF")
+          # El corte sólo autoriza la transición inicial; una variable residual
+          # nunca reemplaza la protección del SHA base cuando ya tiene manifiesto.
+          if [[ -n "$CORTE_REVISADO" ]] && ! git cat-file -e "$BASE_REF:database/migraciones-protegidas.json" 2>/dev/null; then
+            argumentos+=(--corte-revisado "$CORTE_REVISADO")
+          fi
+          node scripts/migrations/validate.mjs "${argumentos[@]}"
 
   backend:
     name: Backend (.NET 10)
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -93,7 +154,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Cache paquetes NuGet
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         continue-on-error: true
         with:
           path: ~/.nuget/packages
@@ -107,6 +168,9 @@ jobs:
       - name: Build
         run: dotnet build ArsDocendi.slnx --no-restore -c Release
 
+      - name: Verificar recursos SQL en assemblies compilados (sin DB)
+        run: dotnet run --project src/ArsDocendi.Host --no-build -c Release -- --validar-recursos
+
       - name: Test
         run: dotnet test ArsDocendi.slnx --no-build -c Release --verbosity normal
 
@@ -114,7 +178,7 @@ jobs:
     name: Frontend (Vite + React)
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 

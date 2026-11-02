@@ -1,4 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
+import { subirArchivo } from "../../../shared/api/archivosApi";
 import type { CatalogosDesignaciones } from "./catalogos";
 import type {
   AccionHistorial,
@@ -22,7 +23,13 @@ interface PedidoDto {
     documento: string;
     legajo: string | null;
   };
-  materia: { id: string; codigo: string; nombre: string; carreraId: string; carreraNombre: string };
+  materia: {
+    materiaId: string;
+    codigo: string;
+    nombre: string;
+    carreraId: string;
+    carreraNombre: string;
+  };
   novedad: Novedad;
   estado: EstadoPedido;
   prioritario: boolean;
@@ -46,7 +53,13 @@ interface PedidoDto {
     horasExternas: number | null;
   } | null;
   version: number;
-  adjuntos: { id: string; tipo: TipoAdjunto; nombre: string }[];
+  adjuntos: {
+    id: string;
+    tipo: TipoAdjunto;
+    nombre: string;
+    archivoId: string | null;
+    estadoArchivo: string;
+  }[];
   historial: {
     id: string;
     accion: AccionHistorial;
@@ -68,9 +81,17 @@ export async function listarPedidosPorAmbito(): Promise<PedidoDesignacion[]> {
 export async function obtenerPedido(id: string): Promise<PedidoDesignacion> {
   return mapear((await apiClient.get<PedidoDto>(`/api/designaciones/pedidos/${id}`)).data);
 }
+export async function descargarAdjuntoPedido(pedidoId: string, archivoId: string): Promise<Blob> {
+  return (
+    await apiClient.get<Blob>(`/api/designaciones/pedidos/${pedidoId}/adjuntos/${archivoId}`, {
+      responseType: "blob",
+    })
+  ).data;
+}
 export async function crearPedido(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones) {
   return mapear(
-    (await apiClient.post<PedidoDto>("/api/designaciones/pedidos", payload(datos, catalogos))).data,
+    (await apiClient.post<PedidoDto>("/api/designaciones/pedidos", await payload(datos, catalogos)))
+      .data,
   );
 }
 export async function editarPedido(
@@ -79,8 +100,12 @@ export async function editarPedido(
   catalogos: CatalogosDesignaciones,
 ) {
   return mapear(
-    (await apiClient.put<PedidoDto>(`/api/designaciones/pedidos/${id}`, payload(datos, catalogos)))
-      .data,
+    (
+      await apiClient.put<PedidoDto>(
+        `/api/designaciones/pedidos/${id}`,
+        await payload(datos, catalogos),
+      )
+    ).data,
   );
 }
 export async function eliminarPedido(id: string): Promise<void> {
@@ -107,7 +132,7 @@ async function accion(id: string, nombre: string, comentario?: string): Promise<
   return mapear(data);
 }
 
-function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones) {
+async function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones) {
   const cargoSolicitadoId =
     datos.cargoSolicitadoId ??
     catalogos.cargos.find(
@@ -121,11 +146,20 @@ function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones)
           apellido: datos.docente.apellido?.trim() ?? "",
         }
       : undefined;
+  const adjuntos = await Promise.all(
+    datos.adjuntos.map(async (adjunto) => {
+      const confirmado = adjunto.archivo
+        ? await subirArchivo(adjunto.tipo, adjunto.archivo)
+        : undefined;
+      return { tipo: adjunto.tipo, archivoId: confirmado?.id ?? adjunto.archivoId ?? null };
+    }),
+  );
   return {
     periodoId: datos.periodoId ?? catalogos.periodoActivo?.id,
     ...(datos.personaId ? { personaId: datos.personaId } : {}),
     ...(personaNueva ? { persona: personaNueva } : {}),
     materiaId: datos.materiaId,
+    carreraId: datos.carreraId,
     novedad: datos.novedad,
     cargoSolicitadoId,
     dedicacionSolicitadaId:
@@ -138,7 +172,7 @@ function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones)
     justificacion: datos.justificacion ?? null,
     tipoBaja: datos.tipoBaja ?? null,
     tipoBajaDetalle: datos.tipoBajaDetalle ?? null,
-    adjuntos: datos.adjuntos.map((a) => ({ tipo: a.tipo, nombre: a.nombre })),
+    adjuntos,
     version: datos.version,
   };
 }
@@ -150,7 +184,8 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
     periodoId: dto.periodo.id,
     periodoNombre: dto.periodo.nombre,
     personaId: dto.persona.id,
-    materiaId: dto.materia.id,
+    materiaId: dto.materia.materiaId,
+    carreraId: dto.materia.carreraId,
     catedra: dto.snapshot?.materia ?? dto.materia.nombre,
     carrera: dto.materia.carreraNombre,
     docente: {
@@ -178,7 +213,13 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
     horasActuales: dto.snapshot?.horas,
     horasInvestigacionActuales: dto.snapshot?.horasInvestigacion,
     horasExternasActuales: dto.snapshot?.horasExternas,
-    adjuntos: dto.adjuntos,
+    adjuntos: dto.adjuntos.map((adjunto) => ({
+      id: adjunto.id,
+      tipo: adjunto.tipo,
+      nombre: adjunto.nombre,
+      archivoId: adjunto.archivoId ?? undefined,
+      estadoArchivo: adjunto.estadoArchivo,
+    })),
     estado: dto.estado,
     prioritario: dto.prioritario,
     etapaRetorno: dto.etapaRetorno ?? undefined,

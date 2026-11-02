@@ -47,9 +47,9 @@ export const FILTROS_COLUMNAS_INICIALES: FiltrosColumnasTablero = {
 
 export const OPCIONES_ESTADO: { value: FiltroEstado; label: string }[] = [
   { value: "todos", label: "Estado: Todos" },
-  { value: "en_revision_coordinador", label: "En revisión · Coordinador" },
-  { value: "en_revision_secretaria", label: "En revisión · Secretaría" },
-  { value: "en_revision_decanato", label: "En revisión · Decanato" },
+  { value: "en_revision_coordinador", label: "En Coordinación" },
+  { value: "en_revision_secretaria", label: "En Secretaría" },
+  { value: "en_revision_decanato", label: "En Decanato" },
   { value: "devuelto", label: "Devuelto" },
   { value: "en_lote", label: "En lote" },
   { value: "rechazado", label: "Rechazado" },
@@ -68,15 +68,6 @@ export const CARRERAS: string[] = [
   "Ingeniería Mecánica",
   "Ingeniería Electrónica",
 ];
-
-/** Nombre abreviado de la carrera, para la columna Carrera de la Tabla de revisión. */
-export const ABREVIATURA_CARRERA: Record<string, string> = {
-  "Ingeniería en Informática": "Informática",
-  "Ingeniería Industrial": "Industrial",
-  "Ingeniería Civil": "Civil",
-  "Ingeniería Mecánica": "Mecánica",
-  "Ingeniería Electrónica": "Electrónica",
-};
 
 export interface FiltrosTablero {
   tipo: FiltroTipo;

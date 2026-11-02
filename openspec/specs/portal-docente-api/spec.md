@@ -78,23 +78,35 @@ La API SHALL permitir crear, consultar, modificar y eliminar ítems propios de e
 
 ### Requirement: CV y documentación de proyectos como metadata
 
-La API SHALL persistir como metadata el CV único del docente y los documentos PDF asociados a proyectos. SHALL permitir reemplazar y eliminar el CV, y SHALL permitir DOI, PDF, ambos o ninguno en un proyecto. Esta versión MUST NOT almacenar ni servir contenido binario.
+La API SHALL persistir la metadata y el `archivoId` del CV único del docente y de los documentos PDF asociados a proyectos. Los bytes SHALL almacenarse en SeaweedFS privado, fuera de PostgreSQL, y MUST quedar disponibles únicamente después de validar contenido, tamaño, hash y antivirus. SHALL permitir reemplazar y eliminar el CV, y SHALL permitir DOI, PDF, ambos o ninguno en un proyecto. La API MUST NOT aceptar URI arbitrarias, publicar objetos directamente ni devolver claves internas del almacenamiento.
 
 #### Scenario: Cargar o reemplazar CV
 
-- **GIVEN** un docente autenticado
-- **WHEN** registra metadata de un PDF como CV
-- **THEN** el perfil referencia un único CV con nombre y fecha de carga actuales
+- **GIVEN** un docente autenticado y un archivo PDF que pasó la validación
+- **WHEN** registra o reemplaza su CV
+- **THEN** el perfil referencia un único archivo privado con nombre, fecha, tamaño, hash y estado disponible
+
+#### Scenario: CV inválido
+
+- **GIVEN** un archivo que no es PDF, supera el límite o falla el antivirus
+- **WHEN** el docente intenta confirmarlo como CV
+- **THEN** la API responde un error consumible por el formulario y no modifica el CV anterior
 
 #### Scenario: Eliminar CV
 
 - **WHEN** el docente elimina su CV
-- **THEN** la referencia queda nula y la API no conserva un historial visible
+- **THEN** la referencia queda nula o desvinculada, no se puede descargar por el perfil y la eliminación queda auditada según la retención configurada
 
 #### Scenario: Proyecto sin documentación
 
 - **WHEN** el docente crea un proyecto sin PDF ni DOI
 - **THEN** el proyecto se guarda correctamente con ambos valores nulos o vacíos
+
+#### Scenario: Proyecto con PDF
+
+- **GIVEN** un PDF de proyecto validado
+- **WHEN** el docente lo asocia al proyecto
+- **THEN** el proyecto conserva el `archivoId` y permite una descarga autorizada sin exponer una URL permanente de SeaweedFS
 
 ### Requirement: Habilidades e intereses independientes
 
@@ -131,3 +143,67 @@ Las entidades del perfil SHALL persistirse en el schema `portal`, incluir `creat
 
 - **WHEN** una operación autenticada modifica una entidad Portal
 - **THEN** queda un evento en el mecanismo de auditoría con el actor y la operación correspondientes
+
+### Requirement: Perfil completo sin multiplicar colecciones
+
+Consultar el perfil SHALL devolver sus secciones completas sin obtener un producto cartesiano entre colecciones hermanas. La obtención MUST resolver identidad por cuenta/persona y metadata documental por lote, sin cargar usuarios globales ni hacer una consulta independiente por documento. No SHALL omitirse contenido para aparentar rendimiento.
+
+#### Scenario: Varias colecciones pobladas
+
+- **GIVEN** un perfil con 3 experiencias, 3 educaciones, 3 certificaciones, 2 proyectos y 4 habilidades
+- **WHEN** se consulta completo
+- **THEN** contiene los 15 elementos correspondientes sin materializar las 216 combinaciones entre colecciones
+
+#### Scenario: Documentos de varios proyectos
+
+- **GIVEN** un perfil con varios documentos de proyecto
+- **WHEN** se completa su metadata autorizada
+- **THEN** la cantidad de consultas documentales no crece una por documento
+
+### Requirement: Mutaciones de sección independientes y versionadas
+
+Actualizar o eliminar una sección existente SHALL aportar su versión observada y devolver la versión resultante cuando corresponda. Una versión obsoleta MUST producir 409 sin sobrescritura ni efectos documentales parciales. La obtención para una mutación MUST limitarse a la sección y referencias necesarias, sin cargar el perfil completo.
+
+#### Scenario: Contacto concurrente
+
+- **GIVEN** dos clientes leen la misma versión del contacto
+- **WHEN** uno guarda y el otro intenta confirmar su versión anterior
+- **THEN** el segundo recibe 409 y no pisa los valores confirmados
+
+#### Scenario: Modificar una experiencia
+
+- **GIVEN** un perfil con grandes colecciones y una experiencia existente
+- **WHEN** se modifica esa experiencia con versión válida
+- **THEN** conserva las otras secciones sin cargar todas sus colecciones para validar el ítem
+
+#### Scenario: Reemplazo documental rechazado
+
+- **GIVEN** una sección documental fue modificada después de la lectura del cliente
+- **WHEN** este intenta reemplazarla con versión obsoleta
+- **THEN** conserva la asociación confirmada y no elimina ni desvincula sus bytes
+
+### Requirement: Perfil y vocabulario únicos bajo altas concurrentes
+
+Las primeras escrituras concurrentes del mismo perfil SHALL resolver una identidad única de perfil sin fallar por su creación incidental. Crear un término normalizado concurrentemente SHALL reutilizar el vocabulario confirmado y conservar asociaciones independientes de habilidades/intereses. MUST NOT tratar una edición incompatible de sección como éxito idempotente.
+
+#### Scenario: Dos primeras secciones
+
+- **GIVEN** una persona sin perfil y dos solicitudes válidas para secciones diferentes
+- **WHEN** ambas crean incidentalmente el perfil
+- **THEN** existe un perfil único y se conservan las dos secciones sin 500 de unicidad
+
+#### Scenario: Dos docentes sugieren el mismo término
+
+- **GIVEN** un término normalizado aún inexistente
+- **WHEN** dos perfiles lo sugieren concurrentemente
+- **THEN** existe un término canónico normalizado y cada perfil conserva su asociación autorizada
+
+### Requirement: Acceso selectivo por perfil en persistencia
+
+Las colecciones SHALL poder consultarse por perfil sin recorrer innecesariamente las colecciones de otros perfiles. La verificación de rendimiento MUST mantener cantidad de resultados constante y comparar planes/cardinalidad con volumen sintético representativo; no SHALL imponer un tiempo absoluto derivado de una sola máquina.
+
+#### Scenario: Perfil pequeño en un conjunto grande
+
+- **GIVEN** 2.000 perfiles con 20.000 experiencias y 10 del perfil consultado
+- **WHEN** se verifica su acceso selectivo
+- **THEN** existe un plan de acceso compatible con el filtro que evita descartar las otras 19.990 filas por falta de acceso selectivo

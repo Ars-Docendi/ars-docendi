@@ -84,12 +84,11 @@ const ETAPA_ACTUAL_LABEL: Partial<Record<EstadoPedido, string>> = {
 const ACEPTAR_POR_ETAPA: Partial<Record<EstadoPedido, { destino: string; aviso: string }>> = {
   en_revision_coordinador: {
     destino: "Secretaría",
-    aviso:
-      "El pedido pasará a En revisión Secretaría y se notificará a Secretaría Académica (in-app).",
+    aviso: "El pedido pasará a Secretaría y se notificará a Secretaría Académica (in-app).",
   },
   en_revision_secretaria: {
     destino: "Decanato",
-    aviso: "El pedido pasará a En revisión Decanato y se notificará al Decanato (in-app).",
+    aviso: "El pedido pasará a Decanato y se notificará al Decanato (in-app).",
   },
   en_revision_decanato: {
     destino: "lote",

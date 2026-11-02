@@ -174,15 +174,6 @@ export function pedidosDePestania(
   return pedidos.filter((pedido) => perteneceAArea(pedido, area)).sort(compararEnArea);
 }
 
-/** Iniciales del docente (p. ej. "Ana Pérez" → "AP"). */
-export function inicialesDocente(nombre: string): string {
-  const partes = nombre
-    .split(/\s+/)
-    .map((parte) => parte.replace(/[^\p{L}]/gu, "").charAt(0))
-    .filter(Boolean);
-  return (partes[0] ?? "").concat(partes[partes.length - 1] ?? "").toUpperCase() || "?";
-}
-
 /**
  * Inicio del pedido: el primer `enviar` (entrada al circuito de revisión), NO el
  * `crear` del borrador — el tiempo que estuvo guardado sin enviar no es tiempo de

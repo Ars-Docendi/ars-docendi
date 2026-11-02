@@ -1,8 +1,10 @@
 # Dependency graph
 
-**Reglas**: grafo dirigido acíclico (DAG). Los módulos solo dependen de `ArsDocendi.Shared` y de los `Modules.*.Contracts` que necesiten. Módulo → módulo **solo** vía `.Contracts`.
+**Reglas**: grafo dirigido acíclico (DAG). Los módulos dependen de infraestructura transversal (`ArsDocendi.Shared`, `ArsDocendi.Migraciones`) y de los `Modules.*.Contracts` que necesiten. Módulo → módulo **solo** vía `.Contracts`.
 
-`ArsDocendi.Shared` hospeda además la persistencia de `identity` y `audit` (invariante #4 enmendado), así que suma dependencias de **paquete** — EF Core y Npgsql — pero ninguna de proyecto: el grafo entre proyectos no cambia. La contrapartida es que todos los módulos alcanzan `identity` sin pasar por Contracts; ver "Frontera de lectura sobre identity" más abajo.
+`ArsDocendi.Migraciones` contiene el adaptador EF reutilizable y la salida CLI. Depende de Shared; Host, Storage y los módulos lo consumen. Shared conserva DTOs/contratos puros y utilidades de recursos, sin I/O adicional hacia los contextos de módulos. La registración de Identity/Audit se realiza con `AddMigracionesIdentity` después de `AddArsDocendiShared`.
+
+`ArsDocendi.Shared` hospeda además la persistencia de `identity` y `audit` (invariante #4), así que tiene dependencias de **paquete** (EF Core y Npgsql), pero ninguna de proyecto. La contrapartida es que todos los módulos alcanzan `identity` sin pasar por Contracts; ver "Frontera de lectura sobre identity" más abajo.
 
 ## Diagrama
 
@@ -15,62 +17,88 @@ flowchart TD
     Shared["ArsDocendi.Shared<br/>+ schemas identity y audit"]
   end
   subgraph contracts [Contracts públicos]
+    StorageContracts["ArsDocendi.Storage.Contracts"]
     DesignacionesContracts["Modules.Designaciones.Contracts"]
     AulasContracts["Modules.Aulas.Contracts"]
     PortalContracts["Modules.Portal.Contracts"]
     TareasContracts["Modules.Tareas.Contracts"]
   end
   subgraph modules [Modules internos]
+    Storage["ArsDocendi.Storage"]
+    Inferencia["ArsDocendi.Inferencia"]
     Designaciones["Modules.Designaciones"]
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
     Tareas["Modules.Tareas"]
   end
 
+  Host --> Migraciones["ArsDocendi.Migraciones"]
+  Migraciones --> Shared
+  Storage --> Migraciones
+  Designaciones --> Migraciones
+  Aulas --> Migraciones
+  Portal --> Migraciones
+  Tareas --> Migraciones
   Host --> Designaciones
+  Host --> Storage
+  Host --> Inferencia
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
   Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
-  Host --> AulasContracts
-  Host --> PortalContracts
-  Host --> TareasContracts
+  Host -->|"administración de Mi Portal de otras personas"| PortalContracts
+  Host --> Shared
 
   Designaciones --> Shared
+  Storage --> Shared
+  Inferencia --> Shared
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
 
   Designaciones --> DesignacionesContracts
+  Storage --> StorageContracts
+  Designaciones --> StorageContracts
   Aulas --> AulasContracts
   Portal --> PortalContracts
+  Portal --> StorageContracts
   Tareas --> TareasContracts
 
   Designaciones -->|"correo de altas vía PortalContracts"| PortalContracts
-  Aulas -.->|"vía PortalContracts (TBD)"| PortalContracts
 ```
-
-Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todavía). Cuando se confirmen, pasan a sólidas y se agregan al edge registry.
 
 ## Edge registry
 
-| From                    | To                                      | Vía               | Notas                                                                                              |
-| ----------------------- | --------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `ArsDocendi.Host`       | `Modules.Designaciones`                 | project reference | Hosting + composition root                                                                         |
-| `ArsDocendi.Host`       | `Modules.Aulas`                         | project reference | Hosting                                                                                            |
-| `ArsDocendi.Host`       | `Modules.Portal`                        | project reference | Hosting                                                                                            |
-| `ArsDocendi.Host`       | `Modules.Tareas`                        | project reference | Hosting                                                                                            |
-| `ArsDocendi.Host`       | `Modules.Designaciones.Contracts`       | project reference | `IAdministracionDesignaciones`: consulta y reemplazo de designaciones vigentes sin tocar internals |
-| `ArsDocendi.Host`       | `Modules.Aulas/Portal/Tareas.Contracts` | project reference | DI / interfaces de composición                                                                     |
-| `Modules.Designaciones` | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
-| `Modules.Designaciones` | `Modules.Designaciones.Contracts`       | project reference | Propio contract público                                                                            |
-| `Modules.Designaciones` | `Modules.Portal.Contracts`              | project reference | `IPortalQueries`: correo del perfil para exportar altas                                            |
-| `Modules.Aulas`         | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
-| `Modules.Aulas`         | `Modules.Aulas.Contracts`               | project reference | Propio contract público                                                                            |
-| `Modules.Portal`        | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
-| `Modules.Portal`        | `Modules.Portal.Contracts`              | project reference | Propio contract público                                                                            |
-| `Modules.Tareas`        | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
-| `Modules.Tareas`        | `Modules.Tareas.Contracts`              | project reference | Propio contract público                                                                            |
+| From                               | To                       | Vía               | Notas                                                  |
+| ---------------------------------- | ------------------------ | ----------------- | ------------------------------------------------------ |
+| `ArsDocendi.Host`                  | `ArsDocendi.Migraciones` | project reference | CLI y registración del migrador Identity               |
+| `ArsDocendi.Migraciones`           | `ArsDocendi.Shared`      | project reference | Contratos, recursos y contexto Identity                |
+| `ArsDocendi.Storage` y `Modules.*` | `ArsDocendi.Migraciones` | project reference | Adaptador EF reutilizable, sin acceder a otros módulos |
+
+| From                    | To                                | Vía               | Notas                                                                                              |
+| ----------------------- | --------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `ArsDocendi.Host`       | `Modules.Designaciones`           | project reference | Hosting + composition root                                                                         |
+| `ArsDocendi.Host`       | `ArsDocendi.Storage`              | project reference | Composition root y endpoints de archivos                                                           |
+| `ArsDocendi.Storage`    | `ArsDocendi.Storage.Contracts`    | project reference | Implementación del proveedor privado                                                               |
+| `ArsDocendi.Host`       | `ArsDocendi.Inferencia`           | project reference | Composition root y estado de la inferencia                                                         |
+| `ArsDocendi.Inferencia` | `ArsDocendi.Shared`               | project reference | `Permisos` para autorizar `/api/inferencia/estado`; sin Contracts hasta tener consumidor           |
+| `Modules.Designaciones` | `ArsDocendi.Storage.Contracts`    | project reference | Validación de asociaciones por `archivoId`                                                         |
+| `Modules.Portal`        | `ArsDocendi.Storage.Contracts`    | project reference | CV y documentos de proyectos                                                                       |
+| `ArsDocendi.Host`       | `Modules.Aulas`                   | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`       | `Modules.Portal`                  | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`       | `Modules.Tareas`                  | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`       | `Modules.Designaciones.Contracts` | project reference | `IAdministracionDesignaciones`: consulta y reemplazo de designaciones vigentes sin tocar internals |
+| `ArsDocendi.Host`       | `Modules.Portal.Contracts`        | project reference | `IAdministracionPortal`: lectura y corrección de Mi Portal de otra persona                         |
+| `ArsDocendi.Host`       | `ArsDocendi.Shared`               | project reference | Identity, auditoría y permisos para administración y autenticación                                 |
+| `Modules.Designaciones` | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
+| `Modules.Designaciones` | `Modules.Designaciones.Contracts` | project reference | Propio contract público                                                                            |
+| `Modules.Designaciones` | `Modules.Portal.Contracts`        | project reference | `IPortalQueries`: correo del perfil para exportar altas                                            |
+| `Modules.Aulas`         | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
+| `Modules.Aulas`         | `Modules.Aulas.Contracts`         | project reference | Propio contract público                                                                            |
+| `Modules.Portal`        | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
+| `Modules.Portal`        | `Modules.Portal.Contracts`        | project reference | Propio contract público                                                                            |
+| `Modules.Tareas`        | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
+| `Modules.Tareas`        | `Modules.Tareas.Contracts`        | project reference | Propio contract público                                                                            |
 
 Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyectos, pero explican por qué Shared ya no es puro):
 
@@ -80,14 +108,27 @@ Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyec
 | `Microsoft.EntityFrameworkCore.Relational` | `AuditDbConnectionInterceptor`                     |
 | `Npgsql.EntityFrameworkCore.PostgreSQL`    | Provider de PostgreSQL para ese contexto           |
 
+Dependencias de paquete del Host para el ingreso con Microsoft (tampoco son edges del grafo):
+
+| Paquete                                             | Razón                                                                     |
+| --------------------------------------------------- | ------------------------------------------------------------------------- |
+| `Microsoft.AspNetCore.Authentication.OpenIdConnect` | Intercambio OpenID Connect con Microsoft Entra ID                         |
+| `Microsoft.IdentityModel.Validators`                | Validación del issuer multi-tenant (`common`): cada tenant firma distinto |
+
 ## Frontera de lectura sobre `identity`
 
-Los 4 módulos referencian `ArsDocendi.Shared`, y desde este change eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
+Los 4 módulos referencian `ArsDocendi.Shared`, y eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
 
 La disciplina, corolario del invariante #4 enmendado:
 
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
+
+## Administración de estado y auditoría
+
+Los endpoints administrativos viven en `ArsDocendi.Host` y siguen Controller → Service → Repository. Ningún módulo de negocio consulta `audit.change_log` directamente: la lectura de auditoría es exclusiva del Host.
+
+La API de auditoría expone metadatos y valores aprobados, nunca snapshots JSON completos ni `client_ip`. El permiso `auditoria.ver` limita la lectura administrativa; `sistema.estado.ver` protege la sonda PostgreSQL.
 
 La creación de una persona sin cuenta para un Alta mantiene esa frontera: el
 módulo Designaciones consume `IAdministracionIdentity` por DI, mientras que
@@ -104,13 +145,7 @@ internas de Portal.
 
 ## Orquestación administrativa de docentes
 
-`ArsDocendi.Host.Administracion.ServicioDocentes` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa el edge Host → Contracts ya permitido y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
-
-**Edges cross-module proyectados (a confirmar en spec respectiva)**:
-
-| From            | To                         | Vía             | Razón                                        |
-| --------------- | -------------------------- | --------------- | -------------------------------------------- |
-| `Modules.Aulas` | `Modules.Portal.Contracts` | DI via interfaz | Conocer el docente solicitante de la reserva |
+`ArsDocendi.Host.Administracion.ServicioAdministracionPersonas` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa el edge Host → Contracts ya permitido y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
 
 ## Agregar un edge nuevo
 

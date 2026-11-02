@@ -47,6 +47,7 @@ describe("TablaMisPedidos", () => {
     await user.click(fila);
     expect(onVer).toHaveBeenCalledOnce();
 
+    expect(within(fila).queryByRole("button", { name: "Ver" })).not.toBeInTheDocument();
     await user.click(within(fila).getByRole("button", { name: "Editar" }));
     expect(onEditar).toHaveBeenCalledOnce();
     await user.click(within(fila).getByRole("button", { name: "Eliminar pedido de Ana García" }));
@@ -79,21 +80,24 @@ describe("TablaMisPedidos", () => {
     expect(onOrdenChange).toHaveBeenCalledWith({ columna: "docente", direccion: "asc" });
   });
 
-  it("activa la fila con Enter y Espacio", async () => {
+  it("elimina con un botón de texto sin abrir el detalle", async () => {
     const user = userEvent.setup();
     const onVer = vi.fn();
+    const onEliminar = vi.fn();
     render(
       <TablaMisPedidos
         pedidos={[pedido()]}
         onVerDetalle={onVer}
         onEditar={vi.fn()}
-        onEliminar={vi.fn()}
+        onEliminar={onEliminar}
       />,
     );
-    const fila = screen.getByRole("row", { name: /Ver el pedido de Ana García/ });
-    fila.focus();
-    await user.keyboard("{Enter}");
-    await user.keyboard(" ");
-    expect(onVer).toHaveBeenCalledTimes(2);
+
+    const eliminar = screen.getByRole("button", { name: "Eliminar pedido de Ana García" });
+    expect(eliminar).toHaveTextContent("Eliminar");
+
+    await user.click(eliminar);
+    expect(onEliminar).toHaveBeenCalledOnce();
+    expect(onVer).not.toHaveBeenCalled();
   });
 });

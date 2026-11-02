@@ -7,6 +7,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-arsdocendi}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-arsdocendi}
+      # postgres:18+ no acepta el volumen montado directo en $PGDATA; PGDATA apunta a una subcarpeta.
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:

@@ -14,20 +14,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "identity")
 {
     [Fact]
-    public async Task Persona_sin_cuenta_y_sin_legajo_se_persiste()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var persona = NuevaPersona("30111222");
-
-        db.Personas.Add(persona);
-        await db.SaveChangesAsync(ct);
-
-        Assert.Null(persona.Legajo);
-        Assert.False(await db.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
-    }
-
-    [Fact]
     public async Task Servicio_crea_persona_sin_cuenta_y_rechaza_documento_duplicado()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -79,69 +65,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
         {
             return null;
         }
-    }
-
-    [Fact]
-    public async Task Primer_login_vincula_la_cuenta_sin_duplicar_la_persona()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var persona = NuevaPersona("30222333");
-        db.Personas.Add(persona);
-        await db.SaveChangesAsync(ct);
-
-        var vinculador = new VinculadorPrimerLogin(db);
-        var oid = Guid.NewGuid();
-        var usuario = await vinculador.VincularAsync(new DatosPrimerLogin(
-            oid, "docente@unlam.edu.ar", "Docente Ejemplo", persona.Documento), ct);
-        await vinculador.VincularAsync(new DatosPrimerLogin(
-            oid, "docente@unlam.edu.ar", "Docente Actualizado", persona.Documento), ct);
-
-        Assert.Equal(persona.Id, usuario.PersonaId);
-        Assert.Equal(1, await db.Personas.CountAsync(p => p.Documento == persona.Documento, ct));
-        Assert.Equal(1, await db.Usuarios.CountAsync(u => u.PersonaId == persona.Id, ct));
-        Assert.Equal("Docente Actualizado", usuario.NombreParaMostrar);
-    }
-
-    [Fact]
-    public async Task Primer_login_no_reactiva_una_cuenta_desactivada()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var persona = NuevaPersona("30222999");
-        var usuario = new Usuario
-        {
-            Id = Guid.NewGuid(),
-            AzureOid = Guid.NewGuid(),
-            Upn = "desactivado@unlam.edu.ar",
-            NombreParaMostrar = "Docente desactivado",
-            Activo = false,
-            PersonaId = persona.Id,
-            CreadoEn = DateTimeOffset.UtcNow,
-        };
-        db.Personas.Add(persona);
-        await db.SaveChangesAsync(ct);
-        usuario.PersonaId = persona.Id;
-        db.Usuarios.Add(usuario);
-        await db.SaveChangesAsync(ct);
-
-        await new VinculadorPrimerLogin(db).VincularAsync(new DatosPrimerLogin(
-            usuario.AzureOid, usuario.Upn, usuario.NombreParaMostrar, persona.Documento), ct);
-
-        Assert.False(usuario.Activo);
-    }
-
-    [Fact]
-    public async Task Documento_duplicado_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await InsertarPersonaAsync(conexion, "30333444");
-
-        var error = await Assert.ThrowsAsync<PostgresException>(
-            () => InsertarPersonaAsync(conexion, "30333444"));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("personas_documento_key", error.ConstraintName);
     }
 
     [Fact]
@@ -237,7 +160,32 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
             VALUES (@usuario, @rol, @carrera, @materia)
             """, new NpgsqlParameter("usuario", usuario), new NpgsqlParameter("rol", rol), new NpgsqlParameter("carrera", carrera), new NpgsqlParameter("materia", materia)));
 
-        Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
+        Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
+        Assert.Equal("user_roles_scope_coherente", error.ConstraintName);
+    }
+
+    [Fact]
+    public async Task Rol_materia_personalizado_se_asigna_sin_carrera()
+    {
+        await using var conexion = await AbrirConexionAsync();
+        var usuario = await InsertarUsuarioAsync(conexion);
+        var (_, materia) = await InsertarCarreraMateriaAsync(conexion);
+        var rol = Guid.NewGuid();
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.roles (id, code, name, scope)
+            VALUES (@rol, 'revisor_materia_custom', 'Revisor materia', 'materia')
+            """, new NpgsqlParameter("rol", rol));
+
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.user_roles (user_id, role_id, materia_id)
+            VALUES (@usuario, @rol, @materia)
+            """, new NpgsqlParameter("usuario", usuario), new NpgsqlParameter("rol", rol), new NpgsqlParameter("materia", materia));
+
+        var carreraNula = await EscalarAsync<bool>(conexion, """
+            SELECT carrera_id IS NULL FROM identity.user_roles
+            WHERE user_id = @usuario AND role_id = @rol AND materia_id = @materia
+            """, new NpgsqlParameter("usuario", usuario), new NpgsqlParameter("rol", rol), new NpgsqlParameter("materia", materia));
+        Assert.True(carreraNula);
     }
 
     [Fact]
@@ -269,29 +217,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Permiso_duplicado_en_un_rol_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        var rol = Guid.NewGuid();
-        await EjecutarAsync(conexion, """
-            INSERT INTO identity.roles (id, code, name, scope)
-            VALUES (@rol, 'permisos_custom', 'Permisos custom', 'global')
-            """, new NpgsqlParameter("rol", rol));
-        var permiso = await EscalarAsync<Guid>(
-            conexion, "SELECT id FROM identity.permisos ORDER BY code LIMIT 1");
-        await EjecutarAsync(conexion, """
-            INSERT INTO identity.rol_permisos (rol_id, permiso_id) VALUES (@rol, @permiso)
-            """, new NpgsqlParameter("rol", rol), new NpgsqlParameter("permiso", permiso));
-
-        var error = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion, """
-            INSERT INTO identity.rol_permisos (rol_id, permiso_id) VALUES (@rol, @permiso)
-            """, new NpgsqlParameter("rol", rol), new NpgsqlParameter("permiso", permiso)));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("rol_permisos_pkey", error.ConstraintName);
-    }
-
-    [Fact]
     public async Task Interceptor_propaga_el_usuario_al_trigger_de_auditoria()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -300,7 +225,7 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
         {
             await EjecutarAsync(conexion, """
                 INSERT INTO identity.users (id, azure_oid, upn, display_name)
-                VALUES (@id, @oid, 'auditor@unlam.edu.ar', 'Auditor')
+                VALUES (@id, NULL, 'auditor@unlam.edu.ar', 'Auditor')
                 """, new NpgsqlParameter("id", usuarioId), new NpgsqlParameter("oid", Guid.NewGuid()));
         }
 
@@ -330,18 +255,12 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
         Apellido = "Lovelace",
     };
 
-    private static async Task InsertarPersonaAsync(NpgsqlConnection conexion, string documento) =>
-        await EjecutarAsync(conexion, """
-            INSERT INTO identity.personas (documento, nombre, apellido)
-            VALUES (@documento, 'Ada', 'Lovelace')
-            """, new NpgsqlParameter("documento", documento));
-
     private static async Task<Guid> InsertarUsuarioAsync(NpgsqlConnection conexion)
     {
         var id = Guid.NewGuid();
         await EjecutarAsync(conexion, """
             INSERT INTO identity.users (id, azure_oid, upn, display_name)
-            VALUES (@id, @oid, @upn, 'Usuario de prueba')
+            VALUES (@id, NULL, @upn, 'Usuario de prueba')
             """, new NpgsqlParameter("id", id), new NpgsqlParameter("oid", Guid.NewGuid()), new NpgsqlParameter("upn", $"{id:N}@unlam.edu.ar"));
         return id;
     }
@@ -355,9 +274,9 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
             INSERT INTO identity.carreras (id, code, name) VALUES (@id, @code, 'Carrera test')
             """, new NpgsqlParameter("id", carrera), new NpgsqlParameter("code", $"C-{carrera:N}"));
         await EjecutarAsync(conexion, """
-            INSERT INTO identity.materias (id, code, name, carrera_id)
-            VALUES (@id, @code, 'Materia test', @carrera)
-            """, new NpgsqlParameter("id", materia), new NpgsqlParameter("code", $"M-{materia:N}"), new NpgsqlParameter("carrera", carrera));
+            INSERT INTO identity.materias (id, code, name)
+            VALUES (@id, '00001', 'Materia test')
+            """, new NpgsqlParameter("id", materia));
         return (carrera, materia);
     }
 

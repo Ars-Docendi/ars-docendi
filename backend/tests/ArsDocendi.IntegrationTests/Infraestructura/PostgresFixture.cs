@@ -2,9 +2,11 @@ using ArsDocendi.Shared.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using ArsDocendi.Storage.Infrastructure;
 using Modules.Aulas.Infrastructure;
 using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
+using Modules.Tareas.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -24,30 +26,79 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public ValueTask DisposeAsync() => new(_contenedor.DisposeAsync().AsTask());
 
+    private const string Plantilla = "plantilla_migrada";
+    // Migrar una vez y clonar evita repetir todas las migraciones en cada test.
+    // PostgreSQL rechaza clonar una plantilla mientras otra copia la está leyendo: se serializa.
+    private readonly SemaphoreSlim _clonado = new(1, 1);
+    private readonly Lock _creacionPlantilla = new();
+    private Task? _plantilla;
+
     public async Task<string> CrearBaseMigradaAsync(string prefijo, string? migracionDesignaciones = null)
     {
-        var nombre = $"{prefijo}_{Guid.NewGuid():N}";
-        await using (var conexion = new NpgsqlConnection(_contenedor.GetConnectionString()))
+        if (migracionDesignaciones is not null)
         {
-            await conexion.OpenAsync();
-            await using var comando = new NpgsqlCommand($"CREATE DATABASE \"{nombre}\"", conexion);
-            await comando.ExecuteNonQueryAsync();
+            return await CrearYMigrarAsync($"{prefijo}_{Guid.NewGuid():N}", migracionDesignaciones);
         }
 
-        var cadena = new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
+        lock (_creacionPlantilla)
+        {
+            _plantilla ??= CrearYMigrarAsync(Plantilla, null);
+        }
+
+        await _plantilla;
+        var nombre = $"{prefijo}_{Guid.NewGuid():N}";
+        await _clonado.WaitAsync();
+        try
+        {
+            await EjecutarEnServidorAsync($"CREATE DATABASE \"{nombre}\" TEMPLATE \"{Plantilla}\"");
+        }
+        finally
+        {
+            _clonado.Release();
+        }
+
+        return Cadena(nombre);
+    }
+
+    private async Task EjecutarEnServidorAsync(string sql)
+    {
+        await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
+        await conexion.OpenAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion);
+        await comando.ExecuteNonQueryAsync();
+    }
+
+    private string Cadena(string nombre) =>
+        new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
         {
             Database = nombre,
             Pooling = false,
         }.ConnectionString;
+
+    private async Task<string> CrearYMigrarAsync(string nombre, string? migracionDesignaciones)
+    {
+        await EjecutarEnServidorAsync($"CREATE DATABASE \"{nombre}\"");
+
+        var cadena = Cadena(nombre);
 
         await using (var identity = CrearIdentity(cadena))
         {
             await identity.Database.MigrateAsync();
         }
 
+        await using (var almacenamiento = CrearAlmacenamiento(cadena))
+        {
+            await almacenamiento.Database.MigrateAsync();
+        }
+
         await using (var portal = CrearPortal(cadena))
         {
             await portal.Database.MigrateAsync();
+        }
+
+        await using (var tareas = CrearTareas(cadena))
+        {
+            await tareas.Database.MigrateAsync();
         }
 
         await using (var designaciones = CrearDesignaciones(cadena))
@@ -87,15 +138,26 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static DesignacionesDbContext CrearDesignaciones(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<DesignacionesDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
             .Options;
         return new DesignacionesDbContext(opciones);
+    }
+
+    public static TareasDbContext CrearTareas(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<TareasDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", TareasDbContext.Schema))
+            .Options;
+        return new TareasDbContext(opciones);
     }
 
     public static PortalDbContext CrearPortal(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<PortalDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
             .Options;
         return new PortalDbContext(opciones);
     }
@@ -103,9 +165,19 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static AulasDbContext CrearAulas(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<AulasDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AulasDbContext.Schema))
             .Options;
         return new AulasDbContext(opciones);
+    }
+
+    public static AlmacenamientoDbContext CrearAlmacenamiento(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<AlmacenamientoDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AlmacenamientoDbContext.Schema))
+            .Options;
+        return new AlmacenamientoDbContext(opciones);
     }
 }
 

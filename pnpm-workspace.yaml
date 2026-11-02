@@ -5,3 +5,5 @@ minimumReleaseAge: 10080
 trustPolicy: no-downgrade
 overrides:
   semver@^6.3.1: 6.3.0
+allowBuilds:
+  "@fission-ai/openspec": true

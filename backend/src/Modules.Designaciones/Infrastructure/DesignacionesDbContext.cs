@@ -83,6 +83,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.PeriodoId).HasColumnName("periodo_id");
             e.Property(x => x.PersonaId).HasColumnName("persona_id");
             e.Property(x => x.MateriaId).HasColumnName("materia_id");
+            e.Property(x => x.CarreraId).HasColumnName("carrera_id");
             e.Property(x => x.Novedad).HasColumnName("novedad");
             e.Property(x => x.Estado).HasColumnName("estado");
             e.Property(x => x.Prioritario).HasColumnName("prioritario");
@@ -128,6 +129,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Tipo).HasColumnName("tipo");
             e.Property(x => x.Nombre).HasColumnName("nombre");
             e.Property(x => x.Uri).HasColumnName("uri");
+            e.Property(x => x.ArchivoId).HasColumnName("archivo_id");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
 
@@ -152,6 +154,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.PersonaId).HasColumnName("persona_id");
             e.Property(x => x.MateriaId).HasColumnName("materia_id");
+            e.Property(x => x.CarreraId).HasColumnName("carrera_id");
             e.Property(x => x.CargoId).HasColumnName("cargo_id");
             e.Property(x => x.Dedicacion).HasColumnName("dedicacion");
             e.Property(x => x.DedicacionId).HasColumnName("dedicacion_id");
@@ -164,6 +167,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.OrigenPedidoId).HasColumnName("origen_pedido_id");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.Ignore(x => x.EstaVigente);
+            e.Property(x => x.Version).IsRowVersion();
             e.HasOne(x => x.Cargo).WithMany().HasForeignKey(x => x.CargoId);
         });
 

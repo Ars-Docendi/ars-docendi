@@ -322,35 +322,140 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+.adoc-adjuntos-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.adoc-adjuntos-count {
+  font-size: var(--text-micro-size);
+  color: var(--color-text-tertiary);
+}
 .adoc-adjuntos-list {
   list-style: none;
   margin: var(--space-0);
   padding: var(--space-0);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: var(--space-2);
 }
 .adoc-adjunto {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-caption-size);
+  width: 100%;
+  min-height: 72px;
+  box-sizing: border-box;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  min-width: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  text-align: left;
+  font: inherit;
+}
+.adoc-adjunto--disponible {
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+.adoc-adjunto--disponible:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-bg-canvas);
+}
+.adoc-adjunto--disponible:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.adoc-adjunto--disponible:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.adoc-adjunto--legacy {
+  background: var(--color-bg-canvas);
+  color: var(--color-text-secondary);
+}
+.adoc-adjunto-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+  color: var(--color-accent);
+}
+.adoc-adjunto-icon svg {
+  width: 21px;
+  height: 21px;
+}
+.adoc-adjunto-extension {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  max-width: 34px;
+  overflow: hidden;
+  padding: 1px 3px;
+  border: 1px solid var(--color-bg-raised);
+  border-radius: 3px;
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+.adoc-adjunto-info {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
   min-width: 0;
 }
-.adoc-adjunto-tipo {
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-status-neutral-bg);
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  flex: 0 0 auto;
-}
 .adoc-adjunto-nombre {
-  color: var(--color-text-secondary);
   overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.adoc-adjunto-meta {
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adoc-adjunto-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  flex: 0 0 auto;
+  color: var(--color-accent);
+  font-size: var(--text-micro-size);
+  white-space: nowrap;
+}
+.adoc-adjunto-action svg {
+  width: 17px;
+  height: 17px;
+}
+.adoc-adjunto-estado {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+.adoc-adjuntos-error {
+  margin: var(--space-0);
+  color: var(--color-text-danger);
+  font-size: var(--text-caption-size);
 }
 
 /* --- Historial (columna izquierda) --- */

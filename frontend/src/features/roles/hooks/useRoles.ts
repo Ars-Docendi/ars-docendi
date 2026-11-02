@@ -9,6 +9,7 @@ import {
   reemplazarPermisos,
 } from "../api/rolesApi";
 import { identidadesDesarrolloKeys } from "../../../shared/auth/dev/useIdentidadesDesarrollo";
+import { sesionKeys } from "../../../shared/auth/sesionMicrosoft";
 import type { DatosRolEditables, DatosRolNuevo, RolMock } from "../models";
 
 export const rolesKeys = {
@@ -22,6 +23,7 @@ export function useRoles() {
     await Promise.all([
       cliente.invalidateQueries({ queryKey: rolesKeys.all }),
       cliente.invalidateQueries({ queryKey: identidadesDesarrolloKeys.all }),
+      cliente.invalidateQueries({ queryKey: sesionKeys.actual }),
     ]);
   };
   return {

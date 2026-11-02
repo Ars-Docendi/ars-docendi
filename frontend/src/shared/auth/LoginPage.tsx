@@ -1,10 +1,12 @@
 import { lazy, Suspense, useState } from "react";
-import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
-import { isAuthenticated } from "./auth";
 import { developmentAuthEnabled } from "./developmentAuth";
+import { IsotipoArsDocendi } from "../marca/IsotipoArsDocendi";
 import { seleccionarSesionDesarrollo } from "./dev/session";
+import { microsoftLoginEnabled, urlIngresoMicrosoft } from "./sesionMicrosoft";
+import { useCurrentUser } from "./useCurrentUser";
 import "./LoginPage.css";
 
 const DevLoginModal = developmentAuthEnabled
@@ -30,29 +32,25 @@ function MsGlyph() {
   );
 }
 
-/** Left institutional marquee — purely decorative. */
+/** Panel de bienvenida a la izquierda — puramente decorativo. */
 function Marquee() {
   return (
     <aside className="login-marquee" aria-hidden="true">
-      <div className="crest">
-        <div className="mark">UNLaM</div>
-        <div>
-          Departamento de Ingeniería
-          <small>Universidad Nacional de La Matanza</small>
-        </div>
-      </div>
+      <IsotipoArsDocendi className="mark" />
       <div className="title-area">
         <h1>
-          Ars <span className="accent">Docendi</span>
+          Te damos la bienvenida a <span className="accent">Ars Docendi</span>
         </h1>
         <p className="pitch">
-          Designaciones, reservas de aula, tareas y perfil del docente — un solo lugar, una sola
-          identidad institucional.
+          Acá vas a poder gestionar designaciones, reservar aulas, seguir tus tareas, mantener tu
+          perfil docente y consultar al asistente conversacional, todo en un solo lugar.
         </p>
       </div>
-      <div className="foot">
-        <span>v0.1</span>
-      </div>
+      <p className="foot">
+        Departamento de Ingeniería e Investigaciones Tecnológicas
+        <br />
+        Universidad Nacional de La Matanza
+      </p>
     </aside>
   );
 }
@@ -66,9 +64,10 @@ export function LoginPage() {
   const [devModalOpen, setDevModalOpen] = useState(false);
   const navigate = useNavigate();
   const target = usePostLoginTarget();
+  const { user } = useCurrentUser();
 
   // Already signed in? Don't show the login screen — go straight to the app.
-  if (isAuthenticated()) {
+  if (user) {
     return <Navigate to={target} replace />;
   }
 
@@ -79,14 +78,13 @@ export function LoginPage() {
   const state: LoginState = redirecting ? "redirecting" : baseState;
 
   function handleLogin() {
-    // TODO: real Azure AD redirect. When a real entry URL is configured, hand off to it.
-    const loginUrl = import.meta.env.VITE_AUTH_LOGIN_URL;
-    if (loginUrl) {
+    // El backend hace el ingreso con Microsoft y vuelve a `target` con la cookie de sesión.
+    if (microsoftLoginEnabled) {
       setRedirecting(true);
-      window.location.assign(loginUrl);
+      window.location.assign(urlIngresoMicrosoft(target));
       return;
     }
-    // Azure AD todavía no está conectado. El selector sembrado sólo se compila en desarrollo.
+    // Sin ingreso con Microsoft, el botón abre el selector sembrado (sólo no productivo).
     if (DevLoginModal) setDevModalOpen(true);
   }
 
@@ -105,32 +103,30 @@ export function LoginPage() {
       <Marquee />
 
       <div className="login-form-side">
+        <div className="login-brand">
+          <IsotipoArsDocendi className="login-brand-mark" />
+          <span>
+            <span className="accent">Ars</span> Docendi
+          </span>
+        </div>
+
         <div className="login-card">
           <div className="head">
-            <h2>Iniciá sesión</h2>
-            <p>
-              Usá tu cuenta institucional para acceder. No hay registro: tu acceso se gestiona desde
-              UNLaM.
-            </p>
+            <h2>Ingresá a tu cuenta</h2>
+            <p>Usá tu cuenta institucional @docentes.unlam.edu.ar.</p>
           </div>
 
           {state === "error" && (
             <InlineAlert severity="danger" title="No pudimos confirmar tu identidad.">
-              Microsoft devolvió un error de autenticación. Probá nuevamente; si persiste, contactá
-              a Soporte.
-              <div className="alert-code">AADSTS50058 · sesión no encontrada</div>
+              Microsoft devolvió un error de autenticación. Probá nuevamente; si persiste,
+              comunicate con Secretaría Académica.
             </InlineAlert>
           )}
 
+          {/* No revela si la cuenta existe, está desactivada o no tiene rol. */}
           {state === "forbidden" && (
-            <InlineAlert
-              severity="warning"
-              title="Tu cuenta existe, pero todavía no tenés acceso a Ars Docendi."
-            >
-              Pedile al responsable de tu sector que solicite el alta a Secretaría Académica.
-              <div style={{ marginTop: "10px" }}>
-                <a href="#">Ver instrucciones para solicitar acceso →</a>
-              </div>
+            <InlineAlert severity="warning" title="No pudimos iniciar tu sesión.">
+              Comunicate con Secretaría Académica.
             </InlineAlert>
           )}
 
@@ -139,32 +135,23 @@ export function LoginPage() {
               <Button variant="primary" size="lg" loading disabled>
                 Redirigiendo a Microsoft…
               </Button>
-            ) : state === "forbidden" ? (
-              <Button variant="secondary" size="lg" leadingIcon={<MsGlyph />} disabled>
-                Cerrar sesión
-              </Button>
             ) : (
               <Button variant="primary" size="lg" leadingIcon={<MsGlyph />} onClick={handleLogin}>
-                Iniciar sesión con cuenta institucional
+                Ingresar con Microsoft
+              </Button>
+            )}
+            {microsoftLoginEnabled && DevLoginModal && state !== "redirecting" && (
+              <Button variant="ghost" size="sm" onClick={() => setDevModalOpen(true)}>
+                Ingresar con una identidad de desarrollo
               </Button>
             )}
           </div>
-
-          <div className="divider" />
-
-          <div className="helper">
-            <b style={{ color: "var(--color-text-primary)" }}>¿Problemas para ingresar?</b>
-            <br />
-            Escribí a{" "}
-            <a href="mailto:soporte.adocendi@unlam.edu.ar">soporte.adocendi@unlam.edu.ar</a>{" "}
-            indicando tu legajo o DNI.
-          </div>
-
-          <div className="footnote-tiny">
-            Al ingresar aceptás el uso institucional del sistema. Las acciones quedan registradas en
-            el log de auditoría.
-          </div>
         </div>
+
+        <footer className="login-legal">
+          Al ingresar aceptás los{" "}
+          <Link to="/terminos">Términos de uso y la Política de privacidad</Link>.
+        </footer>
       </div>
 
       {DevLoginModal && (

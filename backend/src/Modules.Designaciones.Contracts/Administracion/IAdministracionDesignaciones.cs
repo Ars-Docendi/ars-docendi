@@ -14,6 +14,7 @@ public sealed record DesignacionVigenteDto(
     Guid Id,
     Guid PersonaId,
     Guid MateriaId,
+    Guid CarreraId,
     Guid CargoId,
     string CargoNombre,
     string CargoAbreviatura,
@@ -24,8 +25,13 @@ public sealed record DesignacionVigenteDto(
     int? HorasInvestigacion = null,
     int? HorasExternas = null);
 
+/// <summary>
+/// Designación a reemplazar. <paramref name="CarreraId"/> es la carrera elegida: una materia
+/// dictada en más de una carrera exige elegir una (igual que en los pedidos).
+/// </summary>
 public sealed record GuardarDesignacionVigenteDto(
     Guid MateriaId,
+    Guid CarreraId,
     Guid CargoId,
     Guid? DedicacionId,
     int Horas);

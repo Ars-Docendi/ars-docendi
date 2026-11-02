@@ -65,6 +65,7 @@ public sealed class ServicioIdentidadesDesarrollo(IdentityDbContext db)
                     .Distinct()
                     .Order()
                     .ToArray(),
+                // Jefe de Cátedra: materia canónica y nada más. Docente: materia canónica y carrera.
                 g.Where(a => a.Materia is not null)
                     .Select(a => new AmbitoDesarrolloDto(
                         a.Materia!.Id, a.Materia.Codigo, a.Materia.Nombre))

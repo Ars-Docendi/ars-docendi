@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 
 interface PageHeaderProps {
-  /** Small uppercase context line above the title (e.g. "Cuatrimestre 2026 · 1C"). */
-  pretitle?: ReactNode;
   title: ReactNode;
   /** Secondary line under the title (counts, summary). */
   meta?: ReactNode;
@@ -11,15 +9,14 @@ interface PageHeaderProps {
 }
 
 /**
- * `.adoc-page-head` block from the design (pretitle / title / meta + actions).
- * Not a @ars-docendi/ui primitive — it's a page-layout piece, so it lives in
- * shared/ui for every feature page to reuse.
+ * Bloque `.adoc-page-head` del diseño (título / meta + acciones). No lleva pretitle:
+ * la sección ya la indica el breadcrumb. No es un primitivo de @ars-docendi/ui sino
+ * una pieza de layout de página, por eso vive en shared/ui.
  */
-export function PageHeader({ pretitle, title, meta, actions }: PageHeaderProps) {
+export function PageHeader({ title, meta, actions }: PageHeaderProps) {
   return (
     <div className="adoc-page-head">
       <div className="title-area">
-        {pretitle && <div className="pretitle">{pretitle}</div>}
         <h1>{title}</h1>
         {meta && <div className="meta">{meta}</div>}
       </div>

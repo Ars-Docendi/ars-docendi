@@ -8,9 +8,11 @@ Sistema web para el Departamento de Ingeniería de la UNLaM. Para las reglas de 
 
 Monolito modular en monorepo:
 
-- **backend/**: ASP.NET Core 10 Web API. Un Host compone 4 módulos aislados (Designaciones, Aulas, Portal, Tareas). Cada módulo tiene su par `Modules.X` (interno) + `Modules.X.Contracts` (público). Comunicación entre módulos sólo vía contratos.
-- **frontend/**: Vite + React 19 + TypeScript. Una app única con `src/features/` aislados por módulo.
-- **Base de datos**: PostgreSQL único, un schema por módulo (`designaciones`, `aulas`, `portal`, `tareas`).
+- **backend/**: ASP.NET Core 10 Web API. Un Host compone 4 módulos de negocio (Designaciones, Aulas, Portal, Tareas) y la infraestructura transversal (`Shared`, `Migraciones`, `Storage`, `Inferencia`). Comunicación entre módulos sólo vía proyectos `*.Contracts`.
+- **frontend/**: Vite + React 19 + TypeScript. Una app única con `src/features/` aisladas entre sí.
+- **Base de datos**: PostgreSQL único, un schema por contexto (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`).
+
+Detalle en [docs/architecture/](docs/architecture/).
 
 ## Requisitos
 
@@ -19,6 +21,7 @@ Monolito modular en monorepo:
 - pnpm 12.3.4+ (o `corepack enable` para usar la versión declarada en `package.json`)
 - Docker + Docker Compose (para Postgres local)
 - `gh` CLI (para flujos de PRs)
+- `codegraph` (opcional): índice de código que usan los asistentes (`.mcp.json`, `.codex/config.toml` y el hook de `.claude/settings.json`). Sin el binario esos asistentes funcionan, pero sin sus consultas indexadas.
 
 ## Levantar el entorno
 
@@ -28,7 +31,11 @@ Monolito modular en monorepo:
 ./scripts/setup.sh
 ```
 
-Este script: crea `.env` desde `.env.example`, levanta Postgres en docker, instala deps Node (raíz + frontend), y restaura/buildea backend. Al terminar te lista las URLs.
+Este script: crea `.env` desde `.env.example`, levanta Postgres en docker, instala deps Node (raíz + frontend), restaura/buildea backend, aplica migraciones y siembra datos de desarrollo. Al terminar te lista las URLs.
+
+**Requiere el dataset SGA privado** (`infra/scripts/seed-data/sga.sql`, o la ruta en `SEED_SGA_FILE`). No está versionado porque contiene PII real: se pide al equipo por canal privado o se genera con `node scripts/seed/emitir-sga.js --entrada <json> --salida <sga.sql>` (ver el encabezado del script). Sin ese archivo el último paso (seed) aborta.
+
+El seed solo corre la primera vez (base vacía) — si ya sembraste, correrlo de nuevo no pisa lo que edites desde la app. Para volver al dataset original: `docker compose down -v && ./scripts/setup.sh`.
 
 ### Manual (paso a paso)
 
@@ -48,26 +55,75 @@ pnpm install                 # instala husky/lint-staged/prettier + deps del fro
 
 Husky se activa automáticamente con `pnpm install` y configura el pre-commit (dotnet format + eslint + prettier).
 
-#### 3. Backend
+#### 3. Migraciones y seed
 
 ```bash
+# Autorizar la inicialización ANTES de migrar (sólo en una base vacía)
+bash infra/scripts/seed-local.sh --authorize-empty
 cd backend
 dotnet restore
 dotnet build
-dotnet run --project src/ArsDocendi.Host
+dotnet run --project src/ArsDocendi.Host -- --estado-migraciones # consulta segura
+dotnet run --project src/ArsDocendi.Host -- --migrate   # aplica migraciones y termina
+cd ..
+# Primera inicialización local: ejecuta ambos datasets en una transacción,
+# registra la marca completa y no vuelve a sembrar sobre ediciones existentes.
+bash infra/scripts/seed-local.sh
+```
+
+Los dos datasets van siempre juntos: `sintetico.sql` (fixtures de prueba) y `sga.sql`
+(carreras, materias y docentes reales del SGA — tiene PII real, por eso **sólo corre en
+dev local**; nunca en staging/prod). Staging/PR usan `infra/scripts/seed.sh` sólo al
+inicializar y preservan datos/adjuntos entre despliegues. El reset es una operación
+explícita distinta del deploy; producción nunca recibe fixtures.
+
+El baseline consolidado requiere bases nuevas. Si existe historial alpha anterior,
+el runner aborta sin modificarlo: no existe conversión ni reset automático. Ver
+`database/README.md` y `docs/operations/migrations-persistence.md` para scaffolding,
+preview SQL, integridad, backups y recuperación.
+
+#### 4. Backend
+
+```bash
+dotnet run --project backend/src/ArsDocendi.Host
 ```
 
 - API: `http://localhost:5000`
 - Swagger: `http://localhost:5000/swagger`
 - Ping por módulo: `http://localhost:5000/api/{designaciones|aulas|portal|tareas}/ping`
 
-#### 4. Frontend
+#### 5. Frontend
 
 ```bash
 pnpm --filter frontend dev
 ```
 
 - App: `http://localhost:5173`
+- Vite proxea `/api` a `http://localhost:5000`: el frontend y la API quedan en el mismo origen, como en los despliegues. No hace falta `VITE_API_URL`.
+
+#### 6. Ingreso con Microsoft (opcional)
+
+En local se entra con el selector de identidades sembradas, que hay que habilitar en el backend una sola vez:
+
+```bash
+dotnet user-secrets set "DevelopmentAuthentication:Enabled" "true" --project backend/src/ArsDocendi.Host
+```
+
+Para probar el ingreso real con la registración de desarrollo ("Ars Docendi (desarrollo)", redirect `http://localhost/api/auth/signin-oidc`), cargá la configuración en tus user-secrets; el secret nunca va al repo:
+
+```bash
+dotnet user-secrets set "AutenticacionMicrosoft:ClientId" "32d10bbf-3c8a-4526-ba10-3d7a0ceee9d1" --project backend/src/ArsDocendi.Host
+```
+
+```bash
+dotnet user-secrets set "AutenticacionMicrosoft:ClientSecret" "<secret>" --project backend/src/ArsDocendi.Host
+```
+
+```bash
+dotnet user-secrets set "AutenticacionMicrosoft:Habilitada" "true" --project backend/src/ArsDocendi.Host
+```
+
+Y en `frontend/.env.local` (no se versiona) agregá `VITE_MICROSOFT_LOGIN_ENABLED=true`. El botón principal pasa a ser el ingreso con Microsoft y el selector queda como acceso secundario. Sólo entran cuentas cuyo mail coincida con el UPN de un usuario activo con rol: dalo de alta antes desde la pantalla de usuarios. Probalo en Chrome, Edge o Firefox; algunos Safari no envían las cookies `Secure` del retorno sobre `http://localhost`.
 
 ## Comandos útiles
 
@@ -79,48 +135,36 @@ pnpm --filter frontend lint
 pnpm --filter frontend build
 ```
 
-Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente--cheat-sheet).
+Más comandos en [ONBOARDING.md → Flujos comunes](ONBOARDING.md#4-flujos-comunes).
+
+`frontend/src/test/contratos/` guarda respuestas reales de la API que el frontend usa en sus tests. Si un cambio intencional altera la forma de una respuesta, el test de backend falla; regeneralo con `ACTUALIZAR_CONTRATOS=1 dotnet test backend/ArsDocendi.slnx` y adaptá el mapper del frontend.
+
+## Centro de ayuda
+
+La app incluye un Centro de ayuda en `/ayuda` (ítem al pie del menú lateral). Es contenido estático del frontend, sin backend, filtrado por los permisos de la sesión.
+
+- Los artículos viven en `frontend/src/features/ayuda/contenido/<modulo>/<articulo>.ts` y se registran en `contenido/index.ts`.
+- Las capturas van en `frontend/public/ayuda/<modulo>/`, en WebP calidad 85 y hasta 150 KB, tomadas solo con datos sintéticos (nunca `sga.sql` ni PII real).
+- Al cambiar una pantalla o un permiso, actualizá en el mismo diff el artículo que lo documenta. El test de integridad (`contenido/integridad.test.ts`) valida permisos, enlaces, capturas y pesos.
 
 ## Estructura
 
-```
-/
-├── backend/                  # .NET 10, monolito modular
-│   ├── ArsDocendi.slnx
-│   └── src/
-│       ├── ArsDocendi.Host/
-│       ├── ArsDocendi.Shared/
-│       ├── Modules.Designaciones/  + .Contracts/
-│       ├── Modules.Aulas/          + .Contracts/
-│       ├── Modules.Portal/         + .Contracts/
-│       └── Modules.Tareas/         + .Contracts/
-├── frontend/                 # Vite + React 19 + TS
-│   └── src/{app,shared,features}/
-├── openspec/                 # Planning: specs vigentes + changes activos (fuente de verdad)
-├── docs/                     # System of record (product, architecture, quality, workflows, business-rules, references)
-├── infra/                    # Skeleton para deploy (nginx + systemd samples)
-├── scripts/                  # setup local
-├── .claude/skills/           # Skills Claude Code project-scoped
-├── .github/workflows/        # ci.yml (path filtering + openspec validate)
-├── .husky/pre-commit
-├── lint-staged.config.mjs
-├── global.json               # fija el SDK y el runner de tests .NET
-├── package.json              # hospeda husky/lint-staged/prettier
-├── pnpm-workspace.yaml       # declara frontend como workspace
-├── docker-compose.yml
-└── .env.example
-```
+Monorepo con `backend/` (.NET 10, monolito modular: `src/` y `tests/`), `frontend/` (Vite + React 19), `database/` (SQL versionado por contexto), `openspec/` (specs vigentes y changes activos), `docs/` (arquitectura, calidad, reglas de negocio, workflows), `infra/` (Compose, Traefik, scripts de despliegue), `scripts/` (setup local y tooling de docs/migraciones/seed) y `.github/workflows/` (CI, CodeQL y deploys). La organización interna de cada módulo está en [docs/architecture/module-anatomy.md](docs/architecture/module-anatomy.md) y los edges permitidos en [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md).
 
-## Convenciones de módulos
+## Convenciones
 
-- `Modules.X` solo referencia `Shared` y `Modules.*.Contracts`. **Prohibido** referenciar `Modules.X` internos entre sí.
-- Cada módulo expone `GET /api/{x}/ping` como smoke test.
-- En el frontend, las features no se importan entre sí; lo común sube a `src/shared/`.
-
-Detalle completo en [AGENTS.md](AGENTS.md) y [docs/quality/golden-principles.md](docs/quality/golden-principles.md).
+Las reglas de módulos, frontend y tests están en [AGENTS.md](AGENTS.md#reglas-de-implementación) y [docs/quality/golden-principles.md](docs/quality/golden-principles.md).
 
 ## Próximos pasos
 
 - ¿Empezás a trabajar? → [ONBOARDING.md](ONBOARDING.md)
 - ¿Vas a abrir un PR? → [CONTRIBUTING.md](CONTRIBUTING.md)
 - ¿Contexto del proyecto y reglas no negociables? → [AGENTS.md](AGENTS.md)
+- ¿Vas a preparar los dos hosts? → [Provisioning](infra/README.md),
+  [runners y secretos en GitHub](docs/operations/github-pr-deploy.md) y
+  [túneles y DNS Cloudflare](infra/cloudflared/README.md). La
+  [topología objetivo](docs/architecture/infrastructure.md) separa producción
+  exclusivamente en Debian (`https://<DOMINIO>`) de staging y `pr-N` en
+  Proxmox. No incluye LB, deploy dual ni failover; el operador configura
+  Cloudflare/runners y acepta el corte con decisión explícita sobre los datos
+  productivos anteriores.

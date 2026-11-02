@@ -5,10 +5,11 @@ export const identidadesDesarrolloKeys = {
   all: ["desarrollo", "identidades"] as const,
 };
 
-export function useIdentidadesDesarrollo() {
+export function useIdentidadesDesarrollo(habilitado = true) {
   return useQuery({
     queryKey: identidadesDesarrolloKeys.all,
     queryFn: listarIdentidadesDesarrollo,
+    enabled: habilitado,
     staleTime: 60_000,
   });
 }

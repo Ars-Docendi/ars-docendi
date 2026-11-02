@@ -1,6 +1,7 @@
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Storage.Contracts;
 using Modules.Portal.Contracts.Dtos;
 using Modules.Portal.Contracts.Queries;
 using Modules.Portal.Domain;
@@ -8,32 +9,42 @@ using Modules.Portal.Repositories;
 
 namespace Modules.Portal.Application;
 
-public sealed class ServicioPortal(
+public sealed partial class ServicioPortal(
     RepositorioPortal repositorio,
     IConsultasIdentity identity,
-    ICurrentUser usuario) : IPortalQueries
+    ICurrentUser usuario,
+    IAlmacenamientoArchivos almacenamiento,
+    IConsultasArchivos? consultasArchivos = null,
+    IProteccionArchivos? proteccionArchivos = null,
+    IRetencionArchivos? retencionArchivos = null) : IPortalQueries
 {
     public async Task<PerfilDocenteDto?> ObtenerPerfilAsync(Guid personaId, CancellationToken ct)
     {
         var persona = await identity.ObtenerPersonaAsync(personaId, ct);
         if (persona is null) return null;
-        return Mapear(persona, await repositorio.ObtenerAsync(personaId, ct));
+        return await MapearAsync(persona, await repositorio.ObtenerAsync(personaId, ct), ct);
     }
 
     public async Task<PerfilDocenteDto> ObtenerPropioAsync(CancellationToken ct)
     {
         var persona = await PersonaActualAsync(ct);
-        return Mapear(persona, await repositorio.ObtenerAsync(persona.Id, ct));
+        return await MapearAsync(persona, await repositorio.ObtenerAsync(persona.Id, ct), ct);
     }
 
     public async Task<ContactoDto> GuardarContactoAsync(GuardarContactoDto datos, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(datos.Mail))
         {
-            try { if (!new System.Net.Mail.MailAddress(datos.Mail).Address.Equals(datos.Mail.Trim(), StringComparison.OrdinalIgnoreCase)) throw Error("mail", "El mail no es válido."); }
+            try
+            {
+                if (!new System.Net.Mail.MailAddress(datos.Mail).Address.Equals(datos.Mail.Trim(), StringComparison.OrdinalIgnoreCase))
+                    throw Error("mail", "El mail no es válido.");
+            }
             catch (FormatException) { throw Error("mail", "El mail no es válido."); }
         }
-        var perfil = await PerfilActualAsync(ct);
+        var perfil = await PerfilActualAsync(ct, "contacto");
+        if (perfil.Contacto is not null) repositorio.EsperarVersion(perfil.Contacto, datos.Version);
+        else if (datos.Version is not null) throw RepositorioPortal.Conflicto();
         if (perfil.Contacto is null)
         {
             perfil.Contacto = new Contacto { Id = Guid.NewGuid(), PerfilId = perfil.Id };
@@ -42,28 +53,7 @@ public sealed class ServicioPortal(
         perfil.Contacto.Telefono = datos.Telefono?.Trim();
         perfil.Contacto.Mail = datos.Mail?.Trim();
         await repositorio.GuardarAsync(ct);
-        return new(perfil.Contacto.Telefono, perfil.Contacto.Mail);
-    }
-
-    public async Task<CvDto> GuardarCvAsync(GuardarCvDto datos, CancellationToken ct)
-    {
-        ValidarPdf(datos.Nombre);
-        var perfil = await PerfilActualAsync(ct);
-        if (perfil.Cv is null)
-        {
-            perfil.Cv = new Cv { Id = Guid.NewGuid(), PerfilId = perfil.Id, Nombre = datos.Nombre };
-            repositorio.Agregar(perfil.Cv);
-        }
-        perfil.Cv.Nombre = datos.Nombre.Trim(); perfil.Cv.Uri = datos.Uri; perfil.Cv.FechaCarga = DateTimeOffset.UtcNow;
-        await repositorio.GuardarAsync(ct);
-        return new(perfil.Cv.Nombre, DateOnly.FromDateTime(perfil.Cv.FechaCarga.UtcDateTime));
-    }
-
-    public async Task EliminarCvAsync(CancellationToken ct)
-    {
-        var perfil = await PerfilActualAsync(ct);
-        if (perfil.Cv is not null) repositorio.Eliminar(perfil.Cv);
-        await repositorio.GuardarAsync(ct);
+        return new(perfil.Contacto.Telefono, perfil.Contacto.Mail, perfil.Contacto.Version);
     }
 
     public async Task<ExperienciaDto> CrearAsync(GuardarExperienciaDto d, CancellationToken ct)
@@ -72,108 +62,253 @@ public sealed class ServicioPortal(
         var item = new Experiencia { Id = Guid.NewGuid(), PerfilId = (await PerfilActualAsync(ct)).Id, Puesto = d.Puesto, Organizacion = d.Organizacion, Descripcion = d.Descripcion, Desde = d.Desde, Hasta = d.Hasta };
         repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
     }
+
     public async Task<EducacionDto> CrearAsync(GuardarEducacionDto d, CancellationToken ct)
     {
         Validar(d);
         var item = new Educacion { Id = Guid.NewGuid(), PerfilId = (await PerfilActualAsync(ct)).Id, Nivel = d.Nivel, Carrera = d.Carrera, Institucion = d.Institucion, Desde = d.Desde, Hasta = d.Hasta };
         repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
     }
+
     public async Task<CertificacionDto> CrearAsync(GuardarCertificacionDto d, CancellationToken ct)
     {
         Validar(d);
         var item = new Certificacion { Id = Guid.NewGuid(), PerfilId = (await PerfilActualAsync(ct)).Id, Nombre = d.Nombre, Emisor = d.Emisor, Fecha = d.Fecha, Vencimiento = d.Vencimiento };
         repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
     }
+
     public async Task<ProyectoDto> CrearAsync(GuardarProyectoDto d, CancellationToken ct)
     {
         Validar(d);
-        var item = CrearProyecto(d); item.PerfilId = (await PerfilActualAsync(ct)).Id;
-        repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
+        var perfil = await PerfilActualAsync(ct);
+        return await ProtegerArchivosAsync(null, d.DocumentoArchivoId, async token =>
+        {
+            var archivo = d.DocumentoArchivoId is { } archivoId
+                ? await RequerirArchivoPropioAsync(archivoId, PropositosArchivo.DocumentoProyecto, token) : null;
+            var item = CrearProyecto(d, archivo);
+            item.PerfilId = perfil.Id;
+            if (item.Documento is not null) item.Documento.ProyectoId = item.Id;
+            repositorio.Agregar(item);
+            await repositorio.GuardarAsync(token);
+            return MapearProyecto(item, archivo);
+        }, ct);
     }
 
     public async Task<ExperienciaDto> EditarAsync(Guid id, GuardarExperienciaDto d, CancellationToken ct)
     {
         Validar(d);
         var actual = await ObtenerItemActualAsync<Experiencia>(id, ct);
+        repositorio.EsperarVersion(actual, d.Version);
         actual.Puesto = d.Puesto; actual.Organizacion = d.Organizacion; actual.Descripcion = d.Descripcion; actual.Desde = d.Desde; actual.Hasta = d.Hasta;
         await repositorio.GuardarAsync(ct); return Mapear(actual);
     }
+
     public async Task<EducacionDto> EditarAsync(Guid id, GuardarEducacionDto d, CancellationToken ct)
     {
         Validar(d);
         var actual = await ObtenerItemActualAsync<Educacion>(id, ct);
+        repositorio.EsperarVersion(actual, d.Version);
         actual.Nivel = d.Nivel; actual.Carrera = d.Carrera; actual.Institucion = d.Institucion; actual.Desde = d.Desde; actual.Hasta = d.Hasta;
         await repositorio.GuardarAsync(ct); return Mapear(actual);
     }
+
     public async Task<CertificacionDto> EditarAsync(Guid id, GuardarCertificacionDto d, CancellationToken ct)
     {
         Validar(d);
         var actual = await ObtenerItemActualAsync<Certificacion>(id, ct);
+        repositorio.EsperarVersion(actual, d.Version);
         actual.Nombre = d.Nombre; actual.Emisor = d.Emisor; actual.Fecha = d.Fecha; actual.Vencimiento = d.Vencimiento;
         await repositorio.GuardarAsync(ct); return Mapear(actual);
     }
+
     public async Task<ProyectoDto> EditarAsync(Guid id, GuardarProyectoDto d, CancellationToken ct)
     {
         Validar(d);
         var persona = await PersonaActualAsync(ct);
         var actual = await repositorio.ObtenerItemAsync<Proyecto>(id, persona.Id, ct) ?? throw NoEncontrado();
+        repositorio.EsperarVersion(actual, d.Version);
+        var archivoAnterior = actual.Documento?.ArchivoId;
+        var resultado = await ProtegerArchivosAsync(archivoAnterior, d.DocumentoArchivoId, async token =>
+        {
+        var archivo = d.DocumentoArchivoId is { } archivoId
+            ? await RequerirArchivoAsync(archivoId, archivoAnterior, PropositosArchivo.DocumentoProyecto, token)
+            : null;
         actual.Nombre = d.Nombre;
         actual.Rol = d.Rol;
         actual.Descripcion = d.Descripcion;
         actual.Desde = d.Desde;
         actual.Hasta = d.Hasta;
         actual.Doi = d.Doi;
-        if (string.IsNullOrWhiteSpace(d.DocumentoNombre))
+        var documentoLegacy = d.DocumentoArchivoId is null && !string.IsNullOrWhiteSpace(d.DocumentoNombre);
+        if (archivo is null && !documentoLegacy)
         {
             if (actual.Documento is not null) repositorio.Eliminar(actual.Documento);
             actual.Documento = null;
         }
         else if (actual.Documento is null)
         {
-            actual.Documento = new DocumentoProyecto { Id = Guid.NewGuid(), ProyectoId = id, Nombre = d.DocumentoNombre, Uri = d.DocumentoUri, FechaCarga = DateTimeOffset.UtcNow };
+            actual.Documento = new DocumentoProyecto
+            {
+                Id = Guid.NewGuid(), ProyectoId = id,
+                Nombre = archivo?.NombreOriginal ?? d.DocumentoNombre!,
+                ArchivoId = archivo?.Id, Uri = archivo is null ? d.DocumentoUri : null,
+                FechaCarga = DateTimeOffset.UtcNow,
+            };
             repositorio.Agregar(actual.Documento);
         }
         else
         {
-            actual.Documento.Nombre = d.DocumentoNombre;
-            actual.Documento.Uri = d.DocumentoUri;
+            actual.Documento.Nombre = archivo?.NombreOriginal ?? d.DocumentoNombre!;
+            actual.Documento.ArchivoId = archivo?.Id;
+            actual.Documento.Uri = archivo is null ? d.DocumentoUri : null;
             actual.Documento.FechaCarga = DateTimeOffset.UtcNow;
         }
-        await repositorio.GuardarAsync(ct);
-        return Mapear(actual);
+        await repositorio.GuardarAsync(token);
+        return MapearProyecto(actual, archivo);
+        }, ct);
+        if (archivoAnterior is { } anterior && d.DocumentoArchivoId != anterior)
+            await RetenerAsync(anterior, ct);
+        return resultado;
     }
 
-    public async Task EliminarAsync<T>(Guid id, CancellationToken ct) where T : class
+    public async Task<DescargaArchivo?> DescargarDocumentoAsync(Guid id, CancellationToken ct)
+    {
+        var persona = await PersonaActualAsync(ct);
+        var proyecto = await repositorio.ObtenerItemAsync<Proyecto>(id, persona.Id, ct);
+        return proyecto?.Documento?.ArchivoId is { } archivoId
+            ? await almacenamiento.AbrirDescargaAsync(archivoId, ct)
+            : null;
+    }
+
+    public async Task EliminarAsync<T>(Guid id, CancellationToken ct, uint? version = null) where T : class
     {
         var persona = await PersonaActualAsync(ct);
         var item = await repositorio.ObtenerItemAsync<T>(id, persona.Id, ct) ?? throw NoEncontrado();
-        repositorio.Eliminar(item); await repositorio.GuardarAsync(ct);
+        repositorio.EsperarVersion(item, version);
+        var archivoId = (item as Proyecto)?.Documento?.ArchivoId;
+        await ProtegerArchivosAsync(archivoId, null, async token =>
+        {
+            repositorio.Eliminar(item); await repositorio.GuardarAsync(token); return true;
+        }, ct);
+        if (archivoId is { } idArchivo) await RetenerAsync(idArchivo, ct);
     }
 
     public async Task ReemplazarTagsAsync(string tipo, GuardarTagsDto datos, CancellationToken ct)
     {
         if (tipo is not ("habilidad" or "interes")) throw NoEncontrado();
-        await repositorio.ReemplazarTagsAsync(await PerfilActualAsync(ct), tipo, datos.Terminos, ct);
+        await repositorio.ReemplazarTagsAsync(await PerfilActualAsync(ct), tipo, datos.Terminos, ct, datos.Version);
     }
 
     private async Task<T> ObtenerItemActualAsync<T>(Guid id, CancellationToken ct) where T : class =>
         await repositorio.ObtenerItemAsync<T>(id, (await PersonaActualAsync(ct)).Id, ct) ?? throw NoEncontrado();
-    private Proyecto CrearProyecto(GuardarProyectoDto d) => new() { Id = Guid.NewGuid(), Nombre = d.Nombre, Rol = d.Rol, Descripcion = d.Descripcion, Desde = d.Desde, Hasta = d.Hasta, Doi = d.Doi, Documento = string.IsNullOrWhiteSpace(d.DocumentoNombre) ? null : new DocumentoProyecto { Id = Guid.NewGuid(), Nombre = d.DocumentoNombre, Uri = d.DocumentoUri, FechaCarga = DateTimeOffset.UtcNow } };
-    private async Task<Persona> PersonaActualAsync(CancellationToken ct) => Guid.TryParse(usuario.UserId, out var uid) ? (await identity.ListarUsuariosAsync(ct)).FirstOrDefault(x => x.Id == uid)?.Persona ?? throw NoEncontrado() : throw new ExcepcionAplicacion(TipoErrorAplicacion.NoAutenticado, "unauthenticated", "Se requiere autenticación.");
-    private async Task<Perfil> PerfilActualAsync(CancellationToken ct) => await repositorio.ObtenerOCrearAsync((await PersonaActualAsync(ct)).Id, ct);
-    private static void ValidarPdf(string nombre) { if (string.IsNullOrWhiteSpace(nombre) || !nombre.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) throw Error("nombre", "El archivo debe ser PDF."); }
+
+    private async Task<ArchivoDto> RequerirArchivoPropioAsync(Guid id, string proposito, CancellationToken ct) =>
+        await almacenamiento.RequerirDisponibleDePropietarioAsync(id, proposito, UsuarioIdActual(), ct);
+
+    // Un archivo ya vinculado se conserva aunque lo haya subido otra persona (el dueño del perfil,
+    // cuando un operador lo corrige); sólo un archivo nuevo tiene que ser de quien edita.
+    private async Task<ArchivoDto> RequerirArchivoAsync(Guid id, Guid? vinculado, string proposito, CancellationToken ct)
+    {
+        if (id != vinculado) return await RequerirArchivoPropioAsync(id, proposito, ct);
+        var archivo = await almacenamiento.ObtenerAsync(id, ct);
+        return archivo is { Estado: EstadosArchivo.Disponible } && archivo.Proposito == proposito
+            ? archivo
+            : throw new ExcepcionAplicacion(TipoErrorAplicacion.Validacion, "archivo-not-available", "El archivo no está disponible para ese propósito.");
+    }
+
+    private Proyecto CrearProyecto(GuardarProyectoDto d, ArchivoDto? archivo) => new()
+    {
+        Id = Guid.NewGuid(), Nombre = d.Nombre, Rol = d.Rol, Descripcion = d.Descripcion,
+        Desde = d.Desde, Hasta = d.Hasta, Doi = d.Doi,
+        Documento = archivo is null && string.IsNullOrWhiteSpace(d.DocumentoNombre) ? null : new DocumentoProyecto
+        {
+            Id = Guid.NewGuid(), ProyectoId = Guid.Empty, Nombre = archivo?.NombreOriginal ?? d.DocumentoNombre!,
+            ArchivoId = archivo?.Id, Uri = archivo is null ? d.DocumentoUri : null, FechaCarga = DateTimeOffset.UtcNow,
+        },
+    };
+
+    // Persona cuyo perfil se edita. Sin objetivo es la persona autenticada (Mi Portal); con
+    // objetivo, la que eligió un operador autorizado (ver AdministracionPortal). El usuario
+    // autenticado sigue siendo el autor de los cambios y el dueño de los archivos que sube.
+    private Guid? personaObjetivoId;
+
+    internal void ActuarSobre(Guid personaId) => personaObjetivoId = personaId;
+
+    private async Task<Persona> PersonaActualAsync(CancellationToken ct)
+    {
+        if (personaObjetivoId is { } objetivo)
+            return await identity.ObtenerPersonaAsync(objetivo, ct) ?? throw NoEncontrado();
+        return Guid.TryParse(usuario.UserId, out var uid)
+            ? (await identity.ObtenerUsuarioAsync(uid, ct))?.Persona ?? throw NoEncontrado()
+            : throw new ExcepcionAplicacion(TipoErrorAplicacion.NoAutenticado, "unauthenticated", "Se requiere autenticación.");
+    }
+
+    private Guid UsuarioIdActual() => Guid.TryParse(usuario.UserId, out var uid)
+        ? uid
+        : throw new ExcepcionAplicacion(TipoErrorAplicacion.NoAutenticado, "unauthenticated", "Se requiere autenticación.");
+
+    private async Task<Perfil> PerfilActualAsync(CancellationToken ct, string? seccion = null) => await repositorio.ObtenerOCrearAsync((await PersonaActualAsync(ct)).Id, ct, seccion);
+
+    private async Task<PerfilDocenteDto> MapearAsync(Persona p, Perfil? x, CancellationToken ct)
+    {
+        var proyectosPerfil = x?.Proyectos ?? [];
+        var ids = proyectosPerfil.Select(p => p.Documento?.ArchivoId)
+            .Append(x?.Cv?.ArchivoId).OfType<Guid>().Distinct().ToArray();
+        IReadOnlyDictionary<Guid, ArchivoDto> archivos = ids.Length == 0
+            ? new Dictionary<Guid, ArchivoDto>()
+            : await (consultasArchivos ?? almacenamiento as IConsultasArchivos
+                ?? throw new InvalidOperationException("Falta la consulta por lote de Storage."))
+                .ObtenerPorIdsAsync(ids, ct);
+        var cvArchivo = x?.Cv?.ArchivoId is { } cvId ? archivos.GetValueOrDefault(cvId) : null;
+        var proyectos = proyectosPerfil.Select(p => MapearProyecto(p,
+            p.Documento?.ArchivoId is { } id ? archivos.GetValueOrDefault(id) : null)).ToArray();
+        return new(
+            new(p.Nombre, p.Apellido, p.Usuario?.Upn ?? string.Empty, p.Documento, p.Legajo ?? string.Empty, p.Cuil ?? string.Empty),
+            new(x?.Contacto?.Telefono, x?.Contacto?.Mail, x?.Contacto?.Version),
+            x?.Cv is { } cv ? MapearCv(cv, cvArchivo) : null,
+            x?.Experiencias.Select(Mapear).ToArray() ?? [],
+            x?.Educaciones.Select(Mapear).ToArray() ?? [],
+            x?.Certificaciones.Select(Mapear).ToArray() ?? [],
+            proyectos,
+            x?.Habilidades.Where(h => h.Tipo == "habilidad").Select(h => new TagDto(h.Habilidad!.Termino, h.Habilidad.Sugerido)).ToArray() ?? [],
+            x?.Habilidades.Where(h => h.Tipo == "interes").Select(h => new TagDto(h.Habilidad!.Termino, h.Habilidad.Sugerido)).ToArray() ?? [],
+            x?.VersionHabilidades is > 0 ? x.VersionHabilidades : null,
+            x?.VersionIntereses is > 0 ? x.VersionIntereses : null);
+    }
+
+    private async Task<ProyectoDto> MapearProyectoAsync(Proyecto x, CancellationToken ct)
+    {
+        var archivo = x.Documento?.ArchivoId is { } id ? await almacenamiento.ObtenerAsync(id, ct) : null;
+        return MapearProyecto(x, archivo);
+    }
+
+    private static ProyectoDto MapearProyecto(Proyecto x, ArchivoDto? archivo)
+    {
+        var documento = x.Documento is null ? null : new DocumentoProyectoDto(
+            x.Documento.ArchivoId ?? Guid.Empty,
+            x.Documento.Nombre,
+            DateOnly.FromDateTime(x.Documento.FechaCarga.UtcDateTime),
+            archivo?.TamanoBytes ?? 0,
+            archivo?.Estado ?? "legacy");
+        return new(x.Id, x.Nombre, x.Rol, x.Descripcion, x.Desde, x.Hasta, documento, x.Doi, x.Version);
+    }
+
+    private static CvDto MapearCv(Cv cv, ArchivoDto? archivo) => new(
+        cv.ArchivoId ?? Guid.Empty, cv.Nombre, DateOnly.FromDateTime(cv.FechaCarga.UtcDateTime),
+        archivo?.TamanoBytes ?? 0, archivo?.Estado ?? "legacy", cv.Version);
+
+    private static ExperienciaDto Mapear(Experiencia x) => new(x.Id, x.Puesto, x.Organizacion, x.Descripcion, x.Desde, x.Hasta, x.Version);
+    private static EducacionDto Mapear(Educacion x) => new(x.Id, x.Nivel, x.Carrera, x.Institucion, x.Desde, x.Hasta, x.Version);
+    private static CertificacionDto Mapear(Certificacion x) => new(x.Id, x.Nombre, x.Emisor, x.Fecha, x.Vencimiento, x.Version);
+
+    private static void ValidarPdf(string nombre) =>
+        throw new NotSupportedException("La validación del PDF se realiza sobre archivoId confirmado.");
     private static void ValidarTexto(string texto, string campo) { if (string.IsNullOrWhiteSpace(texto)) throw Error(campo, "Campo obligatorio."); }
     private static void ValidarPeriodo(string texto, DateOnly desde, DateOnly? hasta, string campo) { ValidarTexto(texto, campo); if (hasta < desde) throw Error("hasta", "Debe ser posterior o igual a desde."); }
     private static void Validar(GuardarExperienciaDto d) { ValidarPeriodo(d.Puesto, d.Desde, d.Hasta, "puesto"); ValidarTexto(d.Organizacion, "organizacion"); ValidarTexto(d.Descripcion, "descripcion"); }
     private static void Validar(GuardarEducacionDto d) { ValidarPeriodo(d.Carrera, d.Desde, d.Hasta, "carrera"); if (d.Nivel is not ("Grado" or "Especialización" or "Maestría" or "Doctorado")) throw Error("nivel", "El nivel no es válido."); ValidarTexto(d.Institucion, "institucion"); }
     private static void Validar(GuardarCertificacionDto d) { ValidarTexto(d.Nombre, "nombre"); ValidarTexto(d.Emisor, "emisor"); if (d.Vencimiento < d.Fecha) throw Error("vencimiento", "No puede ser anterior a la fecha."); }
-    private static void Validar(GuardarProyectoDto d) { ValidarPeriodo(d.Nombre, d.Desde, d.Hasta, "nombre"); ValidarTexto(d.Rol, "rol"); ValidarTexto(d.Descripcion, "descripcion"); if (d.DocumentoNombre is not null) ValidarPdf(d.DocumentoNombre); }
+    private static void Validar(GuardarProyectoDto d) { ValidarPeriodo(d.Nombre, d.Desde, d.Hasta, "nombre"); ValidarTexto(d.Rol, "rol"); ValidarTexto(d.Descripcion, "descripcion"); }
     private static ExcepcionAplicacion Error(string campo, string mensaje) => new(TipoErrorAplicacion.Validacion, "validation", mensaje, new Dictionary<string, string[]> { [campo] = [mensaje] });
     private static ExcepcionAplicacion NoEncontrado() => new(TipoErrorAplicacion.NoEncontrado, "resource-not-found", "No se encontró el recurso solicitado.");
-
-    private static PerfilDocenteDto Mapear(Persona p, Perfil? x) => new(new(p.Nombre, p.Apellido, p.Usuario?.Upn ?? string.Empty, p.Documento, p.Legajo ?? string.Empty, p.Cuil ?? string.Empty), new(x?.Contacto?.Telefono, x?.Contacto?.Mail), x?.Cv is { } cv ? new(cv.Nombre, DateOnly.FromDateTime(cv.FechaCarga.UtcDateTime)) : null, x?.Experiencias.Select(Mapear).ToArray() ?? [], x?.Educaciones.Select(Mapear).ToArray() ?? [], x?.Certificaciones.Select(Mapear).ToArray() ?? [], x?.Proyectos.Select(Mapear).ToArray() ?? [], x?.Habilidades.Where(h => h.Tipo == "habilidad").Select(h => new TagDto(h.Habilidad!.Termino, h.Habilidad.Sugerido)).ToArray() ?? [], x?.Habilidades.Where(h => h.Tipo == "interes").Select(h => new TagDto(h.Habilidad!.Termino, h.Habilidad.Sugerido)).ToArray() ?? []);
-    private static ExperienciaDto Mapear(Experiencia x) => new(x.Id, x.Puesto, x.Organizacion, x.Descripcion, x.Desde, x.Hasta);
-    private static EducacionDto Mapear(Educacion x) => new(x.Id, x.Nivel, x.Carrera, x.Institucion, x.Desde, x.Hasta);
-    private static CertificacionDto Mapear(Certificacion x) => new(x.Id, x.Nombre, x.Emisor, x.Fecha, x.Vencimiento);
-    private static ProyectoDto Mapear(Proyecto x) => new(x.Id, x.Nombre, x.Rol, x.Descripcion, x.Desde, x.Hasta, x.Documento is { } d ? new(d.Nombre) : null, x.Doi);
 }

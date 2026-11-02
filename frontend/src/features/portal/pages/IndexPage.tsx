@@ -1,18 +1,10 @@
 import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
-import { usePerfilDocente } from "../hooks/usePerfilDocente";
-import { agregarTag, quitarTag } from "../helpers";
-import { AvisoGuardado } from "../components/AvisoGuardado";
-import { SeccionCertificaciones } from "../components/SeccionCertificaciones";
-import { SeccionContacto } from "../components/SeccionContacto";
-import { SeccionCv } from "../components/SeccionCv";
-import { SeccionEducacion } from "../components/SeccionEducacion";
-import { SeccionExperiencia } from "../components/SeccionExperiencia";
-import { SeccionPerfilInstitucional } from "../components/SeccionPerfilInstitucional";
-import { SeccionProyectos } from "../components/SeccionProyectos";
-import { SeccionTags } from "../components/SeccionTags";
-import "../components/portal.css";
+import { usePerfilDocente } from "../../../shared/perfil/hooks/usePerfilDocente";
+import { AvisoGuardado } from "../../../shared/perfil/components/AvisoGuardado";
+import { PerfilSecciones } from "../../../shared/perfil/components/PerfilSecciones";
+import "../../../shared/perfil/components/portal.css";
 
 /**
  * "Mi Portal" — el perfil del docente autenticado.
@@ -23,12 +15,13 @@ import "../components/portal.css";
  * llenarse, así que la página crece con el perfil.
  */
 export function IndexPage() {
-  const { estado, perfil, guardado, error, actualizar, ocultarAviso } = usePerfilDocente();
+  const { estado, perfil, guardado, error, actualizar, cargarCv, borrarCv, ocultarAviso } =
+    usePerfilDocente();
 
   const encabezado = (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Mi Portal" }]} />
-      <PageHeader title="Mi Portal" />
+      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Mi portal" }]} />
+      <PageHeader title="Mi portal" />
     </>
   );
 
@@ -60,56 +53,12 @@ export function IndexPage() {
           {error}
         </InlineAlert>
       )}
-      <div className="portal-secciones">
-        <SeccionPerfilInstitucional institucional={perfil.institucional} />
-
-        <SeccionContacto
-          contacto={perfil.contacto}
-          onGuardar={(contacto) => actualizar((p) => ({ ...p, contacto }))}
-        />
-
-        <SeccionCv
-          cv={perfil.cv}
-          onCargar={(cv) => actualizar((p) => ({ ...p, cv }))}
-          onEliminar={() => actualizar((p) => ({ ...p, cv: null }))}
-        />
-
-        <SeccionExperiencia
-          items={perfil.experiencia}
-          onCambio={(experiencia) => actualizar((p) => ({ ...p, experiencia }))}
-        />
-
-        <SeccionEducacion
-          items={perfil.educacion}
-          onCambio={(educacion) => actualizar((p) => ({ ...p, educacion }))}
-        />
-
-        <SeccionCertificaciones
-          items={perfil.certificaciones}
-          onCambio={(certificaciones) => actualizar((p) => ({ ...p, certificaciones }))}
-        />
-
-        <SeccionProyectos
-          items={perfil.proyectos}
-          onCambio={(proyectos) => actualizar((p) => ({ ...p, proyectos }))}
-        />
-
-        <SeccionTags
-          titulo="Habilidades"
-          tags={perfil.habilidades}
-          onAgregar={(t) =>
-            actualizar((p) => ({ ...p, habilidades: agregarTag(p.habilidades, t) }))
-          }
-          onQuitar={(t) => actualizar((p) => ({ ...p, habilidades: quitarTag(p.habilidades, t) }))}
-        />
-
-        <SeccionTags
-          titulo="Intereses"
-          tags={perfil.intereses}
-          onAgregar={(t) => actualizar((p) => ({ ...p, intereses: agregarTag(p.intereses, t) }))}
-          onQuitar={(t) => actualizar((p) => ({ ...p, intereses: quitarTag(p.intereses, t) }))}
-        />
-      </div>
+      <PerfilSecciones
+        perfil={perfil}
+        actualizar={actualizar}
+        cargarCv={(archivo) => void cargarCv(archivo)}
+        borrarCv={() => void borrarCv()}
+      />
 
       <AvisoGuardado visible={guardado} onCerrar={ocultarAviso} />
     </>

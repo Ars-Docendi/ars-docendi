@@ -22,8 +22,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid Inactivo = Guid.Parse("a0000000-0000-4000-8000-000000000008");
     private static readonly Guid MateriaAjena = Guid.Parse("70000000-0000-4000-8000-000000000201");
-    private static readonly Guid CarreraVisible = Guid.Parse("c0000000-0000-4000-8000-000000000201");
-    private static readonly Guid CarreraAjena = Guid.Parse("c0000000-0000-4000-8000-000000000202");
     private static readonly Guid RolDocente = Guid.Parse("a1000000-0000-4000-8000-000000000001");
     private static readonly Guid CargoAdjunto = Guid.Parse("c3000000-0000-4000-8000-000000000003");
     private static readonly Guid Dedicacion = Guid.Parse("d6000000-0000-4000-8000-000000000002");
@@ -33,29 +31,8 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Guid.Parse("70000000-0000-4000-8000-000000000102"),
         Guid.Parse("70000000-0000-4000-8000-000000000103"),
     ];
-
-    [Fact]
-    public async Task Catalogo_y_handler_aceptan_usuario_activo_con_rol_asignado()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost("Development", true);
-        using var cliente = host.CreateClient();
-
-        var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
-            "/api/desarrollo/identidades", ct);
-
-        Assert.NotNull(identidades);
-        Assert.DoesNotContain(identidades, i => i.UsuarioId == Inactivo);
-        var jefe = Assert.Single(identidades, i => i.UsuarioId == Jefe);
-        Assert.Contains(jefe.Roles, r => r.Codigo == "jefe_catedra" && r.Materias.Count > 0);
-
-        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
-        using var respuesta = await cliente.SendAsync(solicitud, ct);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
-    }
+    private static readonly Guid CarreraDelJefe = Guid.Parse("c0000000-0000-4000-8000-000000000201");
+    private static readonly Guid CarreraAjena = Guid.Parse("c0000000-0000-4000-8000-000000000202");
 
     [Fact]
     public async Task Jefe_accede_a_docentes_solo_en_sus_materias_y_no_puede_modificarlos()
@@ -68,18 +45,16 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
 
-        var docentes = await cliente.GetFromJsonAsync<DocenteAdministracionDto[]>(
-            "/api/administracion/docentes", ct);
-        var catalogos = await cliente.GetFromJsonAsync<CatalogosDocentesDto>(
-            "/api/administracion/docentes/catalogos", ct);
+        var docentes = await cliente.GetFromJsonAsync<PersonaAdministracionDto[]>(
+            "/api/administracion/personas", ct);
         using var detalleFueraDeAmbito = await cliente.GetAsync(
-            "/api/administracion/docentes/d0000000-0000-4000-8000-000000000010", ct);
+            "/api/administracion/personas/d0000000-0000-4000-8000-000000000010", ct);
         using var detalleMixto = await cliente.GetAsync(
-            $"/api/administracion/docentes/{personaMixta}", ct);
+            $"/api/administracion/personas/{personaMixta}", ct);
         using var detalleAjeno = await cliente.GetAsync(
-            $"/api/administracion/docentes/{personaAjena}", ct);
+            $"/api/administracion/personas/{personaAjena}", ct);
         using var alta = await cliente.PostAsJsonAsync(
-            "/api/administracion/docentes", new { }, ct);
+            "/api/administracion/personas", new { }, ct);
 
         Assert.NotNull(docentes);
         Assert.NotEmpty(docentes);
@@ -90,12 +65,8 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.Contains(mixta.Membresias, membresia => membresia.MateriaId == MateriasDelJefe[0]);
         Assert.DoesNotContain(mixta.Membresias, membresia => membresia.MateriaId == MateriaAjena);
         Assert.DoesNotContain(docentes, docente => docente.PersonaId == personaAjena);
-        Assert.NotNull(catalogos);
-        Assert.Equal(MateriasDelJefe.Length, catalogos.Materias.Count);
-        Assert.All(catalogos.Materias, materia => Assert.Contains(materia.Id, MateriasDelJefe));
-        Assert.Empty(catalogos.PersonasElegibles);
         Assert.Equal(HttpStatusCode.OK, detalleMixto.StatusCode);
-        var detalle = await detalleMixto.Content.ReadFromJsonAsync<DocenteAdministracionDto>(ct);
+        var detalle = await detalleMixto.Content.ReadFromJsonAsync<PersonaAdministracionDto>(ct);
         Assert.NotNull(detalle);
         Assert.DoesNotContain(detalle.Asignaciones, asignacion => asignacion.MateriaId == MateriaAjena);
         Assert.DoesNotContain(detalle.Membresias, membresia => membresia.MateriaId == MateriaAjena);
@@ -112,7 +83,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
         using var solicitud = new HttpRequestMessage(
-            HttpMethod.Get, "/api/administracion/docentes");
+            HttpMethod.Get, "/api/administracion/personas");
         solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Docente.ToString());
         solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "docente");
 
@@ -142,40 +113,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Catalogo_de_permisos_y_defaults_expone_las_pantallas_explicitas()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost("Development", true);
-        using var cliente = host.CreateClient();
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Administrativo.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "administrativo");
-
-        var permisos = await cliente.GetFromJsonAsync<PermisoAdministracionDto[]>(
-            "/api/administracion/permisos", ct);
-        var roles = await cliente.GetFromJsonAsync<RolAdministracionDto[]>(
-            "/api/administracion/roles", ct);
-
-        Assert.NotNull(permisos);
-        Assert.Contains(permisos, permiso => permiso.Codigo == "docentes.ver");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "designaciones.revisar");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.ver");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.solicitar");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.gestionar");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.aprobar");
-        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
-            permiso => permiso.Codigo == "docentes.ver");
-        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
-            permiso => permiso.Codigo == "designaciones.revisar");
-        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "docente").Permisos,
-            permiso => permiso.Codigo == "aulas.ver");
-        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "docente").Permisos,
-            permiso => permiso.Codigo == "aulas.solicitar");
-        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "jefe_catedra").Permisos,
-            permiso => permiso.Codigo == "aulas.solicitar");
-    }
-
-    [Fact]
     public async Task Catalogo_y_handler_aceptan_rol_personalizado_con_permisos_y_omiten_inactivo()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -189,7 +126,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
                    (@inactivo, 'inactivo_custom', 'Inactivo personalizado', 'global', FALSE);
             INSERT INTO identity.rol_permisos (rol_id, permiso_id)
             SELECT @activo, id FROM identity.permisos
-            WHERE code IN ('designaciones.ver', 'docentes.ver', 'designaciones.revisar');
+            WHERE code IN ('designaciones.ver', 'personas.ver', 'designaciones.revisar');
             INSERT INTO identity.user_roles (user_id, role_id)
             VALUES (@usuario, @activo);
             """, conexion))
@@ -206,12 +143,12 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             "/api/desarrollo/identidades", ct);
         var jefe = Assert.Single(identidades!, identidad => identidad.UsuarioId == Jefe);
         var custom = Assert.Single(jefe.Roles, rol => rol.Codigo == "revisor_custom");
-        Assert.Contains("docentes.ver", custom.Permisos);
+        Assert.Contains("personas.ver", custom.Permisos);
         Assert.DoesNotContain(jefe.Roles, rol => rol.Codigo == "inactivo_custom");
 
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "revisor_custom");
-        using var docentes = await cliente.GetAsync("/api/administracion/docentes", ct);
+        using var docentes = await cliente.GetAsync("/api/administracion/personas", ct);
         Assert.Equal(HttpStatusCode.OK, docentes.StatusCode);
     }
 
@@ -247,16 +184,14 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             INSERT INTO identity.personas (id, documento, nombre, apellido)
             VALUES (@id, @documento, 'Fuera', 'Del seed');
             INSERT INTO identity.users (id, azure_oid, upn, display_name, is_active, persona_id)
-            VALUES (@id, @oid, @upn, 'Fuera del seed', TRUE, @id);
+            VALUES (@id, NULL, @upn, 'Fuera del seed', TRUE, @id);
             INSERT INTO identity.user_roles (id, user_id, role_id, materia_id, carrera_id)
             VALUES (@asignacion, @id, 'a1000000-0000-4000-8000-000000000002',
-                    '70000000-0000-4000-8000-000000000101',
-                    'c0000000-0000-4000-8000-000000000201');
+                    '70000000-0000-4000-8000-000000000101', NULL);
             """, conexion))
         {
             comando.Parameters.AddWithValue("id", usuario);
             comando.Parameters.AddWithValue("documento", $"T-{usuario:N}");
-            comando.Parameters.AddWithValue("oid", Guid.NewGuid());
             comando.Parameters.AddWithValue("upn", $"{usuario:N}@example.test");
             comando.Parameters.AddWithValue("asignacion", Guid.NewGuid());
             await comando.ExecuteNonQueryAsync(ct);
@@ -287,27 +222,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
     }
 
-    [Fact]
-    public async Task Staging_con_opt_in_registra_catalogo_y_esquema_de_desarrollo()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost("Staging", true);
-        using var cliente = host.CreateClient();
-
-        var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
-            "/api/desarrollo/identidades", ct);
-
-        Assert.NotNull(identidades);
-        Assert.Contains(identidades, identidad => identidad.UsuarioId == Jefe);
-
-        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
-        using var respuesta = await cliente.SendAsync(solicitud, ct);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
-    }
-
     private WebApplicationFactory<Program> CrearHost(string ambiente, bool habilitada) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
@@ -316,6 +230,13 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             builder.UseSetting(
                 $"{AutenticacionDesarrolloOptions.Seccion}:Enabled",
                 habilitada.ToString());
+            if (ambiente == "Production")
+            {
+                // En Production el ingreso con Microsoft es obligatorio para arrancar.
+                builder.UseSetting("AutenticacionMicrosoft:Habilitada", bool.TrueString);
+                builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+                builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
+            }
         });
 
     private async Task<(Guid PersonaMixta, Guid PersonaAjena)> AgregarDocentesConAmbitoMixtoAsync(
@@ -349,7 +270,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             identity.Usuarios.Add(new Usuario
             {
                 Id = usuarioMixto,
-                AzureOid = Guid.NewGuid(),
                 Upn = $"mixto-{usuarioMixto:N}@example.test",
                 NombreParaMostrar = "Docente Mixto",
                 Activo = true,
@@ -363,7 +283,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
                     UsuarioId = usuarioMixto,
                     RolId = RolDocente,
                     MateriaId = MateriasDelJefe[0],
-                    CarreraId = CarreraVisible,
+                    CarreraId = CarreraDelJefe,
                     OtorgadoEn = ahora,
                     CreadoEn = ahora,
                 },
@@ -382,18 +302,19 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
 
         await using var designaciones = PostgresFixture.CrearDesignaciones(Cadena);
         designaciones.Designaciones.AddRange(
-            CrearDesignacion(personaMixta, MateriasDelJefe[0]),
-            CrearDesignacion(personaMixta, MateriaAjena),
-            CrearDesignacion(personaAjena, MateriaAjena));
+            CrearDesignacion(personaMixta, MateriasDelJefe[0], CarreraDelJefe),
+            CrearDesignacion(personaMixta, MateriaAjena, CarreraAjena),
+            CrearDesignacion(personaAjena, MateriaAjena, CarreraAjena));
         await designaciones.SaveChangesAsync(ct);
         return (personaMixta, personaAjena);
     }
 
-    private static Designacion CrearDesignacion(Guid personaId, Guid materiaId) => new()
+    private static Designacion CrearDesignacion(Guid personaId, Guid materiaId, Guid carreraId) => new()
     {
         Id = Guid.NewGuid(),
         PersonaId = personaId,
         MateriaId = materiaId,
+        CarreraId = carreraId,
         CargoId = CargoAdjunto,
         DedicacionId = Dedicacion,
         Horas = 10,

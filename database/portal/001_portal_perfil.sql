@@ -1,113 +1,49 @@
+-- Baseline consolidado: portal/001_portal_perfil.sql
+-- DDL final; no contiene transiciones ni backfills de alpha.
+
 CREATE SCHEMA IF NOT EXISTS portal;
 
-CREATE TABLE portal.perfiles (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    persona_id  UUID NOT NULL UNIQUE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 CREATE TABLE portal.contactos (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    perfil_id   UUID NOT NULL UNIQUE REFERENCES portal.perfiles(id) ON DELETE CASCADE,
-    telefono    TEXT NULL,
-    mail        TEXT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    perfil_id uuid NOT NULL,
+    telefono text,
+    mail text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 CREATE TABLE portal.cvs (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    perfil_id   UUID NOT NULL UNIQUE REFERENCES portal.perfiles(id) ON DELETE CASCADE,
-    nombre      TEXT NOT NULL,
-    fecha_carga TIMESTAMPTZ NOT NULL DEFAULT now(),
-    uri         TEXT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT cvs_nombre_no_vacio CHECK (btrim(nombre) <> '')
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    perfil_id uuid NOT NULL,
+    nombre text NOT NULL,
+    fecha_carga timestamp with time zone DEFAULT now() NOT NULL,
+    uri text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    archivo_id uuid,
+    CONSTRAINT cvs_nombre_no_vacio CHECK ((btrim(nombre) <> ''::text))
 );
 
-CREATE TABLE portal.experiencias (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    perfil_id    UUID NOT NULL REFERENCES portal.perfiles(id) ON DELETE CASCADE,
-    puesto       TEXT NOT NULL,
-    organizacion TEXT NOT NULL,
-    descripcion  TEXT NOT NULL DEFAULT '',
-    desde       DATE NOT NULL,
-    hasta       DATE NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT experiencias_periodo_valido CHECK (hasta IS NULL OR hasta >= desde)
+CREATE TABLE portal.perfiles (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    persona_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-CREATE TABLE portal.educaciones (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    perfil_id   UUID NOT NULL REFERENCES portal.perfiles(id) ON DELETE CASCADE,
-    nivel       TEXT NOT NULL,
-    carrera     TEXT NOT NULL,
-    institucion TEXT NOT NULL,
-    desde       DATE NOT NULL,
-    hasta       DATE NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT educaciones_periodo_valido CHECK (hasta IS NULL OR hasta >= desde)
-);
+ALTER TABLE ONLY portal.contactos
+    ADD CONSTRAINT contactos_perfil_id_key UNIQUE (perfil_id);
 
-CREATE TABLE portal.certificaciones (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    perfil_id    UUID NOT NULL REFERENCES portal.perfiles(id) ON DELETE CASCADE,
-    nombre       TEXT NOT NULL,
-    emisor       TEXT NOT NULL,
-    fecha        DATE NOT NULL,
-    vencimiento  DATE NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT certificaciones_vencimiento_valido CHECK (vencimiento IS NULL OR vencimiento >= fecha)
-);
+ALTER TABLE ONLY portal.contactos
+    ADD CONSTRAINT contactos_pkey PRIMARY KEY (id);
 
-CREATE TABLE portal.proyectos (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    perfil_id   UUID NOT NULL REFERENCES portal.perfiles(id) ON DELETE CASCADE,
-    nombre      TEXT NOT NULL,
-    rol         TEXT NOT NULL,
-    descripcion TEXT NOT NULL DEFAULT '',
-    desde      DATE NOT NULL,
-    hasta      DATE NULL,
-    doi         TEXT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT proyectos_periodo_valido CHECK (hasta IS NULL OR hasta >= desde)
-);
+ALTER TABLE ONLY portal.cvs
+    ADD CONSTRAINT cvs_perfil_id_key UNIQUE (perfil_id);
 
-CREATE TABLE portal.proyecto_documentos (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    proyecto_id UUID NOT NULL UNIQUE REFERENCES portal.proyectos(id) ON DELETE CASCADE,
-    nombre      TEXT NOT NULL,
-    fecha_carga TIMESTAMPTZ NOT NULL DEFAULT now(),
-    uri         TEXT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT proyecto_documentos_nombre_no_vacio CHECK (btrim(nombre) <> '')
-);
+ALTER TABLE ONLY portal.cvs
+    ADD CONSTRAINT cvs_pkey PRIMARY KEY (id);
 
-CREATE TABLE portal.habilidades (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    termino      TEXT NOT NULL,
-    termino_norm TEXT NOT NULL UNIQUE,
-    sugerido     BOOLEAN NOT NULL DEFAULT FALSE,
-    canonica_id  UUID NULL REFERENCES portal.habilidades(id),
-    usos         INTEGER NOT NULL DEFAULT 0 CHECK (usos >= 0),
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT habilidades_termino_no_vacio CHECK (btrim(termino) <> '')
-);
+ALTER TABLE ONLY portal.perfiles
+    ADD CONSTRAINT perfiles_persona_id_key UNIQUE (persona_id);
 
-CREATE TABLE portal.docente_habilidades (
-    perfil_id    UUID NOT NULL REFERENCES portal.perfiles(id) ON DELETE CASCADE,
-    habilidad_id UUID NOT NULL REFERENCES portal.habilidades(id) ON DELETE CASCADE,
-    tipo         TEXT NOT NULL CHECK (tipo IN ('habilidad', 'interes')),
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (perfil_id, habilidad_id, tipo)
-);
+ALTER TABLE ONLY portal.perfiles
+    ADD CONSTRAINT perfiles_pkey PRIMARY KEY (id);
 
-SELECT audit.attach('portal.perfiles');
-SELECT audit.attach('portal.contactos');
-SELECT audit.attach('portal.cvs');
-SELECT audit.attach('portal.experiencias');
-SELECT audit.attach('portal.educaciones');
-SELECT audit.attach('portal.certificaciones');
-SELECT audit.attach('portal.proyectos');
-SELECT audit.attach('portal.proyecto_documentos');
-SELECT audit.attach('portal.habilidades');
-SELECT audit.attach('portal.docente_habilidades', 'perfil_id');
+CREATE INDEX cvs_archivo_idx ON portal.cvs USING btree (archivo_id);

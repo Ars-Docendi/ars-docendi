@@ -22,9 +22,11 @@ public sealed class RepositorioCatalogosDesignaciones(DesignacionesDbContext db)
 
     public async Task<IReadOnlySet<Guid>> ListarPersonasConPedidoVivoAsync(
         Guid periodoId,
+        Guid? exceptoPedidoId,
         CancellationToken ct) =>
         (await db.Pedidos.AsNoTracking()
-            .Where(p => p.PeriodoId == periodoId && !EstadosPedido.NoOcupanCupo.Contains(p.Estado))
+            .Where(p => p.PeriodoId == periodoId && !EstadosPedido.NoOcupanCupo.Contains(p.Estado)
+                && p.Id != exceptoPedidoId)
             .Select(p => p.PersonaId)
             .Distinct()
             .ToListAsync(ct))

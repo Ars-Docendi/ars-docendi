@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Gestión de **pedidos y asignación de aulas y laboratorios** para mesas de examen (no para uso académico regular, que ya está coordinado por otra vía).
+Gestión de **pedidos y asignación de aulas y laboratorios** para mesas de examen. No cubre el uso académico regular, que se coordina por otra vía institucional y no se va a duplicar.
 
 ## Roles que interactúan
 
@@ -49,7 +49,7 @@ aulas/laboratorios todavía.
 ## Permisos
 
 Catálogo completo (código C# en `ArsDocendi.Shared/Auth/Permisos.cs`; dato en
-`database/identity/007_identity_permisos.sql` + `012_identity_aulas_solicitar.sql`):
+`database/identity/006_identity_catalogos.sql` + `20261102000906_PermisosAulasSolicitarIdentity.sql`):
 
 | Permiso           | Descripción                                                    | Roles con el permiso                                      |
 | ----------------- | -------------------------------------------------------------- | --------------------------------------------------------- |

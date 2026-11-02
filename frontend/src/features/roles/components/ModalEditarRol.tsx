@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
 import {
   ETIQUETAS_SCOPE,
-  normalizarTexto,
+  normalizarNombreRol,
   SCOPES_ROL,
   type DatosRolEditables,
   type RolMock,
@@ -13,6 +13,8 @@ interface ModalEditarRolProps {
   nombresExistentes: string[];
   onGuardar: (datos: DatosRolEditables) => void;
   onCerrar: () => void;
+  error?: string;
+  guardando?: boolean;
 }
 
 export function ModalEditarRol({
@@ -20,6 +22,8 @@ export function ModalEditarRol({
   nombresExistentes,
   onGuardar,
   onCerrar,
+  error,
+  guardando = false,
 }: ModalEditarRolProps) {
   const [campos, setCampos] = useState<DatosRolEditables>({
     nombre: "",
@@ -46,8 +50,9 @@ export function ModalEditarRol({
 
   function handleConfirmar() {
     setEnviado(true);
-    if (!rol || rol.es_sistema || !campos.nombre.trim()) return;
-    if (nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre))) return;
+    if (!rol || rol.es_sistema || guardando || !campos.nombre.trim()) return;
+    if (nombresExistentes.map(normalizarNombreRol).includes(normalizarNombreRol(campos.nombre)))
+      return;
     onGuardar({
       nombre: campos.nombre.trim(),
       descripcion: campos.descripcion.trim(),
@@ -58,7 +63,7 @@ export function ModalEditarRol({
   const nombreDuplicado =
     enviado &&
     !!campos.nombre.trim() &&
-    nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre));
+    nombresExistentes.map(normalizarNombreRol).includes(normalizarNombreRol(campos.nombre));
 
   return (
     <Modal
@@ -82,12 +87,17 @@ export function ModalEditarRol({
           >
             Cancelar
           </Button>
-          <Button variant="primary" disabled={rol?.es_sistema} onClick={handleConfirmar}>
+          <Button
+            variant="primary"
+            disabled={rol?.es_sistema || guardando}
+            onClick={handleConfirmar}
+          >
             Guardar
           </Button>
         </div>
       }
     >
+      {error && <InlineAlert severity="danger" title={error} />}
       <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
         <Field
           label="Nombre"

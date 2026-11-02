@@ -53,6 +53,20 @@ else
 CREATE DATABASE :"base" OWNER :"app_db_user";
 SQL
   log_info msg="base creada" base="$base"
+  # Autorización persistente sólo emitida por la rama que creó esta base.
+  psql_en_docker -e "PGDATABASE=$base" "$IMAGEN_PSQL" psql -v ON_ERROR_STOP=1 \
+    --set=ambiente="$ambiente" <<'SQL'
+CREATE TABLE public.bootstrap_metadata (
+  id boolean PRIMARY KEY DEFAULT true CHECK (id),
+  ambiente text NOT NULL,
+  origen text NOT NULL CHECK (origen = 'provision-db/v1'),
+  estado text NOT NULL CHECK (estado IN ('autorizado', 'completado')),
+  huella_inicial text,
+  creado_en timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO public.bootstrap_metadata (ambiente, origen, estado)
+VALUES (:'ambiente', 'provision-db/v1', 'autorizado');
+SQL
 fi
 
 # Privilegios (idempotente).

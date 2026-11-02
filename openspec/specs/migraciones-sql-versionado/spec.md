@@ -8,7 +8,7 @@ Definir el DDL versionado como fuente autorizada y su aplicación idempotente me
 
 ### Requirement: Los archivos SQL versionados son la fuente autorizada del DDL
 
-El sistema SHALL mantener el DDL de los schemas en archivos `.sql` versionados bajo `database/<schema>/`, numerados por orden de aplicación. Esos archivos SHALL ser la única fuente autorizada del schema: ninguna estructura MUST definirse solo en código C#. Cada archivo de tabla de negocio SHALL terminar invocando `SELECT audit.attach(...)` sobre la tabla que define.
+El sistema SHALL mantener el DDL de los schemas en archivos `.sql` versionados bajo `database/<schema>/`, agrupados por responsabilidad e identificados de forma inequívoca. Esos archivos SHALL ser la única fuente autorizada del schema: ninguna estructura MUST definirse solo en código C#. Toda tabla de negocio que requiera auditoría SHALL quedar enganchada mediante `SELECT audit.attach(...)` después de existir tanto la tabla como la infraestructura de auditoría; se SHALL permitir diferir ese enganche a un script explícito para resolver dependencias.
 
 #### Scenario: Una estructura nueva se autora en SQL
 
@@ -17,8 +17,9 @@ El sistema SHALL mantener el DDL de los schemas en archivos `.sql` versionados b
 
 #### Scenario: Toda tabla de negocio queda enganchada a la auditoría
 
-- **WHEN** se revisa un archivo `.sql` que crea una tabla de negocio
-- **THEN** MUST terminar con la llamada a `audit.attach` correspondiente
+- **WHEN** finaliza la instalación del baseline o una migración que crea una tabla de negocio auditada
+- **THEN** la llamada a `audit.attach` correspondiente MUST haberse aplicado después de sus dependencias
+- **AND** el orden y el recurso que la ejecuta MUST ser identificables
 
 ### Requirement: Los SQL se embeben en el assembly y los aplican las migraciones EF
 
@@ -57,3 +58,125 @@ El sistema SHALL expresar en SQL crudo las construcciones que el proveedor de EF
 - **GIVEN** una base migrada desde cero
 - **WHEN** se ejecuta una operación que un trigger debe rechazar
 - **THEN** el trigger MUST estar activo y rechazar la operación
+
+### Requirement: Correcciones mediante historia incremental protegida
+
+Toda corrección de DDL SHALL agregarse mediante SQL y wrapper incremental, después del historial reconocido de su contexto. MUST preservar bytes de SQL/wrappers históricos y protección del inventario confiable. Los snapshots de modelo SHALL actualizarse cuando corresponda sin convertirse en DDL paralelo ni reescribir migraciones aplicadas.
+
+#### Scenario: Reparación de una función histórica
+
+- **GIVEN** la función de numeración pertenece al baseline protegido
+- **WHEN** se corrige su truncamiento
+- **THEN** una migración incremental reemplaza su definición sin editar el SQL histórico ni resetear su secuencia
+
+### Requirement: Preflight de datos antes de activar garantías
+
+Antes de activar restricciones nuevas el proceso SHALL verificar datos relevantes en solo lectura y bloquear incompatibilidades. La migración MUST conservar filas, IDs, vínculos Microsoft, snapshots y documentos; MUST NOT completar datos faltantes, fusionar identidades, purgar ni adoptar historia alpha automáticamente.
+
+#### Scenario: Huérfano impide FK nueva
+
+- **GIVEN** una designación con materia inexistente
+- **WHEN** se prepara el upgrade
+- **THEN** se informa la incompatibilidad y no se borra ni reasigna esa designación para validar la FK
+
+#### Scenario: Datos coherentes
+
+- **GIVEN** una base compatible con datos anteriores y documentos referenciados
+- **WHEN** se aplica el upgrade
+- **THEN** conserva los datos y bytes, aplica solo incrementales y la reejecución no agrega cambios
+
+### Requirement: Instalación y upgrade son verificaciones diferentes
+
+Cada cambio de schema SHALL verificarse tanto en instalación nueva como en upgrade desde la versión anterior con datos sintéticos. Las verificaciones MUST usar recursos y runner reales, comprobar catálogo de constraints/triggers/índices y distinguir estado, preview sin escrituras, aplicación y no-op. Cero pruebas descubiertas MUST NOT considerarse éxito.
+
+#### Scenario: Preview sobre datos previos
+
+- **GIVEN** una base reconocida en la versión anterior con datos
+- **WHEN** se genera preview
+- **THEN** no cambia filas, histories ni auditoría y el script contiene únicamente operaciones pendientes
+
+#### Scenario: Restricciones nuevas efectivas
+
+- **GIVEN** el upgrade completado
+- **WHEN** se intentan escrituras sintéticas que violan las nuevas garantías
+- **THEN** fallan por la constraint o trigger esperado y la inspección del catálogo confirma la garantía real
+
+### Requirement: Índices derivados de consultas comprobadas
+
+Los índices nuevos SHALL responder a consultas y distribuciones identificadas. La validación MUST comparar planes/cardinalidad/buffers y costo de escritura con datasets reproducibles, considerando índices parciales y de exclusión existentes. MUST NOT prometer aceleraciones productivas desde una única medición ni agregar índices duplicados por un barrido simplista de FKs.
+
+#### Scenario: FK con índice parcial suficiente
+
+- **GIVEN** una FK nullable con índice para valores no nulos
+- **WHEN** se revisan candidatos de rendimiento
+- **THEN** no se propone otro índice equivalente solo porque el existente es parcial
+
+#### Scenario: Candidato sin beneficio
+
+- **GIVEN** un índice candidato de listado
+- **WHEN** mediciones repetibles no muestran utilidad frente al costo o cobertura existente
+- **THEN** se registra su descarte y no se agrega por completar una lista de tareas
+
+### Requirement: Recuperación compatible sin reset automático
+
+El despliegue SHALL preservar el procedimiento de backup verificable BD+objetos con escritores detenidos cuando corresponda. Ante fallo MUST detener publicación y conservar evidencia; preferirá roll-forward. Una recuperación SHALL requerir autorización explícita y destino aislado con versión compatible, nunca Down destructivo, reseed o restore automático sobre una base compartida.
+
+#### Scenario: Fallo durante el upgrade
+
+- **GIVEN** respaldo y preview registrados
+- **WHEN** falla una migración incremental
+- **THEN** no se registra deploy exitoso ni se ejecuta un reset para completar la instalación
+
+### Requirement: Baseline consolidado de alpha para instancias nuevas
+
+El sistema SHALL instalar directamente el modelo final vigente de Identity/Audit, Storage, Designaciones y Portal mediante un baseline por contexto con schema, sin recrear estructuras históricas transitorias ni ejecutar backfills innecesarios para una base nueva. MUST conservar catálogos obligatorios, permisos, funciones, triggers, secuencias, índices, constraints y referencias entre schemas. Aulas/Tareas MUST NOT recibir estructuras ficticias sólo para igualar el número de baselines. El corte SHALL rechazar histories anteriores o schemas gestionados existentes sin historial reconocido antes de escribir, sin drop, stamp ni conversión automática.
+
+#### Scenario: Instalación nueva del modelo final
+
+- **GIVEN** una base vacía
+- **WHEN** se aplica el baseline consolidado
+- **THEN** MUST existir el modelo final vigente y sus catálogos de sistema
+- **AND** Storage MUST existir antes de aplicar referencias a sus archivos desde Designaciones y Portal
+
+#### Scenario: Historial anterior encontrado
+
+- **GIVEN** una base con identificadores alpha retirados o schema gestionado sin historial reconocido
+- **WHEN** se consulta o intenta aplicar el nuevo baseline
+- **THEN** MUST devolverse incompatibilidad sin modificar schema, datos ni historial
+
+### Requirement: Autoría asistida sin efectos sobre bases
+
+El repositorio SHALL ofrecer una operación de scaffolding que reciba contexto y nombre y genere juntos el script SQL y su migración asociada. MUST validar nombres/contextos, evitar sobrescribir archivos y ofrecer dry-run sin writes. MUST NOT conectar a bases ni ejecutar migraciones durante la generación.
+
+#### Scenario: Creación válida
+
+- **GIVEN** contexto conocido y nombre sin colisión
+- **WHEN** se genera una migración
+- **THEN** MUST producirse SQL y wrapper EF asociados y reconocibles por el inventario
+
+#### Scenario: Dry-run o colisión
+
+- **WHEN** se solicita dry-run o un nombre que colisiona con archivos existentes
+- **THEN** MUST preservarse el filesystem en dry-run y rechazarse la colisión sin sobrescritura
+
+### Requirement: Integridad de recursos e historial protegido
+
+CI SHALL rechazar referencias SQL faltantes o no embebidas, identificadores/rutas duplicados y scripts sin consumidor ni clasificación explícita. Después del corte revisado, SHALL rechazar modificaciones o eliminaciones de los archivos históricos protegidos comparados con una referencia Git confiable. El corte alpha SHALL establecer el nuevo inventario protegido sin dejar un bypass genérico. El orden de recursos SHALL ser explícito y compartido por ejecución e inventario.
+
+#### Scenario: Recurso inválido
+
+- **GIVEN** una migración que referencia SQL ausente o que no se incluye en la imagen publicada
+- **WHEN** se valida el cambio
+- **THEN** CI MUST fallar antes del deploy
+
+#### Scenario: Reescritura de historia protegida
+
+- **GIVEN** el baseline posterior al corte está registrado como protegido
+- **WHEN** un cambio altera o elimina una migración o recurso histórico protegido
+- **THEN** CI MUST rechazarlo e indicar los archivos afectados
+
+#### Scenario: Adición incremental
+
+- **GIVEN** historia protegida intacta
+- **WHEN** se agrega una nueva migración y sus recursos válidos
+- **THEN** la validación MUST permitir esa adición sin exigir otra versión manual global

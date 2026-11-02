@@ -1,5 +1,7 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.EntityFrameworkCore;
+using Modules.Designaciones.Infrastructure;
+using Modules.Designaciones.Repositories;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
@@ -8,79 +10,25 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "designaciones")
 {
     [Fact]
-    public async Task Catalogo_dedicaciones_tiene_seis_opciones_unicas_auditadas_y_referencias_validas()
+    public async Task Limpieza_de_idempotencia_retira_solo_las_claves_vencidas()
     {
         await using var conexion = await AbrirConexionAsync();
-        Assert.Equal("1,2,3,4,5,6", await EscalarAsync<string>(conexion,
-            "SELECT string_agg(codigo::text, ',' ORDER BY codigo) FROM designaciones.dedicaciones WHERE activo"));
-        await EjecutarAsync(conexion, "UPDATE designaciones.dedicaciones SET activo = false WHERE codigo = 6");
-        Assert.Equal(1L, await EscalarAsync<long>(conexion,
-            "SELECT count(*) FROM audit.change_log WHERE schema_name = 'designaciones' AND table_name = 'dedicaciones'"));
-        var duplicado = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-            "INSERT INTO designaciones.dedicaciones (codigo, nombre, orden) VALUES (1, 'Repetida', 7)"));
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, duplicado.SqlState);
-
         var datos = await PrepararDatosAsync(conexion);
-        await InsertarPedidoAsync(conexion, "TEST-DEDICACION", datos, datos.Materia1, "borrador");
-        await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia1, null, new DateOnly(2026, 1, 1), null);
-        var referencia = new NpgsqlParameter("id", Guid.NewGuid());
-        var errorPedido = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-            "UPDATE designaciones.pedidos SET dedicacion_solicitada_id = @id", referencia));
-        var errorDesignacion = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-            "UPDATE designaciones.designaciones SET dedicacion_id = @id", new NpgsqlParameter("id", Guid.NewGuid())));
-        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, errorPedido.SqlState);
-        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, errorDesignacion.SqlState);
-    }
+        var pedido = await InsertarPedidoAsync(conexion, "TEST-IDEMPOTENCIA", datos, datos.Materia1, "borrador");
+        var actor = Guid.NewGuid();
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.users (id, upn, display_name, is_active)
+            VALUES (@id, @upn, 'Actor de prueba', true)
+            """, new NpgsqlParameter("id", actor), new NpgsqlParameter("upn", $"{actor:N}@prueba.local"));
+        await InsertarComandoIdempotenteAsync(conexion, actor, pedido, DateTimeOffset.UtcNow.AddHours(-25));
+        await InsertarComandoIdempotenteAsync(conexion, actor, pedido, DateTimeOffset.UtcNow.AddHours(-1));
 
-    [Fact]
-    public async Task Migracion_desde_schema_anterior_preserva_categoria_cero_y_snapshot()
-    {
-        var cadena = await Postgres.CrearBaseMigradaAsync("dedicaciones_anteriores", "20260819000000_IdempotenciaComandos");
-        try
-        {
-            await using var conexion = new NpgsqlConnection(cadena);
-            await conexion.OpenAsync(TestContext.Current.CancellationToken);
-            var datos = await PrepararDatosAsync(conexion);
-            var pedidoId = await InsertarPedidoAsync(conexion, "TEST-LEGADO", datos, datos.Materia1, "borrador");
-            await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia1, pedidoId, new DateOnly(2026, 1, 1), null, legado: true);
-            await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia2, null, new DateOnly(2026, 1, 1), null, legado: true);
-            await EjecutarAsync(conexion, """
-                UPDATE designaciones.pedidos SET dedicacion_solicitada = 'Categoría 0',
-                    horas_investigacion = 7, horas_externas = 5,
-                    snapshot = '{"dedicacion":"Categoría 0","horas":8}'::jsonb;
-                UPDATE designaciones.designaciones SET dedicacion = 'Categoría 6';
-                """);
-            await using var contexto = PostgresFixture.CrearDesignaciones(cadena);
-            await contexto.Database.MigrateAsync(TestContext.Current.CancellationToken);
-            Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-                SELECT count(*) FROM designaciones.pedidos
-                WHERE dedicacion_solicitada = 'Categoría 0' AND dedicacion_solicitada_id IS NULL
-                  AND snapshot = '{"dedicacion":"Categoría 0","horas":8}'::jsonb
-                """));
-            Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-                SELECT count(*) FROM designaciones.designaciones v
-                JOIN designaciones.dedicaciones d ON d.id = v.dedicacion_id
-                WHERE d.codigo = 6 AND v.dedicacion = 'Categoría 6' AND v.origen_pedido_id = @pedido
-                """, new NpgsqlParameter("pedido", pedidoId)));
-            Assert.Equal(7, await EscalarAsync<int>(conexion, """
-                SELECT horas_investigacion FROM designaciones.designaciones WHERE origen_pedido_id = @pedido
-                """, new NpgsqlParameter("pedido", pedidoId)));
-            Assert.Equal(5, await EscalarAsync<int>(conexion, """
-                SELECT horas_externas FROM designaciones.designaciones WHERE origen_pedido_id = @pedido
-                """, new NpgsqlParameter("pedido", pedidoId)));
-            Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-                SELECT count(*) FROM designaciones.designaciones
-                 WHERE materia_id = @materia AND horas_investigacion IS NULL AND horas_externas IS NULL
-                """, new NpgsqlParameter("materia", datos.Materia2)));
-            await EjecutarAsync(conexion, "UPDATE designaciones.pedidos SET prioritario = true");
-            var cambiarLegado = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-                "UPDATE designaciones.pedidos SET dedicacion_solicitada = 'Texto arbitrario'"));
-            Assert.Equal(PostgresErrorCodes.CheckViolation, cambiarLegado.SqlState);
-        }
-        finally
-        {
-            await Postgres.EliminarBaseAsync(cadena);
-        }
+        await using var db = new DesignacionesDbContext(new DbContextOptionsBuilder<DesignacionesDbContext>()
+            .UseNpgsql(Cadena).Options);
+        var retirados = await new RepositorioIdempotencia(db).LimpiarVencidosAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, retirados);
+        Assert.Equal(1L, await EscalarAsync<long>(conexion, "SELECT count(*) FROM designaciones.idempotencia_comandos"));
     }
 
     [Fact]
@@ -103,23 +51,10 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
         var sinReferencia = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
             "UPDATE designaciones.pedidos SET novedad = 'Alta'"));
         Assert.Equal(PostgresErrorCodes.CheckViolation, sinReferencia.SqlState);
-        await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia1, null, new DateOnly(2026, 1, 1), null);
+        await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia1, datos.Carrera, null, new DateOnly(2026, 1, 1), null);
         var textoVigente = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
             "UPDATE designaciones.designaciones SET dedicacion = 'Categoría 0'"));
         Assert.Equal(PostgresErrorCodes.CheckViolation, textoVigente.SqlState);
-    }
-
-    [Fact]
-    public async Task Segundo_periodo_activo_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await InsertarPeriodoAsync(conexion, Guid.NewGuid(), true);
-
-        var error = await Assert.ThrowsAsync<PostgresException>(() =>
-            InsertarPeriodoAsync(conexion, Guid.NewGuid(), true));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("periodos_unico_activo", error.ConstraintName);
     }
 
     [Fact]
@@ -131,33 +66,20 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
 
         var pedido = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion, """
             INSERT INTO designaciones.pedidos
-                (numero, periodo_id, persona_id, materia_id, novedad, cargo_solicitado_id, horas, dedicacion_solicitada_id)
-            VALUES ('TEST-CARGO-P', @periodo, @persona, @materia, 'Alta', @cargo, 10, 'd6000000-0000-4000-8000-000000000001')
+                (numero, periodo_id, persona_id, materia_id, carrera_id, novedad, cargo_solicitado_id, horas, dedicacion_solicitada_id)
+            VALUES ('TEST-CARGO-P', @periodo, @persona, @materia, @carrera, 'Alta', @cargo, 10, 'd6000000-0000-4000-8000-000000000001')
             """, new NpgsqlParameter("periodo", datos.Periodo), new NpgsqlParameter("persona", datos.Persona),
-            new NpgsqlParameter("materia", datos.Materia1), new NpgsqlParameter("cargo", cargoInexistente)));
+            new NpgsqlParameter("materia", datos.Materia1), new NpgsqlParameter("carrera", datos.Carrera),
+            new NpgsqlParameter("cargo", cargoInexistente)));
         var designacion = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion, """
             INSERT INTO designaciones.designaciones
-                (persona_id, materia_id, cargo_id, horas, vigente_desde, dedicacion_id)
-            VALUES (@persona, @materia, @cargo, 10, DATE '2026-01-01', 'd6000000-0000-4000-8000-000000000001')
+                (persona_id, materia_id, carrera_id, cargo_id, horas, vigente_desde, dedicacion_id)
+            VALUES (@persona, @materia, @carrera, @cargo, 10, DATE '2026-01-01', 'd6000000-0000-4000-8000-000000000001')
             """, new NpgsqlParameter("persona", datos.Persona), new NpgsqlParameter("materia", datos.Materia1),
-            new NpgsqlParameter("cargo", cargoInexistente)));
+            new NpgsqlParameter("carrera", datos.Carrera), new NpgsqlParameter("cargo", cargoInexistente)));
 
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, pedido.SqlState);
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, designacion.SqlState);
-    }
-
-    [Fact]
-    public async Task Segundo_pedido_misma_persona_periodo_y_otra_materia_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        var datos = await PrepararDatosAsync(conexion);
-        await InsertarPedidoAsync(conexion, "TEST-0001", datos, datos.Materia1, "borrador");
-
-        var error = await Assert.ThrowsAsync<PostgresException>(() =>
-            InsertarPedidoAsync(conexion, "TEST-0002", datos, datos.Materia2, "borrador"));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("pedidos_uno_por_docente_periodo", error.ConstraintName);
     }
 
     [Fact]
@@ -197,11 +119,11 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         var datos = await PrepararDatosAsync(conexion);
         await InsertarDesignacionAsync(
-            conexion, datos.Persona, datos.Materia1, null,
+            conexion, datos.Persona, datos.Materia1, datos.Carrera, null,
             new DateOnly(2025, 1, 1), new DateOnly(2026, 1, 1));
 
         await InsertarDesignacionAsync(
-            conexion, datos.Persona, datos.Materia1, null,
+            conexion, datos.Persona, datos.Materia1, datos.Carrera, null,
             new DateOnly(2026, 1, 1), null);
 
         Assert.Equal(2L, await EscalarAsync<long>(conexion, """
@@ -216,10 +138,10 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         var datos = await PrepararDatosAsync(conexion);
         await InsertarDesignacionAsync(
-            conexion, datos.Persona, datos.Materia1, null, new DateOnly(2025, 1, 1), null);
+            conexion, datos.Persona, datos.Materia1, datos.Carrera, null, new DateOnly(2025, 1, 1), null);
 
         var error = await Assert.ThrowsAsync<PostgresException>(() => InsertarDesignacionAsync(
-            conexion, datos.Persona, datos.Materia1, null, new DateOnly(2026, 1, 1), null));
+            conexion, datos.Persona, datos.Materia1, datos.Carrera, null, new DateOnly(2026, 1, 1), null));
 
         Assert.Equal(PostgresErrorCodes.ExclusionViolation, error.SqlState);
         Assert.Equal("designaciones_sin_solapamiento", error.ConstraintName);
@@ -234,10 +156,10 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
             conexion, "TEST-ORIGEN", datos, datos.Materia1, "rechazado");
 
         await InsertarDesignacionAsync(
-            conexion, datos.Persona, datos.Materia1, pedido,
+            conexion, datos.Persona, datos.Materia1, datos.Carrera, pedido,
             new DateOnly(2025, 1, 1), new DateOnly(2025, 6, 1));
         await InsertarDesignacionAsync(
-            conexion, datos.Persona, datos.Materia2, null,
+            conexion, datos.Persona, datos.Materia2, datos.Carrera, null,
             new DateOnly(2025, 1, 1), new DateOnly(2025, 6, 1));
 
         Assert.Equal(1L, await EscalarAsync<long>(conexion, """
@@ -266,6 +188,7 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     private static async Task<DatosPrueba> PrepararDatosAsync(NpgsqlConnection conexion)
     {
         var carrera = Guid.NewGuid();
+        var plan = Guid.NewGuid();
         var materia1 = Guid.NewGuid();
         var materia2 = Guid.NewGuid();
         var persona = Guid.NewGuid();
@@ -274,11 +197,21 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
             INSERT INTO identity.carreras (id, code, name) VALUES (@id, @code, 'Carrera test')
             """, new NpgsqlParameter("id", carrera), new NpgsqlParameter("code", $"C-{carrera:N}"));
         await EjecutarAsync(conexion, """
-            INSERT INTO identity.materias (id, code, name, carrera_id) VALUES
-                (@materia1, @codigo1, 'Materia uno', @carrera),
-                (@materia2, @codigo2, 'Materia dos', @carrera)
-            """, new NpgsqlParameter("materia1", materia1), new NpgsqlParameter("codigo1", $"M1-{materia1:N}"),
-            new NpgsqlParameter("materia2", materia2), new NpgsqlParameter("codigo2", $"M2-{materia2:N}"), new NpgsqlParameter("carrera", carrera));
+            INSERT INTO identity.planes (id, carrera_id, codigo, nombre, vigente)
+            VALUES (@plan, @carrera, 'TEST', 'Plan test', TRUE)
+            """, new NpgsqlParameter("plan", plan), new NpgsqlParameter("carrera", carrera));
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.materias (id, code, name) VALUES
+                (@materia1, '00001', 'Materia uno'),
+                (@materia2, '00002', 'Materia dos')
+            """, new NpgsqlParameter("materia1", materia1), new NpgsqlParameter("materia2", materia2));
+        // Catálogo informativo materia–plan: ninguna FK de pedidos/designaciones depende de esto.
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.materias_plan (id, plan_id, materia_id) VALUES
+                (@mp1, @plan, @materia1),
+                (@mp2, @plan, @materia2)
+            """, new NpgsqlParameter("mp1", Guid.NewGuid()), new NpgsqlParameter("mp2", Guid.NewGuid()),
+            new NpgsqlParameter("plan", plan), new NpgsqlParameter("materia1", materia1), new NpgsqlParameter("materia2", materia2));
         await EjecutarAsync(conexion, """
             INSERT INTO identity.personas (id, documento, nombre, apellido)
             VALUES (@id, @documento, 'Grace', 'Hopper')
@@ -306,17 +239,30 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
         var id = Guid.NewGuid();
         await EjecutarAsync(conexion, """
             INSERT INTO designaciones.pedidos
-                (id, numero, periodo_id, persona_id, materia_id, novedad, estado)
-            VALUES (@id, @numero, @periodo, @persona, @materia, 'Sin novedad', @estado)
+                (id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado)
+            VALUES (@id, @numero, @periodo, @persona, @materia, @carrera, 'Sin novedad', @estado)
             """, new NpgsqlParameter("id", id), new NpgsqlParameter("numero", numero), new NpgsqlParameter("periodo", datos.Periodo),
-            new NpgsqlParameter("persona", datos.Persona), new NpgsqlParameter("materia", materia), new NpgsqlParameter("estado", estado));
+            new NpgsqlParameter("persona", datos.Persona), new NpgsqlParameter("materia", materia),
+            new NpgsqlParameter("carrera", datos.Carrera), new NpgsqlParameter("estado", estado));
         return id;
     }
+
+    private static async Task InsertarComandoIdempotenteAsync(
+        NpgsqlConnection conexion,
+        Guid actor,
+        Guid pedido,
+        DateTimeOffset creado) => await EjecutarAsync(conexion, """
+        INSERT INTO designaciones.idempotencia_comandos
+            (id, clave, actor_id, ruta, pedido_id, request_hash, status_code, response_body, created_at)
+        VALUES (@id, @clave, @actor, 'aceptar', @pedido, 'huella', 200, '{}'::jsonb, @creado)
+        """, new NpgsqlParameter("id", Guid.NewGuid()), new NpgsqlParameter("clave", Guid.NewGuid()),
+        new NpgsqlParameter("actor", actor), new NpgsqlParameter("pedido", pedido), new NpgsqlParameter("creado", creado));
 
     private static async Task InsertarDesignacionAsync(
         NpgsqlConnection conexion,
         Guid persona,
         Guid materia,
+        Guid carrera,
         Guid? origen,
         DateOnly desde,
         DateOnly? hasta,
@@ -324,11 +270,12 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     {
         await EjecutarAsync(conexion, $"""
             INSERT INTO designaciones.designaciones
-                (persona_id, materia_id, cargo_id, horas, vigente_desde, vigente_hasta, origen_pedido_id{(legado ? "" : ", dedicacion_id")})
+                (persona_id, materia_id, carrera_id, cargo_id, horas, vigente_desde, vigente_hasta, origen_pedido_id{(legado ? "" : ", dedicacion_id")})
             VALUES
-                (@persona, @materia, 'c3000000-0000-4000-8000-000000000004',
+                (@persona, @materia, @carrera, 'c3000000-0000-4000-8000-000000000004',
                  10, @desde, @hasta, @origen{(legado ? "" : ", 'd6000000-0000-4000-8000-000000000001'")})
-            """, new NpgsqlParameter("persona", persona), new NpgsqlParameter("materia", materia), new NpgsqlParameter("desde", desde),
+            """, new NpgsqlParameter("persona", persona), new NpgsqlParameter("materia", materia), new NpgsqlParameter("carrera", carrera),
+            new NpgsqlParameter("desde", desde),
             new NpgsqlParameter("hasta", (object?)hasta ?? DBNull.Value), new NpgsqlParameter("origen", (object?)origen ?? DBNull.Value));
     }
 

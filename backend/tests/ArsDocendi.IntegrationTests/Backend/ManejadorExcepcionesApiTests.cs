@@ -3,6 +3,7 @@ using ArsDocendi.Host.Api;
 using ArsDocendi.Shared.Aplicacion;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArsDocendi.IntegrationTests.Backend;
@@ -46,6 +47,21 @@ public sealed class ManejadorExcepcionesApiTests
     }
 
     [Fact]
+    public async Task Error_esperado_de_storage_conserva_conflicto_y_codigo_en_lugar_de_500_generico()
+    {
+        var respuesta = await EjecutarAsync(new ExcepcionAplicacion(
+            TipoErrorAplicacion.Conflicto,
+            "archivo-delete-pending",
+            "La eliminación remota está pendiente; puede reintentarse."));
+
+        Assert.Equal(409, respuesta.Status);
+        Assert.Equal("https://ars-docendi.unlam.edu.ar/errors/archivo-delete-pending",
+            respuesta.Json.GetProperty("type").GetString());
+        Assert.Equal("archivo-delete-pending", respuesta.Json.GetProperty("code").GetString());
+        Assert.NotEqual("internal-error", respuesta.Json.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task Error_inesperado_no_expone_excepcion()
     {
         var respuesta = await EjecutarAsync(new InvalidOperationException("secreto interno"));
@@ -65,6 +81,45 @@ public sealed class ManejadorExcepcionesApiTests
             "https://ars-docendi.unlam.edu.ar/errors/concurrency-conflict",
             respuesta.Json.GetProperty("type").GetString());
         Assert.Contains("Actualizá", respuesta.Json.GetProperty("detail").GetString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Logs_no_incluyen_metodo_ni_ruta_controlados_por_el_cliente(bool inesperado)
+    {
+        var logger = new LoggerCaptura();
+        var contexto = new DefaultHttpContext();
+        contexto.Request.Method = "GET\r\nentrada-falsa";
+        contexto.Request.Path = "/api/dato-privado\r\nentrada-falsa";
+        contexto.TraceIdentifier = "trace-prueba";
+        using var cuerpo = new MemoryStream();
+        contexto.Response.Body = cuerpo;
+        Exception excepcion = inesperado
+            ? new InvalidOperationException("fallo interno")
+            : new ArgumentException("solicitud inválida");
+
+        await new ManejadorExcepcionesApi(logger).TryHandleAsync(contexto, excepcion, CancellationToken.None);
+
+        var entrada = Assert.Single(logger.Entradas);
+        Assert.Equal(inesperado ? LogLevel.Error : LogLevel.Warning, entrada.Nivel);
+        Assert.DoesNotContain("entrada-falsa", entrada.Mensaje);
+        Assert.DoesNotContain("dato-privado", entrada.Mensaje);
+        Assert.DoesNotContain(entrada.Propiedades, p => p.Key is "Metodo" or "Ruta");
+        Assert.Contains("trace-prueba", entrada.Mensaje);
+        Assert.Equal(inesperado ? 500 : 400, contexto.Response.StatusCode);
+    }
+
+    private sealed class LoggerCaptura : ILogger<ManejadorExcepcionesApi>
+    {
+        public List<(LogLevel Nivel, string Mensaje, IReadOnlyList<KeyValuePair<string, object?>> Propiedades)> Entradas { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Entradas.Add((logLevel, formatter(state, exception),
+                ((IEnumerable<KeyValuePair<string, object?>>)state!).ToArray()));
     }
 
     private static async Task<RespuestaProblema> EjecutarAsync(Exception excepcion)

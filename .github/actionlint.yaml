@@ -1,0 +1,8 @@
+# Etiquetas propias de los runners self-hosted de Ars Docendi.
+self-hosted-runner:
+  labels:
+    - arsdocendi
+    - confiable
+    - efimero
+    - principal
+    - secundaria

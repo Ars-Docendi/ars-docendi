@@ -26,8 +26,16 @@ public sealed class PortalController : ControllerBase
     public Task<CvDto> Cv(GuardarCvDto datos, ServicioPortal servicio, CancellationToken ct) => servicio.GuardarCvAsync(datos, ct);
 
     [Authorize]
+    [HttpGet("perfil/cv/descarga")]
+    public async Task<IActionResult> DescargarCv(ServicioPortal servicio, CancellationToken ct)
+    {
+        var descarga = await servicio.DescargarCvAsync(ct);
+        return descarga is null ? NotFound() : File(descarga.Contenido, descarga.Mime, descarga.Nombre, enableRangeProcessing: true);
+    }
+
+    [Authorize]
     [HttpDelete("perfil/cv")]
-    public async Task<IActionResult> EliminarCv(ServicioPortal servicio, CancellationToken ct) { await servicio.EliminarCvAsync(ct); return NoContent(); }
+    public async Task<IActionResult> EliminarCv(ServicioPortal servicio, CancellationToken ct, [FromQuery] uint? version) { await servicio.EliminarCvAsync(ct, version); return NoContent(); }
 
     [Authorize]
     [HttpPut("perfil/habilidades")]
@@ -42,26 +50,34 @@ public sealed class PortalController : ControllerBase
     [Authorize, HttpPut("perfil/experiencia/{id:guid}")]
     public Task<ExperienciaDto> Editar(Guid id, GuardarExperienciaDto datos, ServicioPortal servicio, CancellationToken ct) => servicio.EditarAsync(id, datos, ct);
     [Authorize, HttpDelete("perfil/experiencia/{id:guid}")]
-    public async Task<IActionResult> Eliminar(Guid id, ServicioPortal servicio, CancellationToken ct) { await servicio.EliminarAsync<Experiencia>(id, ct); return NoContent(); }
+    public async Task<IActionResult> Eliminar(Guid id, ServicioPortal servicio, CancellationToken ct, [FromQuery] uint? version) { await servicio.EliminarAsync<Experiencia>(id, ct, version); return NoContent(); }
 
     [Authorize, HttpPost("perfil/educacion")]
     public async Task<ActionResult<EducacionDto>> Crear(GuardarEducacionDto datos, ServicioPortal servicio, CancellationToken ct) => Created("/api/portal/perfil", await servicio.CrearAsync(datos, ct));
     [Authorize, HttpPut("perfil/educacion/{id:guid}")]
     public Task<EducacionDto> Editar(Guid id, GuardarEducacionDto datos, ServicioPortal servicio, CancellationToken ct) => servicio.EditarAsync(id, datos, ct);
     [Authorize, HttpDelete("perfil/educacion/{id:guid}")]
-    public async Task<IActionResult> EliminarEducacion(Guid id, ServicioPortal servicio, CancellationToken ct) { await servicio.EliminarAsync<Educacion>(id, ct); return NoContent(); }
+    public async Task<IActionResult> EliminarEducacion(Guid id, ServicioPortal servicio, CancellationToken ct, [FromQuery] uint? version) { await servicio.EliminarAsync<Educacion>(id, ct, version); return NoContent(); }
 
     [Authorize, HttpPost("perfil/certificaciones")]
     public async Task<ActionResult<CertificacionDto>> Crear(GuardarCertificacionDto datos, ServicioPortal servicio, CancellationToken ct) => Created("/api/portal/perfil", await servicio.CrearAsync(datos, ct));
     [Authorize, HttpPut("perfil/certificaciones/{id:guid}")]
     public Task<CertificacionDto> Editar(Guid id, GuardarCertificacionDto datos, ServicioPortal servicio, CancellationToken ct) => servicio.EditarAsync(id, datos, ct);
     [Authorize, HttpDelete("perfil/certificaciones/{id:guid}")]
-    public async Task<IActionResult> EliminarCertificacion(Guid id, ServicioPortal servicio, CancellationToken ct) { await servicio.EliminarAsync<Certificacion>(id, ct); return NoContent(); }
+    public async Task<IActionResult> EliminarCertificacion(Guid id, ServicioPortal servicio, CancellationToken ct, [FromQuery] uint? version) { await servicio.EliminarAsync<Certificacion>(id, ct, version); return NoContent(); }
 
     [Authorize, HttpPost("perfil/proyectos")]
     public async Task<ActionResult<ProyectoDto>> Crear(GuardarProyectoDto datos, ServicioPortal servicio, CancellationToken ct) => Created("/api/portal/perfil", await servicio.CrearAsync(datos, ct));
     [Authorize, HttpPut("perfil/proyectos/{id:guid}")]
     public Task<ProyectoDto> Editar(Guid id, GuardarProyectoDto datos, ServicioPortal servicio, CancellationToken ct) => servicio.EditarAsync(id, datos, ct);
+    [Authorize]
+    [HttpGet("perfil/proyectos/{id:guid}/documento")]
+    public async Task<IActionResult> DescargarDocumento(Guid id, ServicioPortal servicio, CancellationToken ct)
+    {
+        var descarga = await servicio.DescargarDocumentoAsync(id, ct);
+        return descarga is null ? NotFound() : File(descarga.Contenido, descarga.Mime, descarga.Nombre, enableRangeProcessing: true);
+    }
+
     [Authorize, HttpDelete("perfil/proyectos/{id:guid}")]
-    public async Task<IActionResult> EliminarProyecto(Guid id, ServicioPortal servicio, CancellationToken ct) { await servicio.EliminarAsync<Proyecto>(id, ct); return NoContent(); }
+    public async Task<IActionResult> EliminarProyecto(Guid id, ServicioPortal servicio, CancellationToken ct, [FromQuery] uint? version) { await servicio.EliminarAsync<Proyecto>(id, ct, version); return NoContent(); }
 }

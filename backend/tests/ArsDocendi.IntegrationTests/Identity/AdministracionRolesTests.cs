@@ -96,7 +96,6 @@ public sealed class AdministracionRolesTests(PostgresFixture postgres)
         db.Usuarios.Add(new Usuario
         {
             Id = usuario,
-            AzureOid = Guid.NewGuid(),
             Upn = $"{usuario:N}@example.test",
             NombreParaMostrar = "Usuario test",
             Activo = true,

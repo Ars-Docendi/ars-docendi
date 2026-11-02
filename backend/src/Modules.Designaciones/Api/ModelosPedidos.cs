@@ -1,4 +1,4 @@
-using Modules.Designaciones.Domain;
+using System.Text.Json.Serialization;
 
 namespace Modules.Designaciones.Api;
 
@@ -12,14 +12,37 @@ public sealed record PersonaPedidoDto(
     string? Legajo);
 
 public sealed record MateriaPedidoDto(
-    Guid Id,
+    Guid MateriaId,
     string Codigo,
     string Nombre,
     Guid CarreraId,
     string CarreraNombre);
 
-public sealed record AdjuntoPedidoDto(Guid Id, string Tipo, string Nombre, string? Uri);
-public sealed record GuardarAdjuntoPedidoDto(string Tipo, string Nombre, string? Uri = null);
+public sealed record AdjuntoPedidoDto(Guid Id, string Tipo, string Nombre, Guid? ArchivoId, string EstadoArchivo);
+
+public sealed record GuardarAdjuntoPedidoDto
+{
+    public string Tipo { get; init; } = string.Empty;
+    public Guid? ArchivoId { get; init; }
+    // Compatibilidad de compilación para consumidores internos anteriores. La API HTTP
+    // solo acepta archivoId y el servicio rechaza esta forma cuando Storage está activo.
+    public string? Nombre { get; init; }
+    public string? Uri { get; init; }
+
+    [JsonConstructor]
+    public GuardarAdjuntoPedidoDto(string tipo, Guid? archivoId)
+    {
+        Tipo = tipo;
+        ArchivoId = archivoId;
+    }
+
+    public GuardarAdjuntoPedidoDto(string tipo, string nombre)
+    {
+        Tipo = tipo;
+        Nombre = nombre;
+    }
+}
+
 public sealed record GuardarPersonaPedidoDto(string Documento, string Nombre, string Apellido);
 
 public sealed record HistorialPedidoDto(
@@ -59,10 +82,15 @@ public sealed record PedidoDto(
     IReadOnlyList<string> AccionesPermitidas,
     Guid? DedicacionSolicitadaId = null);
 
+/// <param name="CarreraId">
+/// Carrera elegida para el pedido. Una materia dictada en más de una carrera exige elegir una
+/// (BR-designaciones-009): el frontend la ofrece junto a la materia en el selector.
+/// </param>
 public sealed record GuardarPedidoDto(
     Guid PeriodoId,
     Guid? PersonaId,
     Guid MateriaId,
+    Guid CarreraId,
     string Novedad,
     Guid? CargoSolicitadoId,
     Guid? DedicacionSolicitadaId,

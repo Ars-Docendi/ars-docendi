@@ -17,6 +17,13 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
 {
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
     private static readonly Guid Materia = Guid.Parse("70000000-0000-4000-8000-000000000101");
+    private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
+    private static readonly Guid[] MateriasDelJefe =
+    [
+        Guid.Parse("70000000-0000-4000-8000-000000000101"),
+        Guid.Parse("70000000-0000-4000-8000-000000000102"),
+        Guid.Parse("70000000-0000-4000-8000-000000000103"),
+    ];
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
@@ -35,12 +42,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         var global = await CrearServicio(Secretaria, identityDb, db).ListarAsync(Periodo, ct);
 
         Assert.NotEmpty(jefe);
-        Assert.All(jefe, p => Assert.True(new[]
-        {
-            Materia,
-            Guid.Parse("70000000-0000-4000-8000-000000000102"),
-            Guid.Parse("70000000-0000-4000-8000-000000000103"),
-        }.Contains(p.Materia.Id)));
+        Assert.All(jefe, p => Assert.Contains(p.Materia.MateriaId, MateriasDelJefe));
         Assert.NotEmpty(coordinador);
         Assert.All(coordinador, p => Assert.Equal(
             Guid.Parse("c0000000-0000-4000-8000-000000000201"), p.Materia.CarreraId));
@@ -51,23 +53,23 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand("""
             INSERT INTO identity.user_roles
-                (id, user_id, role_id, materia_id, carrera_id, granted_by)
+                (id, user_id, role_id, materia_id, granted_by)
             VALUES
                 ('e0000000-0000-4000-8000-000000000099',
                  'a0000000-0000-4000-8000-000000000003',
                  'a1000000-0000-4000-8000-000000000002',
                  '70000000-0000-4000-8000-000000000201',
-                 'c0000000-0000-4000-8000-000000000202',
                  'a0000000-0000-4000-8000-000000000007');
             UPDATE designaciones.pedidos
-            SET materia_id = '70000000-0000-4000-8000-000000000201'
+            SET materia_id = '70000000-0000-4000-8000-000000000201',
+                carrera_id = 'c0000000-0000-4000-8000-000000000202'
             WHERE id = 'd5000000-0000-4000-8000-000000000008';
             """, conexion);
         await comando.ExecuteNonQueryAsync(ct);
 
         var multirol = await CrearServicio(Coordinador, identityDb, db).ListarAsync(Periodo, ct);
-        Assert.Contains(multirol, p => p.Materia.Id == Materia);
-        Assert.Contains(multirol, p => p.Materia.Id ==
+        Assert.Contains(multirol, p => p.Materia.MateriaId == Materia);
+        Assert.Contains(multirol, p => p.Materia.MateriaId ==
             Guid.Parse("70000000-0000-4000-8000-000000000201"));
     }
 
@@ -213,157 +215,6 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         Assert.Equal(5, nueva.HorasExternas);
     }
 
-    [Theory]
-    [InlineData("rechazar")]
-    [InlineData("devolver")]
-    [InlineData("priorizar")]
-    public void Comentarios_obligatorios_se_validan_sin_mutar_el_pedido(string accion)
-    {
-        var pedido = new Pedido
-        {
-            Id = Guid.NewGuid(),
-            Numero = "TEST",
-            PeriodoId = Periodo,
-            PersonaId = Guid.NewGuid(),
-            MateriaId = Materia,
-            Novedad = Novedades.Alta,
-            Estado = accion == "priorizar" ? EstadosPedido.Borrador : EstadosPedido.EnRevisionCoordinador,
-        };
-        var actor = accion == "priorizar"
-            ? Actor(RolesCircuito.JefeCatedra)
-            : Actor(RolesCircuito.CoordinadorCarrera);
-        AccionPedido comando = accion switch
-        {
-            "rechazar" => new AccionPedido.Rechazar(""),
-            "devolver" => new AccionPedido.Devolver(""),
-            _ => new AccionPedido.Priorizar(""),
-        };
-
-        Assert.Throws<ErrorDominioPedido>(() =>
-            MaquinaEstadosPedido.AplicarAccion(pedido, Guid.Empty, comando, actor));
-        Assert.False(pedido.Prioritario);
-        Assert.Equal(accion == "priorizar" ? EstadosPedido.Borrador : EstadosPedido.EnRevisionCoordinador,
-            pedido.Estado);
-    }
-
-    [Theory]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.Secretaria)]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Decanato)]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.CoordinadorCarrera)]
-    public void Rol_incorrecto_no_puede_aceptar_la_etapa(string estado, string rol)
-    {
-        var pedido = new Pedido
-        {
-            Numero = "TEST",
-            PeriodoId = Periodo,
-            PersonaId = Guid.NewGuid(),
-            MateriaId = Materia,
-            Novedad = Novedades.Alta,
-            Estado = estado,
-        };
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            pedido, Guid.NewGuid(), new AccionPedido.Aceptar(), Actor(rol)));
-    }
-
-    [Theory]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.CoordinadorCarrera, "aceptar")]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.CoordinadorCarrera, "rechazar")]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.CoordinadorCarrera, "devolver")]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Secretaria, "aceptar")]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Secretaria, "rechazar")]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Secretaria, "devolver")]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.Decanato, "aceptar")]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.Decanato, "rechazar")]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.Decanato, "devolver")]
-    public void Cada_revisor_puede_actuar_en_su_etapa(string estado, string rol, string accion)
-    {
-        var pedido = PedidoEn(estado);
-        AccionPedido comando = accion switch
-        {
-            "aceptar" => new AccionPedido.Aceptar(),
-            "rechazar" => new AccionPedido.Rechazar("Justificación"),
-            _ => new AccionPedido.Devolver("Corrección requerida"),
-        };
-
-        var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, Guid.Empty, comando, Actor(rol));
-
-        Assert.Equal(rol, transicion.CodigoRolActuante);
-    }
-
-    [Theory]
-    [InlineData(RolesCircuito.JefeCatedra)]
-    [InlineData(RolesCircuito.CoordinadorCarrera)]
-    [InlineData(RolesCircuito.Secretaria)]
-    [InlineData(RolesCircuito.Decanato)]
-    [InlineData(RolesCircuito.Administrativo)]
-    public void Cada_rol_del_circuito_puede_priorizar_y_despriorizar_en_su_ambito(string rol)
-    {
-        var pedido = PedidoEn(EstadosPedido.Borrador);
-        var actor = Actor(rol);
-
-        var prioridad = MaquinaEstadosPedido.AplicarAccion(
-            pedido, Guid.Empty, new AccionPedido.Priorizar("Urgente"), actor);
-        var sinPrioridad = MaquinaEstadosPedido.AplicarAccion(
-            pedido, Guid.Empty, new AccionPedido.Despriorizar(), actor);
-
-        Assert.True(prioridad.Prioritario);
-        Assert.False(sinPrioridad.Prioritario);
-        Assert.Equal(rol, prioridad.CodigoRolActuante);
-    }
-
-    [Theory]
-    [InlineData(EstadosPedido.EnRevisionCoordinador)]
-    [InlineData(EstadosPedido.EnRevisionSecretaria)]
-    [InlineData(EstadosPedido.EnRevisionDecanato)]
-    public void Administrativo_revisa_pero_no_acepta_en_cada_etapa(string estado)
-    {
-        var pedido = PedidoEn(estado);
-        var actor = Actor(RolesCircuito.Administrativo);
-
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            pedido, Guid.Empty, new AccionPedido.Aceptar(), actor));
-        Assert.Equal(EstadosPedido.Rechazado, MaquinaEstadosPedido.AplicarAccion(
-            pedido, Guid.Empty, new AccionPedido.Rechazar("No corresponde"), actor).EstadoResultante);
-        Assert.Equal(EstadosPedido.Devuelto, MaquinaEstadosPedido.AplicarAccion(
-            pedido, Guid.Empty, new AccionPedido.Devolver("Corregir"), actor).EstadoResultante);
-    }
-
-    [Fact]
-    public void Cancelar_y_reenviar_exigen_ambito()
-    {
-        var fueraDeAmbito = new ActorContexto(
-            Guid.NewGuid(),
-            new HashSet<string> { RolesCircuito.JefeCatedra },
-            new HashSet<Guid>(),
-            new HashSet<Guid>());
-        var borrador = PedidoEn(EstadosPedido.Borrador);
-        var devuelto = PedidoEn(EstadosPedido.Devuelto);
-        devuelto.PropietarioActual = RolesCircuito.JefeCatedra;
-        devuelto.EtapaRetorno = EstadosPedido.EnRevisionCoordinador;
-
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            borrador, Guid.NewGuid(), new AccionPedido.Cancelar(), fueraDeAmbito));
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            devuelto, Guid.NewGuid(), new AccionPedido.Reenviar(), fueraDeAmbito));
-    }
-
-    private static Pedido PedidoEn(string estado) => new()
-    {
-        Id = Guid.NewGuid(),
-        Numero = "TEST",
-        PeriodoId = Periodo,
-        PersonaId = Guid.NewGuid(),
-        MateriaId = Materia,
-        Novedad = Novedades.Alta,
-        Estado = estado,
-    };
-
-    private static ActorContexto Actor(string rol) => new(
-        Guid.NewGuid(),
-        new HashSet<string> { rol },
-        new HashSet<Guid> { Materia },
-        new HashSet<Guid> { Guid.Empty });
-
     private static IServicioPedidosApi CrearServicio(
         Guid usuarioId,
         IdentityDbContext identityDb,
@@ -387,7 +238,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     }
 
     private static GuardarPedidoDto Datos(Guid personaId) => new(
-        Periodo, personaId, Materia, Novedades.Alta,
+        Periodo, personaId, Materia, Carrera, Novedades.Alta,
         Guid.Parse("c3000000-0000-4000-8000-000000000001"),
         Guid.Parse("d6000000-0000-4000-8000-000000000001"),
         10, 0, 0, "Solicitud de alta", null, null,

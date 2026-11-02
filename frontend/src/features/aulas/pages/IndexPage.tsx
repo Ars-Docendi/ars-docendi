@@ -33,8 +33,11 @@ export function IndexPage() {
 
   return (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Aulas" }]} />
-      <PageHeader pretitle="Reserva de Aulas" title="Reserva de Aulas" />
+      <Breadcrumbs
+        separator="›"
+        items={[{ label: "Inicio", href: "/" }, { label: "Reserva de aulas" }]}
+      />
+      <PageHeader title="Reserva de aulas" />
 
       {puedeSolicitar && <SeccionMisSolicitudes />}
       {puedeAprobar && <SeccionTodasLasSolicitudes />}

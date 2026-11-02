@@ -11,45 +11,25 @@ public sealed record AsignacionRolDto(
 
 public sealed record RolResumenDto(Guid Id, string Codigo, string Nombre);
 
-public sealed record PerfilDocenteDto(bool EsDocente, int CantidadMaterias);
-
-public sealed record UsuarioAdministracionDto(
-    Guid Id,
-    Guid PersonaId,
-    string Nombre,
-    string Apellido,
-    string Documento,
-    string? Legajo,
-    string? Cuil,
-    DateOnly? FechaNacimiento,
-    string? Telefono,
-    string Upn,
-    bool Activo,
-    uint Version,
-    IReadOnlyList<RolResumenDto> Roles,
-    IReadOnlyList<AsignacionRolDto> Membresias,
-    PerfilDocenteDto PerfilDocente);
-
+/// <summary>
+/// Membresía a guardar. Qué campo lleva depende del rol: el docente manda
+/// <see cref="MateriaId"/> y <see cref="CarreraId"/> juntos, el jefe de cátedra sólo
+/// <see cref="MateriaId"/> y el coordinador sólo <see cref="CarreraId"/>.
+/// </summary>
 public sealed record GuardarAsignacionRolDto(
     Guid RolId,
     Guid? MateriaId = null,
     Guid? CarreraId = null);
 
-public sealed record GuardarUsuarioDto(
-    string Nombre,
-    string Apellido,
-    string Documento,
-    string? Legajo,
-    string? Cuil,
-    DateOnly? FechaNacimiento,
-    string? Telefono,
-    string Upn,
-    IReadOnlyList<GuardarAsignacionRolDto> Membresias,
-    uint? Version = null);
-
 public sealed record CambiarEstadoUsuarioDto(uint Version);
 
-public sealed record OpcionCatalogoDto(Guid Id, string Codigo, string Nombre, Guid? CarreraId = null);
+public sealed record OpcionCatalogoDto(
+    Guid Id,
+    string Codigo,
+    string Nombre,
+    Guid? CarreraId = null,
+    string? CarreraNombre = null,
+    string? CarreraCodigo = null);
 
 public sealed record RolCatalogoDto(
     Guid Id,
@@ -57,8 +37,3 @@ public sealed record RolCatalogoDto(
     string Nombre,
     string Ambito,
     bool EsSistema);
-
-public sealed record CatalogosUsuariosDto(
-    IReadOnlyList<RolCatalogoDto> Roles,
-    IReadOnlyList<OpcionCatalogoDto> Carreras,
-    IReadOnlyList<OpcionCatalogoDto> Materias);

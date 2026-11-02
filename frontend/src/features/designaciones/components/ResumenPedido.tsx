@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import type { Adjunto, Cargo, Dedicacion, Novedad, PedidoDesignacion, TipoAdjunto } from "../types";
+import type { Cargo, Dedicacion, Novedad, PedidoDesignacion } from "../types";
 import { iniciales } from "./detalleAdapters";
 import { motivoRechazo } from "./tableroRevisionModelo";
+import { DocumentacionAdjuntaPedido } from "./DocumentacionAdjuntaPedido";
 
 /** Tono del chip de novedad (clases del design system). */
 const TONO_NOVEDAD: Record<Novedad, string> = {
@@ -16,13 +17,6 @@ const ETIQUETA_NOVEDAD: Record<Novedad, string> = {
   Alta: "Alta",
   Baja: "Baja",
   "Cambio de cargo o dedicación": "Cambio",
-};
-
-const ETIQUETA_ADJUNTO: Record<TipoAdjunto, string> = {
-  cv: "CV",
-  dni_frente: "DNI (frente)",
-  dni_dorso: "DNI (dorso)",
-  justificativo: "Justificativo",
 };
 
 /** Celda etiqueta + valor del grid de datos. */
@@ -176,17 +170,7 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
       {tieneAdjuntos && (
         <>
           <div className="adoc-divider" />
-          <div className="adoc-adjuntos">
-            <p className="adoc-eyebrow">Documentación adjunta</p>
-            <ul className="adoc-adjuntos-list">
-              {pedido.adjuntos.map((adjunto: Adjunto) => (
-                <li key={adjunto.id} className="adoc-adjunto">
-                  <span className="adoc-adjunto-tipo">{ETIQUETA_ADJUNTO[adjunto.tipo]}</span>
-                  <span className="adoc-adjunto-nombre">{adjunto.nombre}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <DocumentacionAdjuntaPedido pedidoId={pedido.id} adjuntos={pedido.adjuntos} />
         </>
       )}
     </section>

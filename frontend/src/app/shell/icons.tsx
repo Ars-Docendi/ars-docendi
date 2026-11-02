@@ -6,32 +6,10 @@
 // ============================================================
 import type { ReactNode } from "react";
 
-/* Topbar + chrome */
-export const searchIcon: ReactNode = (
+/* Botón "Menú" (☰): abre el panel en pantallas angostas y pliega la barra lateral en escritorio. */
+export const menuIcon: ReactNode = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <circle cx="8" cy="8" r="5" />
-    <path d="M11.5 11.5l3 3" />
-  </svg>
-);
-
-export const bellIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <path d="M4 8a5 5 0 0110 0v3l2 2H2l2-2V8z" />
-    <path d="M7 15a2 2 0 004 0" />
-  </svg>
-);
-
-export const helpIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <circle cx="9" cy="9" r="7" />
-    <path d="M7 7a2 2 0 014 0c0 1-2 1.5-2 3M9 13v.5" />
-  </svg>
-);
-
-export const collapseIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <path d="M11 4L6 9l5 5" />
-    <rect x="2" y="3" width="14" height="12" />
+    <path d="M3 5h12M3 9h12M3 13h12" />
   </svg>
 );
 
@@ -39,6 +17,14 @@ export const collapseIcon: ReactNode = (
 export const chevronIcon: ReactNode = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
     <path d="M5 7l4 4 4-4" />
+  </svg>
+);
+
+/* Signo de pregunta del acceso al Centro de ayuda (pie de la sidebar). */
+export const helpIcon: ReactNode = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <circle cx="9" cy="9" r="7" />
+    <path d="M6.9 7.2a2.2 2.2 0 014.3.6c0 1.4-2.2 1.7-2.2 3.1M9 13v.1" />
   </svg>
 );
 
@@ -79,6 +65,11 @@ export const navIcons = {
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="3" width="12" height="12" />
       <path d="M6 9l2 2 4-4" />
+    </svg>
+  ),
+  proyectos: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M2.5 5.5h4l1.5 1.5h7.5v7.5h-13Z" />
     </svg>
   ),
   portal: (

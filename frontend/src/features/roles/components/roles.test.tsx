@@ -45,6 +45,51 @@ const PROPS_LISTA = {
 };
 
 describe("componentes unificados de roles", () => {
+  it("muestra el conflicto remoto dentro del formulario y conserva los campos", () => {
+    render(
+      <ModalEditarRol
+        rol={ROL_PERSONALIZADO}
+        nombresExistentes={[]}
+        onGuardar={vi.fn()}
+        onCerrar={vi.fn()}
+        error="No se puede cambiar el ámbito con asignaciones vigentes."
+      />,
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText(/No se puede cambiar el ámbito con asignaciones vigentes/),
+    ).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("textbox")[0]).toHaveValue("Coordinación");
+  });
+
+  it("compara duplicados por trim y case sin confundir nombres con tildes", async () => {
+    const user = userEvent.setup();
+    const onGuardar = vi.fn();
+    const { rerender } = render(
+      <ModalEditarRol
+        rol={ROL_PERSONALIZADO}
+        nombresExistentes={[" Otro "]}
+        onGuardar={onGuardar}
+        onCerrar={vi.fn()}
+      />,
+    );
+    await user.clear(screen.getAllByRole("textbox")[0]);
+    await user.type(screen.getAllByRole("textbox")[0], " otro ");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(onGuardar).not.toHaveBeenCalled();
+    rerender(
+      <ModalEditarRol
+        rol={ROL_PERSONALIZADO}
+        nombresExistentes={["Coordinacion"]}
+        onGuardar={onGuardar}
+        onCerrar={vi.fn()}
+      />,
+    );
+    await user.clear(screen.getAllByRole("textbox")[0]);
+    await user.type(screen.getAllByRole("textbox")[0], "Coordinación");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(onGuardar).toHaveBeenCalledOnce();
+  });
   it("sólo ofrece baja para roles personalizados", () => {
     render(<ListaRoles {...PROPS_LISTA} roles={[ROL_SISTEMA, ROL_PERSONALIZADO]} />);
 

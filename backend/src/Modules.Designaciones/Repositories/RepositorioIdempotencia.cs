@@ -30,6 +30,12 @@ internal sealed class RepositorioIdempotencia(DesignacionesDbContext db)
             && c.Clave == clave
             && c.CreadoEn >= DateTimeOffset.UtcNow.AddHours(-24), ct);
 
+    /// <summary>Borra las claves vencidas de todos los actores; lo llama la limpieza periódica.</summary>
+    public Task<int> LimpiarVencidosAsync(CancellationToken ct) =>
+        db.ComandosIdempotentes
+            .Where(c => c.CreadoEn < DateTimeOffset.UtcNow.AddHours(-24))
+            .ExecuteDeleteAsync(ct);
+
     public void Agregar(ComandoIdempotente comando) => db.ComandosIdempotentes.Add(comando);
     public Task GuardarAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

@@ -1,0 +1,65 @@
+/* ============================================================
+   Filtro de selección múltiple (`MultiSelectFiltro.tsx`): botón +
+   desplegable de checkboxes.
+   ============================================================ */
+
+.adoc-multiselect {
+  position: relative;
+  display: inline-block;
+}
+.adoc-multiselect-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: #fff;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  cursor: pointer;
+}
+.adoc-multiselect-boton:hover {
+  background: var(--color-bg-canvas);
+}
+.adoc-multiselect-chevron {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.adoc-multiselect-lista {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  width: max-content;
+  min-width: 100%;
+  max-height: 240px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.adoc-multiselect-lista li {
+  margin: 0;
+  padding: 0;
+}
+.adoc-multiselect-opcion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.adoc-multiselect-opcion:hover {
+  background: var(--color-bg-canvas);
+}
