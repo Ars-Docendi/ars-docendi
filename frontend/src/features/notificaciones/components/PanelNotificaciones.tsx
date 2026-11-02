@@ -10,7 +10,7 @@ import {
 } from "react";
 import { Button } from "@ars-docendi/ui";
 
-import { registrarCapa } from "../../../shared/ui/capas";
+import { esCapaSuperior, registrarCapa } from "../../../shared/ui/capas";
 import {
   useCantidadNoLeidas,
   useListaNotificaciones,
@@ -44,6 +44,8 @@ interface PanelNotificacionesProps {
   desplazamiento: number;
   /** Active role code: part of every query key. */
   rol: string;
+  /** Ruta de la página: si cambia mientras el panel está abierto, la navegación se llevó el foco. */
+  rutaActual?: string;
   onNavegar: (notificacion: Notificacion) => void;
 }
 
@@ -77,6 +79,7 @@ function PanelAbierto({
   triggerRef,
   desplazamiento,
   rol,
+  rutaActual,
   onNavegar,
 }: PanelNotificacionesProps) {
   const [pestania, setPestania] = useState<EstadoLectura>("NO_LEIDAS");
@@ -84,7 +87,9 @@ function PanelAbierto({
   const panelRef = useRef<HTMLDivElement>(null);
   const cerrarRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const cerrarPorNavegacion = useRef(false);
+  // Navegó si la ruta cambió desde que se abrió: entonces el foco es de la página nueva.
+  const rutaInicial = useRef(rutaActual);
+  const navego = useRef(false);
   const idTitulo = useId();
 
   const noLeidas = useListaNotificaciones(rol, "NO_LEIDAS", pestania === "NO_LEIDAS");
@@ -115,6 +120,14 @@ function PanelAbierto({
     cerrarRefFn.current = cerrar;
   });
 
+  // La página cambió con el panel abierto (una notificación abrió su entidad): se cierra sin
+  // devolver el foco a la campana.
+  useEffect(() => {
+    if (rutaActual === rutaInicial.current) return;
+    navego.current = true;
+    cerrarRefFn.current();
+  }, [rutaActual]);
+
   // Overlay stack: Esc and the Tab trap act on the topmost layer, panel included.
   useEffect(
     () =>
@@ -130,7 +143,7 @@ function PanelAbierto({
     cerrarRef.current?.focus();
     const disparador = triggerRef.current;
     return () => {
-      if (!cerrarPorNavegacion.current) {
+      if (!navego.current) {
         retorno.current = window.setTimeout(() => disparador?.focus(), 0);
       }
     };
@@ -142,6 +155,8 @@ function PanelAbierto({
       const objetivo = evento.target as Node;
       if (panelRef.current?.contains(objetivo)) return;
       if (triggerRef.current?.contains(objetivo)) return;
+      // Un clic en otro diálogo apilado encima (p. ej. "¿Salir de esta página?") no es "afuera".
+      if (!esCapaSuperior(panelRef.current)) return;
       cerrarRefFn.current();
     }
     document.addEventListener("mousedown", alPresionar);
@@ -150,7 +165,6 @@ function PanelAbierto({
 
   function abrir(notificacion: Notificacion) {
     if (notificacion.leidaEn === null) marcarLeida.mutate(notificacion);
-    cerrarPorNavegacion.current = true;
     onNavegar(notificacion);
   }
 

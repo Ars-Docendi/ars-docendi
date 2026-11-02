@@ -115,8 +115,11 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
   const { data: cantidad } = useCantidadNoLeidas(rol);
 
   const alternarNotificaciones = () => setNotifAbierta((abierta) => !abierta);
+  // El panel se cierra cuando la página realmente cambia (lo hace él mismo al ver `rutaActual`),
+  // no al hacer clic: si el guardia de cambios sin guardar frena la navegación, el panel sigue
+  // abierto debajo del diálogo.
+  const { pathname } = useLocation();
   function irANotificacion(notificacion: Notificacion) {
-    setNotifAbierta(false);
     navigate(rutaDeEntidad(notificacion.tipoEntidad, notificacion.entidadId));
     resaltar(notificacion.entidadId);
   }
@@ -159,6 +162,7 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
         triggerRef={campanaRef}
         desplazamiento={angosta ? 0 : colapsado ? ANCHO_BARRA.colapsada : ANCHO_BARRA.expandida}
         rol={rol}
+        rutaActual={pathname}
         onNavegar={irANotificacion}
       />
       {/* Con varias asignaciones, al ingresar se ofrece elegir; ya opera con la de por defecto. */}

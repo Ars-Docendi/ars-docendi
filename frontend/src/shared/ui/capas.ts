@@ -86,6 +86,11 @@ export function cerrarCapaSuperior(): boolean {
   return true;
 }
 
+/** `true` si el contenedor es el de la capa de más arriba (un clic afuera de él es de otra capa). */
+export function esCapaSuperior(contenedor: HTMLElement | null): boolean {
+  return pila.length > 0 && pila[pila.length - 1].contenedor() === contenedor;
+}
+
 /** Apila una capa; devuelve la función que la retira. */
 export function registrarCapa(capa: Capa): () => void {
   if (pila.length === 0) document.addEventListener("keydown", alPresionarTecla);

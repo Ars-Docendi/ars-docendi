@@ -5,6 +5,7 @@ import { Link, RouterProvider, createMemoryRouter, useParams } from "react-route
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notificacion, pagina } from "../features/notificaciones/pruebas";
+import { reiniciarGuardias, useGuardiaDeCambios } from "../shared/navegacion/guardias";
 import { useResaltado } from "../shared/ui/resaltado";
 import AppLayout from "./AppLayout";
 
@@ -54,6 +55,11 @@ function DetalleTarea() {
   );
 }
 
+function PaginaConCambios() {
+  useGuardiaDeCambios(true);
+  return <p>Formulario con cambios sin guardar</p>;
+}
+
 function renderizar(ruta = "/portal") {
   const router = createMemoryRouter(
     [
@@ -62,6 +68,7 @@ function renderizar(ruta = "/portal") {
         element: <AppLayout />,
         children: [
           { path: "tareas/:id", element: <DetalleTarea /> },
+          { path: "formulario", element: <PaginaConCambios /> },
           { path: "*", element: <Link to="/otra">ir a otra</Link> },
         ],
       },
@@ -86,7 +93,10 @@ beforeEach(() => {
   api.marcarLeida.mockResolvedValue({});
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  reiniciarGuardias();
+});
 
 describe("AppLayout — campana de notificaciones", () => {
   it("places the bell in the sidebar foot between 'Centro de ayuda' and the user card", async () => {
@@ -175,4 +185,32 @@ describe("AppLayout — campana de notificaciones", () => {
     // The highlight is brief: it fades by itself.
     await waitFor(() => expect(tarjeta).not.toHaveClass("adoc-resaltado"), { timeout: 4500 });
   }, 10000);
+
+  it("a notification opened over a page with unsaved changes keeps the panel open if the user keeps editing", async () => {
+    const n = notificacion({
+      titulo: "Tarea asignada",
+      tipoEntidad: "TAREA",
+      entidadId: "tarea-9",
+    });
+    api.contarNoLeidas.mockResolvedValue(1);
+    api.listarPagina.mockResolvedValue(pagina([n]));
+    const usuario = userEvent.setup();
+    const { router } = renderizar("/formulario");
+    await usuario.click(
+      await screen.findByRole("button", { name: "Notificaciones, 1 notificación sin leer" }),
+    );
+
+    await usuario.click(await screen.findByTestId(`notificacion-${n.id}`));
+
+    await screen.findByText("Tenés cambios sin guardar.");
+    expect(router.state.location.pathname).toBe("/formulario");
+    await usuario.click(screen.getByRole("button", { name: "Seguir editando" }));
+    expect(screen.getByRole("dialog", { name: "Notificaciones" })).toBeInTheDocument();
+
+    // Discarding the changes lets the navigation through and closes the panel.
+    await usuario.click(screen.getByTestId(`notificacion-${n.id}`));
+    await usuario.click(await screen.findByRole("button", { name: "Descartar cambios" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/tareas/tarea-9"));
+    expect(screen.queryByRole("dialog", { name: "Notificaciones" })).not.toBeInTheDocument();
+  });
 });
