@@ -103,3 +103,10 @@ a.adoc-btn.adoc-aulas-volver {
     min-height: 44px;
   }
 }
+
+/* El campo del aula es un control principal del panel: 44 CSS px de alto y radio 8px, como en los
+   modales y en el diseño aprobado. */
+.adoc-aulas-acc .adoc-input {
+  height: 44px;
+  border-radius: 8px;
+}
