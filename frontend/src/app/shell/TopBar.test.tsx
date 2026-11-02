@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -69,6 +69,24 @@ describe("TopBar", () => {
 
     expect(screen.getByText("Pantalla del portal")).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Menú" })).not.toBeInTheDocument();
+  });
+
+  it("el panel atrapa el foco, Esc lo cierra y el foco vuelve al botón Menú", async () => {
+    simularPantallaAngosta();
+    renderTopBar({ ...usuario, permissions: ["portal.ver"] });
+    const abrir = screen.getByRole("button", { name: "Abrir menú de navegación" });
+
+    await userEvent.click(abrir);
+    const panel = screen.getByRole("dialog", { name: "Menú" });
+    await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+    for (let i = 0; i < 8; i++) {
+      await userEvent.tab();
+      expect(panel.contains(document.activeElement)).toBe(true);
+    }
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Menú" })).not.toBeInTheDocument();
+    await waitFor(() => expect(abrir).toHaveFocus());
   });
 
   it("la marca muestra el isotipo y lleva a Mi portal", () => {

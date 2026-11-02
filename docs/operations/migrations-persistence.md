@@ -27,7 +27,7 @@ No incluye reaper, separación de privilegios ni upgrades del historial alpha re
 7. Reconsulta estado y compara con el observado antes de `--migrate`. Un historial
    cambiado/incompatible aborta; nunca ejecuta ciegamente el SQL del preview.
 8. Inicializa seed no productivo únicamente si corresponde, publica y verifica
-   referencias por SHA, cuatro pings, identidad/conectividad DB con la cuenta de
+   referencias por SHA, cinco pings, identidad/conectividad DB con la cuenta de
    app en transacción read-only y cero pendientes.
 9. Guarda recibo privado ligado a ambiente/release/historial/backup y aplica
    retención sólo a snapshots de despliegues exitosos.
@@ -332,5 +332,5 @@ procesos. Las pruebas de orquestación usan fronteras sintéticas de Docker/CLI
 para cubrir no-op y fallas. `migration-candidate.integration.mjs` usa la imagen
 real y un upgrade creado/compilado por el scaffolder en un checkout desechable:
 verifica instalación, tar preview, seed único, backup conjunto, aplicación
-incremental, preservación de datos/bytes, no-op y cuatro pings reales. No despliega
+incremental, preservación de datos/bytes, no-op y cinco pings reales. No despliega
 ambientes compartidos ni agrega una matriz de upgrades de releases históricas.

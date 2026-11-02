@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Button, Field, Input, Modal } from "@ars-docendi/ui";
+import { Button, Field, Input } from "@ars-docendi/ui";
+import { Modal } from "../../ui/Modal";
 
 interface ModalEditarCampoProps {
   /** Nombre del campo, p. ej. "Teléfono". */
@@ -23,6 +24,8 @@ export function ModalEditarCampo({
 }: ModalEditarCampoProps) {
   const [borrador, setBorrador] = useState(valor);
   const [error, setError] = useState<string | undefined>();
+  // Lo cargado se compara con lo que se abrió: cerrar con datos sin guardar pide confirmar.
+  const [inicial] = useState(() => JSON.stringify(borrador));
 
   function guardar() {
     const limpio = borrador.trim();
@@ -37,6 +40,7 @@ export function ModalEditarCampo({
   return (
     <Modal
       open
+      sucio={JSON.stringify(borrador) !== inicial}
       onOpenChange={(abierto) => !abierto && onCerrar()}
       title={etiqueta}
       footer={

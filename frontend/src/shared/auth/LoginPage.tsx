@@ -13,11 +13,31 @@ const DevLoginModal = developmentAuthEnabled
   ? lazy(() => import("./dev/DevLoginModal").then((module) => ({ default: module.DevLoginModal })))
   : null;
 
-/** Where to land after login: the route the guard bounced us from, else the default. */
+const DESTINO_POR_DEFECTO = "/portal";
+
+/** Sólo rutas de la propia app: empiezan con una sola `/` y no llevan caracteres de control. */
+function esRutaLocal(ruta: string): boolean {
+  return (
+    ruta.startsWith("/") &&
+    !ruta.startsWith("//") &&
+    !ruta.startsWith("/\\") &&
+    // eslint-disable-next-line no-control-regex
+    !/[\u0000-\u001f\u007f]/.test(ruta)
+  );
+}
+
+/**
+ * Where to land after login: the page the guard bounced us from (path, query and hash), else the
+ * default. Anything that is not a relative path of this app is discarded.
+ */
 function usePostLoginTarget(): string {
   const location = useLocation();
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from;
-  return from?.pathname ?? "/portal";
+  const from = (
+    location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null
+  )?.from;
+  if (!from?.pathname) return DESTINO_POR_DEFECTO;
+  const destino = `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`;
+  return esRutaLocal(destino) ? destino : DESTINO_POR_DEFECTO;
 }
 
 /** Microsoft four-square brand glyph (decorative, page-local). */

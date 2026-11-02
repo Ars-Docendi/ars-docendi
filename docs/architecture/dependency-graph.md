@@ -22,6 +22,7 @@ flowchart TD
     AulasContracts["Modules.Aulas.Contracts"]
     PortalContracts["Modules.Portal.Contracts"]
     TareasContracts["Modules.Tareas.Contracts"]
+    NotificacionesContracts["Modules.Notificaciones.Contracts"]
   end
   subgraph modules [Modules internos]
     Storage["ArsDocendi.Storage"]
@@ -30,6 +31,7 @@ flowchart TD
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
     Tareas["Modules.Tareas"]
+    Notificaciones["Modules.Notificaciones"]
   end
 
   Host --> Migraciones["ArsDocendi.Migraciones"]
@@ -39,12 +41,14 @@ flowchart TD
   Aulas --> Migraciones
   Portal --> Migraciones
   Tareas --> Migraciones
+  Notificaciones --> Migraciones
   Host --> Designaciones
   Host --> Storage
   Host --> Inferencia
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
+  Host --> Notificaciones
   Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
   Host -->|"administración de Mi Portal de otras personas"| PortalContracts
   Host --> Shared
@@ -55,6 +59,7 @@ flowchart TD
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
+  Notificaciones --> Shared
 
   Designaciones --> DesignacionesContracts
   Storage --> StorageContracts
@@ -63,6 +68,10 @@ flowchart TD
   Portal --> PortalContracts
   Portal --> StorageContracts
   Tareas --> TareasContracts
+  Notificaciones --> NotificacionesContracts
+  Aulas -->|"avisos in-app"| NotificacionesContracts
+  Designaciones -->|"avisos in-app"| NotificacionesContracts
+  Tareas -->|"avisos in-app"| NotificacionesContracts
 
   Designaciones -->|"correo de altas vía PortalContracts"| PortalContracts
 ```
@@ -75,30 +84,36 @@ flowchart TD
 | `ArsDocendi.Migraciones`           | `ArsDocendi.Shared`      | project reference | Contratos, recursos y contexto Identity                |
 | `ArsDocendi.Storage` y `Modules.*` | `ArsDocendi.Migraciones` | project reference | Adaptador EF reutilizable, sin acceder a otros módulos |
 
-| From                    | To                                | Vía               | Notas                                                                                              |
-| ----------------------- | --------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `ArsDocendi.Host`       | `Modules.Designaciones`           | project reference | Hosting + composition root                                                                         |
-| `ArsDocendi.Host`       | `ArsDocendi.Storage`              | project reference | Composition root y endpoints de archivos                                                           |
-| `ArsDocendi.Storage`    | `ArsDocendi.Storage.Contracts`    | project reference | Implementación del proveedor privado                                                               |
-| `ArsDocendi.Host`       | `ArsDocendi.Inferencia`           | project reference | Composition root y estado de la inferencia                                                         |
-| `ArsDocendi.Inferencia` | `ArsDocendi.Shared`               | project reference | `Permisos` para autorizar `/api/inferencia/estado`; sin Contracts hasta tener consumidor           |
-| `Modules.Designaciones` | `ArsDocendi.Storage.Contracts`    | project reference | Validación de asociaciones por `archivoId`                                                         |
-| `Modules.Portal`        | `ArsDocendi.Storage.Contracts`    | project reference | CV y documentos de proyectos                                                                       |
-| `ArsDocendi.Host`       | `Modules.Aulas`                   | project reference | Hosting                                                                                            |
-| `ArsDocendi.Host`       | `Modules.Portal`                  | project reference | Hosting                                                                                            |
-| `ArsDocendi.Host`       | `Modules.Tareas`                  | project reference | Hosting                                                                                            |
-| `ArsDocendi.Host`       | `Modules.Designaciones.Contracts` | project reference | `IAdministracionDesignaciones`: consulta y reemplazo de designaciones vigentes sin tocar internals |
-| `ArsDocendi.Host`       | `Modules.Portal.Contracts`        | project reference | `IAdministracionPortal`: lectura y corrección de Mi Portal de otra persona                         |
-| `ArsDocendi.Host`       | `ArsDocendi.Shared`               | project reference | Identity, auditoría y permisos para administración y autenticación                                 |
-| `Modules.Designaciones` | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
-| `Modules.Designaciones` | `Modules.Designaciones.Contracts` | project reference | Propio contract público                                                                            |
-| `Modules.Designaciones` | `Modules.Portal.Contracts`        | project reference | `IPortalQueries`: correo del perfil para exportar altas                                            |
-| `Modules.Aulas`         | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
-| `Modules.Aulas`         | `Modules.Aulas.Contracts`         | project reference | Propio contract público                                                                            |
-| `Modules.Portal`        | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
-| `Modules.Portal`        | `Modules.Portal.Contracts`        | project reference | Propio contract público                                                                            |
-| `Modules.Tareas`        | `ArsDocendi.Shared`               | project reference | Utilidades                                                                                         |
-| `Modules.Tareas`        | `Modules.Tareas.Contracts`        | project reference | Propio contract público                                                                            |
+| From                     | To                                 | Vía               | Notas                                                                                              |
+| ------------------------ | ---------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `ArsDocendi.Host`        | `Modules.Designaciones`            | project reference | Hosting + composition root                                                                         |
+| `ArsDocendi.Host`        | `ArsDocendi.Storage`               | project reference | Composition root y endpoints de archivos                                                           |
+| `ArsDocendi.Storage`     | `ArsDocendi.Storage.Contracts`     | project reference | Implementación del proveedor privado                                                               |
+| `ArsDocendi.Host`        | `ArsDocendi.Inferencia`            | project reference | Composition root y estado de la inferencia                                                         |
+| `ArsDocendi.Inferencia`  | `ArsDocendi.Shared`                | project reference | `Permisos` para autorizar `/api/inferencia/estado`; sin Contracts hasta tener consumidor           |
+| `Modules.Designaciones`  | `ArsDocendi.Storage.Contracts`     | project reference | Validación de asociaciones por `archivoId`                                                         |
+| `Modules.Portal`         | `ArsDocendi.Storage.Contracts`     | project reference | CV y documentos de proyectos                                                                       |
+| `ArsDocendi.Host`        | `Modules.Aulas`                    | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`        | `Modules.Portal`                   | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`        | `Modules.Tareas`                   | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`        | `Modules.Designaciones.Contracts`  | project reference | `IAdministracionDesignaciones`: consulta y reemplazo de designaciones vigentes sin tocar internals |
+| `ArsDocendi.Host`        | `Modules.Portal.Contracts`         | project reference | `IAdministracionPortal`: lectura y corrección de Mi Portal de otra persona                         |
+| `ArsDocendi.Host`        | `ArsDocendi.Shared`                | project reference | Identity, auditoría y permisos para administración y autenticación                                 |
+| `Modules.Designaciones`  | `ArsDocendi.Shared`                | project reference | Utilidades                                                                                         |
+| `Modules.Designaciones`  | `Modules.Designaciones.Contracts`  | project reference | Propio contract público                                                                            |
+| `Modules.Designaciones`  | `Modules.Portal.Contracts`         | project reference | `IPortalQueries`: correo del perfil para exportar altas                                            |
+| `Modules.Aulas`          | `ArsDocendi.Shared`                | project reference | Utilidades                                                                                         |
+| `Modules.Aulas`          | `Modules.Aulas.Contracts`          | project reference | Propio contract público                                                                            |
+| `Modules.Portal`         | `ArsDocendi.Shared`                | project reference | Utilidades                                                                                         |
+| `Modules.Portal`         | `Modules.Portal.Contracts`         | project reference | Propio contract público                                                                            |
+| `Modules.Tareas`         | `ArsDocendi.Shared`                | project reference | Utilidades                                                                                         |
+| `Modules.Tareas`         | `Modules.Tareas.Contracts`         | project reference | Propio contract público                                                                            |
+| `ArsDocendi.Host`        | `Modules.Notificaciones`           | project reference | Hosting                                                                                            |
+| `Modules.Notificaciones` | `ArsDocendi.Shared`                | project reference | Resolución de destinatarios con `IConsultasIdentity` (sólo lectura)                                |
+| `Modules.Notificaciones` | `Modules.Notificaciones.Contracts` | project reference | Propio contract público (`INotificador`)                                                           |
+| `Modules.Aulas`          | `Modules.Notificaciones.Contracts` | project reference | `INotificador`: avisos al docente y a quien resuelve, después del commit                           |
+| `Modules.Designaciones`  | `Modules.Notificaciones.Contracts` | project reference | `INotificador`: avisos al aceptar, rechazar o devolver un pedido, después del commit               |
+| `Modules.Tareas`         | `Modules.Notificaciones.Contracts` | project reference | `INotificador`: avisos de asignación, estado y comentarios, después del commit                     |
 
 Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyectos, pero explican por qué Shared ya no es puro):
 
@@ -117,7 +132,7 @@ Dependencias de paquete del Host para el ingreso con Microsoft (tampoco son edge
 
 ## Frontera de lectura sobre `identity`
 
-Los 4 módulos referencian `ArsDocendi.Shared`, y eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
+Los módulos de negocio referencian `ArsDocendi.Shared`, y eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
 
 La disciplina, corolario del invariante #4 enmendado:
 
@@ -146,6 +161,12 @@ internas de Portal.
 ## Orquestación administrativa de docentes
 
 `ArsDocendi.Host.Administracion.ServicioAdministracionPersonas` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa el edge Host → Contracts ya permitido y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
+
+## Notificaciones: una hoja del grafo
+
+`Modules.Notificaciones.Contracts` no referencia ningún proyecto y `Modules.Notificaciones` sólo referencia `Shared`, `Migraciones` y sus propios Contracts. Aulas, Designaciones y Tareas dependen de esos Contracts (`INotificador` y sus records); nunca de la implementación. Como Notificaciones no depende de ninguno de los tres, no hay ciclo posible: la flecha va siempre de quien emite hacia Notificaciones.
+
+El emisor dice _a quién_ (un usuario, una persona o un rol en un ámbito) y _qué_ (un texto inmutable que él mismo construye); Notificaciones resuelve los usuarios con `IConsultasIdentity`, sin acceder a las tablas de los emisores. `ArquitecturaIdentityTests` verifica esta forma.
 
 ## Agregar un edge nuevo
 

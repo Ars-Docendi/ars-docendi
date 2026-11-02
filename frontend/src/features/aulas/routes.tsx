@@ -13,6 +13,13 @@ export const routes: RouteObject = {
           lazy: () =>
             import("./pages/IndexPage").then(({ IndexPage }) => ({ Component: IndexPage })),
         },
+        {
+          path: "solicitudes/:id",
+          lazy: () =>
+            import("./pages/DetalleSolicitudPage").then(({ DetalleSolicitudPage }) => ({
+              Component: DetalleSolicitudPage,
+            })),
+        },
       ],
     },
   ],

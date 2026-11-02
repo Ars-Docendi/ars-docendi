@@ -115,6 +115,7 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 
 - **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta. La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
 - **Exportación**: el lote es una proyección de sólo lectura ([exportacion-lote-designaciones](../../../openspec/specs/exportacion-lote-designaciones/spec.md)); el correo de las altas sale de `IPortalQueries`.
-- **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`) y `ArsDocendi.Storage.Contracts` (adjuntos de pedidos).
+- **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`), `ArsDocendi.Storage.Contracts` (adjuntos de pedidos) y `Modules.Notificaciones.Contracts` (`INotificador`).
+- **Avisos**: `ServicioPedidosApi` avisa **después del commit más externo** (la transición idempotente corre dentro de una transacción) y sólo para tres acciones: Aceptar a una etapa con revisor (Secretaría o Decanato; `en_lote` no avisa), Rechazar (a los Jefes de la materia) y Devolver (al rol propietario de la etapa de origen, en el ámbito del pedido). Enviar, Reenviar, Cancelar y las prioridades no avisan. Ver [notificaciones.md](./notificaciones.md).
 - **Hacia afuera**: el Host consume `IAdministracionDesignaciones` para la administración de docentes.
 - **Externas**: ninguna.

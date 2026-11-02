@@ -1,7 +1,9 @@
 import axios from "axios";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { InlineAlert } from "@ars-docendi/ui";
+import { useFiltrosURL } from "../../../shared/navegacion/estadoURL";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import {
@@ -12,12 +14,10 @@ import {
 import { esIntegridadComprometida, exportarLote } from "../api/loteApi";
 import { TablaRevision } from "../components/TablaRevision";
 import { CARRERAS, FILTROS_INICIALES } from "../components/filtrosTablero";
-import type { FiltrosTablero } from "../components/filtrosTablero";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
 import { usePedidosPorAmbito } from "../hooks/usePedidos";
 import type { PedidoDesignacion } from "../types";
-import { estadoOrigen } from "./origenDetalle";
 
 /**
  * Período es el único filtro general fijo. Docente, Tipo, Legajo y Estado viven
@@ -90,16 +90,17 @@ function filtrosOpcionales(veVariasCarreras: boolean): CampoFiltroOpcional[] {
 }
 
 export function TableroRevisionPage() {
-  const navegar = useNavigate();
+  const abrir = useAbrirDetalle();
   const actor = useActorContexto();
   const { data: pedidos, isLoading, isError, refetch } = usePedidosPorAmbito();
   const catalogos = useCatalogosDesignaciones();
-  const [filtros, setFiltros] = useState<FiltrosTablero>(FILTROS_INICIALES);
+  // Período, prioridad, etc. viven en el query: Atrás y recargar los restauran.
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_INICIALES);
   const [exportando, setExportando] = useState(false);
   const [errorExportacion, setErrorExportacion] = useState<string>();
 
   function handleSeleccionar(pedido: PedidoDesignacion) {
-    navegar(`/designaciones/pedidos/${pedido.id}`, { state: estadoOrigen("revision") });
+    abrir(`/designaciones/pedidos/${pedido.id}`);
   }
 
   async function handleExportar() {
@@ -138,7 +139,7 @@ export function TableroRevisionPage() {
 
   return (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Revisión" }]} />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Revisión" }]} />
       <PageHeader title="Revisión" meta={`Pedidos en tu ámbito · ${ambito}`} />
 
       {isLoading && (

@@ -17,8 +17,10 @@ interface SolicitudReservaAulaDto {
   estado: string;
   aulaAsignada: string | null;
   motivoRechazo: string | null;
+  motivoCancelacion: string | null;
   creadoEn: string;
   docente: DocenteSolicitud | null;
+  esPropia: boolean;
 }
 
 export async function listarMateriasPropias(): Promise<MateriaOpcion[]> {
@@ -34,6 +36,13 @@ export async function listarMisSolicitudes(): Promise<SolicitudReservaAula[]> {
 export async function listarTodasLasSolicitudes(): Promise<SolicitudReservaAula[]> {
   return (await apiClient.get<SolicitudReservaAulaDto[]>("/api/aulas/solicitudes")).data.map(
     mapear,
+  );
+}
+
+/** Detalle de una solicitud: lo ve su dueño o quien resuelve; para el resto es 404. */
+export async function obtenerSolicitud(id: string): Promise<SolicitudReservaAula> {
+  return mapear(
+    (await apiClient.get<SolicitudReservaAulaDto>(`/api/aulas/solicitudes/${id}`)).data,
   );
 }
 
@@ -67,6 +76,19 @@ export async function rechazarSolicitud(id: string, motivo: string): Promise<Sol
   );
 }
 
+export async function cancelarReserva(id: string, motivo: string): Promise<SolicitudReservaAula> {
+  return mapear(
+    (
+      await apiClient.post<SolicitudReservaAulaDto>(
+        `/api/aulas/solicitudes/${id}/cancelar-reserva`,
+        {
+          motivo,
+        },
+      )
+    ).data,
+  );
+}
+
 function mapear(dto: SolicitudReservaAulaDto): SolicitudReservaAula {
   return {
     id: dto.id,
@@ -79,7 +101,9 @@ function mapear(dto: SolicitudReservaAulaDto): SolicitudReservaAula {
     estado: dto.estado as SolicitudReservaAula["estado"],
     aulaAsignada: dto.aulaAsignada ?? undefined,
     motivoRechazo: dto.motivoRechazo ?? undefined,
+    motivoCancelacion: dto.motivoCancelacion ?? undefined,
     creadoEn: dto.creadoEn,
     docente: dto.docente ?? undefined,
+    esPropia: dto.esPropia,
   };
 }

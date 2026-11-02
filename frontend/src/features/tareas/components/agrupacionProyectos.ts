@@ -36,3 +36,12 @@ export function agruparTareasPorProyecto(
 
   return [generales, ...cuadrosDeProyecto];
 }
+
+/**
+ * Prefijo de los filtros de columna de un cuadro en el query: `g` para "Generales" y
+ * `p<id sin guiones>` para un proyecto, así cada tabla de la pantalla inicial guarda su estado
+ * sin pisar a las otras.
+ */
+export function prefijoDeCuadro(proyecto: Proyecto | null): string {
+  return proyecto ? `p${proyecto.id.replaceAll("-", "").toLowerCase()}` : "g";
+}

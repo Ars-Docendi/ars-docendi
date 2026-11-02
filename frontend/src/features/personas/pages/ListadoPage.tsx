@@ -1,30 +1,34 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Button, InlineAlert } from "@ars-docendi/ui";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
 
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import type { Persona } from "../api/personasApi";
 import { TablaPersonas } from "../components/TablaPersonas";
 import {
+  COLUMNAS_ORDEN_PERSONAS,
   FILTROS_VACIOS,
   filtrarPersonas,
   nombreCompleto,
   opcionesRol,
   ordenarPersonas,
   siguienteOrden,
-  type FiltrosPersonas,
-  type OrdenPersonas,
 } from "../filtrosPersonas";
 import { usePermisosPersonas, usePersonas } from "../hooks/usePersonas";
+import { Modal } from "../../../shared/ui/Modal";
 
 export function ListadoPage() {
   const navegar = useNavigate();
+  const abrir = useAbrirDetalle();
   const aviso = (useLocation().state as { aviso?: string } | null)?.aviso;
   const { administrar } = usePermisosPersonas();
   const { consulta, cambiarEstado } = usePersonas();
-  const [filtros, setFiltros] = useState<FiltrosPersonas>(FILTROS_VACIOS);
-  const [orden, setOrden] = useState<OrdenPersonas | null>(null);
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_VACIOS);
+  const [orden, setOrden] = useOrdenURL(COLUMNAS_ORDEN_PERSONAS);
   const [aConfirmar, setAConfirmar] = useState<Persona | null>(null);
 
   const personas = useMemo(() => consulta.data ?? [], [consulta.data]);
@@ -41,7 +45,7 @@ export function ListadoPage() {
 
   return (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Personas" }]} />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Personas" }]} />
       <PageHeader
         title="Administrar personas"
         meta={`${conteo} · ${activas} activas`}
@@ -75,7 +79,7 @@ export function ListadoPage() {
           orden={orden}
           onFiltrosChange={setFiltros}
           onOrdenar={(columna) => setOrden(siguienteOrden(orden, columna))}
-          onAbrir={(p) => navegar(`/personas/${p.personaId}`)}
+          onAbrir={(p) => abrir(`/personas/${p.personaId}`)}
           onCambiarEstado={administrar ? setAConfirmar : undefined}
           textoAbrir={administrar ? "Editar" : "Ver"}
         />
@@ -83,6 +87,8 @@ export function ListadoPage() {
 
       <Modal
         open={aConfirmar !== null}
+        tamano="confirmacion"
+        pendiente={cambiarEstado.isPending}
         onOpenChange={(abierto) => !abierto && setAConfirmar(null)}
         title={activar ? "Activar persona" : "Desactivar persona"}
         footer={

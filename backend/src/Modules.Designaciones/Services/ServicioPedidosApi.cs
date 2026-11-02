@@ -6,10 +6,12 @@ using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Storage.Contracts;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Modules.Designaciones.Api;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
+using Modules.Notificaciones.Contracts;
 
 namespace Modules.Designaciones.Services;
 
@@ -38,7 +40,9 @@ internal sealed class ServicioPedidosApi(
     IConsultasIdentity identity,
     RepositorioIdempotencia repositorioIdempotencia,
     UnidadDeTrabajo unidadDeTrabajo,
-    IAlmacenamientoArchivos? almacenamiento = null) : IServicioPedidosApi
+    IAlmacenamientoArchivos? almacenamiento = null,
+    INotificador? notificador = null,
+    ILogger<ServicioPedidosApi>? logger = null) : IServicioPedidosApi
 {
     private static readonly JsonSerializerOptions OpcionesJson = new(JsonSerializerDefaults.Web);
 
@@ -95,8 +99,36 @@ internal sealed class ServicioPedidosApi(
         AccionPedido accion,
         CancellationToken ct)
     {
-        await servicio.AplicarAccionAsync(id, accion, ct);
-        return await ObtenerAsync(id, ct);
+        var (respuesta, aplicado) = await AplicarSinAvisoAsync(id, accion, ct);
+        await AvisarAsync(accion, aplicado);
+        return respuesta;
+    }
+
+    private async Task<(PedidoDto Respuesta, Pedido Aplicado)> AplicarSinAvisoAsync(
+        Guid id, AccionPedido accion, CancellationToken ct)
+    {
+        var aplicado = await servicio.AplicarAccionAsync(id, accion, ct);
+        return (await ObtenerAsync(id, ct), aplicado);
+    }
+
+    /// <summary>
+    /// Notifies who must act next. It runs only once the OUTERMOST transaction committed (the
+    /// idempotent path wraps the transition in one), and any failure is swallowed.
+    /// </summary>
+    private async Task AvisarAsync(AccionPedido accion, Pedido aplicado)
+    {
+        if (notificador is null || accion is not (AccionPedido.Aceptar or AccionPedido.Rechazar or AccionPedido.Devolver))
+            return;
+
+        var logueador = (ILogger?)logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        await EmisionPosterior.IntentarAsync(logueador, "aviso de pedido", async () =>
+        {
+            var docente = await identity.ObtenerPersonaAsync(aplicado.PersonaId, CancellationToken.None);
+            var materias = await identity.ListarMateriasAsync(CancellationToken.None);
+            var materia = materias.FirstOrDefault(m => m.Id == aplicado.MateriaId)?.Nombre ?? "(materia no encontrada)";
+            if (AvisosPedido.Construir(accion, aplicado, docente, materia) is { } aviso)
+                await notificador.NotificarAsync(aviso.Contenido, [aviso.Destino], CancellationToken.None);
+        });
     }
 
     public async Task<PedidoDto> AplicarAccionIdempotenteAsync(
@@ -111,6 +143,7 @@ internal sealed class ServicioPedidosApi(
         var huella = Convert.ToHexString(SHA256.HashData(
             Encoding.UTF8.GetBytes($"{id:N}|{ruta}|{contenidoSolicitud}")));
         PedidoDto? respuesta = null;
+        Pedido? aplicado = null;
 
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
@@ -132,7 +165,7 @@ internal sealed class ServicioPedidosApi(
                 return;
             }
 
-            respuesta = await AplicarAccionAsync(id, accion, token);
+            (respuesta, aplicado) = await AplicarSinAvisoAsync(id, accion, token);
             repositorioIdempotencia.Agregar(new ComandoIdempotente
             {
                 Id = Guid.NewGuid(),
@@ -147,6 +180,9 @@ internal sealed class ServicioPedidosApi(
             });
             await repositorioIdempotencia.GuardarAsync(token);
         }, ct);
+
+        // A replayed response (stored under the idempotency key) applied nothing: no notice.
+        if (aplicado is not null) await AvisarAsync(accion, aplicado);
 
         return respuesta ?? throw new InvalidOperationException(
             "El comando idempotente terminó sin producir una respuesta.");

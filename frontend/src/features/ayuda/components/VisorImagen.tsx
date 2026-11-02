@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal } from "@ars-docendi/ui";
 
 import type { CapturaAyuda } from "../tipos";
+import { Modal } from "../../../shared/ui/Modal";
 
 /**
  * Captura de un paso: se muestra inline y se amplía a casi pantalla completa
@@ -46,6 +46,7 @@ export function VisorImagen({ captura }: { captura: CapturaAyuda }) {
       {captura.leyenda && <figcaption>{captura.leyenda}</figcaption>}
       <Modal
         open={abierto}
+        tamano="libre"
         onOpenChange={setAbierto}
         aria-label={captura.alt}
         className="ayuda-visor"

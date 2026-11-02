@@ -1,11 +1,20 @@
 using ArsDocendi.Shared.Aplicacion;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Modules.Notificaciones.Contracts;
 using Modules.Tareas.Domain;
 using Modules.Tareas.Repositories;
 
 namespace Modules.Tareas.Application;
 
-public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPersonas directorio)
+public sealed class ServicioTareas(
+    RepositorioTareas repositorio,
+    DirectorioPersonas directorio,
+    INotificador? notificador = null,
+    ILogger<ServicioTareas>? logger = null)
 {
+    private readonly ILogger registro = logger ?? NullLogger<ServicioTareas>.Instance;
+
     /// <summary>Tope de resultados del buscador de candidatos: se afina buscando, no paginando.</summary>
     private const int MaximoCandidatos = 50;
 
@@ -85,6 +94,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         repositorio.Agregar(tarea);
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
+        await AvisarAsignacionAsync(tarea);
         return await MapearDetalleAsync(tarea, ct);
     }
 
@@ -101,7 +111,8 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
         // La jerarquía se exige al reasignar; conservar al mismo Responsable no la reevalúa,
         // para no bloquear la edición de una tarea si su rol cambió después.
-        if (datos.ResponsableId != tarea.ResponsableId)
+        var reasignada = datos.ResponsableId != tarea.ResponsableId;
+        if (reasignada)
         {
             await RequerirResponsableAsignableAsync(actor, datos.ResponsableId, ct);
         }
@@ -134,6 +145,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
+        if (reasignada) await AvisarAsignacionAsync(tarea);
         return await MapearDetalleAsync(tarea, ct);
     }
 
@@ -153,6 +165,8 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         MaquinaEstadosTarea.CambiarEstado(tarea, actor, actual, destino, datos.Comentario, datos.Solucion);
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
+        await AvisarAAmbosAsync(tarea, actor.UsuarioId, TiposEventoNotificacion.TareaEstadoCambiado,
+            nombreActor => AvisosTarea.EstadoCambiado(tarea, nombreActor, actual.Nombre, destino.Nombre));
         return await MapearDetalleAsync(tarea, ct);
     }
 
@@ -181,9 +195,12 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
         await repositorio.ProtegerUsuariosAsync([actor.UsuarioId], ct);
-        tarea.Comentarios.Add(MaquinaEstadosTarea.NuevoComentario(tarea, actor, datos.Texto, DateTimeOffset.UtcNow));
+        var comentario = MaquinaEstadosTarea.NuevoComentario(tarea, actor, datos.Texto, DateTimeOffset.UtcNow);
+        tarea.Comentarios.Add(comentario);
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
+        await AvisarAAmbosAsync(tarea, actor.UsuarioId, TiposEventoNotificacion.TareaComentada,
+            nombreActor => AvisosTarea.Comentada(tarea, nombreActor, comentario.Texto));
         return await MapearDetalleAsync(tarea, ct);
     }
 
@@ -223,6 +240,30 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
     // Internos ----------------------------------------------------------
 
     /// <summary>Carga la tarea; si el actor no la ve (no le está asignada) responde como si no existiera.</summary>
+    /// <summary>The new responsable is told about an assignment or a reassignment.</summary>
+    private Task AvisarAsignacionAsync(Tarea tarea) =>
+        EmisionPosterior.IntentarAsync(registro, TiposEventoNotificacion.TareaAsignada, () =>
+            notificador is null
+                ? Task.CompletedTask
+                : notificador.NotificarAsync(
+                    AvisosTarea.Asignada(tarea), [new DestinoNotificacion.Usuario(tarea.ResponsableId)], CancellationToken.None));
+
+    /// <summary>
+    /// The responsable and the creator are told, except the actor (the notifier drops them). The text
+    /// names who acted, so the actor's name is read here, after the commit.
+    /// </summary>
+    private Task AvisarAAmbosAsync(Tarea tarea, Guid actorId, string evento, Func<string, AvisoNuevo> construir) =>
+        EmisionPosterior.IntentarAsync(registro, evento, async () =>
+        {
+            if (notificador is null) return;
+            var personas = await directorio.CargarAsync([actorId], CancellationToken.None);
+            var nombre = personas.TryGetValue(actorId, out var persona) ? persona.Nombre : "Alguien";
+            await notificador.NotificarAsync(
+                construir(nombre),
+                [new DestinoNotificacion.Usuario(tarea.ResponsableId), new DestinoNotificacion.Usuario(tarea.CreadoPorId)],
+                CancellationToken.None);
+        });
+
     private async Task<Tarea> RequerirAsync(Guid id, ActorTareas actor, CancellationToken ct)
     {
         var tarea = await repositorio.ObtenerAsync(id, ct);

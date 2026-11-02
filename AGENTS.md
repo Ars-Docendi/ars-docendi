@@ -4,7 +4,7 @@ Esta es la fuente de instrucciones para cualquier asistente o herramienta de des
 
 ## Contexto
 
-Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cuatro contextos de dominio (Designaciones, Aulas, Portal y Tareas) más los servicios transversales Identity, Storage e Inferencia (ver [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md)).
+Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cinco contextos de dominio (Designaciones, Aulas, Portal, Tareas y Notificaciones) más los servicios transversales Identity, Storage e Inferencia (ver [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md)).
 
 Leé antes de cambiar:
 

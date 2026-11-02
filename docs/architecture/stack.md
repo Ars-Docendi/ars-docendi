@@ -13,17 +13,18 @@
 
 Monolito modular en un único `ArsDocendi.slnx`. Cada módulo es un proyecto separado más un proyecto público `*.Contracts`.
 
-| Proyecto                               | Rol                                                                                                   |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `ArsDocendi.Host`                      | Composition root: DI, autenticación, pipeline HTTP, administración de identidad y CLI de migraciones. |
-| `ArsDocendi.Shared`                    | Utilidades transversales y persistencia de los schemas `identity` y `audit` (invariante #4).          |
-| `ArsDocendi.Migraciones`               | Runner de SQL versionado embebido, diagnóstico de integridad y preview.                               |
-| `ArsDocendi.Storage` + `.Contracts`    | Adjuntos sobre almacenamiento S3 (SeaweedFS) con antivirus (ClamAV).                                  |
-| `ArsDocendi.Inferencia`                | Cliente del servicio Ollama compartido y su estado.                                                   |
-| `Modules.Designaciones` + `.Contracts` | Pedidos de designación, circuito de aprobación, períodos y exportación de lotes.                      |
-| `Modules.Aulas` + `.Contracts`         | Reserva de aulas para exámenes: solicitudes del Docente y su gestión administrativa.                  |
-| `Modules.Portal` + `.Contracts`        | Perfil del docente: contacto, CV, trayectoria y experticia.                                           |
-| `Modules.Tareas` + `.Contracts`        | Tablero de tareas y proyectos internos con semáforo de vencimiento.                                   |
+| Proyecto                                | Rol                                                                                                   |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `ArsDocendi.Host`                       | Composition root: DI, autenticación, pipeline HTTP, administración de identidad y CLI de migraciones. |
+| `ArsDocendi.Shared`                     | Utilidades transversales y persistencia de los schemas `identity` y `audit` (invariante #4).          |
+| `ArsDocendi.Migraciones`                | Runner de SQL versionado embebido, diagnóstico de integridad y preview.                               |
+| `ArsDocendi.Storage` + `.Contracts`     | Adjuntos sobre almacenamiento S3 (SeaweedFS) con antivirus (ClamAV).                                  |
+| `ArsDocendi.Inferencia`                 | Cliente del servicio Ollama compartido y su estado.                                                   |
+| `Modules.Designaciones` + `.Contracts`  | Pedidos de designación, circuito de aprobación, períodos y exportación de lotes.                      |
+| `Modules.Aulas` + `.Contracts`          | Reserva de aulas para exámenes: solicitudes del Docente y su gestión administrativa.                  |
+| `Modules.Portal` + `.Contracts`         | Perfil del docente: contacto, CV, trayectoria y experticia.                                           |
+| `Modules.Tareas` + `.Contracts`         | Tablero de tareas y proyectos internos con semáforo de vencimiento.                                   |
+| `Modules.Notificaciones` + `.Contracts` | Notificaciones in-app por usuario y perfil, emitidas por los demás módulos.                           |
 
 Restricciones (ver [`module-anatomy.md`](./module-anatomy.md)):
 
@@ -49,7 +50,7 @@ Restricciones:
 
 ## Base de datos
 
-PostgreSQL 18. **Un schema por contexto** (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`).
+PostgreSQL 18. **Un schema por contexto** (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`, `notificaciones`).
 
 Migraciones: SQL versionado embebido y aplicado por `ArsDocendi.Migraciones`; EF Core sólo mapea. Ver [data-model.md](./data-model.md) y [database/README.md](../../database/README.md).
 

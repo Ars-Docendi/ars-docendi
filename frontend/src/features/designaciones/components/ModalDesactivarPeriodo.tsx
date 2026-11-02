@@ -1,5 +1,6 @@
-import { Modal, Button, InlineAlert } from "@ars-docendi/ui";
+import { Button, InlineAlert } from "@ars-docendi/ui";
 import type { PeriodoDesignacion } from "../types";
+import { Modal } from "../../../shared/ui/Modal";
 
 interface ModalDesactivarPeriodoProps {
   open: boolean;
@@ -19,6 +20,7 @@ export function ModalDesactivarPeriodo({
   return (
     <Modal
       open={open}
+      tamano="confirmacion"
       onOpenChange={onOpenChange}
       title="Desactivar período"
       footer={

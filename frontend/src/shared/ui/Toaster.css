@@ -1,0 +1,20 @@
+/* Fixed host of the app toasts; the card itself comes from @ars-docendi/ui. */
+.adoc-toaster {
+  position: fixed;
+  z-index: var(--z-toast);
+  top: max(16px, env(safe-area-inset-top, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: calc(100vw / var(--ui-zoom, 1) - 32px);
+  pointer-events: none;
+}
+.adoc-toaster .adoc-toast {
+  max-width: 100%;
+  pointer-events: auto;
+  box-shadow: var(--shadow-md, 0 4px 12px rgb(0 0 0 / 0.08));
+}
+.adoc-toaster .adoc-toast .body {
+  color: var(--color-text-secondary);
+}

@@ -8,9 +8,9 @@ Sistema web para el Departamento de Ingeniería de la UNLaM. Para las reglas de 
 
 Monolito modular en monorepo:
 
-- **backend/**: ASP.NET Core 10 Web API. Un Host compone 4 módulos de negocio (Designaciones, Aulas, Portal, Tareas) y la infraestructura transversal (`Shared`, `Migraciones`, `Storage`, `Inferencia`). Comunicación entre módulos sólo vía proyectos `*.Contracts`.
+- **backend/**: ASP.NET Core 10 Web API. Un Host compone 5 módulos de negocio (Designaciones, Aulas, Portal, Tareas, Notificaciones) y la infraestructura transversal (`Shared`, `Migraciones`, `Storage`, `Inferencia`). Comunicación entre módulos sólo vía proyectos `*.Contracts`.
 - **frontend/**: Vite + React 19 + TypeScript. Una app única con `src/features/` aisladas entre sí.
-- **Base de datos**: PostgreSQL único, un schema por contexto (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`).
+- **Base de datos**: PostgreSQL único, un schema por contexto (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`, `notificaciones`).
 
 Detalle en [docs/architecture/](docs/architecture/).
 

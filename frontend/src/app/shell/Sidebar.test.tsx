@@ -96,6 +96,26 @@ describe("Sidebar — sector Designaciones", () => {
   });
 });
 
+describe("Sidebar — Reserva de aulas", () => {
+  it.each([["aulas.solicitar"], ["aulas.aprobar"]])(
+    "muestra la entrada a quien puede entrar a la pantalla (%s)",
+    (permiso) => {
+      renderSidebar([permiso]);
+
+      expect(screen.getByRole("link", { name: "Reserva de aulas" })).toHaveAttribute(
+        "href",
+        "/aulas",
+      );
+    },
+  );
+
+  it("no la muestra con sólo aulas.ver: la ruta le negaría el acceso", () => {
+    renderSidebar(["aulas.ver"]);
+
+    expect(screen.queryByRole("link", { name: "Reserva de aulas" })).not.toBeInTheDocument();
+  });
+});
+
 describe("Sidebar — Centro de ayuda", () => {
   it("lo muestra en el pie a un usuario sin permisos de navegación", () => {
     renderSidebar([]);

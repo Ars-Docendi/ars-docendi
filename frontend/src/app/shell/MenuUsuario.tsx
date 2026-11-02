@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, InlineAlert, Modal, RoleMenu } from "@ars-docendi/ui";
+import { Button, InlineAlert, RoleMenu } from "@ars-docendi/ui";
 
 import { mensajeProblema } from "../../shared/api/problemDetails";
 import { useCerrarSesion } from "../../shared/auth/auth";
 import { etiquetaAmbito, useElegirRol } from "../../shared/auth/rolActivo";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { chevronIcon } from "./icons";
+import { Modal } from "../../shared/ui/Modal";
+import { DialogoSalida } from "../../shared/navegacion/GestorDeNavegacion";
+import { hayCambiosPendientes, liberarGuardias } from "../../shared/navegacion/guardias";
 
 /**
  * Nombre corto para la tarjeta: primer nombre y primer apellido a partir del
@@ -130,18 +133,32 @@ export function ModalCambiarRol({
   const navigate = useNavigate();
   const elegir = useElegirRol();
   const actual = user.asignacion?.id;
-  function elegirAsignacion(id: string) {
-    if (id === actual && !alIngresar) return onCerrar();
-    elegir.mutate(id, {
-      onSuccess: () => {
+  // Cambiar de rol descarta la página en curso: con cambios sin guardar se confirma ANTES de
+  // cambiarlo (el rol sólo cambia si se descartan).
+  const [aDescartar, setADescartar] = useState<string | null>(null);
+  function aplicarAsignacion(id: string, rearmarGuardias?: () => void) {
+    // No usar los callbacks de `mutate`: con el ingreso de desarrollo el rol nuevo cambia la clave
+    // de la sesión, el layout pasa a "Cargando sesión…" y este modal se desmonta antes de que la
+    // mutación termine; TanStack Query descarta entonces los callbacks de esa llamada. La promesa
+    // sí sobrevive al desmontaje. El error queda en `elegir.error`, que muestra el modal.
+    elegir.mutateAsync(id).then(
+      () => {
         onCerrar();
         if (id !== actual) navigate("/", { replace: true });
       },
-    });
+      // Sin cambio de rol la página sigue con sus cambios: vuelve a protegerse.
+      () => rearmarGuardias?.(),
+    );
+  }
+  function elegirAsignacion(id: string) {
+    if (id === actual && !alIngresar) return onCerrar();
+    if (id !== actual && hayCambiosPendientes()) return setADescartar(id);
+    aplicarAsignacion(id);
   }
   return (
     <Modal
       open
+      tamano="confirmacion"
       onOpenChange={(abrir) =>
         !abrir && (alIngresar && actual ? elegirAsignacion(actual) : onCerrar())
       }
@@ -171,6 +188,16 @@ export function ModalCambiarRol({
         }))}
         onSelect={elegirAsignacion}
       />
+      {aDescartar && (
+        <DialogoSalida
+          alSeguir={() => setADescartar(null)}
+          alDescartar={() => {
+            const id = aDescartar;
+            setADescartar(null);
+            aplicarAsignacion(id, liberarGuardias());
+          }}
+        />
+      )}
     </Modal>
   );
 }

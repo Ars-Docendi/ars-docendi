@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Textarea } from "@ars-docendi/ui";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import type { ComentarioTarea } from "../types";
 import "./comentariosTarea.css";
 
@@ -26,6 +27,8 @@ export function ComentariosTarea({
   enviando = false,
 }: ComentariosTareaProps) {
   const [texto, setTexto] = useState("");
+  // Un comentario escrito y sin enviar se pierde al salir de la tarea: se avisa.
+  useGuardiaDeCambios(texto.trim() !== "");
 
   function enviar() {
     if (!texto.trim()) return;

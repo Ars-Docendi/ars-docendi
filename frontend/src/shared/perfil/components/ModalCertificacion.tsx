@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Button, DatePicker, Field, Input, Modal } from "@ars-docendi/ui";
+import { Button, Field, Input } from "@ars-docendi/ui";
+import { CampoFechaISO } from "../../ui/CampoFechaISO";
 
 import type { Certificacion, DatosCertificacion } from "../types";
 import "./portal.css";
+import { Modal } from "../../ui/Modal";
 
 const VACIA: DatosCertificacion = {
   nombre: "",
@@ -26,6 +28,8 @@ export function ModalCertificacion({
     certificacion ? { ...certificacion } : VACIA,
   );
   const [errores, setErrores] = useState<Record<string, string>>({});
+  // Lo cargado se compara con lo que se abrió: cerrar con datos sin guardar pide confirmar.
+  const [inicial] = useState(() => JSON.stringify(datos));
 
   function guardar() {
     const nuevos: Record<string, string> = {};
@@ -46,6 +50,7 @@ export function ModalCertificacion({
   return (
     <Modal
       open
+      sucio={JSON.stringify(datos) !== inicial}
       onOpenChange={(abierto) => !abierto && onCerrar()}
       title={certificacion ? "Editar certificación" : "Agregar certificación"}
       footer={
@@ -59,7 +64,7 @@ export function ModalCertificacion({
         </>
       }
     >
-      <div className="portal-form">
+      <div className="adoc-form-seccion">
         <Field label="Nombre" required error={errores.nombre}>
           <Input
             value={datos.nombre}
@@ -72,17 +77,17 @@ export function ModalCertificacion({
             onChange={(e) => setDatos({ ...datos, emisor: e.target.value })}
           />
         </Field>
-        <div className="portal-form-grid">
+        <div className="adoc-form-fila cols-2">
           <Field label="Fecha" required error={errores.fecha}>
-            <DatePicker
+            <CampoFechaISO
               value={datos.fecha}
-              onChange={(e) => setDatos({ ...datos, fecha: e.target.value })}
+              onChange={(valor) => setDatos({ ...datos, fecha: valor })}
             />
           </Field>
           <Field label="Vencimiento">
-            <DatePicker
+            <CampoFechaISO
               value={datos.vencimiento ?? ""}
-              onChange={(e) => setDatos({ ...datos, vencimiento: e.target.value })}
+              onChange={(valor) => setDatos({ ...datos, vencimiento: valor })}
             />
           </Field>
         </div>

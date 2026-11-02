@@ -1,5 +1,9 @@
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { InlineAlert } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
 import { PedidoForm } from "../components/PedidoForm";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
@@ -34,11 +38,27 @@ export function PedidoFormPage() {
   const editar = useEditarPedido();
   const enviar = useEnviarPedido();
   const reenviar = useReenviarPedido();
-  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : RUTA_MIS_PEDIDOS;
+  // Un pedido nuevo nace en Mis pedidos: vuelve a esa lista con los filtros con los que se salió
+  // (`volverA` validado); cualquier otro origen se ignora.
+  const origen = useDestinoVolver("pedido");
+  const rutaMisPedidos =
+    origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_MIS_PEDIDOS
+      ? origen.ruta
+      : RUTA_MIS_PEDIDOS;
+  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : rutaMisPedidos;
+
+  // El formulario avisa si tiene cambios; tras guardar se sale sin preguntar.
+  const [sucio, setSucio] = useState(false);
+  const { permitirSalida } = useGuardiaDeCambios(sucio);
 
   function volver() {
     // Reemplaza la edición en el historial y conserva el origen del detalle.
     navegar(rutaRetorno, { replace: true, state: location.state });
+  }
+
+  function volverTrasGuardar() {
+    permitirSalida();
+    volver();
   }
 
   function handleGuardar(datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) {
@@ -56,11 +76,11 @@ export function PedidoFormPage() {
         {
           onSuccess: () => {
             if (!opciones?.enviar) {
-              volver();
+              volverTrasGuardar();
               return;
             }
             const mutacion = pedidoInicial?.estado === "devuelto" ? reenviar : enviar;
-            mutacion.mutate(id, { onSuccess: volver });
+            mutacion.mutate(id, { onSuccess: volverTrasGuardar });
           },
         },
       );
@@ -68,10 +88,10 @@ export function PedidoFormPage() {
       crear.mutate(datos, {
         onSuccess: (creado) => {
           if (!opciones?.enviar) {
-            volver();
+            volverTrasGuardar();
             return;
           }
-          enviar.mutate(creado.id, { onSuccess: volver });
+          enviar.mutate(creado.id, { onSuccess: volverTrasGuardar });
         },
       });
     }
@@ -96,8 +116,7 @@ export function PedidoFormPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
         items={[
           { label: "Inicio", href: "/" },
           { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
@@ -111,13 +130,21 @@ export function PedidoFormPage() {
 
       {esEdicion && isError && (
         <InlineAlert severity="danger" title="No se encontró el pedido">
-          No pudimos cargar el pedido solicitado. <a href={rutaRetorno}>Volver</a>.
+          No pudimos cargar el pedido solicitado.{" "}
+          <Link to={rutaRetorno} state={location.state}>
+            Volver
+          </Link>
+          .
         </InlineAlert>
       )}
 
       {esEdicion && pedidoInicial && !pedidoInicial.accionesPermitidas?.includes("editar") && (
         <InlineAlert severity="info" title="Este pedido no es editable">
-          El pedido no admite edición para el actor actual. <a href={rutaRetorno}>Volver</a>.
+          El pedido no admite edición para el actor actual.{" "}
+          <Link to={rutaRetorno} state={location.state}>
+            Volver
+          </Link>
+          .
         </InlineAlert>
       )}
 
@@ -145,6 +172,7 @@ export function PedidoFormPage() {
           guardando={guardando}
           onGuardar={handleGuardar}
           onCancelar={volver}
+          onSucioChange={setSucio}
           docentes={docentesDesdeCatalogo(catalogos.data)}
           cargos={catalogos.data.cargos.map((c) => c.nombre)}
           dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
@@ -166,6 +194,7 @@ export function PedidoFormPage() {
             guardando={guardando}
             onGuardar={handleGuardar}
             onCancelar={volver}
+            onSucioChange={setSucio}
             docentes={docentesDesdeCatalogo(catalogos.data)}
             cargos={catalogos.data.cargos.map((c) => c.nombre)}
             dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}

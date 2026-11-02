@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import AppLayout from "./AppLayout";
+import { PaginaDeError, PaginaNoEncontrada } from "../shared/navegacion/PaginasDeEstado";
 import { LoginPage } from "../shared/auth/LoginPage";
 import { RequireAuth } from "../shared/auth/RequireAuth";
 import { TerminosPage } from "../shared/legal/TerminosPage";
@@ -26,17 +27,24 @@ export const router = createBrowserRouter([
         path: "/",
         element: <AppLayout />,
         children: [
-          { index: true, element: <Navigate to="/portal" replace /> },
-          designacionesRoutes,
-          aulasRoutes,
-          portalRoutes,
-          tareasRoutes,
-          personasRoutes,
-          ...redireccionesAnteriores,
-          rolesRoutes,
-          ...sistemaRoutes,
-          ayudaRoutes,
-          { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
+          {
+            // Ruta sin path: un error de render queda dentro del shell (menú y barra siguen).
+            errorElement: <PaginaDeError />,
+            children: [
+              { index: true, element: <Navigate to="/portal" replace /> },
+              designacionesRoutes,
+              aulasRoutes,
+              portalRoutes,
+              tareasRoutes,
+              personasRoutes,
+              ...redireccionesAnteriores,
+              rolesRoutes,
+              ...sistemaRoutes,
+              ayudaRoutes,
+              { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
+              { path: "*", element: <PaginaNoEncontrada /> },
+            ],
+          },
         ],
       },
     ],

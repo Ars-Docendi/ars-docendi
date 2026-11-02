@@ -35,6 +35,9 @@ vi.mock("../hooks/useAccionesPedido", () => ({
   useReenviarPedido: () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null }),
 }));
 
+vi.mock("../../../shared/auth/useCurrentUser", () => ({
+  useCurrentUser: () => ({ user: { permissions: ["designaciones.gestionar"] } }),
+}));
 vi.mock("../api/catalogos", () => ({ docentesDesdeCatalogo: () => [] }));
 
 vi.mock("../components/PedidoForm", () => ({

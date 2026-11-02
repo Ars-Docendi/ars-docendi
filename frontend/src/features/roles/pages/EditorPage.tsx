@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, Button, Field, InlineAlert, Input } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Input } from "@ars-docendi/ui";
+import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
+import { migaDeVolver } from "../../../shared/navegacion/volver";
 
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
@@ -60,6 +65,12 @@ function Editor({ rol, roles, catalogo }: EditorProps) {
   // Un rol nuevo arranca con todos los permisos destildados.
   const [permisoIds, setPermisoIds] = useState(() => rol?.permisos.map((p) => p.id) ?? []);
   const [enviado, setEnviado] = useState(false);
+  const volver = useDestinoVolver("rol");
+  // Cambios sin guardar: datos y permisos se comparan con lo que se abrió.
+  const [inicial] = useState(() => JSON.stringify([datos, permisoIds]));
+  const { permitirSalida } = useGuardiaDeCambios(
+    (editarDatos || editarPermisos) && JSON.stringify([datos, permisoIds]) !== inicial,
+  );
 
   const titulo = rol?.nombre ?? "Nuevo rol";
   const nombreVacio = !datos.nombre.trim();
@@ -86,25 +97,25 @@ function Editor({ rol, roles, catalogo }: EditorProps) {
         permisoIds,
       },
       {
-        onSuccess: (r) =>
-          navegar("/roles", {
+        onSuccess: (r) => {
+          permitirSalida();
+          // Reemplaza la edición en el historial: Atrás no vuelve a un formulario ya guardado.
+          navegar(volver.ruta, {
+            replace: true,
             state: { aviso: `${r.nombre}: ${rol ? "cambios guardados." : "quedó creado."}` },
-          }),
+          });
+        },
       },
     );
   }
 
   return (
     <div className="roles-editor">
-      <Breadcrumbs
-        separator="›"
-        items={[
-          { label: "Inicio", href: "/" },
-          { label: "Roles", href: "/roles" },
-          { label: titulo },
-        ]}
+      <Migas
+        conVolver
+        items={[{ label: "Inicio", href: "/" }, migaDeVolver(volver), { label: titulo }]}
       />
-      <PageHeader title={titulo} />
+      <PageHeader title={titulo} actions={<EnlaceVolver id="rol-volver" destino={volver} />} />
 
       {guardar.isError && (
         <InlineAlert severity="danger" title={mensajeConflictoRol(guardar.error)}>
@@ -186,18 +197,14 @@ function Editor({ rol, roles, catalogo }: EditorProps) {
       <div className="roles-editor-pie">
         {puedeGuardar ? (
           <>
-            <Button variant="secondary" onClick={() => navegar("/roles")}>
+            <Button variant="secondary" onClick={() => navegar(volver.ruta)}>
               Cancelar
             </Button>
             <Button variant="primary" loading={guardar.isPending} onClick={enviar}>
               {rol ? "Guardar cambios" : "Crear rol"}
             </Button>
           </>
-        ) : (
-          <Button variant="secondary" onClick={() => navegar("/roles")}>
-            Volver al listado
-          </Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

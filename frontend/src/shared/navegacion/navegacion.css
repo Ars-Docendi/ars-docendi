@@ -1,0 +1,111 @@
+/* Enlace "Saltar al contenido": fuera de pantalla hasta recibir el foco. */
+.adoc-saltar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: calc(var(--z-modal, 1000) - 1);
+  transform: translateY(-300%);
+  padding: 8px 14px;
+  border: 2px solid var(--color-border-focus);
+  border-radius: 8px;
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+}
+.adoc-saltar:focus,
+.adoc-saltar:focus-visible {
+  transform: none;
+  outline: none;
+}
+
+/* Solo para lectores de pantalla. */
+.adoc-solo-lectores {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* El foco programático al navegar no dibuja contorno; el de teclado sí. */
+.adoc-page-head h1:focus,
+.adoc-main:focus {
+  outline: none;
+}
+
+/* "Volver" es un enlace con aspecto de botón. */
+.adoc-ui a.adoc-btn:hover {
+  text-decoration: none;
+}
+.adoc-ui a.adoc-btn {
+  color: var(--color-text-primary);
+}
+
+/* Con "Volver" en pantalla, las migas sobran en pantallas angostas. */
+@media (max-width: 559.98px) {
+  .adoc-crumbs.con-volver {
+    display: none;
+  }
+}
+
+/* Celda principal de una fila: un enlace real, con foco visible. */
+.adoc-fila-enlace {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-link);
+}
+.adoc-fila-enlace:hover {
+  text-decoration: underline;
+}
+.adoc-fila-enlace:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ====================== Pantallas angostas (portal.css: 560 px) ======================
+   Sin scroll horizontal de la página, encabezados que se acomodan, paddings como los del Portal y
+   objetivos táctiles de al menos 24 px (44 px los controles primarios). */
+@media (max-width: 559.98px) {
+  /* `.adoc-main` sube la especificidad: shell.css (cargado después) define `.adoc-page-head` con
+     `align-items: flex-end` y, sin esto, el título queda pegado a la derecha en columna. */
+  .adoc-main .adoc-page-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .adoc-main .adoc-page-head .title-area {
+    min-width: 0;
+  }
+  .adoc-main .adoc-page-head h1 {
+    overflow-wrap: anywhere;
+  }
+  .adoc-page-actions,
+  .adoc-page-actions > div {
+    flex-wrap: wrap;
+  }
+  .adoc-main .adoc-btn.v-primary,
+  .adoc-main a.adoc-enlace-volver {
+    min-height: 44px;
+  }
+  .adoc-main .adoc-btn.sz-sm {
+    min-height: 32px;
+  }
+  /* Celdas con enlace: el área de toque no baja de 24 px. */
+  .adoc-fila-enlace {
+    display: inline-block;
+    min-height: 24px;
+    line-height: 24px;
+  }
+  .adoc-crumbs {
+    flex-wrap: wrap;
+  }
+  /* La marca de la barra superior y los enlaces de las migas llegan a los 24 px de alto. */
+  .adoc-topbar .adoc-brand-link,
+  .adoc-crumbs a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+}

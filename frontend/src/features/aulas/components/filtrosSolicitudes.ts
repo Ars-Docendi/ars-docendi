@@ -19,6 +19,16 @@ export const FILTROS_INICIALES: FiltrosSolicitudesState = {
 export type ColumnaOrdenSolicitudes =
   "dia" | "horario" | "alumnos" | "materia" | "comision" | "estado" | "docente";
 
+export const COLUMNAS_ORDEN_SOLICITUDES: ColumnaOrdenSolicitudes[] = [
+  "dia",
+  "horario",
+  "alumnos",
+  "materia",
+  "comision",
+  "estado",
+  "docente",
+];
+
 export interface OrdenSolicitudes {
   columna: ColumnaOrdenSolicitudes;
   direccion: "asc" | "desc";

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   asignarAula,
+  cancelarReserva,
   cancelarSolicitud,
   crearSolicitud,
   rechazarSolicitud,
@@ -40,6 +41,15 @@ export function useRechazarSolicitud() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, motivo }: { id: string; motivo: string }) => rechazarSolicitud(id, motivo),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["aulas", "solicitudes"] }),
+  });
+}
+
+/** Cancela una reserva Aprobada indicando un motivo obligatorio; libera el aula. */
+export function useCancelarReserva() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo: string }) => cancelarReserva(id, motivo),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["aulas", "solicitudes"] }),
   });
 }

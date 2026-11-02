@@ -13,6 +13,8 @@ export interface FiltrosPersonas {
   estado: EstadoPersona[];
 }
 
+export const COLUMNAS_ORDEN_PERSONAS: ColumnaOrden[] = ["nombre", "documento", "legajo", "estado"];
+
 export interface OrdenPersonas {
   columna: ColumnaOrden;
   direccion: "asc" | "desc";

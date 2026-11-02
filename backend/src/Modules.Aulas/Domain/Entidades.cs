@@ -33,6 +33,16 @@ public sealed class SolicitudReservaAula
     public string? AulaAsignada { get; set; }
     /// <summary>Sólo con <c>Estado == Rechazada</c>: motivo ingresado por el Administrativo.</summary>
     public string? MotivoRechazo { get; set; }
+    /// <summary>
+    /// Sólo con <c>Estado == Cancelada</c> y únicamente cuando un Administrativo canceló una
+    /// reserva ya aprobada. Es <c>null</c> si el docente canceló su solicitud pendiente.
+    /// </summary>
+    public string? MotivoCancelacion { get; set; }
+    /// <summary>
+    /// Rol activo de la sesión que creó la solicitud. <c>null</c> en filas anteriores al campo.
+    /// Lo consumen las notificaciones internas para elegir el destino del enlace.
+    /// </summary>
+    public string? RolSolicitante { get; set; }
 
     public DateTimeOffset CreadoEn { get; set; }
 }

@@ -2,6 +2,7 @@ import { Button, Input, StatusBadge, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
 
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import {
@@ -171,7 +172,9 @@ export function TablaRoles({
             return (
               <Table.Row key={rol.id} {...propsFilaClickeable(() => onAbrir(rol))}>
                 <Table.Cell>
-                  <TextoRecortado texto={rol.nombre} anchoMinimo={160} />
+                  <EnlaceFila ruta={`/roles/${rol.id}`} etiqueta={`Ver el rol ${rol.nombre}`}>
+                    <TextoRecortado texto={rol.nombre} anchoMinimo={160} />
+                  </EnlaceFila>
                 </Table.Cell>
                 <Table.Cell>
                   <TextoRecortado texto={rol.descripcion || "—"} anchoMinimo={200} />

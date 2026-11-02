@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render as testingRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -101,7 +102,9 @@ function render(ui: React.ReactElement) {
   vi.spyOn(cliente, "invalidateQueries").mockResolvedValue();
   return testingRender(ui, {
     wrapper: ({ children }) => (
-      <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
+      </MemoryRouter>
     ),
   });
 }

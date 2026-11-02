@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.AspNetCore.Hosting;
@@ -16,6 +17,8 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
     /// <summary>Otro solicitante (rol "jefe_catedra", con <c>aulas.solicitar</c>).</summary>
     private static readonly Guid JefeCatedra = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
+    /// <summary>Another requester (jefe_catedra) who does not own the solicitudes created by Docente.</summary>
+    private static readonly Guid OtroSolicitante = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
     /// <summary>Materia asignada a Docente (rol "docente") en el seed sintético.</summary>
     private static readonly Guid MateriaDelDocente = Guid.Parse("70000000-0000-4000-8000-000000000101");
@@ -283,6 +286,147 @@ public sealed class AulasHttpTests(PostgresFixture postgres)
         var rechazada = await cliente.PostAsJsonAsync(
             "/api/aulas/solicitudes", DatosSolicitud(MateriaAjena), ct);
         Assert.Equal(HttpStatusCode.BadRequest, rechazada.StatusCode);
+    }
+
+    [Fact]
+    public async Task El_detalle_es_visible_para_el_dueno_y_para_quien_aprueba_y_oculta_la_existencia_al_resto()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        var creada = await CrearSolicitud(clienteDocente, ct);
+
+        var propio = (await clienteDocente.GetFromJsonAsync<SolicitudReservaAulaDto>(
+            $"/api/aulas/solicitudes/{creada.Id}", ct))!;
+        Assert.True(propio.EsPropia);
+        Assert.NotNull(propio.Docente);
+
+        // The creating session's active role is persisted for the notifications.
+        await using (var conexion = await AbrirConexionAsync())
+        await using (var comando = new NpgsqlCommand(
+            "SELECT rol_solicitante FROM aulas.solicitudes_reserva WHERE id = @id", conexion))
+        {
+            comando.Parameters.AddWithValue("id", creada.Id);
+            Assert.Equal("docente", await comando.ExecuteScalarAsync(ct));
+        }
+
+        using var clienteAdministrativo = host.CreateClient();
+        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
+        var visto = (await clienteAdministrativo.GetFromJsonAsync<SolicitudReservaAulaDto>(
+            $"/api/aulas/solicitudes/{creada.Id}", ct))!;
+        Assert.False(visto.EsPropia);
+        Assert.NotNull(visto.Docente);
+
+        // Another requester and a role without Aulas permissions get the same 404 as a missing id.
+        using var clienteOtroDocente = host.CreateClient();
+        Autenticar(clienteOtroDocente, OtroSolicitante, "jefe_catedra");
+        using var clienteCoordinador = host.CreateClient();
+        Autenticar(clienteCoordinador, Coordinador, "coordinador_carrera");
+        foreach (var cliente in new[] { clienteOtroDocente, clienteCoordinador })
+        {
+            var ajena = await cliente.GetAsync($"/api/aulas/solicitudes/{creada.Id}", ct);
+            var inexistente = await cliente.GetAsync($"/api/aulas/solicitudes/{Guid.NewGuid()}", ct);
+            Assert.Equal(HttpStatusCode.NotFound, ajena.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, inexistente.StatusCode);
+            Assert.Contains("solicitud-not-found", await ajena.Content.ReadAsStringAsync(ct));
+        }
+    }
+
+    [Fact]
+    public async Task Administrativo_cancela_una_reserva_aprobada_con_motivo_y_se_libera_el_aula()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        var creada = await CrearSolicitud(clienteDocente, ct);
+
+        using var clienteAdministrativo = host.CreateClient();
+        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
+        Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct)).StatusCode);
+
+        var cancelada = await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/cancelar-reserva",
+            new CancelarReservaDto("El aula quedó en mantenimiento"), ct);
+        Assert.Equal(HttpStatusCode.OK, cancelada.StatusCode);
+        var dto = (await cancelada.Content.ReadFromJsonAsync<SolicitudReservaAulaDto>(ct))!;
+        Assert.Equal("cancelada", dto.Estado);
+        Assert.Null(dto.AulaAsignada);
+        Assert.Equal("El aula quedó en mantenimiento", dto.MotivoCancelacion);
+
+        var detalle = (await clienteDocente.GetFromJsonAsync<SolicitudReservaAulaDto>(
+            $"/api/aulas/solicitudes/{creada.Id}", ct))!;
+        Assert.Equal("El aula quedó en mantenimiento", detalle.MotivoCancelacion);
+
+        // A cancelled reservation is terminal: it cannot be cancelled again or reassigned.
+        var otraVez = await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{creada.Id}/cancelar-reserva", new CancelarReservaDto("Otra vez"), ct);
+        Assert.Equal(HttpStatusCode.Conflict, otraVez.StatusCode);
+        Assert.Contains("solicitud-no-aprobada", await otraVez.Content.ReadAsStringAsync(ct));
+    }
+
+    [Fact]
+    public async Task No_se_cancela_una_reserva_sin_motivo_ni_fuera_de_aprobada_ni_sin_permiso()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        var pendiente = await CrearSolicitud(clienteDocente, ct);
+        var aprobada = await CrearSolicitud(clienteDocente, ct);
+
+        using var clienteAdministrativo = host.CreateClient();
+        Autenticar(clienteAdministrativo, Administrativo, "administrativo");
+        Assert.Equal(HttpStatusCode.OK, (await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{aprobada.Id}/asignar", new AsignarAulaDto("Aula 204"), ct)).StatusCode);
+
+        var sinMotivo = await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{aprobada.Id}/cancelar-reserva", new CancelarReservaDto("   "), ct);
+        Assert.Equal(HttpStatusCode.BadRequest, sinMotivo.StatusCode);
+        // The body is parsed (not string-matched) because the serializer escapes accented characters.
+        using var problema = JsonDocument.Parse(await sinMotivo.Content.ReadAsStringAsync(ct));
+        var raiz = problema.RootElement;
+        Assert.Contains("solicitud-invalida", raiz.GetRawText());
+        Assert.Equal("Debés indicar el motivo de la cancelación.",
+            raiz.GetProperty("errors").GetProperty("motivo")[0].GetString());
+
+        var sobrePendiente = await clienteAdministrativo.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{pendiente.Id}/cancelar-reserva", new CancelarReservaDto("Motivo"), ct);
+        Assert.Equal(HttpStatusCode.Conflict, sobrePendiente.StatusCode);
+        using var conflicto = JsonDocument.Parse(await sobrePendiente.Content.ReadAsStringAsync(ct));
+        Assert.Equal("Sólo se puede cancelar una reserva en estado Aprobada.",
+            conflicto.RootElement.GetProperty("detail").GetString());
+
+        // The owner has aulas.solicitar but not aulas.aprobar: the policy denies the call.
+        var propietario = await clienteDocente.PostAsJsonAsync(
+            $"/api/aulas/solicitudes/{aprobada.Id}/cancelar-reserva", new CancelarReservaDto("Motivo"), ct);
+        Assert.Equal(HttpStatusCode.Forbidden, propietario.StatusCode);
+        var enBase = (await clienteAdministrativo.GetFromJsonAsync<SolicitudReservaAulaDto>(
+            $"/api/aulas/solicitudes/{aprobada.Id}", ct))!;
+        Assert.Equal("aprobada", enBase.Estado);
+    }
+
+    [Fact]
+    public async Task La_base_rechaza_un_motivo_de_cancelacion_fuera_del_estado_cancelada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var clienteDocente = host.CreateClient();
+        Autenticar(clienteDocente, Docente, "docente");
+        var creada = await CrearSolicitud(clienteDocente, ct);
+
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            "UPDATE aulas.solicitudes_reserva SET motivo_cancelacion = 'x' WHERE id = @id", conexion);
+        comando.Parameters.AddWithValue("id", creada.Id);
+        var error = await Assert.ThrowsAsync<PostgresException>(() => comando.ExecuteNonQueryAsync(ct));
+        Assert.Equal("solicitudes_reserva_motivo_cancelacion_si_cancelada", error.ConstraintName);
     }
 
     private static object DatosSolicitud(Guid? materiaId = null) => new

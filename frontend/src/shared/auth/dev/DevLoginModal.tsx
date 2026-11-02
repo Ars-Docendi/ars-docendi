@@ -1,6 +1,6 @@
-import { Modal } from "@ars-docendi/ui";
 import { useIdentidadesDesarrollo } from "./useIdentidadesDesarrollo";
 import "./DevLoginModal.css";
+import { Modal } from "../../ui/Modal";
 
 interface DevLoginModalProps {
   open: boolean;

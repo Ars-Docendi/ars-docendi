@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   listarMateriasPropias,
+  obtenerSolicitud,
   listarMisSolicitudes,
   listarTodasLasSolicitudes,
 } from "../api/solicitudesApi";
@@ -26,5 +27,15 @@ export function useTodasLasSolicitudes() {
   return useQuery({
     queryKey: ["aulas", "solicitudes", "todas"],
     queryFn: listarTodasLasSolicitudes,
+  });
+}
+
+/** Detalle de una solicitud (dueño o quien resuelve). Sin reintentos: un 404 no se arregla reintentando. */
+export function useSolicitud(id: string | undefined) {
+  return useQuery({
+    queryKey: ["aulas", "solicitudes", "detalle", id],
+    queryFn: () => obtenerSolicitud(id as string),
+    enabled: Boolean(id),
+    retry: false,
   });
 }

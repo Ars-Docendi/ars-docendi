@@ -1,5 +1,7 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Button } from "@ars-docendi/ui";
+import { propagarVolver } from "../../../shared/navegacion/volver";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
 import { EstadoTareaBadge } from "./EstadoTareaBadge";
 import { formatearFecha } from "./detalleAdapters";
 import type { Tarea } from "../types";
@@ -19,7 +21,8 @@ interface TareasHijasProps {
  * hijas (se navega a su Detalle para verlas).
  */
 export function TareasHijas({ tarea, todas, puedeCrear, onCrearHija }: TareasHijasProps) {
-  const navegar = useNavigate();
+  // El origen (la lista o el proyecto donde empezó el recorrido) viaja con cada tarea que se abre.
+  const volver = useDestinoVolver("tarea");
   const hijas = todas.filter((t) => t.tareaPadreId === tarea.id);
 
   return (
@@ -39,13 +42,13 @@ export function TareasHijas({ tarea, todas, puedeCrear, onCrearHija }: TareasHij
         <ul className="adoc-tareas-vinculo-lista">
           {hijas.map((hija) => (
             <li key={hija.id} className="adoc-tareas-vinculo-item">
-              <button
-                type="button"
+              <Link
                 className="adoc-tareas-vinculo-link"
-                onClick={() => navegar(`/tareas/${hija.id}`)}
+                to={`/tareas/${hija.id}`}
+                state={propagarVolver(volver)}
               >
                 N° {hija.numero} — {hija.titulo}
-              </button>
+              </Link>
               <span className="adoc-tareas-vinculo-info">
                 <span className="adoc-tareas-vinculo-meta">
                   Fin {formatearFecha(hija.fechaFin)} · {hija.porcentajeAvance}%

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Breadcrumbs, Button } from "@ars-docendi/ui";
+import { Button } from "@ars-docendi/ui";
+import { Migas } from "../../../shared/navegacion/Migas";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaPeriodos } from "../components/TablaPeriodos";
 import { ModalPeriodo } from "../components/ModalPeriodo";
@@ -84,7 +85,7 @@ export function PeriodosPage() {
 
   return (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Períodos" }]} />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Períodos" }]} />
       {remoto.consulta.isLoading && <p role="status">Cargando períodos…</p>}
       {remoto.consulta.isError && (
         <p role="alert">

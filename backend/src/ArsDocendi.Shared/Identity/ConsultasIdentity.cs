@@ -169,6 +169,27 @@ internal sealed class ConsultasIdentity(IdentityDbContext db, ICurrentUser? acto
                 .ToListAsync(ct);
 
 
+    public async Task<IReadOnlyList<Guid>> ObtenerUsuarioIdsConRolAsync(
+        string codigoRol, Guid? materiaId, Guid? carreraId, CancellationToken ct)
+    {
+        var consulta = db.UsuarioRoles.AsNoTracking()
+            .Where(ur => ur.Usuario!.Activo
+                      && ur.Rol!.Codigo == codigoRol
+                      && ur.Rol.EsSistema
+                      && ur.Rol.Activo);
+        if (materiaId is { } materia) consulta = consulta.Where(ur => ur.MateriaId == materia);
+        if (carreraId is { } carrera) consulta = consulta.Where(ur => ur.CarreraId == carrera);
+        if (materiaId is null && carreraId is null)
+            consulta = consulta.Where(ur => ur.MateriaId == null && ur.CarreraId == null);
+        return await consulta.Select(ur => ur.UsuarioId).Distinct().ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, Guid>> ObtenerUsuarioIdsDePersonasAsync(
+        IReadOnlyCollection<Guid> personaIds, CancellationToken ct) =>
+        await db.Usuarios.AsNoTracking()
+                .Where(u => u.PersonaId != null && personaIds.Contains(u.PersonaId.Value))
+                .ToDictionaryAsync(u => u.PersonaId!.Value, u => u.Id, ct);
+
     public async Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct) =>
         await db.Materias.AsNoTracking()
             .OrderBy(m => m.Nombre)

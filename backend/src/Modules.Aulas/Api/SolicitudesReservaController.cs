@@ -42,6 +42,20 @@ public sealed class SolicitudesReservaController(IServicioSolicitudesAula servic
     public Task<IReadOnlyList<SolicitudReservaAulaDto>> ListarTodas(CancellationToken ct) =>
         servicio.ListarTodasAsync(ct);
 
+    /// <summary>
+    /// Detalle de una solicitud. Sin policy de permiso: el dueño (<c>aulas.solicitar</c>) o quien
+    /// resuelve (<c>aulas.aprobar</c>) la ven; para el resto el servicio responde 404.
+    /// </summary>
+    [HttpGet("{id:guid}")]
+    public Task<SolicitudReservaAulaDto> ObtenerDetalle(Guid id, CancellationToken ct) =>
+        servicio.ObtenerDetalleAsync(id, ct);
+
+    [HttpPost("{id:guid}/cancelar-reserva")]
+    [Authorize(Policy = Permisos.AulasAprobar)]
+    public Task<SolicitudReservaAulaDto> CancelarReserva(
+        Guid id, CancelarReservaDto datos, CancellationToken ct) =>
+        servicio.CancelarReservaAsync(id, datos, ct);
+
     [HttpPost("{id:guid}/asignar")]
     [Authorize(Policy = Permisos.AulasAprobar)]
     public Task<SolicitudReservaAulaDto> Asignar(Guid id, AsignarAulaDto datos, CancellationToken ct) =>

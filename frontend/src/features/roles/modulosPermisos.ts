@@ -5,6 +5,7 @@ const MODULOS: Record<string, string> = {
   personas: "Personas",
   portal: "Portal",
   designaciones: "Designaciones",
+  aulas: "Aulas",
   tareas: "Tareas",
   proyectos: "Proyectos",
   periodos: "Períodos",

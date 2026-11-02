@@ -1,5 +1,8 @@
-import { Button, Input, Table } from "@ars-docendi/ui";
+import { Input, Table } from "@ars-docendi/ui";
 import type { EstadoSolicitudAula, SolicitudReservaAula } from "../types";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { rutaDetalleSolicitud } from "../rutas";
 import {
   fechaSolicitud,
   horarioSolicitud,
@@ -19,18 +22,17 @@ interface TablaTodasLasSolicitudesProps {
   orden?: OrdenSolicitudes | null;
   onFiltrosChange?: (filtros: FiltrosSolicitudesState) => void;
   onOrdenChange?: (orden: OrdenSolicitudes | null) => void;
-  /** Botón (o doble click) en una fila Pendiente: abre "Asignar aula". */
-  onAsignarAula: (solicitud: SolicitudReservaAula) => void;
-  /** Botón (o doble click) en una fila Aprobada: abre "Actualizar aula asignada". */
-  onActualizarAula: (solicitud: SolicitudReservaAula) => void;
+  /** Un click en cualquier parte de la fila (o Enter con el foco en ella) abre el detalle. */
+  onAbrir: (solicitud: SolicitudReservaAula) => void;
 }
 
 const SIN_CAMBIOS = () => {};
 
 /**
- * Tabla "Todas las solicitudes" del Administrativo, con filtros y orden por encabezado. La columna
- * Acciones abre el modal según el estado y el doble click en la fila queda como atajo (ver
- * openspec/changes/reserva-aulas/design.md, decisión 8). Rechazada y Cancelada no tienen acción.
+ * Tabla "Todas las solicitudes" del Administrativo, con filtros y orden por encabezado. Sin columna
+ * Acciones: un click en cualquier fila (de cualquier estado) abre la página de detalle, donde se
+ * resuelve la solicitud. Reemplaza el doble click por estado de la decisión 8 del change
+ * reserva-aulas (ver reserva-aulas-detalle-y-cancelacion/design.md).
  */
 export function TablaTodasLasSolicitudes({
   solicitudes,
@@ -39,8 +41,7 @@ export function TablaTodasLasSolicitudes({
   orden = null,
   onFiltrosChange = SIN_CAMBIOS,
   onOrdenChange = SIN_CAMBIOS,
-  onAsignarAula,
-  onActualizarAula,
+  onAbrir,
 }: TablaTodasLasSolicitudesProps) {
   const estados = opcionesEstados(solicitudesParaOpciones);
 
@@ -161,40 +162,29 @@ export function TablaTodasLasSolicitudes({
               onLimpiar={() => cambiarFiltro("estado", [])}
             />
             <Table.HeaderCell>Aula</Table.HeaderCell>
-            <Table.HeaderCell>Acciones</Table.HeaderCell>
           </Table.Row>
         </Table.Head>
         <Table.Body>
           {solicitudes.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={10} className="empty">
+              <Table.Cell colSpan={9} className="empty">
                 Sin resultados para los filtros aplicados.
               </Table.Cell>
             </Table.Row>
           ) : (
             solicitudes.map((solicitud) => {
-              const accionable =
-                solicitud.estado === "pendiente" || solicitud.estado === "aprobada";
+              const nombreDocente = solicitud.docente
+                ? `${solicitud.docente.apellido}, ${solicitud.docente.nombre}`
+                : "docente sin asignar";
               return (
-                <Table.Row
-                  key={solicitud.id}
-                  className={accionable ? "adoc-aulas-row--accionable" : undefined}
-                  title={
-                    solicitud.estado === "pendiente"
-                      ? "Doble click para asignar o rechazar"
-                      : solicitud.estado === "aprobada"
-                        ? "Doble click para actualizar el aula asignada"
-                        : undefined
-                  }
-                  onDoubleClick={() => {
-                    if (solicitud.estado === "pendiente") onAsignarAula(solicitud);
-                    else if (solicitud.estado === "aprobada") onActualizarAula(solicitud);
-                  }}
-                >
+                <Table.Row key={solicitud.id} {...propsFilaClickeable(() => onAbrir(solicitud))}>
                   <Table.Cell>
-                    {solicitud.docente
-                      ? `${solicitud.docente.apellido}, ${solicitud.docente.nombre}`
-                      : "—"}
+                    <EnlaceFila
+                      ruta={rutaDetalleSolicitud(solicitud.id)}
+                      etiqueta={`Ver la solicitud de ${nombreDocente} del ${fechaSolicitud(solicitud)}`}
+                    >
+                      {solicitud.docente ? nombreDocente : "—"}
+                    </EnlaceFila>
                   </Table.Cell>
                   <Table.Cell>{fechaSolicitud(solicitud)}</Table.Cell>
                   <Table.Cell>{horarioSolicitud(solicitud)}</Table.Cell>
@@ -206,22 +196,6 @@ export function TablaTodasLasSolicitudes({
                     <EstadoSolicitudPill estado={solicitud.estado} />
                   </Table.Cell>
                   <Table.Cell>{solicitud.aulaAsignada ?? "—"}</Table.Cell>
-                  <Table.Cell>
-                    {accionable && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          solicitud.estado === "pendiente"
-                            ? onAsignarAula(solicitud)
-                            : onActualizarAula(solicitud)
-                        }
-                        onDoubleClick={(e) => e.stopPropagation()}
-                      >
-                        {solicitud.estado === "pendiente" ? "Asignar aula" : "Actualizar aula"}
-                      </Button>
-                    )}
-                  </Table.Cell>
                 </Table.Row>
               );
             })

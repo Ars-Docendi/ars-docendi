@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Input, Table } from "@ars-docendi/ui";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
+import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { EstadoTarea, Prioridad, Proyecto, Tarea } from "../types";
 import { EstadoTareaBadge } from "./EstadoTareaBadge";
@@ -24,7 +28,11 @@ import "./tablaTareas.css";
 
 interface TablaTareasProps {
   tareas: Tarea[];
-  onSeleccionar: (tarea: Tarea) => void;
+  /**
+   * Si se pasa, filtros y orden de columnas viven en el query con este prefijo (y sobreviven a
+   * Atrás y a recargar). Sin prefijo —varias tablas en una página— quedan en memoria.
+   */
+  prefijoURL?: string;
   /** Filtro preseleccionado: al cambiarlo se carga el filtro de la columna Estado (que sigue editable). */
   preset?: PresetEstado;
   /**
@@ -70,19 +78,34 @@ const COLUMNAS: { id: ColumnaOrdenableTarea; etiqueta: string }[] = [
  * vencimiento colorea el fondo de toda la fila (amarillo/rojo; verde no se
  * resalta), y el estado de Pausa se distingue con su propio tono de badge.
  */
-export function TablaTareas({ tareas, onSeleccionar, preset, proyectos }: TablaTareasProps) {
-  const [orden, setOrden] = useState<OrdenTareas | null>(null);
-  const [filtros, setFiltros] = useState<FiltrosColumnasTareas>(() => ({
-    ...FILTROS_COLUMNAS_INICIALES,
-    estado: preset ? estadosDePreset(preset) : [],
-  }));
+export function TablaTareas({ tareas, preset, proyectos, prefijoURL }: TablaTareasProps) {
+  const abrir = useAbrirDetalle();
+  // El filtro Estado arranca con lo que indica el preset; la URL sólo guarda lo que se aparta.
+  const porDefecto = useMemo<FiltrosColumnasTareas>(
+    () => ({
+      ...FILTROS_COLUMNAS_INICIALES,
+      estado: preset ? estadosDePreset(preset) : [],
+    }),
+    [preset],
+  );
+  const [filtrosURL, setFiltrosURL] = useFiltrosURL(porDefecto, prefijoURL);
+  const [ordenURL, setOrdenURL] = useOrdenURL(COLUMNAS_ORDENABLES, prefijoURL);
+  const [filtrosLocales, setFiltrosLocales] = useState<FiltrosColumnasTareas>(porDefecto);
+  const [ordenLocal, setOrdenLocal] = useState<OrdenTareas | null>(null);
+  const enURL = prefijoURL !== undefined;
+  const filtros = enURL ? filtrosURL : filtrosLocales;
+  const orden = enURL ? ordenURL : ordenLocal;
+  const setFiltros = enURL ? setFiltrosURL : setFiltrosLocales;
+  const setOrden = enURL ? setOrdenURL : setOrdenLocal;
 
-  // Al cambiar el preset se recarga el filtro Estado: patrón "ajustar estado durante el render"
-  // de React, no un efecto.
+  // Con filtros locales, un nuevo preset recarga el filtro Estado ("ajustar estado durante el
+  // render" de React, no un efecto). En la URL lo resuelve la página al cambiar el preset.
   const [presetPrevio, setPresetPrevio] = useState(preset);
   if (preset !== presetPrevio) {
     setPresetPrevio(preset);
-    if (preset) setFiltros((actuales) => ({ ...actuales, estado: estadosDePreset(preset) }));
+    if (preset && !enURL) {
+      setFiltrosLocales((actuales) => ({ ...actuales, estado: estadosDePreset(preset) }));
+    }
   }
 
   const opciones = opcionesColumnasTareas(tareas);
@@ -101,12 +124,10 @@ export function TablaTareas({ tareas, onSeleccionar, preset, proyectos }: TablaT
                   id={col.id}
                   etiqueta={col.etiqueta}
                   orden={orden}
-                  onOrden={(columna) => setOrden((actual) => siguienteOrden(actual, columna))}
+                  onOrden={(columna) => setOrden(siguienteOrden(orden, columna))}
                   filtros={filtros}
                   opciones={opciones}
-                  onFiltrosChange={(cambios) =>
-                    setFiltros((actuales) => ({ ...actuales, ...cambios }))
-                  }
+                  onFiltrosChange={(cambios) => setFiltros({ ...filtros, ...cambios })}
                 />
               ))}
               {proyectos && <Table.HeaderCell>Proyecto</Table.HeaderCell>}
@@ -122,12 +143,7 @@ export function TablaTareas({ tareas, onSeleccionar, preset, proyectos }: TablaT
               </Table.Row>
             ) : (
               visibles.map((tarea) => (
-                <FilaTarea
-                  key={tarea.id}
-                  tarea={tarea}
-                  onVer={onSeleccionar}
-                  proyectos={proyectos}
-                />
+                <FilaTarea key={tarea.id} tarea={tarea} onVer={abrir} proyectos={proyectos} />
               ))
             )}
           </Table.Body>
@@ -143,9 +159,10 @@ function FilaTarea({
   proyectos,
 }: {
   tarea: Tarea;
-  onVer: (tarea: Tarea) => void;
+  onVer: (ruta: string) => void;
   proyectos?: Proyecto[];
 }) {
+  const ruta = `/tareas/${tarea.id}`;
   // Solo amarillo/rojo resaltan la fila (verde es el caso normal, sin
   // urgencia — no necesita destacarse). Resuelta/Cancelada no muestran
   // semáforo en absoluto (`muestraSemaforo`).
@@ -161,13 +178,17 @@ function FilaTarea({
 
   return (
     <Table.Row
-      className={`adoc-tt-row--clicable${claseSemaforo ? ` ${claseSemaforo}` : ""}`}
-      onClick={() => onVer(tarea)}
+      {...propsFilaClickeable(() => onVer(ruta))}
+      className={`adoc-fila-clickeable adoc-tt-row--clicable${claseSemaforo ? ` ${claseSemaforo}` : ""}`}
     >
       <Table.Cell numeric className="adoc-mono">
         {tarea.numero}
       </Table.Cell>
-      <Table.Cell>{tarea.titulo}</Table.Cell>
+      <Table.Cell>
+        <EnlaceFila ruta={ruta} etiqueta={`Ver la tarea ${tarea.numero}: ${tarea.titulo}`}>
+          {tarea.titulo}
+        </EnlaceFila>
+      </Table.Cell>
       <Table.Cell>{tarea.creadoPor.nombre}</Table.Cell>
       <Table.Cell>{tarea.responsable.nombre}</Table.Cell>
       <Table.Cell>{formatearFecha(tarea.fechaInicio)}</Table.Cell>
@@ -186,7 +207,7 @@ function FilaTarea({
           size="sm"
           onClick={(evento) => {
             evento.stopPropagation();
-            onVer(tarea);
+            onVer(ruta);
           }}
           aria-label={`Ver la tarea "${tarea.titulo}"`}
         >
@@ -196,6 +217,8 @@ function FilaTarea({
     </Table.Row>
   );
 }
+
+const COLUMNAS_ORDENABLES = COLUMNAS.map((columna) => columna.id);
 
 function EncabezadoTarea({
   id,

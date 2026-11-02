@@ -16,7 +16,9 @@ public sealed record SolicitudReservaAulaDto(
     string? AulaAsignada,
     string? MotivoRechazo,
     DateTimeOffset CreadoEn,
-    DocenteSolicitudDto? Docente = null);
+    DocenteSolicitudDto? Docente = null,
+    string? MotivoCancelacion = null,
+    bool EsPropia = false);
 
 public sealed record CrearSolicitudReservaAulaDto(
     DateOnly Dia,
@@ -29,3 +31,5 @@ public sealed record CrearSolicitudReservaAulaDto(
 public sealed record AsignarAulaDto(string AulaAsignada);
 
 public sealed record RechazarSolicitudDto(string Motivo);
+
+public sealed record CancelarReservaDto(string Motivo);

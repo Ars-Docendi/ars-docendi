@@ -1,5 +1,8 @@
 import { Button, Input, Table } from "@ars-docendi/ui";
 import type { EstadoSolicitudAula, SolicitudReservaAula } from "../types";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { rutaDetalleSolicitud } from "../rutas";
 import {
   fechaSolicitud,
   horarioSolicitud,
@@ -20,13 +23,13 @@ interface TablaMisSolicitudesProps {
   onFiltrosChange?: (filtros: FiltrosSolicitudesState) => void;
   onOrdenChange?: (orden: OrdenSolicitudes | null) => void;
   onCancelar: (solicitud: SolicitudReservaAula) => void;
-  /** "Ver motivo" (o doble click) en una fila Rechazada: abre el popup de detalle con el motivo. */
-  onVerDetalle: (solicitud: SolicitudReservaAula) => void;
+  /** Un click en cualquier parte de la fila (o Enter con el foco en ella) abre el detalle. */
+  onAbrir: (solicitud: SolicitudReservaAula) => void;
 }
 
 const SIN_CAMBIOS = () => {};
 
-/** Tabla "Mis solicitudes" del Docente, con filtros y orden por encabezado. */
+/** Tabla "Mis solicitudes" del Docente, con filtros y orden por encabezado. Toda la fila abre el detalle; "Cancelar" conserva su propia acción. */
 export function TablaMisSolicitudes({
   solicitudes,
   solicitudesParaOpciones = solicitudes,
@@ -35,7 +38,7 @@ export function TablaMisSolicitudes({
   onFiltrosChange = SIN_CAMBIOS,
   onOrdenChange = SIN_CAMBIOS,
   onCancelar,
-  onVerDetalle,
+  onAbrir,
 }: TablaMisSolicitudesProps) {
   const estados = opcionesEstados(solicitudesParaOpciones);
 
@@ -151,19 +154,15 @@ export function TablaMisSolicitudes({
             </Table.Row>
           ) : (
             solicitudes.map((solicitud) => (
-              <Table.Row
-                key={solicitud.id}
-                className={
-                  solicitud.estado === "rechazada" ? "adoc-aulas-row--accionable" : undefined
-                }
-                title={
-                  solicitud.estado === "rechazada" ? "Doble click para ver el motivo" : undefined
-                }
-                onDoubleClick={() => {
-                  if (solicitud.estado === "rechazada") onVerDetalle(solicitud);
-                }}
-              >
-                <Table.Cell>{fechaSolicitud(solicitud)}</Table.Cell>
+              <Table.Row key={solicitud.id} {...propsFilaClickeable(() => onAbrir(solicitud))}>
+                <Table.Cell>
+                  <EnlaceFila
+                    ruta={rutaDetalleSolicitud(solicitud.id)}
+                    etiqueta={`Ver la solicitud del ${fechaSolicitud(solicitud)}`}
+                  >
+                    {fechaSolicitud(solicitud)}
+                  </EnlaceFila>
+                </Table.Cell>
                 <Table.Cell>{horarioSolicitud(solicitud)}</Table.Cell>
                 <Table.Cell>{solicitud.cantidadAlumnosAprox}</Table.Cell>
                 <Table.Cell>{solicitud.materia.codigo}</Table.Cell>
@@ -174,25 +173,14 @@ export function TablaMisSolicitudes({
                 </Table.Cell>
                 <Table.Cell>{solicitud.aulaAsignada ?? "—"}</Table.Cell>
                 <Table.Cell>
-                  {solicitud.estado === "rechazada" ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onVerDetalle(solicitud)}
-                      onDoubleClick={(e) => e.stopPropagation()}
-                    >
-                      Ver motivo
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={solicitud.estado !== "pendiente"}
-                      onClick={() => onCancelar(solicitud)}
-                    >
-                      Cancelar
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={solicitud.estado !== "pendiente"}
+                    onClick={() => onCancelar(solicitud)}
+                  >
+                    Cancelar
+                  </Button>
                 </Table.Cell>
               </Table.Row>
             ))

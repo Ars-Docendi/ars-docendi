@@ -37,6 +37,29 @@ public sealed class ArquitecturaIdentityTests
             $"Referencias detectadas: {string.Join(", ", infracciones)}");
     }
 
+    [Fact]
+    public void Notificaciones_es_una_hoja_del_grafo_y_sus_emisores_solo_ven_sus_Contracts()
+    {
+        var raiz = BuscarRaizRepositorio();
+        string[] Referencias(string proyecto) =>
+            XDocument.Load(Path.Combine(raiz, "backend", "src", proyecto, proyecto + ".csproj"))
+                .Descendants("ProjectReference")
+                .Select(nodo => Path.GetFileNameWithoutExtension(nodo.Attribute("Include")!.Value.Replace('\\', '/')))
+                .ToArray();
+
+        // Contracts hold only records and one interface: no project reference at all.
+        Assert.Empty(Referencias("Modules.Notificaciones.Contracts"));
+        // The module depends on infrastructure and on its own Contracts; no business module.
+        Assert.Equal(
+            ["ArsDocendi.Migraciones", "ArsDocendi.Shared", "Modules.Notificaciones.Contracts"],
+            Referencias("Modules.Notificaciones").Order().ToArray());
+        // Emitters reach the module through its Contracts.
+        foreach (var emisor in new[] { "Modules.Aulas", "Modules.Designaciones", "Modules.Tareas" })
+        {
+            Assert.Contains("Modules.Notificaciones.Contracts", Referencias(emisor));
+        }
+    }
+
     private static string BuscarRaizRepositorio()
     {
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
