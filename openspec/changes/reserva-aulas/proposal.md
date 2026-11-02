@@ -9,15 +9,16 @@ esquema de datos y el flujo de negocio de Aulas.
 ## What Changes
 
 - Nueva entidad `SolicitudReservaAula` persistida en el schema Postgres `aulas`, con DDL versionado en
-  `database/aulas/` (siguiendo el patrón de `database/designaciones/`).
+  `database/aulas/` (migración `SolicitudesReservaAulas`, siguiendo el patrón de
+  `database/designaciones/`).
 - Nuevos endpoints en `Modules.Aulas` (Controller → Service → Repository): crear solicitud, listar
   solicitudes propias (Docente), listar todas las solicitudes (Administrativo), cancelar solicitud
   propia (Docente) y asignar aula / aprobar solicitud (Administrativo).
 - Nuevo permiso `aulas.solicitar` en el catálogo de identidad (`identity.permisos`), para separar
   "crear y cancelar solicitudes propias" (Docente) de "gestionar y aprobar" (Administrativo) — mismo
   patrón self-service vs. administración que `designaciones.gestionar` vs. `designaciones.revisar`.
-- Ajuste de la matriz de permisos por rol (`database/identity/008_identity_rol_permisos.sql`, ya
-  documentada en el propio archivo como PROVISIONAL/pendiente de confirmación con el cliente): se
+- Ajuste de la matriz de permisos por rol (migración `PermisosAulasSolicitarIdentity`; la matriz
+  sembrada está documentada como PROVISIONAL/pendiente de confirmación con el cliente): se
   agrega `aulas.ver` + `aulas.solicitar` al rol `docente`, que hoy no tiene ningún permiso de Aulas a
   pesar de ser quien solicita. `jefe_catedra` recibe el mismo agregado (ya tenía `aulas.ver`, es
   también docente). No se toca la fila de `administrativo`/`secretaria` (ya tienen
@@ -62,9 +63,9 @@ requirement, así que ajustar esa matriz no es una modificación de capability.)
   `Modules.Portal` para resolverse a sí mismo) — no vía `Modules.Portal.Contracts`, así que el edge
   `Aulas → Portal.Contracts` anticipado en `dependency-graph.md` queda sin materializar y no se agrega
   ninguna dependencia cross-module nueva. Sin cambios en `ArsDocendi.Host` (módulo ya registrado).
-- **Base de datos**: nuevo `database/aulas/001_aulas_solicitudes.sql` (primer DDL real del schema
-  `aulas`); nueva fila de permiso en `database/identity/007_identity_permisos.sql`; ajuste de
-  `database/identity/008_identity_rol_permisos.sql`.
+- **Base de datos**: migración `SolicitudesReservaAulas` (primer DDL real del schema `aulas`) y
+  migración `PermisosAulasSolicitarIdentity` (permiso `aulas.solicitar` y su asignación a
+  `docente`/`jefe_catedra`).
 - **Frontend**: reemplazo completo de `frontend/src/features/aulas/*` (routes, pages, nuevos
   components/hooks/api siguiendo la anatomía de `features/designaciones/`); reuso de
   `shared/ui/FiltroEncabezado.tsx`. Sin cambios en `nav.ts` (el enlace
@@ -76,5 +77,6 @@ requirement, así que ajustar esa matriz no es una modificación de capability.)
   registra `BR-aulas-NNN` en esta ronda; si surge una restricción reglamentaria (p. ej. capacidad
   mínima de aula vs. alumnos) se agrega en la implementación con su cita.
 - **Rollback**: el módulo Aulas no tiene consumidores ni datos productivos hoy — revertir es eliminar
-  el DDL nuevo (`database/aulas/001_*.sql`, aún no aplicado a producción) y la fila de permiso, sin
+  las migraciones `SolicitudesReservaAulas` y `PermisosAulasSolicitarIdentity` (aún no aplicadas a
+  producción), sin
   afectar otros módulos.

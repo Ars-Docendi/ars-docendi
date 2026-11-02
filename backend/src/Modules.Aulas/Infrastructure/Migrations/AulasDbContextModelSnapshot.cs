@@ -84,6 +84,12 @@ namespace Modules.Aulas.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("rol_solicitante");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DocenteId");

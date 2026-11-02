@@ -84,7 +84,7 @@ public static class EndpointsAutenticacion
             {
                 var usuario = contexto.User;
                 var sesion = await servicio.ObtenerAsync(UsuarioId(usuario), datos.AsignacionId, ct);
-                if (sesion?.Asignacion.Id != datos.AsignacionId) return Results.Forbid();
+                if (sesion is null || sesion.Asignacion.Id != datos.AsignacionId) return Results.Forbid();
 
                 var claims = new List<Claim>
                 {

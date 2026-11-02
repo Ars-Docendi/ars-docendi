@@ -1,12 +1,9 @@
 import { Input, Table } from "@ars-docendi/ui";
-import type { ReactNode } from "react";
-import type { SolicitudReservaAula } from "../types";
-import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
+import type { EstadoSolicitudAula, SolicitudReservaAula } from "../types";
 import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { rutaDetalleSolicitud } from "../rutas";
 import {
-  etiquetaEstado,
   fechaSolicitud,
   horarioSolicitud,
   opcionesEstados,
@@ -16,6 +13,7 @@ import {
   type OrdenSolicitudes,
 } from "./filtrosSolicitudes";
 import { EstadoSolicitudPill } from "./EstadoSolicitudPill";
+import { Encabezado, Opciones } from "./EncabezadosSolicitudes";
 
 interface TablaTodasLasSolicitudesProps {
   solicitudes: SolicitudReservaAula[];
@@ -58,13 +56,11 @@ export function TablaTodasLasSolicitudes({
     onOrdenChange(siguienteOrdenSolicitudes(orden, columna));
   }
 
-  function alternarEstado(valor: string) {
+  function alternarEstado(valor: EstadoSolicitudAula) {
     const valores = filtros.estado;
     cambiarFiltro(
       "estado",
-      (valores.includes(valor as never)
-        ? valores.filter((actual) => actual !== valor)
-        : [...valores, valor]) as FiltrosSolicitudesState["estado"],
+      valores.includes(valor) ? valores.filter((actual) => actual !== valor) : [...valores, valor],
     );
   }
 
@@ -207,63 +203,5 @@ export function TablaTodasLasSolicitudes({
         </Table.Body>
       </Table.Root>
     </Table>
-  );
-}
-
-function Encabezado({
-  etiqueta,
-  columna,
-  orden,
-  onOrden,
-  filtro,
-  activo,
-  onLimpiar,
-}: {
-  etiqueta: string;
-  columna: ColumnaOrdenSolicitudes;
-  orden: OrdenSolicitudes | null;
-  onOrden: (columna: ColumnaOrdenSolicitudes) => void;
-  filtro: ReactNode;
-  activo: boolean;
-  onLimpiar: () => void;
-}) {
-  return (
-    <Table.HeaderCell
-      aria-label={etiqueta}
-      sort={orden?.columna === columna ? orden.direccion : null}
-      onSortChange={() => onOrden(columna)}
-    >
-      <span>
-        {etiqueta}
-        <FiltroEncabezado etiqueta={etiqueta} activo={activo} onLimpiar={onLimpiar}>
-          {filtro}
-        </FiltroEncabezado>
-      </span>
-    </Table.HeaderCell>
-  );
-}
-
-function Opciones({
-  opciones,
-  valores,
-  onToggle,
-}: {
-  opciones: string[];
-  valores: string[];
-  onToggle: (valor: string) => void;
-}) {
-  return (
-    <div className="adoc-filtro-encabezado-opciones">
-      {opciones.map((opcion) => (
-        <label className="adoc-filtro-encabezado-opcion" key={opcion}>
-          <input
-            type="checkbox"
-            checked={valores.includes(opcion)}
-            onChange={() => onToggle(opcion)}
-          />
-          {etiquetaEstado(opcion as never)}
-        </label>
-      ))}
-    </div>
   );
 }

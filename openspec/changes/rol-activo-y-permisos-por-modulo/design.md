@@ -30,7 +30,7 @@ El módulo es el segmento anterior al primer `.` del código. Un mapa en el fron
 
 ### D2. Grilla y pantalla completa
 
-`/roles` replica la grilla de Personas: `Table` de la guía, `FiltroEncabezado`, orden por columna, `filaClickeable` y `MenuAcciones` (Editar; Eliminar sólo en personalizados, con `ModalConfirmarEliminar`). La columna Permisos sale de `permisos.length` sobre el catálogo. `/roles/nuevo` y `/roles/:rolId` son una sola pantalla `EditorRol`: datos del rol arriba y módulos debajo, sin encabezado propio, con "Cancelar" y "Guardar" al pie. Los campos de datos se habilitan con `roles.administrar` (y nunca en roles de sistema) y los permisos con `roles.gestionar_membresia`.
+`/roles` replica la grilla de Personas: `Table` de la guía, `FiltroEncabezado`, orden por columna, `filaClickeable` y `MenuAcciones` (Editar; Activar/Desactivar sólo en personalizados, con un `Modal` de confirmación). La columna Permisos sale de `permisos.length` sobre el catálogo. `/roles/nuevo` y `/roles/:rolId` son una sola pantalla `EditorRol`: datos del rol arriba y módulos debajo, sin encabezado propio, con "Cancelar" y "Guardar" al pie. Los campos de datos se habilitan con `roles.administrar` (y nunca en roles de sistema) y los permisos con `roles.gestionar_membresia`.
 
 Guardar en alta hace un solo `POST` con los permisos iniciales (reemplaza `rolBaseId`), atómico en el servidor. Guardar en edición hace `PUT` de datos sólo si cambiaron y luego `PUT` de permisos con la versión devuelta; si el segundo falla por concurrencia, la pantalla queda con los permisos pendientes y ofrece recargar, como hoy.
 

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using ArsDocendi.Host.Desarrollo;
+using ArsDocendi.IntegrationTests.Designaciones;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -32,11 +33,25 @@ public abstract class BaseNotificaciones(PostgresFixture postgres, string prefij
 
     protected static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    protected async Task SembrarAsync()
+    /// <summary>
+    /// Seeds the synthetic dataset and, by default, seals the order history as a deployment does
+    /// (the circuit refuses to move an order whose history carries no seal chain). A fixture that
+    /// must adjust the seeded orders passes <c>sellar: false</c> and calls
+    /// <see cref="SellarHistorialAsync"/> afterwards: sealing comes last, or the fixture would be a
+    /// change outside the circuit.
+    /// </summary>
+    protected async Task SembrarAsync(bool sellar = true)
     {
         var sql = await File.ReadAllTextAsync(
             Path.Combine(RaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), Ct);
         await EjecutarAsync(sql, 60);
+        if (sellar) await SellarHistorialAsync();
+    }
+
+    protected async Task SellarHistorialAsync()
+    {
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(Ct);
     }
 
     protected WebApplicationFactory<Program> CrearHost(Action<IServiceCollection>? servicios = null) =>

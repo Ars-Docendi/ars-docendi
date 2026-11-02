@@ -116,6 +116,28 @@ public sealed class AdministracionRolesTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Reactivar_rol_cuyo_nombre_tomo_otro_rol_activo_es_rechazado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var original = await servicio.CrearAsync(new CrearRolDto("Rol reutilizado", null, "global"), ct);
+        var inactivo = await servicio.CambiarEstadoAsync(
+            original.Id, false, new CambiarEstadoRolDto(original.Version), ct);
+        // El nombre deriva el código: el otro rol toma el nombre al renombrarse.
+        var otro = await servicio.CrearAsync(new CrearRolDto("Rol sucesor", null, "global"), ct);
+        await servicio.EditarAsync(otro.Id,
+            new EditarRolDto("Rol reutilizado", null, "global", otro.Version), ct);
+
+        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.CambiarEstadoAsync(
+            original.Id, true, new CambiarEstadoRolDto(inactivo.Version), ct));
+
+        Assert.Equal("identity-role-name-conflict", error.Codigo);
+        db.ChangeTracker.Clear();
+        Assert.Contains(await servicio.ListarAsync(ct), r => r.Id == original.Id && !r.Activo);
+    }
+
+    [Fact]
     public async Task Baja_de_rol_de_sistema_y_version_obsoleta_son_rechazadas()
     {
         var ct = TestContext.Current.CancellationToken;

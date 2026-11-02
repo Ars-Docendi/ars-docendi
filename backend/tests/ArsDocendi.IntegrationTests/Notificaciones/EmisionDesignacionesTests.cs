@@ -37,8 +37,9 @@ public sealed class EmisionDesignacionesTests(PostgresFixture postgres)
     [Fact]
     public async Task Aceptar_en_coordinacion_avisa_a_secretaria_con_el_texto_del_modal()
     {
-        await SembrarAsync();
+        await SembrarAsync(sellar: false);
         await CompletarDocumentacionAsync();
+        await SellarHistorialAsync();
         using var host = CrearHost();
         using var coordinador = ClienteDe(host, Coordinador, "coordinador_carrera");
 
@@ -76,8 +77,9 @@ public sealed class EmisionDesignacionesTests(PostgresFixture postgres)
     [Fact]
     public async Task Repetir_la_misma_clave_de_idempotencia_no_vuelve_a_avisar()
     {
-        await SembrarAsync();
+        await SembrarAsync(sellar: false);
         await CompletarDocumentacionAsync();
+        await SellarHistorialAsync();
         using var host = CrearHost();
         using var coordinador = ClienteDe(host, Coordinador, "coordinador_carrera");
         var clave = Guid.NewGuid();
@@ -182,8 +184,9 @@ public sealed class EmisionDesignacionesTests(PostgresFixture postgres)
     [Fact]
     public async Task Si_la_emision_falla_la_transicion_queda_confirmada()
     {
-        await SembrarAsync();
+        await SembrarAsync(sellar: false);
         await CompletarDocumentacionAsync();
+        await SellarHistorialAsync();
         await EjecutarAsync("DROP TABLE notificaciones.notificaciones");
         using var host = CrearHost();
         using var coordinador = ClienteDe(host, Coordinador, "coordinador_carrera");

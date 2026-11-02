@@ -31,7 +31,8 @@ ningún catálogo propio en Aulas ni referencia cross-module contemplada para es
 - Dar de alta el permiso `aulas.solicitar` (código + SQL) y completar en código los tres permisos de
   Aulas que ya existían solo como dato (`aulas.ver`, `aulas.gestionar`, `aulas.aprobar`), habilitando
   policies reales.
-- Exponer el ciclo completo por API: crear, listar propias, listar todas, cancelar, asignar aula.
+- Exponer el ciclo completo por API: crear, listar propias, listar todas, cancelar, asignar aula y
+  rechazar con motivo.
 - Construir la pantalla `/aulas` con las dos vistas (Docente / Administrativo) sobre una tabla
   ordenable/filtrable reutilizando los componentes compartidos ya usados en Designaciones.
 
@@ -53,25 +54,30 @@ ningún catálogo propio en Aulas ni referencia cross-module contemplada para es
 
 ### 1. Nueva entidad `SolicitudReservaAula` en el schema `aulas`
 
-DDL real en `database/aulas/001_aulas_solicitudes.sql` (patrón `RecursosSql`/`ExcludeFromMigrations`,
-igual que Designaciones — ver `docs/architecture/data-model.md`). Campos: `id` (uuid pk),
-`docente_id` (uuid, la persona solicitante — ver decisión 4), `dia` (date), `horario_desde` / `horario_hasta`
-(time), `cantidad_alumnos_aprox` (int), `materia` (text), `comision` (text), `estado`
-(`pendiente` | `aprobada` | `cancelada`), `aula_asignada` (text, nullable — se completa recién al
-aprobar), `created_at`, `updated_at`. Un `CHECK` en base garantiza `horario_hasta > horario_desde` y
-`cantidad_alumnos_aprox > 0` — la misma regla que hoy el frontend valida se repite en el DDL, siguiendo
-el principio de "frontend anticipa, backend es la autoridad" ya aplicado a Pedidos de Designación.
+DDL real en `database/aulas/20261102000904_SolicitudesReservaAulas.sql` (patrón
+`RecursosSql`/`ExcludeFromMigrations`, igual que Designaciones — ver
+`docs/architecture/data-model.md`). Campos: `id` (uuid pk), `docente_id` (uuid, FK a
+`identity.personas` — ver decisión 4), `dia` (date), `horario_desde` / `horario_hasta` (time),
+`cantidad_alumnos_aprox` (int), `materia_id` (uuid, FK a `identity.materias` — ver decisión 3),
+`comision` (text), `estado` (`pendiente` | `aprobada` | `rechazada` | `cancelada`), `aula_asignada`
+(text, nullable — se completa recién al aprobar), `motivo_rechazo` (text, nullable — obligatorio sólo
+al rechazar, ver decisión 9) y `created_at` como única columna de auditoría. Un `CHECK` en base
+garantiza `horario_hasta > horario_desde` y `cantidad_alumnos_aprox > 0` — la misma regla que hoy el
+frontend valida se repite en el DDL, siguiendo el principio de "frontend anticipa, backend es la
+autoridad" ya aplicado a Pedidos de Designación.
 
 **Alternativa considerada**: modelar el estado como tabla de eventos/historial (como
 `pedidos-designacion`, que sí tiene un circuito multi-etapa con devoluciones). Rechazada: acá el
-circuito es de dos pasos sin retorno (`pendiente` → `aprobada` o `pendiente` → `cancelada`, ambos
-terminales), no amerita la complejidad de un historial de eventos.
+circuito es de dos pasos sin retorno (`pendiente` → `aprobada`, `rechazada` o `cancelada`, sin
+volver a `pendiente`), no amerita la complejidad de un historial de eventos.
 
 ### 2. Estado sin campo de eventos separado
 
 `estado` es una columna simple, no una máquina de estados con historial (a diferencia de
 `MaquinaEstadosPedido`). Transiciones válidas: `pendiente → aprobada` (solo Administrativo, vía asignar
-aula) y `pendiente → cancelada` (solo el Docente dueño, y solo si sigue `pendiente`). Una solicitud
+aula), `pendiente → rechazada` (solo Administrativo, con motivo — ver decisión 9) y
+`pendiente → cancelada` (solo el Docente dueño, y solo si sigue `pendiente`). `rechazada` y `cancelada`
+son terminales. Una solicitud
 `aprobada` no se puede cancelar desde esta pantalla (fuera de alcance: si se necesita, es una iteración
 futura de "reprogramar/liberar aula"). Sí se puede **actualizar el aula asignada** de una solicitud ya
 `aprobada` (mismo endpoint que asignar, sin transición de estado — ver decisión 8): es una corrección de
@@ -135,6 +141,7 @@ Se agregan a `ArsDocendi.Shared/Auth/Permisos.cs` (y a `Todos`): `AulasVer` (`au
 | `POST /api/aulas/solicitudes/{id}/cancelar` | `AulasSolicitar` | Docente, dueño de la fila    |
 | `GET /api/aulas/solicitudes`                | `AulasAprobar`   | Administrativo (todas)       |
 | `POST /api/aulas/solicitudes/{id}/asignar`  | `AulasAprobar`   | Administrativo (asigna aula) |
+| `POST /api/aulas/solicitudes/{id}/rechazar` | `AulasAprobar`   | Administrativo (rechaza)     |
 
 `aulas.gestionar` queda declarado en código (cierra la deuda de `Permisos.cs`) pero sin un endpoint
 propio en esta ronda — ya está asignado a `administrativo`/`secretaria` en la matriz SQL para uso
@@ -165,27 +172,28 @@ permisos vería ambas vistas (no es el caso de la matriz actual, pero no se cier
 `shared/ui/FiltroEncabezado.tsx` para orden/filtro por columna, igual patrón que
 `TablaMisPedidos`.
 
-### 8. "Todas las solicitudes": doble click en la fila en vez de columna Acciones
+### 8. "Todas las solicitudes": acción por estado en la fila, con doble click como atajo
 
 > **Superada** por el change `reserva-aulas-detalle-y-cancelacion`: ambas tablas abren una página de
 > detalle con un click en cualquier fila y `ModalAsignarAula` / `ModalDetalleSolicitud` ya no existen.
 > El texto de abajo queda como registro histórico de la decisión original.
 
 Ajuste posterior a la primera implementación, pedido en revisión. La columna Acciones con un botón
-"Asignar aula" quedaba rara para Administrativo: en `Pendiente` estaba habilitado, pero en `Aprobada` y
-`Cancelada` quedaba deshabilitado ocupando espacio sin aportar nada (a diferencia de "Mis solicitudes",
-donde Cancelar sí tiene sentido visualmente atenuado). Se reemplaza por doble click en la fila, con
-comportamiento por estado:
+"Asignar aula" siempre visible quedaba rara para Administrativo: en `Aprobada` y `Cancelada` quedaba
+deshabilitado ocupando espacio sin aportar nada. Se reemplazó por doble click en la fila; una revisión
+de accesibilidad posterior agregó en la columna Acciones un botón visible sólo cuando la fila tiene una
+acción, porque el doble click no es operable con teclado ni en pantallas táctiles. El doble click queda
+como atajo. Comportamiento por estado:
 
-- `Pendiente` → abre el modal "Asignar aula" (crear la asignación, transiciona a `Aprobada`).
-- `Aprobada` → abre el mismo modal en modo "Actualizar aula asignada" (mismo endpoint, sin transición
-  de estado — decisión 2), precargado con el aula actual.
-- `Cancelada` → no hace nada; es un estado terminal sin acción posible.
+- `Pendiente` → botón "Asignar aula": abre el modal "Asignar aula" (crear la asignación, transiciona a
+  `Aprobada`).
+- `Aprobada` → botón "Actualizar aula": abre el mismo modal en modo "Actualizar aula asignada" (mismo
+  endpoint, sin transición de estado — decisión 2), precargado con el aula actual.
+- `Rechazada` / `Cancelada` → sin botón ni doble click; son estados terminales sin acción posible.
 
 `ModalAsignarAula` pasa a tomar un modo (`asignar` | `actualizar`) que solo cambia título, texto del
-botón y el valor inicial del input — no hay dos componentes. La tabla "Mis solicitudes" del Docente NO
-cambia: ahí Cancelar sigue siendo un botón en la columna Acciones, porque el pedido del usuario fue
-específico para la vista de Administrativo.
+botón y el valor inicial del input — no hay dos componentes. En "Mis solicitudes" del Docente, Cancelar
+sigue siendo un botón en la columna Acciones.
 
 ### 9. Rechazar solicitud con motivo (nuevo estado `Rechazada`)
 
@@ -209,8 +217,8 @@ rechace explicando por qué. Se agrega un tercer desenlace terminal: `Rechazada`
   motivo obligatorio — mismo patrón que `ModalConfirmacionAccion`/`PanelAccionesRevision` de
   Designaciones, que ya resuelve "rechazar con justificativo obligatorio"). El botón no aparece en modo
   "actualizar" (una `Aprobada` ya no es rechazable).
-- Frontend (Docente, "Mis solicitudes"): una fila `Rechazada` responde a doble click abriendo
-  `ModalDetalleSolicitud`, un popup de solo lectura con los datos de la solicitud y el motivo de
+- Frontend (Docente, "Mis solicitudes"): una fila `Rechazada` muestra en Acciones el botón "Ver motivo"
+  (en lugar de Cancelar) y responde también a doble click, abriendo `ModalDetalleSolicitud`, un popup de solo lectura con los datos de la solicitud y el motivo de
   rechazo — mismo mecanismo de doble click que "Todas las solicitudes" ya usa (decisión 8), aplicado
   acá por primera vez en la tabla del Docente, y solo para el estado `Rechazada`: las demás filas de
   esta tabla no reaccionan al doble click (a diferencia de Administrativo, donde `Pendiente` y
@@ -259,11 +267,11 @@ columna en la grilla, no del dominio.
 
 ## Migration Plan
 
-1. Agregar el DDL `database/aulas/001_aulas_solicitudes.sql` y la migración EF que lo invoca
-   (`ExcludeFromMigrations`, igual que Designaciones).
-2. Agregar la fila de permiso `aulas.solicitar` a `database/identity/007_identity_permisos.sql` (nuevo
-   archivo numerado siguiente, no editar el ya aplicado) y actualizar
-   `database/identity/008_identity_rol_permisos.sql` para `docente`/`jefe_catedra`.
+1. Agregar la migración `SolicitudesReservaAulas` (`database/aulas/20261102000904_SolicitudesReservaAulas.sql`
+   y su wrapper EF, `ExcludeFromMigrations` igual que Designaciones).
+2. Agregar la migración `PermisosAulasSolicitarIdentity`
+   (`database/identity/20261102000906_PermisosAulasSolicitarIdentity.sql`): alta de `aulas.solicitar` y
+   asignación a `docente`/`jefe_catedra`, sin editar SQL ya aplicado.
 3. Completar `Permisos.cs` (aditivo).
 4. Implementar Domain/Repository/Service/Api del lado backend.
 5. Reemplazar el frontend stub.

@@ -91,8 +91,9 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 ### Designaciones (`/api/designaciones/`)
 
 La grilla conserva todas las filas y acciones, sin documentos ni historia completa;
-entrega un resumen acotado de eventos para fechas/actor/orden. El detalle conserva
-historial y snapshot completos. Administración y circuito coordinan la vigencia por
+entrega un resumen acotado de eventos para fechas/actor/orden. El detalle conserva el
+snapshot completo; con `designaciones.ver_seguimiento` devuelve el historial completo y
+sin él, el historial vacío. Administración y circuito coordinan la vigencia por
 persona–materia: snapshot protegido al enviar, revalidación o `409 concurrency-conflict`
 antes de commit. Las nuevas referencias validan destinos en la misma transacción;
 `409 identity-destination-conflict` no agrega eventos parciales. Ver el
@@ -211,7 +212,7 @@ La emisión no es un endpoint: la hacen Aulas, Designaciones y Tareas a través 
 
 ## Idempotencia
 
-Las transiciones de pedidos (`enviar`, `reenviar`, `aceptar`, `rechazar`, `devolver`, `priorizar`, `despriorizar`) requieren `Idempotency-Key: <uuid>`. La identidad lógica de la clave incluye actor, ruta, recurso y payload durante 24 horas: el replay idéntico retorna la misma respuesta y una reutilización incompatible retorna `409 idempotency-key-reused`. La exclusión concurrente garantiza una sola transición y un solo evento de historial.
+Las transiciones de pedidos (`enviar`, `reenviar`, `aceptar`, `rechazar`, `devolver`, `priorizar`, `despriorizar`) requieren `Idempotency-Key: <uuid>`. La identidad lógica de la clave incluye actor, ruta, recurso y payload durante 24 horas: el replay idéntico no repite la transición y retorna el pedido vigente con el ámbito y la vista autorizados en ese momento y una reutilización incompatible retorna `409 idempotency-key-reused`. La exclusión concurrente garantiza una sola transición y un solo evento de historial.
 
 ## Versioning
 

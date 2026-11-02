@@ -40,7 +40,9 @@ export function ListadoPage() {
     [roles, filtros, orden],
   );
   const activos = roles.filter((rol) => rol.activo).length;
-  const activar = aConfirmar ? !aConfirmar.activo : false;
+  // Tras un conflicto la lista se recarga: se confirma sobre la versión vigente del rol.
+  const vigente = aConfirmar && (roles.find((rol) => rol.id === aConfirmar.id) ?? aConfirmar);
+  const activar = vigente ? !vigente.activo : false;
   const conteo =
     visibles.length === roles.length
       ? `${roles.length} roles`
@@ -104,9 +106,9 @@ export function ListadoPage() {
               variant={activar ? "primary" : "destructive"}
               loading={cambiarEstado.isPending}
               onClick={() =>
-                aConfirmar &&
+                vigente &&
                 cambiarEstado.mutate(
-                  { rol: aConfirmar, activar },
+                  { rol: vigente, activar },
                   { onSuccess: () => setAConfirmar(null) },
                 )
               }
