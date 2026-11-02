@@ -40,6 +40,8 @@ const CONFIG: Record<EstadoPedido, ConfigEstado> = {
   rechazado: { etiqueta: "Rechazado", tono: "peligro", icono: <IconoCircleX /> },
   devuelto: { etiqueta: "Devuelto", tono: "alerta", icono: <IconoCornerUpLeft /> },
   cancelado: { etiqueta: "Cancelado", tono: "neutro", icono: <IconoBan /> },
+  en_proceso: { etiqueta: "En proceso", tono: "neutro", icono: <IconoClock /> },
+  aprobado: { etiqueta: "Aprobado", tono: "exito", icono: <IconoCircleCheck /> },
 };
 
 /** Pill de estado del pedido (estilo del screens.pen): icono Lucide + etiqueta. */

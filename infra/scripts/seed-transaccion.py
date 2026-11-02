@@ -33,6 +33,8 @@ if __name__ == "__main__":
         print(sql)
         print(extra)
         print("INSERT INTO public.seed_metadata(clave,valor) VALUES ('inicializacion_completada','sintetico/v1') ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor;")
+        # Marca durable: el sellado inicial se reintenta hasta borrarla, nunca sobre una base conservada.
+        print("INSERT INTO public.seed_metadata(clave,valor) VALUES ('sellado_inicial','pendiente') ON CONFLICT(clave) DO UPDATE SET valor=EXCLUDED.valor;")
         print("UPDATE public.bootstrap_metadata SET estado='completado' WHERE id;")
         print("\\endif\nCOMMIT;")
     except (ValueError, OSError) as error:

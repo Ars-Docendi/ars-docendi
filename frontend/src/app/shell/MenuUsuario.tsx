@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@ars-docendi/ui";
+import { Button, InlineAlert, Modal, RoleMenu } from "@ars-docendi/ui";
 
+import { mensajeProblema } from "../../shared/api/problemDetails";
 import { useCerrarSesion } from "../../shared/auth/auth";
+import { etiquetaAmbito, useElegirRol } from "../../shared/auth/rolActivo";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { chevronIcon } from "./icons";
 
@@ -22,14 +24,18 @@ interface MenuUsuarioProps {
 }
 
 /**
- * Tarjeta de usuario al pie de la barra lateral (y del panel móvil). Al
- * tocarla abre hacia arriba el menú con "Cerrar sesión".
+ * Tarjeta de usuario al pie de la barra lateral (y del panel móvil), con el rol y
+ * el ámbito con que opera. Al tocarla abre hacia arriba el menú con "Cambiar rol"
+ * (sólo con más de una asignación) y "Cerrar sesión".
  */
 export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
   const navigate = useNavigate();
   const cerrarSesion = useCerrarSesion();
   const [abierto, setAbierto] = useState(false);
+  const [cambiandoRol, setCambiandoRol] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const ambito = user.asignacion ? etiquetaAmbito(user.asignacion) : "";
+  const rolYAmbito = [user.role, ambito].filter(Boolean).join(", ");
 
   useEffect(() => {
     if (!abierto) return;
@@ -59,6 +65,19 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
     <div className="adoc-usuario" ref={ref}>
       {abierto && (
         <div className="adoc-usuario-pop" role="menu">
+          {user.asignaciones.length > 1 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              role="menuitem"
+              onClick={() => {
+                setAbierto(false);
+                setCambiandoRol(true);
+              }}
+            >
+              Cambiar rol
+            </Button>
+          )}
           <Button variant="ghost" size="sm" role="menuitem" onClick={() => void salir()}>
             Cerrar sesión
           </Button>
@@ -69,8 +88,8 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
         className="adoc-usuario-tarjeta"
         aria-haspopup="menu"
         aria-expanded={abierto}
-        aria-label={`Menú de usuario: ${user.name}, ${user.role}`}
-        title={`${user.name} · ${user.role}`}
+        aria-label={`Menú de usuario: ${user.name}, ${rolYAmbito}`}
+        title={`${user.name} · ${rolYAmbito}`}
         onClick={() => setAbierto((previo) => !previo)}
       >
         <span className="avatar" aria-hidden>
@@ -80,6 +99,7 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
           <span className="datos" aria-hidden>
             <span className="nombre">{nombreCorto(user.name)}</span>
             <span className="rol">{user.role}</span>
+            <span className="ambito">{ambito}</span>
           </span>
         )}
         {!collapsed && (
@@ -88,6 +108,69 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
           </span>
         )}
       </button>
+      {cambiandoRol && <ModalCambiarRol user={user} onCerrar={() => setCambiandoRol(false)} />}
     </div>
+  );
+}
+
+/**
+ * Elige con qué rol trabajar. Se monta sólo al abrirlo: desde "Cambiar rol" o, al
+ * ingresar con varias asignaciones, sobre la app con la de por defecto marcada.
+ * Al ingresar, cerrarlo confirma la de por defecto.
+ */
+export function ModalCambiarRol({
+  user,
+  alIngresar = false,
+  onCerrar,
+}: {
+  user: CurrentUser;
+  alIngresar?: boolean;
+  onCerrar: () => void;
+}) {
+  const navigate = useNavigate();
+  const elegir = useElegirRol();
+  const actual = user.asignacion?.id;
+  function elegirAsignacion(id: string) {
+    if (id === actual && !alIngresar) return onCerrar();
+    elegir.mutate(id, {
+      onSuccess: () => {
+        onCerrar();
+        if (id !== actual) navigate("/", { replace: true });
+      },
+    });
+  }
+  return (
+    <Modal
+      open
+      onOpenChange={(abrir) =>
+        !abrir && (alIngresar && actual ? elegirAsignacion(actual) : onCerrar())
+      }
+      title={alIngresar ? "¿Con qué rol querés trabajar?" : "Cambiar rol"}
+    >
+      {alIngresar && (
+        <p className="adoc-elegir-rol-ayuda">
+          Tenés más de un rol. Podés cambiarlo después desde tu usuario, al pie de la barra lateral.
+        </p>
+      )}
+      {elegir.isError && (
+        <InlineAlert
+          severity="danger"
+          title={mensajeProblema(elegir.error, "No se pudo cambiar el rol. Intentá de nuevo.")}
+        />
+      )}
+      <RoleMenu
+        className="adoc-elegir-rol"
+        heading={null}
+        selectedId={actual}
+        options={user.asignaciones.map((a) => ({
+          id: a.id,
+          name: a.rolNombre,
+          scope: etiquetaAmbito(a),
+          current: a.id === actual,
+          disabled: elegir.isPending,
+        }))}
+        onSelect={elegirAsignacion}
+      />
+    </Modal>
   );
 }

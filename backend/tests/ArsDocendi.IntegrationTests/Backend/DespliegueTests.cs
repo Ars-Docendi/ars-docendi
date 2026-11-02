@@ -39,10 +39,20 @@ public sealed class DespliegueTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
     }
 
-    private WebApplicationFactory<Program> CrearHost(string clientSecret, bool habilitada) =>
+    [Fact]
+    public void Production_sin_clave_de_sellado_no_arranca()
+    {
+        using var host = CrearHost(clientSecret: "secreto-pruebas", habilitada: true, claveSellado: "");
+
+        var error = Assert.ThrowsAny<Exception>(() => host.CreateClient());
+        Assert.Contains("Integridad:ClavesSellado", error.ToString());
+    }
+
+    private WebApplicationFactory<Program> CrearHost(string clientSecret, bool habilitada, string? claveSellado = null) =>
         new HostPruebas(builder =>
         {
             builder.UseEnvironment("Production");
+            builder.UseSetting("Integridad:ClavesSellado:1", claveSellado ?? Convert.ToBase64String(Enumerable.Repeat((byte)7, 32).ToArray()));
             builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
             builder.UseSetting("AutenticacionMicrosoft:Habilitada", habilitada.ToString());
             builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");

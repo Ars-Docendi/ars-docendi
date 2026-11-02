@@ -18,6 +18,9 @@ const usuario: CurrentUser = {
   role: "Docente",
   roleCode: "docente",
   permissions: [],
+  asignacion: null,
+  asignaciones: [],
+  requiereElegirRol: false,
 };
 
 function renderSidebar(

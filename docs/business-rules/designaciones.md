@@ -102,6 +102,18 @@ Los nombres sin prefijo están bajo
 parte de `backend/tests/ArsDocendi.IntegrationTests/`.
 Resultados y límites: [evidencia 3.6–3.8](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/designaciones-3.6-3.8.md).
 
+### Integridad del circuito (reglas de seguridad, no normativa)
+
+`BR-designaciones-019` y `BR-designaciones-020` provienen del change
+`integridad-sellada-pedidos`, no de normativa institucional. Su comportamiento vive en las specs
+[`integridad-circuito-pedidos`](../../openspec/changes/integridad-sellada-pedidos/specs/integridad-circuito-pedidos/spec.md)
+y [`exportacion-lote-designaciones`](../../openspec/specs/exportacion-lote-designaciones/spec.md).
+
+| Regla                                                                                                                    | Tests persistentes                                                | Tipo                   |
+| ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ---------------------- |
+| BR-designaciones-019: cada evento fuera de borrador queda sellado y firmado, en una cadena por período de sólo inserción | `IntegridadPedidosTests.cs`                                       | integración PostgreSQL |
+| BR-designaciones-020: el lote se exporta sólo con la cadena íntegra e imprime la cabeza anclada                          | `IntegridadPedidosTests.cs` (`Lote_imprime_la_cabeza_anclada...`) | integración PostgreSQL |
+
 ## Assumptions (a confirmar)
 
 - Las citas normativas de BR-001..004 y BR-018 provienen del estatuto / régimen docente UNLaM; el texto exacto (artículo/sección) se confirma con el cliente. La validación se implementa igual; el test queda en el lane `business` con cita pendiente.

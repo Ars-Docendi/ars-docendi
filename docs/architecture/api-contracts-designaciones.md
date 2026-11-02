@@ -13,7 +13,8 @@ PedidoDto        = { id, numero, periodo{id,nombre}, persona, materia{id,codigo,
                      novedad, estado, prioritario, cargoSolicitado?, dedicacionSolicitada?, horas?,
                      horasInvestigacion?, horasExternas?, justificacion?, tipoBaja?,
                      tipoBajaDetalle?, etapaRetorno?, propietarioActual?, snapshot?, version,
-                     adjuntos[], historial[], accionesPermitidas[] }
+                     adjuntos[], historial[], accionesPermitidas[], dedicacionSolicitadaId?,
+                     motivoDevolucion?, enviadoEn? }
 GuardarPedidoDto = { periodoId, personaId?, materiaId, carreraId, novedad, cargoSolicitadoId?,
                      dedicacionSolicitadaId?, horas?, horasInvestigacion?, horasExternas?,
                      justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[], persona?, version? }
@@ -76,8 +77,23 @@ período anterior por `ImpactoDesde`; si no existe, la referencia anterior queda
 vacía. La exportación no recibe filtros: siempre representa el lote completo y
 las continuidades vigentes del período. Devuelve `401` sin autenticación, `403`
 fuera del ámbito departamental, `404` si el período no existe y `409` si dejó de
-estar activo. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
+estar activo (`periodo-inactive`) o si la cadena de integridad del período no verifica
+(`lote-integridad-comprometida`, sin detalle de hallazgos). Con la cadena íntegra, la
+celda `M1` de la primera hoja imprime `INTEGRIDAD · sello {n} · {hash}` y la cabeza queda
+registrada como ancla [BR-designaciones-020]. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
 `IPortalQueries` aporta únicamente `Contacto.Mail` para las altas.
+
+## Integridad del circuito
+
+| Método | Ruta                                          | Permiso         | Salida                 |
+| ------ | --------------------------------------------- | --------------- | ---------------------- |
+| GET    | `/api/designaciones/periodos/{id}/integridad` | `auditoria.ver` | `IntegridadPeriodoDto` |
+
+`IntegridadPeriodoDto` = `{ integro, secuencia, hash, hallazgos: [{ categoria, id }] }`.
+`hash` es la cabeza en hexadecimal, el mismo valor que imprime el lote. Las categorías son
+`sello-hash-invalido`, `sello-firma-invalida`, `sello-secuencia-rota`, `historial-sin-sello`,
+`pedido-estado-divergente` y `ancla-no-reproducida`; `id` es técnico (evento, pedido o ancla).
+Devuelve `404` si el período no existe. Sólo lee.
 
 ## Pedidos
 
@@ -97,6 +113,16 @@ estar activo. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
 | POST   | `/api/designaciones/pedidos/{id}/despriorizar` | `designaciones.ver`       | comentario opcional → `PedidoDto`    |
 
 Permiso de etapa significa `designaciones.aprobar_coordinacion`, `designaciones.aprobar_secretaria` o `designaciones.aprobar_decanato`; la política también deja pasar a Administración para rechazar o devolver, y el dominio le impide aceptar. En edición, reenvío y prioridad, `designaciones.ver` abre el endpoint y la máquina de estados valida rol, estado y ámbito.
+
+### Seguimiento del pedido
+
+Sin `designaciones.ver_seguimiento` (Jefe de Cátedra) la API arma una vista simplificada:
+`estado` es `borrador`, `en_proceso` (cualquier etapa de revisión o devuelto a otro actor),
+`devuelto` (sólo si volvió al rol activo de quien consulta), `aprobado` (`en_lote`), `rechazado` o
+`cancelado`; `historial` va vacío y `etapaRetorno` en `null`. `motivoDevolucion` trae el
+comentario de la última devolución cuando el pedido está devuelto a quien consulta (con
+seguimiento, siempre que esté devuelto). `accionesPermitidas` se calcula sobre el estado real. `enviadoEn` (fecha del primer envío) se
+entrega a todos, con o sin seguimiento.
 
 ### Lectura de grilla versus detalle
 
@@ -119,7 +145,7 @@ intención obsoleta en automático.
 
 `Idempotency-Key: <uuid>` es obligatorio en enviar, reenviar, aceptar, rechazar, devolver, priorizar y despriorizar. La clave se identifica junto con actor, ruta y pedido durante 24 horas:
 
-- repetir exactamente la solicitud retorna el mismo status y body;
+- repetir exactamente la solicitud no repite la transición: revalida el ámbito y retorna el pedido vigente con la vista que corresponde a los permisos actuales;
 - reutilizar la clave con otro payload o recurso retorna `409 idempotency-key-reused`;
 - solicitudes concurrentes con la misma clave producen una sola transición e historial.
 

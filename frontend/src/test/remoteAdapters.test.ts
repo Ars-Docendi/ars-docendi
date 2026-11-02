@@ -35,10 +35,10 @@ describe("adapters HTTP administrativos", () => {
       permisos: [],
     };
     vi.mocked(apiClient.post).mockResolvedValue({ data: rol });
-    await crearRol({ nombre: "Observador", descripcion: "Lee", scope: "global" }, "base-1");
+    await crearRol({ nombre: "Observador", descripcion: "Lee", scope: "global" }, ["p1"]);
     expect(apiClient.post).toHaveBeenCalledWith(
       "/api/administracion/roles",
-      expect.objectContaining({ rolBaseId: "base-1" }),
+      expect.objectContaining({ permisoIds: ["p1"] }),
     );
 
     vi.mocked(apiClient.get).mockResolvedValue({

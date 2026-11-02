@@ -13,5 +13,7 @@ internal sealed class CurrentUser(IHttpContextAccessor accessor) : ICurrentUser
         Principal?.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray() ?? [];
     public IReadOnlyList<string> Permissions =>
         Principal?.FindAll(Permisos.Claim).Select(c => c.Value).Distinct().ToArray() ?? [];
+    public Guid? AsignacionActivaId =>
+        Guid.TryParse(Principal?.FindFirstValue(ClaimsSesion.Asignacion), out var id) ? id : null;
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated ?? false;
 }

@@ -42,7 +42,7 @@ public abstract class VigenciasPedidosBase(PostgresFixture postgres)
         var designaciones = new RepositorioDesignaciones(db);
         var unidad = new UnidadDeTrabajo(db);
         var servicio = new ServicioPedidos(pedidos, designaciones, new MaterializadorDesignaciones(designaciones, new RelojFijo()),
-            resolutor, identity, unidad, NullLogger<ServicioPedidos>.Instance);
+            resolutor, identity, unidad, SellosPrueba.Sellador(db), NullLogger<ServicioPedidos>.Instance);
         return new ServicioPedidosApi(servicio, pedidos, resolutor, identity, new RepositorioIdempotencia(db), unidad);
     }
 
@@ -86,6 +86,7 @@ public sealed class VigenciasPedidosTests(PostgresFixture postgres) : VigenciasP
         pedido.HorasExternas = 2;
         pedido.Snapshot = new SnapshotPedido("Anterior", "Categoría 1", 8, "Materia", 1, 0);
         await db.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         var id = anterior.Id;
         var snapshot = pedido.Snapshot;
         db.ChangeTracker.Clear();
