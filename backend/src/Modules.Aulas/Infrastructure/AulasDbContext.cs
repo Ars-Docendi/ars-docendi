@@ -36,6 +36,8 @@ public sealed class AulasDbContext(DbContextOptions<AulasDbContext> options) : D
             e.Property(x => x.Estado).HasColumnName("estado");
             e.Property(x => x.AulaAsignada).HasColumnName("aula_asignada");
             e.Property(x => x.MotivoRechazo).HasColumnName("motivo_rechazo");
+            e.Property(x => x.MotivoCancelacion).HasColumnName("motivo_cancelacion");
+            e.Property(x => x.RolSolicitante).HasColumnName("rol_solicitante");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
 
             e.HasIndex(x => x.DocenteId);

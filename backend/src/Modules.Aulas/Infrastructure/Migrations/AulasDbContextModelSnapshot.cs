@@ -72,9 +72,17 @@ namespace Modules.Aulas.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("materia_id");
 
+                    b.Property<string>("MotivoCancelacion")
+                        .HasColumnType("text")
+                        .HasColumnName("motivo_cancelacion");
+
                     b.Property<string>("MotivoRechazo")
                         .HasColumnType("text")
                         .HasColumnName("motivo_rechazo");
+
+                    b.Property<string>("RolSolicitante")
+                        .HasColumnType("text")
+                        .HasColumnName("rol_solicitante");
 
                     b.HasKey("Id");
 

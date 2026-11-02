@@ -13,7 +13,9 @@ public interface IServicioSolicitudesAula
     Task<SolicitudReservaAulaDto> CrearAsync(CrearSolicitudReservaAulaDto datos, CancellationToken ct);
     Task<IReadOnlyList<SolicitudReservaAulaDto>> ListarMiasAsync(CancellationToken ct);
     Task<IReadOnlyList<SolicitudReservaAulaDto>> ListarTodasAsync(CancellationToken ct);
+    Task<SolicitudReservaAulaDto> ObtenerDetalleAsync(Guid id, CancellationToken ct);
     Task CancelarAsync(Guid id, CancellationToken ct);
+    Task<SolicitudReservaAulaDto> CancelarReservaAsync(Guid id, CancelarReservaDto datos, CancellationToken ct);
     Task<SolicitudReservaAulaDto> AsignarAulaAsync(Guid id, AsignarAulaDto datos, CancellationToken ct);
     Task<SolicitudReservaAulaDto> RechazarAsync(Guid id, RechazarSolicitudDto datos, CancellationToken ct);
 }
@@ -73,13 +75,15 @@ internal sealed class ServicioSolicitudesAula(
             MateriaId = materia.Id,
             Comision = datos.Comision.Trim(),
             Estado = EstadosSolicitudAula.Pendiente,
+            // Rol activo de la sesión; las notificaciones lo usan para elegir el destino del enlace.
+            RolSolicitante = usuarioActual.Roles.FirstOrDefault(),
             CreadoEn = DateTimeOffset.UtcNow,
         };
 
         repositorio.Agregar(solicitud);
         await repositorio.GuardarCambiosAsync(ct);
 
-        return Mapear(solicitud, MapearMateria(materia));
+        return Mapear(solicitud, MapearMateria(materia), esPropia: true);
     }
 
     public async Task<IReadOnlyList<SolicitudReservaAulaDto>> ListarMiasAsync(CancellationToken ct)
@@ -87,13 +91,14 @@ internal sealed class ServicioSolicitudesAula(
         var (_, docenteId) = await ActorActualAsync(ct);
         var solicitudes = await repositorio.ListarPorDocenteAsync(docenteId, ct);
         var materias = await CatalogoMateriasAsync(ct);
-        return solicitudes.Select(s => Mapear(s, ResolverMateria(materias, s.MateriaId))).ToList();
+        return solicitudes.Select(s => Mapear(s, ResolverMateria(materias, s.MateriaId), esPropia: true)).ToList();
     }
 
     public async Task<IReadOnlyList<SolicitudReservaAulaDto>> ListarTodasAsync(CancellationToken ct)
     {
         var solicitudes = await repositorio.ListarTodasAsync(ct);
         var materias = await CatalogoMateriasAsync(ct);
+        var personaActual = await PersonaActualOpcionalAsync(ct);
         var resultado = new List<SolicitudReservaAulaDto>(solicitudes.Count);
 
         foreach (var solicitud in solicitudes)
@@ -102,10 +107,67 @@ internal sealed class ServicioSolicitudesAula(
             var docenteDto = persona is null
                 ? null
                 : new DocenteSolicitudDto(persona.Id, persona.Nombre, persona.Apellido, persona.Legajo);
-            resultado.Add(Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId), docenteDto));
+            resultado.Add(Mapear(
+                solicitud,
+                ResolverMateria(materias, solicitud.MateriaId),
+                docenteDto,
+                esPropia: solicitud.DocenteId == personaActual));
         }
 
         return resultado;
+    }
+
+    public async Task<SolicitudReservaAulaDto> ObtenerDetalleAsync(Guid id, CancellationToken ct)
+    {
+        var solicitud = await repositorio.ObtenerPorIdAsync(id, ct) ?? throw NoEncontrada();
+        var personaActual = await PersonaActualOpcionalAsync(ct);
+        var esPropia = personaActual == solicitud.DocenteId;
+        var permisos = usuarioActual.Permissions;
+
+        // Quien no es el dueño ni resuelve solicitudes recibe el mismo 404 que una solicitud
+        // inexistente: no se revela que el id existe.
+        var puedeVer = permisos.Contains(Permisos.AulasAprobar)
+            || (esPropia && permisos.Contains(Permisos.AulasSolicitar));
+        if (!puedeVer) throw NoEncontrada();
+
+        var materias = await CatalogoMateriasAsync(ct);
+        var persona = await identity.ObtenerPersonaAsync(solicitud.DocenteId, ct);
+        var docente = persona is null
+            ? null
+            : new DocenteSolicitudDto(persona.Id, persona.Nombre, persona.Apellido, persona.Legajo);
+        return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId), docente, esPropia);
+    }
+
+    public async Task<SolicitudReservaAulaDto> CancelarReservaAsync(
+        Guid id, CancelarReservaDto datos, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(datos.Motivo))
+        {
+            throw ErrorValidacion("motivo", "Debés indicar el motivo de la cancelación.");
+        }
+
+        var solicitud = await repositorio.ObtenerPorIdAsync(id, ct) ?? throw NoEncontrada();
+
+        if (solicitud.Estado != EstadosSolicitudAula.Aprobada)
+        {
+            throw new ExcepcionAplicacion(
+                TipoErrorAplicacion.Conflicto,
+                "solicitud-no-aprobada",
+                "Sólo se puede cancelar una reserva en estado Aprobada.");
+        }
+
+        // El aula se libera: el CHECK solicitudes_reserva_aula_si_aprobada exige NULL fuera de Aprobada.
+        solicitud.Estado = EstadosSolicitudAula.Cancelada;
+        solicitud.AulaAsignada = null;
+        solicitud.MotivoCancelacion = datos.Motivo.Trim();
+        await repositorio.GuardarCambiosAsync(ct);
+
+        var materias = await CatalogoMateriasAsync(ct);
+        var personaActual = await PersonaActualOpcionalAsync(ct);
+        return Mapear(
+            solicitud,
+            ResolverMateria(materias, solicitud.MateriaId),
+            esPropia: personaActual == solicitud.DocenteId);
     }
 
     public async Task CancelarAsync(Guid id, CancellationToken ct)
@@ -206,6 +268,13 @@ internal sealed class ServicioSolicitudesAula(
             : (usuarioId, personaId.Value);
     }
 
+    private async Task<Guid?> PersonaActualOpcionalAsync(CancellationToken ct)
+    {
+        if (!Guid.TryParse(usuarioActual.UserId, out var usuarioId)) return null;
+        var usuarios = await identity.ListarUsuariosAsync(ct);
+        return usuarios.FirstOrDefault(u => u.Id == usuarioId)?.PersonaId;
+    }
+
     /// <summary>
     /// Materias asignadas al docente en su rol activo (el que trae la sesión). No filtra por
     /// "jefe_catedra" a diferencia de <c>ResolutorActor</c> de Designaciones: acá cualquier rol con
@@ -243,7 +312,8 @@ internal sealed class ServicioSolicitudesAula(
         new(TipoErrorAplicacion.NoEncontrado, "solicitud-not-found", "No se encontró la solicitud.");
 
     private static SolicitudReservaAulaDto Mapear(
-        SolicitudReservaAula s, MateriaOpcionDto materia, DocenteSolicitudDto? docente = null) =>
+        SolicitudReservaAula s, MateriaOpcionDto materia, DocenteSolicitudDto? docente = null,
+        bool esPropia = false) =>
         new(s.Id, s.Dia, s.HorarioDesde, s.HorarioHasta, s.CantidadAlumnosAprox, materia, s.Comision,
-            s.Estado, s.AulaAsignada, s.MotivoRechazo, s.CreadoEn, docente);
+            s.Estado, s.AulaAsignada, s.MotivoRechazo, s.CreadoEn, docente, s.MotivoCancelacion, esPropia);
 }
