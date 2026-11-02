@@ -161,6 +161,11 @@ describe("DetalleSolicitudPage", () => {
     expect(await screen.findByRole("button", { name: "Actualizar aula" })).toBeInTheDocument();
     await usuario.click(screen.getByRole("button", { name: "Cancelar reserva" }));
     const dialogo = screen.getByRole("dialog", { name: "Cancelar reserva" });
+    expect(
+      within(dialogo).getByText(
+        "El aula asignada queda liberada, el docente ve el motivo completo y se le notifica (in-app).",
+      ),
+    ).toBeInTheDocument();
     expect(within(dialogo).getByLabelText(/Motivo/)).toHaveFocus();
 
     await usuario.click(within(dialogo).getByRole("button", { name: "Cancelar reserva" }));

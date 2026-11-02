@@ -41,7 +41,8 @@ export function ModalCancelarReserva({
       }
       aviso={{
         titulo: "Qué pasa al cancelar",
-        texto: "El aula asignada queda liberada y el docente ve el motivo completo.",
+        texto:
+          "El aula asignada queda liberada, el docente ve el motivo completo y se le notifica (in-app).",
       }}
       error={error}
       pendiente={cancelando}

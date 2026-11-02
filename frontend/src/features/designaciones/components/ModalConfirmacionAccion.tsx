@@ -97,12 +97,10 @@ const ACEPTAR_POR_ETAPA: Partial<Record<EstadoPedido, { destino: string; aviso: 
 };
 
 /** A quién vuelve el pedido al devolver, según la etapa actual [BR-014]. */
-const DEVOLUCION_POR_ETAPA: Partial<
-  Record<EstadoPedido, { vuelveA: string; propietario: string }>
-> = {
-  en_revision_coordinador: { vuelveA: "al Jefe de Cátedra", propietario: "el Jefe de Cátedra" },
-  en_revision_secretaria: { vuelveA: "al Coordinador", propietario: "el Coordinador" },
-  en_revision_decanato: { vuelveA: "a la Secretaría", propietario: "la Secretaría" },
+const DEVOLUCION_POR_ETAPA: Partial<Record<EstadoPedido, { vuelveA: string }>> = {
+  en_revision_coordinador: { vuelveA: "al Jefe de Cátedra" },
+  en_revision_secretaria: { vuelveA: "al Coordinador" },
+  en_revision_decanato: { vuelveA: "a la Secretaría" },
 };
 
 /** Frase de la novedad para el cuerpo del modal. */
@@ -179,7 +177,6 @@ function construirConfig(accion: AccionRevision, pedido: PedidoDesignacion): Con
     case "devolver": {
       const devolucion = DEVOLUCION_POR_ETAPA[pedido.estado] ?? {
         vuelveA: "al actor anterior",
-        propietario: "el actor anterior",
       };
       return {
         titulo: "Devolver pedido",
@@ -190,12 +187,12 @@ function construirConfig(accion: AccionRevision, pedido: PedidoDesignacion): Con
         aviso: {
           tono: "warning",
           icono: ICONO_ALERTA,
-          texto: `El pedido vuelve a Borrador para que ${devolucion.propietario} lo corrija y lo reenvíe. Se notifica al destinatario (in-app).`,
+          texto: `El pedido vuelve ${devolucion.vuelveA} para que lo corrija y lo reenvíe. Se notifica al destinatario (in-app).`,
         },
         etiquetaCampo: "Justificativo",
         requiereJustificativo: true,
         placeholder: "Indicá qué hay que corregir. El Jefe de Cátedra lo verá completo.",
-        etiquetaConfirmar: "Devolver a Borrador",
+        etiquetaConfirmar: "Devolver",
         varianteConfirmar: "warning",
         iconoConfirmar: ICONO_CORNER_UP_LEFT,
       };
