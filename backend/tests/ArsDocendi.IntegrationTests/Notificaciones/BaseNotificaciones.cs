@@ -3,6 +3,7 @@ using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
@@ -44,7 +45,7 @@ public abstract class BaseNotificaciones(PostgresFixture postgres, string prefij
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
             builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-            if (servicios is not null) builder.ConfigureServices(servicios);
+            if (servicios is not null) builder.ConfigureTestServices(servicios);
         });
 
     protected static HttpClient ClienteDe(WebApplicationFactory<Program> host, Guid usuario, string rol)
@@ -110,6 +111,9 @@ public abstract class BaseNotificaciones(PostgresFixture postgres, string prefij
         }
         return filas;
     }
+
+    protected static System.Text.Json.JsonElement ContextoDe(FilaNotificacion fila) =>
+        System.Text.Json.JsonDocument.Parse(fila.Contexto).RootElement.Clone();
 
     protected static async Task<T> LeerAsync<T>(HttpResponseMessage respuesta) =>
         (await respuesta.Content.ReadFromJsonAsync<T>(Ct))!;

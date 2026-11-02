@@ -3,7 +3,9 @@ using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using Modules.Aulas.Api;
 using Modules.Aulas.Domain;
+using Microsoft.Extensions.Logging;
 using Modules.Aulas.Repositories;
+using Modules.Notificaciones.Contracts;
 
 namespace Modules.Aulas.Services;
 
@@ -29,7 +31,9 @@ public interface IServicioSolicitudesAula
 internal sealed class ServicioSolicitudesAula(
     RepositorioSolicitudesAula repositorio,
     ICurrentUser usuarioActual,
-    IConsultasIdentity identity) : IServicioSolicitudesAula
+    IConsultasIdentity identity,
+    INotificador notificador,
+    ILogger<ServicioSolicitudesAula> logger) : IServicioSolicitudesAula
 {
     public async Task<IReadOnlyList<MateriaOpcionDto>> ListarMateriasPropiasAsync(CancellationToken ct)
     {
@@ -156,11 +160,16 @@ internal sealed class ServicioSolicitudesAula(
                 "Sólo se puede cancelar una reserva en estado Aprobada.");
         }
 
-        // El aula se libera: el CHECK solicitudes_reserva_aula_si_aprobada exige NULL fuera de Aprobada.
+        // The room is released: CHECK solicitudes_reserva_aula_si_aprobada requires NULL outside Aprobada.
+        // The notice names it, so it is read before it is cleared.
+        var aulaLiberada = solicitud.AulaAsignada;
         solicitud.Estado = EstadosSolicitudAula.Cancelada;
         solicitud.AulaAsignada = null;
         solicitud.MotivoCancelacion = datos.Motivo.Trim();
         await repositorio.GuardarCambiosAsync(ct);
+
+        await AvisarAlDuenoAsync(TiposEventoNotificacion.ReservaCancelada, solicitud,
+            materia => AvisosAulas.ReservaCancelada(solicitud, materia, aulaLiberada, datos.Motivo.Trim()));
 
         var materias = await CatalogoMateriasAsync(ct);
         var personaActual = await PersonaActualOpcionalAsync(ct);
@@ -193,6 +202,19 @@ internal sealed class ServicioSolicitudesAula(
 
         solicitud.Estado = EstadosSolicitudAula.Cancelada;
         await repositorio.GuardarCambiosAsync(ct);
+
+        // Whoever resolves requests must know, or a room granted outside the system stays held.
+        await EmisionPosterior.IntentarAsync(logger, TiposEventoNotificacion.SolicitudCanceladaDocente, async () =>
+        {
+            var materia = await NombreMateriaAsync(solicitud.MateriaId, CancellationToken.None);
+            var docente = await identity.ObtenerPersonaAsync(solicitud.DocenteId, CancellationToken.None);
+            foreach (var rol in new[] { "administrativo", "secretaria" })
+            {
+                await notificador.NotificarAsync(
+                    AvisosAulas.SolicitudCanceladaPorDocente(solicitud, materia, docente, rol),
+                    [new DestinoNotificacion.RolEnAmbito(rol)], CancellationToken.None);
+            }
+        });
     }
 
     public async Task<SolicitudReservaAulaDto> AsignarAulaAsync(Guid id, AsignarAulaDto datos, CancellationToken ct)
@@ -215,9 +237,23 @@ internal sealed class ServicioSolicitudesAula(
                 "No se puede asignar ni actualizar el aula de una solicitud cancelada o rechazada.");
         }
 
+        var eraAprobada = solicitud.Estado == EstadosSolicitudAula.Aprobada;
+        var aulaAnterior = solicitud.AulaAsignada;
         solicitud.Estado = EstadosSolicitudAula.Aprobada;
         solicitud.AulaAsignada = datos.AulaAsignada.Trim();
         await repositorio.GuardarCambiosAsync(ct);
+
+        if (!eraAprobada)
+        {
+            await AvisarAlDuenoAsync(TiposEventoNotificacion.AulaAsignada, solicitud,
+                materia => AvisosAulas.AulaAsignada(solicitud, materia, datos.AulaAsignada.Trim()));
+        }
+        else if (aulaAnterior != solicitud.AulaAsignada)
+        {
+            // An update that changes nothing is not worth a notice.
+            await AvisarAlDuenoAsync(TiposEventoNotificacion.AulaActualizada, solicitud,
+                materia => AvisosAulas.AulaActualizada(solicitud, materia, aulaAnterior ?? "", datos.AulaAsignada.Trim()));
+        }
 
         var materias = await CatalogoMateriasAsync(ct);
         return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId));
@@ -245,9 +281,27 @@ internal sealed class ServicioSolicitudesAula(
         solicitud.MotivoRechazo = datos.Motivo.Trim();
         await repositorio.GuardarCambiosAsync(ct);
 
+        await AvisarAlDuenoAsync(TiposEventoNotificacion.SolicitudRechazada, solicitud,
+            materia => AvisosAulas.SolicitudRechazada(solicitud, materia, datos.Motivo.Trim()));
+
         var materias = await CatalogoMateriasAsync(ct);
         return Mapear(solicitud, ResolverMateria(materias, solicitud.MateriaId));
     }
+
+    /// <summary>
+    /// Notifies the teacher who owns the request, after the change committed. Best effort: building
+    /// the notice (it needs the materia name) and delivering it can fail without touching the action.
+    /// </summary>
+    private Task AvisarAlDuenoAsync(string evento, SolicitudReservaAula solicitud, Func<string, AvisoNuevo> construir) =>
+        EmisionPosterior.IntentarAsync(logger, evento, async () =>
+        {
+            var materia = await NombreMateriaAsync(solicitud.MateriaId, CancellationToken.None);
+            await notificador.NotificarAsync(
+                construir(materia), [new DestinoNotificacion.Persona(solicitud.DocenteId)], CancellationToken.None);
+        });
+
+    private async Task<string> NombreMateriaAsync(Guid materiaId, CancellationToken ct) =>
+        ResolverMateria(await CatalogoMateriasAsync(ct), materiaId).Nombre;
 
     private async Task<(Guid UsuarioId, Guid PersonaId)> ActorActualAsync(CancellationToken ct)
     {
