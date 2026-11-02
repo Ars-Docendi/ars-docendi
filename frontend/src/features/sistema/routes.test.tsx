@@ -51,17 +51,25 @@ describe("rutas del sistema protegidas por permiso", () => {
   it.each([
     ["/sistema", "auditoria.ver"],
     ["/auditoria", "sistema.estado.ver"],
-  ])("redirige %s si sólo está concedido %s", async (ruta, permisoDistinto) => {
-    vi.mocked(useCurrentUser).mockReturnValue({
-      ...usuario,
-      user: { ...usuario.user!, permissions: [permisoDistinto] },
-    });
-    const router = createMemoryRouter([{ path: "/", element: <p>Inicio</p> }, ...routes], {
-      initialEntries: [ruta],
-    });
+  ])(
+    "explica la falta de acceso en %s si sólo está concedido %s",
+    async (ruta, permisoDistinto) => {
+      vi.mocked(useCurrentUser).mockReturnValue({
+        ...usuario,
+        user: { ...usuario.user!, permissions: [permisoDistinto] },
+      });
+      const router = createMemoryRouter([{ path: "/", element: <p>Inicio</p> }, ...routes], {
+        initialEntries: [ruta],
+      });
 
-    render(<RouterProvider router={router} />);
+      render(<RouterProvider router={router} />);
 
-    expect(await screen.findByText("Inicio")).toBeInTheDocument();
-  });
+      // Sin redirect silencioso: la URL queda y la página explica por qué no se puede abrir.
+      expect(
+        await screen.findByRole("heading", { name: "No tenés acceso a esta página" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Inicio")).not.toBeInTheDocument();
+      expect(router.state.location.pathname).toBe(ruta);
+    },
+  );
 });

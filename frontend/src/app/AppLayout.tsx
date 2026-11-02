@@ -10,6 +10,10 @@ import { useCantidadNoLeidas } from "../features/notificaciones/hooks/useNotific
 import { rutaDeEntidad } from "../features/notificaciones/presentacion";
 import type { Notificacion } from "../features/notificaciones/types";
 import { useCurrentUser, type CurrentUser } from "../shared/auth/useCurrentUser";
+import { GestorDeNavegacion } from "../shared/navegacion/GestorDeNavegacion";
+import { ID_CONTENIDO } from "../shared/navegacion/pagina";
+import { EnlaceSaltar, SeguimientoDePagina } from "../shared/navegacion/paginaActual";
+import { RestauradorDeScroll } from "../shared/navegacion/restauracionDeScroll";
 import { resaltar } from "../shared/ui/resaltado";
 import { Toaster } from "../shared/ui/Toaster";
 import { ModalCambiarRol } from "./shell/MenuUsuario";
@@ -135,6 +139,7 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
 
   return (
     <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
+      <EnlaceSaltar />
       <TopBar user={user} campana={angosta ? campana : undefined} />
       <Sidebar
         collapsed={colapsado}
@@ -142,9 +147,12 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
         user={user}
         campana={angosta ? undefined : campana}
       />
-      <main className="adoc-main">
+      <main className="adoc-main" id={ID_CONTENIDO} tabIndex={-1}>
         <Outlet />
       </main>
+      <RestauradorDeScroll />
+      <SeguimientoDePagina />
+      <GestorDeNavegacion />
       <PanelNotificaciones
         abierto={notifAbierta}
         onCerrar={() => setNotifAbierta(false)}

@@ -60,13 +60,41 @@ function alPresionarTecla(evento: KeyboardEvent) {
   }
 }
 
+const oyentes = new Set<() => void>();
+function emitir() {
+  oyentes.forEach((oyente) => oyente());
+}
+
+/** Suscripción al cambio de la pila (para `useSyncExternalStore`). */
+export function suscribirCapas(oyente: () => void): () => void {
+  oyentes.add(oyente);
+  return () => oyentes.delete(oyente);
+}
+
+export function cantidadDeCapas(): number {
+  return pila.length;
+}
+
+/**
+ * Pide cerrar la capa superior, como Esc. Lo usa el botón Atrás del navegador: con un diálogo
+ * abierto cierra el diálogo y deja la página donde está.
+ */
+export function cerrarCapaSuperior(): boolean {
+  const superior = pila[pila.length - 1];
+  if (!superior) return false;
+  superior.cerrar();
+  return true;
+}
+
 /** Apila una capa; devuelve la función que la retira. */
 export function registrarCapa(capa: Capa): () => void {
   if (pila.length === 0) document.addEventListener("keydown", alPresionarTecla);
   pila.push(capa);
+  emitir();
   return () => {
     const indice = pila.indexOf(capa);
     if (indice >= 0) pila.splice(indice, 1);
     if (pila.length === 0) document.removeEventListener("keydown", alPresionarTecla);
+    emitir();
   };
 }
