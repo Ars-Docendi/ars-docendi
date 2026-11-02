@@ -1,3 +1,4 @@
+import { useResaltado } from "../../../shared/ui/resaltado";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AuditLog, Breadcrumbs, Button, InlineAlert, Modal, TrafficLight } from "@ars-docendi/ui";
@@ -189,6 +190,7 @@ function DetalleCargado({
   enviandoRelacion,
 }: DetalleCargadoProps) {
   const navegar = useNavigate();
+  const resaltada = useResaltado(tarea.id);
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
   const [versionEditar, setVersionEditar] = useState(tarea.version);
   const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
@@ -289,7 +291,11 @@ function DetalleCargado({
               onEditarAvance={onEditarAvance}
             />
 
-            <section className="adoc-det-tarea-panel" aria-label="Datos de la tarea">
+            <section
+              className={`adoc-det-tarea-panel${resaltada ? " adoc-resaltado" : ""}`}
+              aria-label="Datos de la tarea"
+              data-entidad-id={tarea.id}
+            >
               <h3>Datos</h3>
               <dl className="adoc-det-tarea-datos">
                 <div className="adoc-det-tarea-dato">

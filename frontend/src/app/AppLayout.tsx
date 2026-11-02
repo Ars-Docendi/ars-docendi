@@ -1,10 +1,21 @@
-import { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useRef, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { useCurrentUser } from "../shared/auth/useCurrentUser";
+import {
+  CampanaSidebar,
+  CampanaTopBar,
+} from "../features/notificaciones/components/CampanaNotificaciones";
+import { PanelNotificaciones } from "../features/notificaciones/components/PanelNotificaciones";
+import { useCantidadNoLeidas } from "../features/notificaciones/hooks/useNotificaciones";
+import { rutaDeEntidad } from "../features/notificaciones/presentacion";
+import type { Notificacion } from "../features/notificaciones/types";
+import { useCurrentUser, type CurrentUser } from "../shared/auth/useCurrentUser";
+import { resaltar } from "../shared/ui/resaltado";
+import { Toaster } from "../shared/ui/Toaster";
 import { ModalCambiarRol } from "./shell/MenuUsuario";
 import { Sidebar } from "./shell/Sidebar";
 import { TopBar } from "./shell/TopBar";
+import { usePantallaAngosta } from "./shell/usePantallaAngosta";
 import "./shell/shell.css";
 
 /** Preferencia de barra lateral colapsada, por navegador. */
@@ -71,19 +82,82 @@ export default function AppLayout() {
       </main>
     );
   }
-  const user = usuarioActual.user;
+  return (
+    <ShellAutenticado
+      user={usuarioActual.user}
+      colapsado={colapsado}
+      alternarColapsada={alternarColapsada}
+    />
+  );
+}
+
+/** Ancho de la barra lateral (px) según su estado: el panel de notificaciones se abre a su lado. */
+const ANCHO_BARRA = { expandida: 200, colapsada: 64 };
+
+interface ShellAutenticadoProps {
+  user: CurrentUser;
+  colapsado: boolean;
+  alternarColapsada: () => void;
+}
+
+/** Shell de una sesión válida: barras, contenido, campana y panel de notificaciones. */
+function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutenticadoProps) {
+  const navigate = useNavigate();
+  const angosta = usePantallaAngosta();
+  const [notifAbierta, setNotifAbierta] = useState(false);
+  const campanaRef = useRef<HTMLButtonElement>(null);
+  // Las notificaciones se ven por perfil: el rol activo es parte de toda clave.
+  const rol = user.roleCode;
+  const { data: cantidad } = useCantidadNoLeidas(rol);
+
+  const alternarNotificaciones = () => setNotifAbierta((abierta) => !abierta);
+  function irANotificacion(notificacion: Notificacion) {
+    setNotifAbierta(false);
+    navigate(rutaDeEntidad(notificacion.tipoEntidad, notificacion.entidadId));
+    resaltar(notificacion.entidadId);
+  }
+  const campana = angosta ? (
+    <CampanaTopBar
+      ref={campanaRef}
+      cantidad={cantidad}
+      abierta={notifAbierta}
+      onClick={alternarNotificaciones}
+    />
+  ) : (
+    <CampanaSidebar
+      ref={campanaRef}
+      cantidad={cantidad}
+      abierta={notifAbierta}
+      colapsada={colapsado}
+      onClick={alternarNotificaciones}
+    />
+  );
 
   return (
     <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
-      <TopBar user={user} />
-      <Sidebar collapsed={colapsado} onToggleCollapse={alternarColapsada} user={user} />
+      <TopBar user={user} campana={angosta ? campana : undefined} />
+      <Sidebar
+        collapsed={colapsado}
+        onToggleCollapse={alternarColapsada}
+        user={user}
+        campana={angosta ? undefined : campana}
+      />
       <main className="adoc-main">
         <Outlet />
       </main>
+      <PanelNotificaciones
+        abierto={notifAbierta}
+        onCerrar={() => setNotifAbierta(false)}
+        triggerRef={campanaRef}
+        desplazamiento={angosta ? 0 : colapsado ? ANCHO_BARRA.colapsada : ANCHO_BARRA.expandida}
+        rol={rol}
+        onNavegar={irANotificacion}
+      />
       {/* Con varias asignaciones, al ingresar se ofrece elegir; ya opera con la de por defecto. */}
       {user.requiereElegirRol && user.asignaciones.length > 1 && (
         <ModalCambiarRol user={user} alIngresar onCerrar={() => undefined} />
       )}
+      <Toaster />
     </div>
   );
 }

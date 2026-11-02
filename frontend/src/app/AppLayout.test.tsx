@@ -6,6 +6,14 @@ import { Link, RouterProvider, createMemoryRouter } from "react-router-dom";
 
 import AppLayout from "./AppLayout";
 
+// The bell polls the unread count; these tests are about the layout, not the network.
+vi.mock("../features/notificaciones/api/notificacionesApi", () => ({
+  contarNoLeidas: async () => 0,
+  listarPagina: async () => ({ datos: [], total: 0, pagina: 1, tamanio: 20, totalPaginas: 1 }),
+  marcarLeida: async () => ({}),
+  marcarLeidas: async () => 0,
+}));
+
 vi.mock("../shared/auth/useCurrentUser", () => ({
   useCurrentUser: () => ({
     user: {

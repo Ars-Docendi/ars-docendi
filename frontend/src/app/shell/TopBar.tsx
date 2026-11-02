@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react";
+import { useState, type ReactNode } from "react";
 import { Drawer } from "@ars-docendi/ui";
 
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
@@ -6,29 +6,14 @@ import { menuIcon } from "./icons";
 import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
 import { MarcaArsDocendi } from "./MarcaArsDocendi";
 import { MenuUsuario } from "./MenuUsuario";
-
-/** Mismo corte que `shell.css`: debajo de esto la barra lateral fija no se muestra. */
-const CONSULTA_ANGOSTA = "(max-width: 767px)";
-
-function suscribirAncho(avisar: () => void) {
-  const consulta = window.matchMedia?.(CONSULTA_ANGOSTA);
-  consulta?.addEventListener("change", avisar);
-  return () => consulta?.removeEventListener("change", avisar);
-}
-
-function usePantallaAngosta(): boolean {
-  return useSyncExternalStore(
-    suscribirAncho,
-    () => window.matchMedia?.(CONSULTA_ANGOSTA).matches ?? false,
-    () => false,
-  );
-}
+import { usePantallaAngosta } from "./usePantallaAngosta";
 
 /**
  * Barra superior fina, sólo en pantallas angostas (ahí no hay barra lateral
- * fija): botón "Menú" que abre el panel de navegación y la marca.
+ * fija): botón "Menú" que abre el panel de navegación, la marca y, a la derecha,
+ * la campana de notificaciones (`campana`).
  */
-export function TopBar({ user }: { user: CurrentUser }) {
+export function TopBar({ user, campana }: { user: CurrentUser; campana?: ReactNode }) {
   // Si la ventana se agranda con el panel abierto, el panel se cierra solo:
   // ahí ya está la barra lateral.
   const angosta = usePantallaAngosta();
@@ -66,6 +51,7 @@ export function TopBar({ user }: { user: CurrentUser }) {
       <div className="adoc-brand">
         <MarcaArsDocendi />
       </div>
+      {campana}
     </header>
   );
 }

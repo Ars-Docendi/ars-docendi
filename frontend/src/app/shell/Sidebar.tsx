@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { menuIcon } from "./icons";
 import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
@@ -8,10 +10,12 @@ interface SidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   user: CurrentUser;
+  /** Campana de notificaciones: va entre el Centro de ayuda y la tarjeta de usuario. */
+  campana?: ReactNode;
 }
 
 /** Barra lateral de escritorio: menú y marca arriba, ayuda y usuario abajo. */
-export function Sidebar({ collapsed, onToggleCollapse, user }: SidebarProps) {
+export function Sidebar({ collapsed, onToggleCollapse, user, campana }: SidebarProps) {
   return (
     <aside className="adoc-sidebar">
       <div className="adoc-sidebar-head">
@@ -35,6 +39,7 @@ export function Sidebar({ collapsed, onToggleCollapse, user }: SidebarProps) {
 
       <div className="adoc-sidebar-foot">
         <EnlaceAyuda collapsed={collapsed} />
+        {campana}
         <MenuUsuario user={user} collapsed={collapsed} />
       </div>
     </aside>
