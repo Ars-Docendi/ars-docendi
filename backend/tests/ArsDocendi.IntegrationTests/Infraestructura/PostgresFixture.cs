@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using ArsDocendi.Storage.Infrastructure;
 using Modules.Aulas.Infrastructure;
 using Modules.Designaciones.Infrastructure;
+using Modules.Notificaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
 using Modules.Tareas.Infrastructure;
 using Npgsql;
@@ -111,6 +112,11 @@ public sealed class PostgresFixture : IAsyncLifetime
             await aulas.Database.MigrateAsync();
         }
 
+        await using (var notificaciones = CrearNotificaciones(cadena))
+        {
+            await notificaciones.Database.MigrateAsync();
+        }
+
         return cadena;
     }
 
@@ -160,6 +166,15 @@ public sealed class PostgresFixture : IAsyncLifetime
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
             .Options;
         return new PortalDbContext(opciones);
+    }
+
+    public static NotificacionesDbContext CrearNotificaciones(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<NotificacionesDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", NotificacionesDbContext.Schema))
+            .Options;
+        return new NotificacionesDbContext(opciones);
     }
 
     public static AulasDbContext CrearAulas(string cadena)

@@ -11,6 +11,7 @@ using ArsDocendi.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
+using Modules.Notificaciones;
 using ArsDocendi.Inferencia;
 using Modules.Designaciones;
 using Modules.Portal;
@@ -83,7 +84,8 @@ builder.Services
     .AddDesignacionesModule(builder.Configuration)
     .AddAulasModule(builder.Configuration)
     .AddPortalModule(builder.Configuration)
-    .AddTareasModule(builder.Configuration);
+    .AddTareasModule(builder.Configuration)
+    .AddNotificacionesModule(builder.Configuration);
 
 var app = builder.Build();
 

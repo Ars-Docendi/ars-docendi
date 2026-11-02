@@ -29,6 +29,7 @@
     <ProjectReference Include="..\Modules.Portal\Modules.Portal.csproj" />
     <ProjectReference Include="..\Modules.Tareas\Modules.Tareas.csproj" />
     <ProjectReference Include="..\ArsDocendi.Migraciones\ArsDocendi.Migraciones.csproj" />
+    <ProjectReference Include="..\Modules.Notificaciones\Modules.Notificaciones.csproj" />
   </ItemGroup>
 
 </Project>

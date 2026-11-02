@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Aulas;
+using Modules.Notificaciones;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
@@ -32,7 +33,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         }).Build();
         servicios = new ServiceCollection().AddLogging().AddArsDocendiShared(config).AddMigracionesIdentity()
             .AddAlmacenamientoModule(config).AddDesignacionesModule(config).AddAulasModule(config)
-            .AddPortalModule(config).AddTareasModule(config).BuildServiceProvider();
+            .AddPortalModule(config).AddTareasModule(config).AddNotificacionesModule(config).BuildServiceProvider();
         scope = servicios.CreateScope();
         migradores = scope.ServiceProvider.GetServices<IMigradorModulo>().ToArray();
     }
@@ -54,8 +55,8 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.True(estados.Sum(x => x.Disponibles.Count) >= 9);
         Assert.Equal(estados.Sum(x => x.Disponibles.Count), estados.Sum(x => x.Pendientes.Count));
         var archivos = await PreviewMigraciones.GenerarAsync(migradores, estados, "runtime-test", ct);
-        Assert.Equal(6, archivos.Keys.Count(x => x.EndsWith(".sql", StringComparison.Ordinal)));
-        Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','portal','aulas','tareas')"));
+        Assert.Equal(7, archivos.Keys.Count(x => x.EndsWith(".sql", StringComparison.Ordinal)));
+        Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','portal','aulas','tareas','notificaciones')"));
     }
 
     [Fact]
@@ -69,7 +70,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-PERSIST' AND name='Edición persistente'"));
         Assert.Equal(auditoria, await Escalar("SELECT count(*) FROM audit.change_log"));
         foreach (var migrador in migradores) Assert.Empty((await migrador.ConsultarAsync(ct)).Pendientes);
-        Assert.Equal(6L, await Escalar("SELECT count(*) FROM pg_tables WHERE tablename='__EFMigrationsHistory'"));
+        Assert.Equal(7L, await Escalar("SELECT count(*) FROM pg_tables WHERE tablename='__EFMigrationsHistory'"));
     }
 
     [Fact]
