@@ -31,7 +31,7 @@ sellarse.
 
 #### Scenario: Un pedido alterado fuera del circuito no avanza
 
-- **GIVEN** un pedido sellado cuyo estado se modificó después por SQL
+- **GIVEN** un pedido sellado cuyo estado se modificó después por SQL, o uno fuera de borrador sin ningún sello
 - **WHEN** un actor lo transiciona o edita
 - **THEN** la operación MUST rechazarse con conflicto, sin sellar el estado alterado
 - **AND** la verificación MUST seguir reportando el pedido como divergente

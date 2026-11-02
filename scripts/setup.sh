@@ -115,7 +115,9 @@ consultar_local() {
     docker compose exec -T postgres psql -X -qtA -v ON_ERROR_STOP=1 \
         -U "${POSTGRES_USER:-arsdocendi}" -d "${POSTGRES_DB:-arsdocendi}" -c "$1"
 }
-if [ "$(consultar_local "SELECT count(*) FROM public.seed_metadata WHERE clave = 'sellado_inicial'")" != 0 ]; then
+sellado_pendiente="$(consultar_local "SELECT count(*) FROM public.seed_metadata WHERE clave = 'sellado_inicial'")" \
+    || { err "No se pudo consultar el sellado inicial pendiente"; exit 1; }
+if [ "$sellado_pendiente" != 0 ]; then
     dotnet run --project backend/src/ArsDocendi.Host -- --sellar-historial-existente \
         || { err "Sellado inicial fallido: queda pendiente y se reintenta en el próximo setup"; exit 1; }
     consultar_local "DELETE FROM public.seed_metadata WHERE clave = 'sellado_inicial'" >/dev/null

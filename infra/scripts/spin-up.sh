@@ -184,7 +184,10 @@ if [[ "$ambiente" != prod ]]; then
   # Sólo mientras el seed lo marque pendiente: sellar en cada deploy legitimaría cambios
   # hechos por SQL. Un sellado fallido conserva la marca y se reintenta en el próximo deploy.
   consultar_base() { psql_en_docker -e "PGDATABASE=$base" "$IMAGEN_PSQL" psql -X -qtA -v ON_ERROR_STOP=1 -c "$1"; }
-  if [[ "$(consultar_base "SELECT count(*) FROM public.seed_metadata WHERE clave = 'sellado_inicial'")" != 0 ]]; then
+  # Una consulta fallida no puede leerse como "pendiente": abortar antes de sellar.
+  sellado_pendiente="$(consultar_base "SELECT count(*) FROM public.seed_metadata WHERE clave = 'sellado_inicial'")" ||
+    fatal 'msg="no se pudo consultar el sellado inicial pendiente"'
+  if [[ "$sellado_pendiente" != 0 ]]; then
     compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --sellar-historial-existente
     consultar_base "DELETE FROM public.seed_metadata WHERE clave = 'sellado_inicial'" >/dev/null
   fi

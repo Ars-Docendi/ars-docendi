@@ -148,7 +148,7 @@ Cada evento del circuito fuera de borrador queda sellado y firmado con HMAC-SHA2
   `designaciones-historial-sin-sello`, `designaciones-pedido-estado-divergente` y
   `designaciones-ancla-no-reproducida`. La exportación del lote responde 409 mientras la
   cadena no verifique, y una transición o edición sobre un pedido que no coincide con su último
-  sello responde 409 `pedido-integridad-comprometida`.
+  sello, o que salió de borrador sin ninguno, responde 409 `pedido-integridad-comprometida`.
 - **Límite.** El runtime es owner de la base: puede deshabilitar los triggers de sólo
   inserción. La garantía es la firma y el ancla impresa en cada lote exportado. Separar el
   rol dueño/migrador del rol de la aplicación y la custodia de la clave del acceso a la

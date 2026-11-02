@@ -86,6 +86,7 @@ public sealed class VigenciasPedidosTests(PostgresFixture postgres) : VigenciasP
         pedido.HorasExternas = 2;
         pedido.Snapshot = new SnapshotPedido("Anterior", "Categoría 1", 8, "Materia", 1, 0);
         await db.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         var id = anterior.Id;
         var snapshot = pedido.Snapshot;
         db.ChangeTracker.Clear();

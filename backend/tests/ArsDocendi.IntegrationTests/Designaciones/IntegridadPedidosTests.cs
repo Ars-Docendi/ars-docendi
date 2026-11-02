@@ -335,7 +335,7 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
     private async Task PrepararAsync(CancellationToken ct)
     {
         var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
+            Path.Join(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
         await EjecutarAsync(sql, ct);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         Assert.True(await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct) > 0);
@@ -383,13 +383,17 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
         ]);
 
-    private WebApplicationFactory<Program> CrearHost() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private Fabrica CrearHost() => new(Cadena);
+
+    private sealed class Fabrica(string cadena) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
+            builder.UseSetting("ConnectionStrings:ArsDocendi", cadena);
             builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-        });
+        }
+    }
 
     private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
     {
@@ -418,7 +422,7 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
+            if (File.Exists(Path.Join(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
             directorio = directorio.Parent;
         }
         throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");

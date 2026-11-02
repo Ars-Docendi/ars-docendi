@@ -32,13 +32,17 @@ internal sealed class SelladorPedidos(
     /// <summary>
     /// Rechaza continuar el circuito de un pedido que no coincide con su último sello:
     /// sellar encima legitimaría un cambio hecho fuera de la aplicación. Toma el lock del
-    /// período, así que ningún sello del pedido se confirma en el medio.
+    /// período, así que ningún sello del pedido se confirma en el medio. Fuera de borrador,
+    /// un pedido sin sello ya es divergente para la verificación.
     /// </summary>
     public async Task VerificarEstadoPrevioAsync(Pedido pedido, CancellationToken ct)
     {
         await sellos.BloquearCadenaAsync(pedido.PeriodoId, ct);
         var ultimo = await sellos.ObtenerUltimoSelloDePedidoAsync(pedido.Id, ct);
-        if (ultimo is not null && !CanonicoSellos.HashEstado(pedido).SequenceEqual(ultimo.HashEstado))
+        var diverge = ultimo is null
+            ? pedido.Estado != EstadosPedido.Borrador
+            : !CanonicoSellos.HashEstado(pedido).SequenceEqual(ultimo.HashEstado);
+        if (diverge)
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.Conflicto, "pedido-integridad-comprometida",
                 "El pedido no coincide con su último sello; no puede continuar el circuito.");

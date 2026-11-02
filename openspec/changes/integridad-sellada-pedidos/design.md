@@ -75,8 +75,8 @@ desde `enviar` mantiene la eliminación de borradores sin excepciones en la cade
 desde `RegistrarEnHistorialAsync` y omite los eventos con `etapa = 'borrador'`. Antes de mutar el
 pedido, transiciones y ediciones llaman a `VerificarEstadoPrevioAsync`, que con el lock del período
 compara el estado actual contra el último sello del pedido y rechaza con conflicto
-`pedido-integridad-comprometida` si diverge: sellar encima legitimaría un cambio hecho por SQL: no hay camino de
-vuelta a borrador, así que la etapa del evento basta y no hace falta consultar sellos previos. El
+`pedido-integridad-comprometida` si diverge o si el pedido salió de borrador sin ningún sello: sellar
+encima legitimaría un cambio hecho por SQL. No hay camino de vuelta a borrador, así que la etapa del evento basta y no hace falta consultar sellos previos. El
 verificador exige sello a todo evento fuera de borrador y a cualquier evento de borrador posterior
 al primer sello del pedido; un pedido fuera de borrador sin ningún sello cuenta como divergente.
 

@@ -20,6 +20,7 @@ public sealed class VigenciasPedidosCasosTests(PostgresFixture postgres) : Vigen
         vigente.VigenteDesde = new DateOnly(2026, 10, 14);
         pedido.Estado = EstadosPedido.EnRevisionDecanato;
         await db.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         db.ChangeTracker.Clear();
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
         var error = await Assert.ThrowsAsync<ErrorDominioPedido>(() => CrearApi(Decanato, identity, db)
@@ -43,6 +44,7 @@ public sealed class VigenciasPedidosCasosTests(PostgresFixture postgres) : Vigen
         vigente.VigenteDesde = new DateOnly(2026, 10, intradia ? 13 : 12);
         pedido.Estado = EstadosPedido.EnRevisionDecanato;
         await db.SaveChangesAsync(ct);
+        await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         var horas = vigente.Horas;
         var inicio = vigente.VigenteDesde;
         await using var conexion = await AbrirConexionAsync();
