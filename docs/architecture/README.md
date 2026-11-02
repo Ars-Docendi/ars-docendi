@@ -11,6 +11,7 @@ Esta carpeta describe **cómo** está estructurado Ars Docendi: decisiones de st
 5. [data-model.md](./data-model.md) — persistencia y entidades
 6. [infrastructure.md](./infrastructure.md) — topología de ambientes y deploy
 7. [frontend-remote-data.md](./frontend-remote-data.md) — datos remotos y locales en el frontend
+8. [frontend-conventions.md](./frontend-conventions.md) — navegación, estado en la URL, cambios sin guardar, capas y accesibilidad de página
 
 ## Docs por dominio
 

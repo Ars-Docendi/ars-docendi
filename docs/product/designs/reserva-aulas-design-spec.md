@@ -130,6 +130,16 @@ igual que en Mis Pedidos.
 - **Renombres de encabezado sin tocar el dato**: "Alumnos aprox." → "Capacidad", "Aula asignada" →
   "Aula" en ambas tablas.
 
+- **El estado de las listas vive en la URL**: filtros, orden y pestañas de "Mis solicitudes" y "Todas las
+  solicitudes" se guardan en el query con prefijo (`mias.`, `todas.`); recargar o volver desde el detalle
+  los restaura. Los valores por defecto no se escriben.
+- **"Volver a Reserva de aulas"** lleva a la lista de origen con sus filtros (`state.volverA`, validado
+  contra una lista de rutas permitidas); sin origen vale el destino fijo `/aulas`. Nunca se vuelve con `-1`.
+- **Cambios sin guardar**: el aula escrita en el detalle y no confirmada pide confirmar antes de salir.
+- **Pantallas angostas (desde 360 px)**: como el Portal, por debajo de 560 px los paddings bajan, los
+  diálogos son hojas completas con botones de 44 px, las tablas anchas desplazan dentro de su
+  contenedor y los datos del detalle apilan etiqueta sobre valor.
+
 ## Anti-patterns a evitar (específicos de esta feature)
 
 - No mostrar un selector de aulas con opciones inventadas — sería fake UI (invariante #7) sin un

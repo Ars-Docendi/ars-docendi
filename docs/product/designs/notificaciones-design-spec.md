@@ -73,5 +73,9 @@ rol con que está operando (las tareas no tienen rol y se ven bajo cualquiera).
   cargada", así lo que llegue mientras tanto no se marca sin haberse visto.
 - **El panel participa de la pila de capas**: Esc y el atrapado de foco actúan sobre la capa superior,
   igual que los diálogos de formulario. Al cerrar por navegación el foco no vuelve a la campana.
+- **Atrás cierra el panel**: con el panel abierto, el botón Atrás del navegador lo cierra y deja la
+  página donde está (mecanismo común de capas, `navegacion-consistente`). Abrir una notificación
+  navega sin origen: el detalle usa su destino fijo en "Volver".
+- **Pantallas angostas**: por debajo de 560 px el panel ocupa todo el ancho y el botón de cierre mide 44 px.
 - **Toasts**: un host propio de la app (`shared/ui/Toaster`) porque el `Toast` de la librería es sólo
   una tarjeta.
