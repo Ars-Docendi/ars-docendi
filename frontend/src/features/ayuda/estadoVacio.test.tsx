@@ -37,7 +37,7 @@ describe("Centro de ayuda sin artículos visibles", () => {
   it("un módulo o un artículo por URL redirige al inicio", async () => {
     const router = renderAyuda("/ayuda/tareas");
     await contenidoAyuda();
-    expect(router.state.location.pathname).toBe("/ayuda");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/ayuda"));
 
     await router.navigate("/ayuda/tareas/x");
     await waitFor(() => expect(router.state.location.pathname).toBe("/ayuda"));
