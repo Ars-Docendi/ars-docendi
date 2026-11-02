@@ -50,7 +50,7 @@ Restricciones:
 
 ## Base de datos
 
-PostgreSQL 18. **Un schema por contexto** (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`).
+PostgreSQL 18. **Un schema por contexto** (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`, `notificaciones`).
 
 Migraciones: SQL versionado embebido y aplicado por `ArsDocendi.Migraciones`; EF Core sólo mapea. Ver [data-model.md](./data-model.md) y [database/README.md](../../database/README.md).
 

@@ -136,7 +136,7 @@ export function ModalCambiarRol({
   // Cambiar de rol descarta la página en curso: con cambios sin guardar se confirma ANTES de
   // cambiarlo (el rol sólo cambia si se descartan).
   const [aDescartar, setADescartar] = useState<string | null>(null);
-  function aplicarAsignacion(id: string) {
+  function aplicarAsignacion(id: string, rearmarGuardias?: () => void) {
     // No usar los callbacks de `mutate`: con el ingreso de desarrollo el rol nuevo cambia la clave
     // de la sesión, el layout pasa a "Cargando sesión…" y este modal se desmonta antes de que la
     // mutación termine; TanStack Query descarta entonces los callbacks de esa llamada. La promesa
@@ -146,7 +146,8 @@ export function ModalCambiarRol({
         onCerrar();
         if (id !== actual) navigate("/", { replace: true });
       },
-      () => undefined,
+      // Sin cambio de rol la página sigue con sus cambios: vuelve a protegerse.
+      () => rearmarGuardias?.(),
     );
   }
   function elegirAsignacion(id: string) {
@@ -193,8 +194,7 @@ export function ModalCambiarRol({
           alDescartar={() => {
             const id = aDescartar;
             setADescartar(null);
-            liberarGuardias();
-            aplicarAsignacion(id);
+            aplicarAsignacion(id, liberarGuardias());
           }}
         />
       )}

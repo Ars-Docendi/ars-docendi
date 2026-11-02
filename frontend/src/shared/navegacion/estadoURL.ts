@@ -15,12 +15,22 @@ function clave(prefijo: string | undefined, nombre: string) {
   return prefijo ? `${prefijo}.${nombre}` : nombre;
 }
 
+/** Decodifica una opción de un arreglo; una secuencia `%` inválida queda como texto original. */
+function decodificar(opcion: string) {
+  try {
+    return decodeURIComponent(opcion);
+  } catch {
+    return opcion;
+  }
+}
+
 function iguales(a: Valor, b: Valor) {
   return Array.isArray(a) && Array.isArray(b) ? a.join(",") === b.join(",") : a === b;
 }
 
 /**
- * Filtros como un objeto plano de `string` y `string[]` (los arreglos van separados por coma).
+ * Filtros como un objeto plano de `string` y `string[]` (los arreglos van separados por coma,
+ * con cada opción codificada para que una coma propia no la parta).
  * `actualizar` recibe el estado completo nuevo y reemplaza la entrada del historial: escribir en
  * un filtro de texto no debe llenar el botón Atrás.
  */
@@ -37,7 +47,10 @@ export function useFiltrosURL<T extends { [K in keyof T]: Valor }>(
     for (const [nombre, defecto] of Object.entries(porDefecto) as [string, Valor][]) {
       const crudo = actuales.get(clave(prefijo, nombre));
       if (crudo === null) resultado[nombre] = defecto;
-      else resultado[nombre] = Array.isArray(defecto) ? crudo.split(",").filter(Boolean) : crudo;
+      else
+        resultado[nombre] = Array.isArray(defecto)
+          ? crudo.split(",").filter(Boolean).map(decodificar)
+          : crudo;
     }
     return resultado as T;
   }, [lectura, porDefecto, prefijo]);
@@ -66,7 +79,11 @@ export function useFiltrosURL<T extends { [K in keyof T]: Valor }>(
             const k = clave(prefijo, nombre);
             const vacio = Array.isArray(valor) ? valor.length === 0 : valor === "";
             if (vacio || iguales(valor, defecto)) siguientes.delete(k);
-            else siguientes.set(k, Array.isArray(valor) ? valor.join(",") : valor);
+            else
+              siguientes.set(
+                k,
+                Array.isArray(valor) ? valor.map(encodeURIComponent).join(",") : valor,
+              );
           }
           return siguientes;
         },

@@ -322,8 +322,7 @@ internal sealed class ServicioSolicitudesAula(
     private async Task<Guid?> PersonaActualOpcionalAsync(CancellationToken ct)
     {
         if (!Guid.TryParse(usuarioActual.UserId, out var usuarioId)) return null;
-        var usuarios = await identity.ListarUsuariosAsync(ct);
-        return usuarios.FirstOrDefault(u => u.Id == usuarioId)?.PersonaId;
+        return (await identity.ObtenerUsuarioAsync(usuarioId, ct))?.PersonaId;
     }
 
     /// <summary>

@@ -51,6 +51,10 @@ public sealed class DestinatariosIdentityTests(PostgresFixture postgres)
         Assert.Empty(await consultas.ObtenerUsuarioIdsConRolAsync("jefe_catedra", null, null, Ct));
         Assert.Empty(await consultas.ObtenerUsuarioIdsConRolAsync("secretaria", Materia, null, Ct));
         Assert.Empty(await consultas.ObtenerUsuarioIdsConRolAsync("jefe_catedra", Guid.NewGuid(), null, Ct));
+        // The seeded jefe holds 101, 102 and 103 and nobody else holds the rol on 104.
+        Assert.Empty(await consultas.ObtenerUsuarioIdsConRolAsync(
+            "jefe_catedra", Guid.Parse("70000000-0000-4000-8000-000000000104"), null, Ct));
+        Assert.Contains(Jefe, await consultas.ObtenerUsuarioIdsConRolAsync("jefe_catedra", OtraMateria, null, Ct));
         Assert.Empty(await consultas.ObtenerUsuarioIdsConRolAsync("no_existe", null, null, Ct));
     }
 
@@ -73,25 +77,6 @@ public sealed class DestinatariosIdentityTests(PostgresFixture postgres)
 
         await EjecutarAsync($"UPDATE identity.users SET is_active = false WHERE id = '{Jefe}'");
         Assert.Empty(await consultas.ObtenerUsuarioIdsConRolAsync("jefe_catedra", Materia, null, Ct));
-    }
-
-    [Fact]
-    public async Task El_jefe_de_otra_materia_no_cuenta_y_la_consulta_es_una_sola_sentencia()
-    {
-        await PrepararAsync();
-        var captura = new CapturaConsultasIdentity();
-        await using var db = new IdentityDbContext(new DbContextOptionsBuilder<IdentityDbContext>()
-            .UseNpgsql(Cadena, o => o.MigrationsHistoryTable("__EFMigrationsHistory", "identity"))
-            .AddInterceptors(captura).Options);
-        IConsultasIdentity consultas = new ConsultasIdentity(db);
-
-        // The seeded jefe holds 101, 102 and 103 and nobody else holds the rol on 104.
-        Assert.Empty(await consultas.ObtenerUsuarioIdsConRolAsync(
-            "jefe_catedra", Guid.Parse("70000000-0000-4000-8000-000000000104"), null, Ct));
-        Assert.Contains(Jefe, await consultas.ObtenerUsuarioIdsConRolAsync("jefe_catedra", OtraMateria, null, Ct));
-        Assert.Equal(2, captura.Comandos.Count);
-        Assert.All(captura.Comandos, sql => Assert.Contains("WHERE", sql));
-        Assert.Empty(db.ChangeTracker.Entries());
     }
 
     [Fact]

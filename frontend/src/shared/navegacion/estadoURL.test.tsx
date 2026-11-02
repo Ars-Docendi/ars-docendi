@@ -45,6 +45,19 @@ describe("estado en la URL", () => {
     expect(resultado.actual[0]).toEqual({ texto: "luz", estados: ["x"] });
   });
 
+  it("una opción con coma sobrevive a la URL y un % inválido se lee tal cual", () => {
+    const { router, resultado } = montar(() => useFiltrosURL(POR_DEFECTO));
+    act(() => resultado.actual[1]({ texto: "", estados: ["Pérez, Ana", "b"] }));
+    const recargado = montar(
+      () => useFiltrosURL(POR_DEFECTO),
+      `/lista${router.state.location.search}`,
+    );
+    expect(recargado.resultado.actual[0].estados).toEqual(["Pérez, Ana", "b"]);
+
+    const invalido = montar(() => useFiltrosURL(POR_DEFECTO), "/lista?estados=100%25");
+    expect(invalido.resultado.actual[0].estados).toEqual(["100%"]);
+  });
+
   it("dos tablas con prefijos distintos no se pisan", () => {
     const { router, resultado } = montar(() => ({
       mias: useFiltrosURL(POR_DEFECTO, "mias"),

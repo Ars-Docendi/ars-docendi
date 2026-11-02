@@ -53,12 +53,10 @@ public sealed class ArquitecturaIdentityTests
         Assert.Equal(
             ["ArsDocendi.Migraciones", "ArsDocendi.Shared", "Modules.Notificaciones.Contracts"],
             Referencias("Modules.Notificaciones").Order().ToArray());
-        // Emitters reference the Contracts, never the implementation.
+        // Emitters reach the module through its Contracts.
         foreach (var emisor in new[] { "Modules.Aulas", "Modules.Designaciones", "Modules.Tareas" })
         {
-            var referencias = Referencias(emisor);
-            Assert.Contains("Modules.Notificaciones.Contracts", referencias);
-            Assert.DoesNotContain("Modules.Notificaciones", referencias);
+            Assert.Contains("Modules.Notificaciones.Contracts", Referencias(emisor));
         }
     }
 

@@ -120,7 +120,10 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
   // abierto debajo del diálogo.
   const { pathname } = useLocation();
   function irANotificacion(notificacion: Notificacion) {
-    navigate(rutaDeEntidad(notificacion.tipoEntidad, notificacion.entidadId));
+    const destino = rutaDeEntidad(notificacion.tipoEntidad, notificacion.entidadId);
+    // A la misma página el pathname no cambia y el panel no se cerraría solo.
+    if (destino === pathname) setNotifAbierta(false);
+    navigate(destino);
     resaltar(notificacion.entidadId);
   }
   const campana = angosta ? (

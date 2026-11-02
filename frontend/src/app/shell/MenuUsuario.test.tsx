@@ -103,6 +103,24 @@ describe("rol activo", () => {
     expect(elegir.mutateAsync).toHaveBeenCalledWith("a-jefe");
   });
 
+  it("si el cambio de rol falla tras descartar, la página vuelve a quedar protegida", async () => {
+    elegir.mutateAsync.mockClear().mockRejectedValueOnce(new Error("falló"));
+    render(
+      <MemoryRouter>
+        <FormularioConCambios />
+        <ModalCambiarRol user={usuario()} onCerrar={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByText("Jefe de Cátedra"));
+    await userEvent.click(await screen.findByRole("button", { name: "Descartar cambios" }));
+    expect(elegir.mutateAsync).toHaveBeenCalledWith("a-jefe");
+
+    await userEvent.click(screen.getByText("Jefe de Cátedra"));
+    expect(await screen.findByText("Tenés cambios sin guardar.")).toBeInTheDocument();
+    expect(elegir.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
   it("el menú ofrece Cambiar rol sólo con más de una asignación", async () => {
     const { unmount } = render(
       <MemoryRouter>

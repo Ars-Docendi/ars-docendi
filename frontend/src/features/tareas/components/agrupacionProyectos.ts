@@ -39,9 +39,9 @@ export function agruparTareasPorProyecto(
 
 /**
  * Prefijo de los filtros de columna de un cuadro en el query: `g` para "Generales" y
- * `p<8 primeros del id>` para un proyecto, así cada tabla de la pantalla inicial guarda su estado
+ * `p<id sin guiones>` para un proyecto, así cada tabla de la pantalla inicial guarda su estado
  * sin pisar a las otras.
  */
 export function prefijoDeCuadro(proyecto: Proyecto | null): string {
-  return proyecto ? `p${proyecto.id.slice(0, 8)}` : "g";
+  return proyecto ? `p${proyecto.id.replaceAll("-", "").toLowerCase()}` : "g";
 }

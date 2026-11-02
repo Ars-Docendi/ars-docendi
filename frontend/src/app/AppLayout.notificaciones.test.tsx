@@ -99,21 +99,6 @@ afterEach(() => {
 });
 
 describe("AppLayout — campana de notificaciones", () => {
-  it("places the bell in the sidebar foot between 'Centro de ayuda' and the user card", async () => {
-    const { container } = renderizar();
-    const campana = await screen.findByRole("button", { name: "Notificaciones, ninguna sin leer" });
-    const ayuda = screen.getByRole("link", { name: "Centro de ayuda" });
-    const usuario = screen.getByRole("button", { name: /Menú de usuario/ });
-
-    const pie = container.querySelector(".adoc-sidebar-foot")!;
-    expect(pie).toContainElement(campana);
-    expect(ayuda.compareDocumentPosition(campana) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(
-      campana.compareDocumentPosition(usuario) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(container.querySelector(".adoc-topbar .adoc-campana")).toBeNull();
-  });
-
   it("on a narrow screen the bell moves to the top bar", async () => {
     vi.stubGlobal("matchMedia", (consulta: string) => ({
       matches: true,

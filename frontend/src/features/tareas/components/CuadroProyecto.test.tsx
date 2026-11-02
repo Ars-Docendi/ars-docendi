@@ -62,11 +62,11 @@ function montar(inicial: string) {
 describe("CuadroProyecto — filtros de columna en la URL", () => {
   it("cada cuadro tiene su prefijo y no pisa al otro", () => {
     expect(prefijoDeCuadro(null)).toBe("g");
-    expect(prefijoDeCuadro(PROYECTO)).toBe("pabcd1234");
+    expect(prefijoDeCuadro(PROYECTO)).toBe("pabcd1234000040008000000000000001");
   });
 
   it("restaura el filtro de cada cuadro desde su propio prefijo", () => {
-    montar("/tareas?g.titulo=beta&pabcd1234.titulo=delta");
+    montar("/tareas?g.titulo=beta&pabcd1234000040008000000000000001.titulo=delta");
     const generales = within(screen.getByRole("region", { name: "Generales" }));
     const proyecto = within(screen.getByRole("region", { name: "Proyecto Uno" }));
     expect(generales.getByRole("link", { name: /Beta/ })).toBeInTheDocument();

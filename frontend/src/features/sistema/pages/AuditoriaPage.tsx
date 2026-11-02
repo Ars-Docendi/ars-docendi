@@ -44,10 +44,15 @@ const schemasPorEtiqueta: Record<string, string> = {
   portal: "portal",
 };
 
-/** Fecha ISO + hora `hh:mm` (hora local) a instante ISO; sin fecha no hay filtro. */
-function aIso(fecha: string, hora: string, horaPorDefecto: string): string | undefined {
+/** Fecha ISO + hora `hh:mm` (hora local) + segundos a instante ISO; sin fecha no hay filtro. */
+function aIso(
+  fecha: string,
+  hora: string,
+  horaPorDefecto: string,
+  segundos = "00",
+): string | undefined {
   if (!fecha) return undefined;
-  const instante = new Date(`${fecha}T${horaTextoValida(hora) ?? horaPorDefecto}`);
+  const instante = new Date(`${fecha}T${horaTextoValida(hora) ?? horaPorDefecto}:${segundos}`);
   return Number.isNaN(instante.getTime()) ? undefined : instante.toISOString();
 }
 
@@ -70,7 +75,7 @@ function normalizarSchemaFiltro(valor: string): string {
 function aFiltros(aplicados: FormularioFiltros, pagina: number): FiltrosAuditoria {
   const filtros: FiltrosAuditoria = { pagina, tamanoPagina };
   const desde = aIso(aplicados.desde, aplicados.desdeHora, "00:00");
-  const hasta = aIso(aplicados.hasta, aplicados.hastaHora, "23:59");
+  const hasta = aIso(aplicados.hasta, aplicados.hastaHora, "23:59", "59.999");
   if (desde) filtros.desde = desde;
   if (hasta) filtros.hasta = hasta;
   if (aplicados.accion) filtros.accion = aplicados.accion;

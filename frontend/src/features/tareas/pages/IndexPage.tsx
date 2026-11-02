@@ -49,7 +49,7 @@ export function IndexPage() {
         else siguientes.set("estado", nuevo);
         // Un preset nuevo recarga el filtro de la columna Estado de la tabla única y de cada cuadro.
         for (const clave of [...siguientes.keys()]) {
-          if (clave === `${PREFIJO_TABLA}.estado` || /^(g|p[0-9a-f]{8})\.estado$/.test(clave)) {
+          if (clave === `${PREFIJO_TABLA}.estado` || /^(g|p[0-9a-f]{32})\.estado$/.test(clave)) {
             siguientes.delete(clave);
           }
         }
