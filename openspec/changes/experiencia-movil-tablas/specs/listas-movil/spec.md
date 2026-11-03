@@ -74,7 +74,7 @@ Below 560 px, tab groups (Revisión areas, Aulas sections, Tareas Pendientes/Ter
 
 ### Requirement: Paginated card lists
 
-Card lists SHALL paginate client-side at 20 cards per page, with controls of at least 44 px, and MUST reset to page 1 when filters, search or sort change. Lists with 20 cards or fewer MUST NOT show pagination.
+Card lists SHALL paginate client-side at 20 cards per page, with controls of at least 44 px, and MUST reset to page 1 when filters, search or sort change. Lists with 20 cards or fewer MUST NOT show pagination. The audit log is the exception: it keeps its server-side pagination at 50 records per page.
 
 #### Scenario: Long list
 

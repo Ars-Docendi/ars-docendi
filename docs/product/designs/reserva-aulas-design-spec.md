@@ -151,7 +151,7 @@ igual que en Mis Pedidos.
 ## Teléfono
 
 - Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
-- **Tarjetas**: «Mis solicitudes» y «Todas las solicitudes» se muestran como tarjetas con el aula o motivo como enlace al detalle, una línea mono (fecha, horario) e insignia de estado; sin menú «⋯», porque la fila solo abre el detalle.
+- **Tarjetas**: «Mis solicitudes» y «Todas las solicitudes» se muestran como tarjetas con la materia como enlace al detalle, una línea mono (fecha, horario) e insignia de estado. En «Mis solicitudes», las solicitudes pendientes incluyen el menú «⋯» con «Cancelar»; «Todas las solicitudes» no lleva menú, porque la fila solo abre el detalle.
 - **Pestañas**: las secciones apiladas pasan a ser una tira de pestañas deslizable con su cantidad.
 - **Filtros y paginación**: «Filtros (n)» abre una hoja inferior («Limpiar», «Ver N resultados»), con chips quitables y selector «Ordenar por». 20 tarjetas por página, solo en teléfono.
 - **Detalle**: las acciones principales (por ejemplo aprobar, rechazar o cancelar) quedan fijas en una barra al pie, respetando el área segura del dispositivo.

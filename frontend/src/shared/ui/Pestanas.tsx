@@ -29,7 +29,12 @@ export function Pestanas({ prefijo, items, value, onChange, className, ...resto 
   function seleccionar(id: string, destino?: HTMLElement) {
     onChange(id);
     // On phones the strip scrolls: the chosen tab ends up fully in view.
-    destino?.scrollIntoView?.({ inline: "center", block: "nearest", behavior: "smooth" });
+    const reducido = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    destino?.scrollIntoView?.({
+      inline: "center",
+      block: "nearest",
+      behavior: reducido ? "auto" : "smooth",
+    });
   }
 
   function activar(id: string) {

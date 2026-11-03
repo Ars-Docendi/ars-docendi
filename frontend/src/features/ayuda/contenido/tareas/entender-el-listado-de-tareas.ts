@@ -106,7 +106,7 @@ export const entenderElListadoDeTareas: ArticuloAyuda = {
     {
       pregunta: "¿Cómo se ve en el celular?",
       respuesta:
-        "En pantallas de menos de 560 px cada tarea es una tarjeta: el título abre la tarea, con el proyecto y la fecha de vencimiento en una línea de datos y el estado en una insignia. Las tarjetas por vencer o vencidas conservan su color. Los estados se eligen en pestañas deslizables y la lista pagina de a 20 tarjetas.",
+        "En pantallas de menos de 560 px cada tarea es una tarjeta: el título abre la tarea, con el número y las fechas de inicio y fin en una línea de datos, debajo el responsable, la prioridad, el avance y, si tiene, el proyecto, y el estado en una insignia. Las tarjetas por vencer o vencidas conservan su color. Los estados se eligen en pestañas deslizables y la lista pagina de a 20 tarjetas.",
     },
   ],
   relacionados: [

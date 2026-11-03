@@ -67,7 +67,7 @@ El acceso efectivo se controla por `sistema.estado.ver` y `auditoria.ver`; la es
 ## Teléfono
 
 - Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
-- **Auditoría**: cada evento es una tarjeta (fecha, usuario, acción, módulo y resumen) sin menú «⋯», porque la fila solo abre el detalle. Los filtros de la consulta se reúnen en «Filtros (n)» (hoja inferior con «Limpiar» y «Ver N resultados») y siguen aplicándose con la acción **Buscar**. La paginación del servidor se mantiene.
+- **Auditoría**: cada evento es una tarjeta (fecha, usuario, acción, módulo y resumen) sin menú «⋯», porque la fila solo abre el detalle. Los filtros de la consulta se reúnen en «Filtros (n)» (hoja inferior con «Limpiar» y «Aplicar filtros», sin contador de resultados porque la consulta es del servidor; las fechas se escriben dd/mm/aaaa) y se aplican al confirmar la hoja; la búsqueda por actor, arriba, se aplica mientras se escribe. Auditoría no incorpora selector de orden. La paginación del servidor se mantiene.
 - **Dashboard**: cada comprobación es una tarjeta con estado, duración y última comprobación; **Actualizar** sigue arriba.
 
 ## Referencias

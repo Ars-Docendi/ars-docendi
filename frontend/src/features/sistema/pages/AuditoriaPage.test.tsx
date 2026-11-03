@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { listarAuditoria } from "../api/sistemaApi";
 import type { PaginaAuditoria } from "../api/sistemaApi";
@@ -49,6 +49,14 @@ const pagina: PaginaAuditoria = {
     },
   ],
 };
+
+function simularTelefono() {
+  vi.stubGlobal("matchMedia", (consulta: string) => ({
+    matches: consulta.includes("559px"),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
 
 function renderPagina(ruta = "/auditoria") {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -172,5 +180,44 @@ describe("Registros de auditoría", () => {
         expect.objectContaining({ desde: new Date("2026-02-01T08:30").toISOString() }),
       ),
     );
+  });
+
+  describe("en teléfono", () => {
+    beforeEach(simularTelefono);
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("permite buscar un actor con nombre y apellido", async () => {
+      const user = userEvent.setup();
+      renderPagina();
+      await screen.findByText(/Vidal, Ernesto/);
+
+      await user.type(screen.getByRole("searchbox", { name: "Buscar" }), "Juan Perez");
+
+      expect(screen.getByRole("searchbox", { name: "Buscar" })).toHaveValue("Juan Perez");
+      await waitFor(() =>
+        expect(listarAuditoria).toHaveBeenLastCalledWith(
+          expect.objectContaining({ actor: "Juan Perez" }),
+        ),
+      );
+    });
+
+    it("filtra por fecha dd/mm/aaaa y descarta la hora al cambiar la fecha", async () => {
+      const user = userEvent.setup();
+      renderPagina("/auditoria?desde=2026-02-01&desdeHora=08:30");
+      await screen.findByText(/Vidal, Ernesto/);
+
+      await user.click(screen.getByRole("button", { name: /Filtros/ }));
+      const campo = screen.getByRole("textbox", { name: "Desde" });
+      expect(campo).toHaveValue("01/02/2026");
+      await user.clear(campo);
+      await user.type(campo, "15/03/2026");
+      await user.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+
+      await waitFor(() =>
+        expect(listarAuditoria).toHaveBeenLastCalledWith(
+          expect.objectContaining({ desde: new Date("2026-03-15T00:00").toISOString() }),
+        ),
+      );
+    });
   });
 });

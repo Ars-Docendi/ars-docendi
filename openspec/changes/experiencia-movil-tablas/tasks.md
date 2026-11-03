@@ -22,7 +22,7 @@
 ## 3. Remaining pages
 
 - [x] 3.1 Roles (cards, filters, "⋯" actions).
-- [x] 3.2 Mis pedidos and Revisión (cards without "⋯" where rows only open the detail; Revisión areas as swipeable tabs).
+- [x] 3.2 Mis pedidos and Revisión (Mis pedidos cards with "⋯" Editar/Eliminar when the order allows them; Revisión cards without "⋯" since rows only open the detail; Revisión areas as swipeable tabs).
 - [x] 3.3 Períodos (card opens the edit modal; "⋯" actions as in the table).
 - [x] 3.4 Reserva de aulas: Mis solicitudes / Todas las solicitudes cards; sections become tabs on phones.
 - [x] 3.5 Tareas (semáforo tint; Pendientes/Terminadas/Todas as tabs on phones, select kept on desktop) and Proyectos.

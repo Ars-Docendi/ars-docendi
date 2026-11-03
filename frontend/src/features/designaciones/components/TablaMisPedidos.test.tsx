@@ -48,8 +48,11 @@ describe("TablaMisPedidos", () => {
       />,
     );
 
-    expect(screen.getByRole("region", { name: "Mis pedidos de designación" })).toBeInTheDocument();
-    expect(screen.getByRole("table")).toBeInTheDocument();
+    // The scroll region is reachable by keyboard.
+    expect(screen.getByRole("region", { name: "Mis pedidos de designación" })).toHaveAttribute(
+      "tabindex",
+      "0",
+    );
     const fila = screen.getByRole("row", { name: /Ver el pedido de Ana García/ });
     await user.click(fila);
     expect(onVer).toHaveBeenCalledOnce();

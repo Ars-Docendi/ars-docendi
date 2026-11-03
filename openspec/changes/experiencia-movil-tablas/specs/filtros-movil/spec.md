@@ -30,7 +30,7 @@ Applied filters SHALL be shown as chips above the list, each removable with a co
 
 ### Requirement: Sort and search on phones
 
-Below 560 px, sorting SHALL be a native `<select>` bound to the existing sort state, replacing clickable column headers. The search input SHALL be 44 px high with 16 px text and `inputmode="search"`.
+Below 560 px, sorting SHALL be a native `<select>` bound to the existing sort state, replacing clickable column headers. The search input SHALL be 44 px high with 16 px text and `inputmode="search"`. The audit log adds no sort select: it has no sortable columns.
 
 #### Scenario: Change sort
 

@@ -13,14 +13,18 @@ import {
 import type { ColumnaOrdenableProyecto, OrdenProyectos } from "./ordenProyectos";
 
 const ORDENES: OpcionOrden<ColumnaOrdenableProyecto>[] = [
-  { columna: "estado", direccion: "asc", etiqueta: "Estado" },
+  { columna: "estado", direccion: "asc", etiqueta: "Estado (A–Z)" },
+  { columna: "estado", direccion: "desc", etiqueta: "Estado (Z–A)" },
   { columna: "fechaInicio", direccion: "asc", etiqueta: "Inicio (más antiguo)" },
   { columna: "fechaInicio", direccion: "desc", etiqueta: "Inicio (más reciente)" },
   { columna: "fechaFin", direccion: "asc", etiqueta: "Fin (más próximo)" },
   { columna: "fechaFin", direccion: "desc", etiqueta: "Fin (más lejano)" },
   { columna: "nombre", direccion: "asc", etiqueta: "Nombre (A–Z)" },
-  { columna: "responsable", direccion: "asc", etiqueta: "Responsable" },
-  { columna: "numero", direccion: "asc", etiqueta: "N°" },
+  { columna: "nombre", direccion: "desc", etiqueta: "Nombre (Z–A)" },
+  { columna: "responsable", direccion: "asc", etiqueta: "Responsable (A–Z)" },
+  { columna: "responsable", direccion: "desc", etiqueta: "Responsable (Z–A)" },
+  { columna: "numero", direccion: "asc", etiqueta: "N° (menor primero)" },
+  { columna: "numero", direccion: "desc", etiqueta: "N° (mayor primero)" },
 ];
 
 interface ListaProyectosMovilProps {

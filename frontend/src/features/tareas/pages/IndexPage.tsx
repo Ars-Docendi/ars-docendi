@@ -96,7 +96,7 @@ export function IndexPage() {
         }
       />
 
-      {!isLoading && !isError && total > 0 && (
+      {!isLoading && !isError && total > 0 && (!telefono || puedeCrearTarea) && (
         <div className="adoc-preset-estado" role="group" aria-label="Filtros del listado">
           {!telefono && (
             <label>

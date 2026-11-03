@@ -499,6 +499,8 @@
   .ayuda-buscador-campo input {
     min-height: 44px;
     font-size: 16px;
+    /* Room for the 44 px clear button so it never covers the query. */
+    padding-right: 50px;
   }
   .ayuda-buscador-limpiar {
     min-width: 44px;

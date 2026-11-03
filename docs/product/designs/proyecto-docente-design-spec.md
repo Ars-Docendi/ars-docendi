@@ -195,7 +195,7 @@ Las tablas de **Usuarios** y **Docentes** ofrecen un control compacto de filtro 
 ## Teléfono
 
 - Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
-- **Mis pedidos, Revisión y Períodos**: tarjetas con el docente (o el nombre del período) como enlace, línea mono de datos, insignias de estado y prioridad. Mis pedidos y Revisión no llevan «⋯», porque la fila solo abre el detalle; Períodos abre su modal de edición al tocar la tarjeta y reúne Editar y Eliminar en «⋯».
+- **Mis pedidos, Revisión y Períodos**: tarjetas con el docente (o el nombre del período) como enlace, línea mono de datos, insignias de estado y prioridad. Las tarjetas de Mis pedidos muestran «⋯» con Editar y Eliminar cuando el pedido los permite; Revisión no lleva «⋯», porque la fila solo abre el detalle; Períodos abre su modal de edición al tocar la tarjeta y reúne Editar y Eliminar en «⋯».
 - **Pestañas**: las áreas de Revisión son una tira deslizable con su cantidad. En Tareas, Pendientes / Terminadas / Todas reemplazan al selector; el escritorio conserva el selector.
 - **Filtros**: «Filtros (n)» abre una hoja inferior con todos los grupos, «Limpiar» y «Ver N resultados» en vivo; chips quitables y «Limpiar filtros»; selector nativo «Ordenar por» y búsqueda arriba. Los filtros por encabezado de la tabla no se muestran en las tarjetas.
 - **Paginación**: 20 tarjetas por página; excepción solo de teléfono a «Sin paginación» (ver _Patrón transversal — grillas_).

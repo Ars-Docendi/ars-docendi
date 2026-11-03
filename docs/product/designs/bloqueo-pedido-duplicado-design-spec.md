@@ -91,7 +91,7 @@ equivalente “ese docente”. Ambos deben conservar el mismo contenido informat
 ## Teléfono
 
 - Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
-- **Mis pedidos**: la tarjeta del pedido muestra al docente como enlace, línea mono de datos e insignia de estado; sin «⋯». Filtros en «Filtros (n)» (hoja inferior), orden en «Ordenar por», 20 tarjetas por página.
+- **Mis pedidos**: la tarjeta del pedido muestra al docente como enlace, línea mono de datos e insignia de estado; «⋯» con Editar y Eliminar solo cuando el pedido los permite. Filtros en «Filtros (n)» (hoja inferior), orden en «Ordenar por», 20 tarjetas por página.
 - **Formulario y error de bloqueo**: el mensaje sigue junto al bloque del docente, sin modal; la acción principal de envío queda fija en una barra al pie.
 
 ## Referencias

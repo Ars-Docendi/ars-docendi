@@ -5,7 +5,11 @@ import { Button } from "@ars-docendi/ui";
 
 import { CampoFechaISO } from "../../../shared/ui/CampoFechaISO";
 import { CampoHora } from "../../../shared/ui/CampoHora";
-import { horaTextoValida } from "../../../shared/ui/camposFechaHora";
+import {
+  fechaISOATexto,
+  fechaTextoAISO,
+  horaTextoValida,
+} from "../../../shared/ui/camposFechaHora";
 import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { HerramientasLista } from "../../../shared/ui/HerramientasLista";
 import type { GrupoFiltro } from "../../../shared/ui/HojaFiltros";
@@ -127,8 +131,8 @@ const gruposMovil: GrupoFiltro<FiltrosMovil>[] = [
       { valor: "DELETE", etiqueta: "Eliminación física" },
     ],
   },
-  { clave: "desde", titulo: "Desde", tipo: "texto", placeholder: "aaaa-mm-dd" },
-  { clave: "hasta", titulo: "Hasta", tipo: "texto", placeholder: "aaaa-mm-dd" },
+  { clave: "desde", titulo: "Desde", tipo: "texto", placeholder: "dd/mm/aaaa" },
+  { clave: "hasta", titulo: "Hasta", tipo: "texto", placeholder: "dd/mm/aaaa" },
   {
     clave: "schema",
     titulo: "Módulo o schema",
@@ -177,6 +181,8 @@ export function AuditoriaPage() {
 
   const filtrosMovil: FiltrosMovil = {
     ...aplicados,
+    desde: fechaISOATexto(aplicados.desde),
+    hasta: fechaISOATexto(aplicados.hasta),
     accion: aplicados.accion ? [aplicados.accion] : [],
   };
 
@@ -185,19 +191,25 @@ export function AuditoriaPage() {
     // Single-choice: keep the option just checked, not the previous one.
     const accion =
       siguientes.accion.find((a) => a !== aplicados.accion) ?? siguientes.accion[0] ?? "";
-    const fecha = (valor: string) => (FECHA_ISO.test(valor.trim()) ? valor.trim() : "");
+    // The sheet edits dd/mm/aaaa; an ISO date typed or pasted is accepted too.
+    const fecha = (valor: string) =>
+      FECHA_ISO.test(valor.trim()) ? valor.trim() : (fechaTextoAISO(valor.trim()) ?? "");
+    const desde = fecha(siguientes.desde);
+    const hasta = fecha(siguientes.hasta);
     const nuevos: FormularioFiltros = {
       ...aplicados,
       ...siguientes,
       accion,
-      desde: fecha(siguientes.desde),
-      desdeHora: fecha(siguientes.desde) ? aplicados.desdeHora : "",
-      hasta: fecha(siguientes.hasta),
-      hastaHora: fecha(siguientes.hasta) ? aplicados.hastaHora : "",
+      desde,
+      // The hour belongs to the date it was set for: a different date drops it.
+      desdeHora: desde && desde === aplicados.desde ? aplicados.desdeHora : "",
+      hasta,
+      hastaHora: hasta && hasta === aplicados.hasta ? aplicados.hastaHora : "",
     };
     const params = new URLSearchParams();
     for (const campo of CAMPOS_URL)
-      if (nuevos[campo].trim()) params.set(campo, nuevos[campo].trim());
+      // Untrimmed: the search input reads its value back from the URL, so a trailing space must survive.
+      if (nuevos[campo].trim()) params.set(campo, nuevos[campo]);
     setDetallesAbiertos(new Set());
     setParams(params, { replace: true });
   }
