@@ -11,7 +11,9 @@ import {
 } from "../../../shared/navegacion/volver";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { EstadoPedidoBadge } from "../components/EstadoPedidoBadge";
 import { IconoSquarePen, IconoX } from "../components/lucide";
 import { CadenaRevision } from "../components/CadenaRevision";
@@ -170,6 +172,7 @@ function DetalleCargado({
   volver,
   onEditar,
 }: DetalleCargadoProps) {
+  const telefono = usePantallaTelefono();
   const acciones = pedido.accionesPermitidas ?? [];
   const esRevisor = acciones.some((accion) =>
     ["aceptar", "rechazar", "devolver", "priorizar", "despriorizar"].includes(accion),
@@ -215,6 +218,26 @@ function DetalleCargado({
     setComentario("");
   }
 
+  // On phones Editar / Eliminar move to the pinned bottom bar; rendered once per breakpoint.
+  const botonesEdicion = (
+    <>
+      {puedeEditar && (
+        <Button variant="secondary" leadingIcon={<IconoSquarePen />} onClick={onEditar}>
+          Editar
+        </Button>
+      )}
+      {puedeEliminar && (
+        <Button
+          variant="destructive"
+          leadingIcon={<IconoX />}
+          onClick={() => setMostrarEliminar(true)}
+        >
+          Eliminar
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <>
       <PageHeader
@@ -223,20 +246,7 @@ function DetalleCargado({
         actions={
           <div className="adoc-det-headactions">
             <EnlaceVolver id="pedido-volver" destino={volver} />
-            {puedeEditar && (
-              <Button variant="secondary" leadingIcon={<IconoSquarePen />} onClick={onEditar}>
-                Editar
-              </Button>
-            )}
-            {puedeEliminar && (
-              <Button
-                variant="destructive"
-                leadingIcon={<IconoX />}
-                onClick={() => setMostrarEliminar(true)}
-              >
-                Eliminar
-              </Button>
-            )}
+            {!telefono && botonesEdicion}
             <EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />
           </div>
         }
@@ -281,6 +291,10 @@ function DetalleCargado({
           </aside>
         </div>
       </div>
+
+      {telefono && (puedeEditar || puedeEliminar) && (
+        <BarraAccionesFija>{botonesEdicion}</BarraAccionesFija>
+      )}
 
       <ModalConfirmacionAccion
         accion={accionPendiente}

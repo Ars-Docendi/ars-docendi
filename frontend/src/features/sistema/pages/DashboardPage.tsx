@@ -2,9 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@ars-docendi/ui";
 
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { consultarEstadoSistema } from "../api/sistemaApi";
 import type { ComprobacionComponente } from "../api/sistemaApi";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
+import "../../../shared/ui/ListaTarjetas.css";
 import "../sistema.css";
 
 function fechaLocal(valor: string): string {
@@ -38,6 +41,7 @@ function EtiquetaEstado({ estado }: { estado: ComprobacionComponente["estado"] }
 }
 
 export function DashboardPage() {
+  const telefono = usePantallaTelefono();
   const consulta = useQuery({
     queryKey: ["administracion", "sistema", "estado"],
     queryFn: consultarEstadoSistema,
@@ -84,11 +88,28 @@ export function DashboardPage() {
               inferencia figura como deshabilitada cuando el ambiente no la tiene configurada.
             </p>
           </header>
-          <div className="sistema-tabla-contenedor">
-            <table
-              className="sistema-tabla"
+          {telefono ? (
+            <ul
+              className="adoc-lista-tarjetas"
               aria-label="Estado de módulos, base de datos e inferencia"
             >
+              {componentes.map((componente) => (
+                <li key={componente.id} className="adoc-tarjeta">
+                  <strong>{componente.nombre}</strong>
+                  <div className="adoc-tarjeta-meta">
+                    {duracion(componente.duracionMs)} ·{" "}
+                    <time dateTime={componente.comprobadoEn}>
+                      {fechaLocal(componente.comprobadoEn)}
+                    </time>
+                  </div>
+                  <div className="adoc-tarjeta-insignias">
+                    <EtiquetaEstado estado={componente.estado} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ContenedorTabla etiqueta="Estado de módulos, base de datos e inferencia">
               <thead>
                 <tr>
                   <th scope="col">Componente</th>
@@ -113,8 +134,8 @@ export function DashboardPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </ContenedorTabla>
+          )}
         </section>
       )}
     </main>

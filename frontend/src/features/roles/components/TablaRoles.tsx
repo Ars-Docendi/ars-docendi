@@ -1,6 +1,7 @@
-import { Button, Input, StatusBadge, Table } from "@ars-docendi/ui";
+import { Button, Input, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
 
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
@@ -8,17 +9,17 @@ import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import {
   ETIQUETAS_ESTADO,
   ETIQUETAS_TIPO,
-  estadoDe,
   type EstadoRol,
   type ColumnaOrdenRol,
   type FiltrosRoles,
   type OrdenRoles,
   type TipoRol,
 } from "../filtrosRoles";
+import { InsigniaEstadoRol } from "./insigniasRol";
 import { ETIQUETAS_SCOPE, SCOPES_ROL, type RolMock, type ScopeRol } from "../models";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 300px)";
+const ALTO_TABLA = "calc(100dvh - 300px)";
 const ANGOSTA = { whiteSpace: "nowrap", width: "1%" } as const;
 
 interface TablaRolesProps {
@@ -79,7 +80,7 @@ export function TablaRoles({
 
   return (
     <Table>
-      <Table.Root maxHeight={ALTO_TABLA}>
+      <ContenedorTabla etiqueta="Roles" maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
             <Table.HeaderCell sort={sort("nombre")} onSortChange={() => onOrdenar("nombre")}>
@@ -187,10 +188,7 @@ export function TablaRoles({
                   {rol.permisos.length}/{totalPermisos}
                 </Table.Cell>
                 <Table.Cell style={ANGOSTA}>
-                  <StatusBadge
-                    kind={rol.activo ? "aprobado" : "rechazado"}
-                    label={ETIQUETAS_ESTADO[estadoDe(rol)]}
-                  />
+                  <InsigniaEstadoRol rol={rol} />
                 </Table.Cell>
                 <Table.Cell className="adoc-table-actions adoc-acciones-fila" style={ANGOSTA}>
                   <Button variant="ghost" size="sm" onClick={() => onAbrir(rol)}>
@@ -206,7 +204,7 @@ export function TablaRoles({
             );
           })}
         </Table.Body>
-      </Table.Root>
+      </ContenedorTabla>
     </Table>
   );
 }

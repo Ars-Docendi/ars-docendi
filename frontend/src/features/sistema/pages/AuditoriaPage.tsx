@@ -6,9 +6,15 @@ import { Button } from "@ars-docendi/ui";
 import { CampoFechaISO } from "../../../shared/ui/CampoFechaISO";
 import { CampoHora } from "../../../shared/ui/CampoHora";
 import { horaTextoValida } from "../../../shared/ui/camposFechaHora";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
+import { HerramientasLista } from "../../../shared/ui/HerramientasLista";
+import type { GrupoFiltro } from "../../../shared/ui/HojaFiltros";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { listarAuditoria } from "../api/sistemaApi";
-import type { CambioAuditoria, FiltrosAuditoria } from "../api/sistemaApi";
+import type { FiltrosAuditoria } from "../api/sistemaApi";
+import { DetalleAuditoria } from "../components/DetalleAuditoria";
+import { ListaAuditoriaMovil } from "../components/ListaAuditoriaMovil";
 import "../sistema.css";
 
 interface FormularioFiltros {
@@ -86,17 +92,55 @@ function aFiltros(aplicados: FormularioFiltros, pagina: number): FiltrosAuditori
   return filtros;
 }
 
-function mostrarValor(cambio: CambioAuditoria, lado: "anterior" | "nuevo"): string {
-  if (cambio.oculto) return "Enmascarado por política";
-  const valor = lado === "anterior" ? cambio.valorAnterior : cambio.valorNuevo;
-  return valor ?? "—";
-}
-
 function fechaLocal(valor: string): string {
   return new Date(valor).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "medium" });
 }
 
+/** Applied filters as the phone toolbar edits them: `accion` is a single-choice multi-select. */
+interface FiltrosMovil {
+  accion: string[];
+  desde: string;
+  hasta: string;
+  schema: string;
+  tabla: string;
+  actor: string;
+  rowPk: string;
+}
+
+const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+const filtrosMovilVacios: FiltrosMovil = {
+  accion: [],
+  desde: "",
+  hasta: "",
+  schema: "",
+  tabla: "",
+  actor: "",
+  rowPk: "",
+};
+const gruposMovil: GrupoFiltro<FiltrosMovil>[] = [
+  {
+    clave: "accion",
+    titulo: "Acción",
+    opciones: [
+      { valor: "INSERT", etiqueta: "Alta" },
+      { valor: "UPDATE", etiqueta: "Actualización" },
+      { valor: "DELETE", etiqueta: "Eliminación física" },
+    ],
+  },
+  { clave: "desde", titulo: "Desde", tipo: "texto", placeholder: "aaaa-mm-dd" },
+  { clave: "hasta", titulo: "Hasta", tipo: "texto", placeholder: "aaaa-mm-dd" },
+  {
+    clave: "schema",
+    titulo: "Módulo o schema",
+    tipo: "texto",
+    placeholder: "Identidad o schema exacto",
+  },
+  { clave: "tabla", titulo: "Tabla", tipo: "texto" },
+  { clave: "rowPk", titulo: "Clave de fila", tipo: "texto" },
+];
+
 export function AuditoriaPage() {
+  const telefono = usePantallaTelefono();
   // Los filtros aplicados y la página viven en el query; el formulario es un borrador.
   const [params, setParams] = useSearchParams();
   const lectura = params.toString();
@@ -129,6 +173,33 @@ export function AuditoriaPage() {
     }
     setDetallesAbiertos(new Set());
     setParams(siguientes, { replace: true });
+  }
+
+  const filtrosMovil: FiltrosMovil = {
+    ...aplicados,
+    accion: aplicados.accion ? [aplicados.accion] : [],
+  };
+
+  /** The phone toolbar applies straight to the URL (no draft form); hours stay as they were. */
+  function aplicarMovil(siguientes: FiltrosMovil) {
+    // Single-choice: keep the option just checked, not the previous one.
+    const accion =
+      siguientes.accion.find((a) => a !== aplicados.accion) ?? siguientes.accion[0] ?? "";
+    const fecha = (valor: string) => (FECHA_ISO.test(valor.trim()) ? valor.trim() : "");
+    const nuevos: FormularioFiltros = {
+      ...aplicados,
+      ...siguientes,
+      accion,
+      desde: fecha(siguientes.desde),
+      desdeHora: fecha(siguientes.desde) ? aplicados.desdeHora : "",
+      hasta: fecha(siguientes.hasta),
+      hastaHora: fecha(siguientes.hasta) ? aplicados.hastaHora : "",
+    };
+    const params = new URLSearchParams();
+    for (const campo of CAMPOS_URL)
+      if (nuevos[campo].trim()) params.set(campo, nuevos[campo].trim());
+    setDetallesAbiertos(new Set());
+    setParams(params, { replace: true });
   }
 
   function limpiar() {
@@ -177,98 +248,108 @@ export function AuditoriaPage() {
         }
       />
 
-      <form className="auditoria-filtros" onSubmit={buscar}>
-        <label>
-          Desde
-          <CampoFechaISO
-            aria-label="Desde"
-            value={formulario.desde}
-            onChange={(desde) => setFormulario({ ...formulario, desde })}
-          />
-        </label>
-        <label>
-          Hora desde
-          <CampoHora
-            value={formulario.desdeHora}
-            onChange={(desdeHora) => setFormulario({ ...formulario, desdeHora })}
-          />
-        </label>
-        <label>
-          Hasta
-          <CampoFechaISO
-            aria-label="Hasta"
-            value={formulario.hasta}
-            onChange={(hasta) => setFormulario({ ...formulario, hasta })}
-          />
-        </label>
-        <label>
-          Hora hasta
-          <CampoHora
-            value={formulario.hastaHora}
-            onChange={(hastaHora) => setFormulario({ ...formulario, hastaHora })}
-          />
-        </label>
-        <label>
-          Acción
-          <select
-            aria-label="Acción"
-            value={formulario.accion}
-            onChange={(e) => setFormulario({ ...formulario, accion: e.target.value })}
-          >
-            <option value="">Todas</option>
-            <option value="INSERT">Alta</option>
-            <option value="UPDATE">Actualización</option>
-            <option value="DELETE">Eliminación física</option>
-          </select>
-        </label>
-        <label>
-          Módulo o schema
-          <input
-            aria-label="Módulo o schema"
-            placeholder="Identidad o schema exacto"
-            value={formulario.schema}
-            onChange={(e) => setFormulario({ ...formulario, schema: e.target.value })}
-          />
-        </label>
-        <label>
-          Tabla
-          <input
-            aria-label="Tabla"
-            value={formulario.tabla}
-            onChange={(e) => setFormulario({ ...formulario, tabla: e.target.value })}
-          />
-        </label>
-        <label>
-          Actor
-          <input
-            aria-label="Actor"
-            placeholder="Buscar por nombre"
-            value={formulario.actor}
-            onChange={(e) => setFormulario({ ...formulario, actor: e.target.value })}
-          />
-        </label>
-        <label>
-          Clave de fila
-          <input
-            aria-label="Clave de fila"
-            aria-describedby="auditoria-clave-ayuda"
-            value={formulario.rowPk}
-            onChange={(e) => setFormulario({ ...formulario, rowPk: e.target.value })}
-          />
-          <small id="auditoria-clave-ayuda">
-            Usá el JSON completo para una relación precisa. Una clave parcial legada consulta una
-            agrupación histórica, no una relación individual.
-          </small>
-        </label>
-        <div className="auditoria-filtros-acciones">
-          <Button variant="primary" type="submit">
-            Buscar
-          </Button>
-          <Button variant="secondary" type="button" onClick={limpiar}>
-            Limpiar
-          </Button>
-        </div>
-      </form>
+      {telefono ? (
+        <HerramientasLista
+          grupos={gruposMovil}
+          filtros={filtrosMovil}
+          vacios={filtrosMovilVacios}
+          onFiltrosChange={aplicarMovil}
+          busqueda={{ clave: "actor", placeholder: "Buscar por actor" }}
+        />
+      ) : (
+        <form className="auditoria-filtros" onSubmit={buscar}>
+          <label>
+            Desde
+            <CampoFechaISO
+              aria-label="Desde"
+              value={formulario.desde}
+              onChange={(desde) => setFormulario({ ...formulario, desde })}
+            />
+          </label>
+          <label>
+            Hora desde
+            <CampoHora
+              value={formulario.desdeHora}
+              onChange={(desdeHora) => setFormulario({ ...formulario, desdeHora })}
+            />
+          </label>
+          <label>
+            Hasta
+            <CampoFechaISO
+              aria-label="Hasta"
+              value={formulario.hasta}
+              onChange={(hasta) => setFormulario({ ...formulario, hasta })}
+            />
+          </label>
+          <label>
+            Hora hasta
+            <CampoHora
+              value={formulario.hastaHora}
+              onChange={(hastaHora) => setFormulario({ ...formulario, hastaHora })}
+            />
+          </label>
+          <label>
+            Acción
+            <select
+              aria-label="Acción"
+              value={formulario.accion}
+              onChange={(e) => setFormulario({ ...formulario, accion: e.target.value })}
+            >
+              <option value="">Todas</option>
+              <option value="INSERT">Alta</option>
+              <option value="UPDATE">Actualización</option>
+              <option value="DELETE">Eliminación física</option>
+            </select>
+          </label>
+          <label>
+            Módulo o schema
+            <input
+              aria-label="Módulo o schema"
+              placeholder="Identidad o schema exacto"
+              value={formulario.schema}
+              onChange={(e) => setFormulario({ ...formulario, schema: e.target.value })}
+            />
+          </label>
+          <label>
+            Tabla
+            <input
+              aria-label="Tabla"
+              value={formulario.tabla}
+              onChange={(e) => setFormulario({ ...formulario, tabla: e.target.value })}
+            />
+          </label>
+          <label>
+            Actor
+            <input
+              aria-label="Actor"
+              placeholder="Buscar por nombre"
+              value={formulario.actor}
+              onChange={(e) => setFormulario({ ...formulario, actor: e.target.value })}
+            />
+          </label>
+          <label>
+            Clave de fila
+            <input
+              aria-label="Clave de fila"
+              aria-describedby="auditoria-clave-ayuda"
+              value={formulario.rowPk}
+              onChange={(e) => setFormulario({ ...formulario, rowPk: e.target.value })}
+            />
+            <small id="auditoria-clave-ayuda">
+              Usá el JSON completo para una relación precisa. Una clave parcial legada consulta una
+              agrupación histórica, no una relación individual.
+            </small>
+          </label>
+          <div className="auditoria-filtros-acciones">
+            <Button variant="primary" type="submit">
+              Buscar
+            </Button>
+            <Button variant="secondary" type="button" onClick={limpiar}>
+              Limpiar
+            </Button>
+          </div>
+        </form>
+      )}
 
       {consulta.isPending && <p role="status">Cargando registros de auditoría…</p>}
       {consulta.isError && (
@@ -281,8 +362,15 @@ export function AuditoriaPage() {
       )}
       {pagina && (
         <>
-          <div className="sistema-tabla-contenedor">
-            <table className="sistema-tabla" aria-label="Registros de auditoría">
+          {telefono ? (
+            <ListaAuditoriaMovil
+              registros={pagina.elementos}
+              detallesAbiertos={detallesAbiertos}
+              fechaLocal={fechaLocal}
+              onAlternarDetalle={alternarDetalle}
+            />
+          ) : (
+            <ContenedorTabla etiqueta="Registros de auditoría">
               <thead>
                 <tr>
                   <th scope="col">Fecha</th>
@@ -323,58 +411,14 @@ export function AuditoriaPage() {
                             {abierto ? "Ocultar detalle" : "Ver detalle"}
                           </Button>
                         </div>
-                        {abierto && (
-                          <section
-                            className="auditoria-detalle"
-                            aria-label={`Detalle del evento ${registro.id}`}
-                          >
-                            <dl className="auditoria-metadatos">
-                              <div>
-                                <dt>Tabla</dt>
-                                <dd>
-                                  {registro.schema}.{registro.tabla}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt>Clave de fila</dt>
-                                <dd>{registro.rowPk}</dd>
-                              </div>
-                              <div>
-                                <dt>Solicitud</dt>
-                                <dd>{registro.requestId ?? "—"}</dd>
-                              </div>
-                            </dl>
-                            {registro.cambios.length > 0 && (
-                              <div className="auditoria-detalle-tabla">
-                                <table aria-label={`Cambios del registro ${registro.id}`}>
-                                  <thead>
-                                    <tr>
-                                      <th scope="col">Campo</th>
-                                      <th scope="col">Anterior</th>
-                                      <th scope="col">Nuevo</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {registro.cambios.map((cambio) => (
-                                      <tr key={cambio.campo}>
-                                        <th scope="row">{cambio.etiquetaCampo}</th>
-                                        <td>{mostrarValor(cambio, "anterior")}</td>
-                                        <td>{mostrarValor(cambio, "nuevo")}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </section>
-                        )}
+                        {abierto && <DetalleAuditoria registro={registro} />}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+            </ContenedorTabla>
+          )}
           {pagina.elementos.length === 0 && <p>No hay registros para los filtros seleccionados.</p>}
           <nav className="auditoria-paginacion" aria-label="Paginación de auditoría">
             <Button

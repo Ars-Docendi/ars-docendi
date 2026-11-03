@@ -1,14 +1,16 @@
-import { Button, Input, StatusBadge, Table } from "@ars-docendi/ui";
+import { Button, Input, Table } from "@ars-docendi/ui";
 import type { ReactNode } from "react";
 
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import type { Persona } from "../api/personasApi";
+import { InsigniaEstado, InsigniasAsignaciones, InsigniasRoles } from "./insigniasPersona";
 import {
+  ETIQUETAS_ESTADO,
   SIN_ROL,
-  estadoDe,
   nombreCompleto,
   type ColumnaOrden,
   type EstadoPersona,
@@ -17,13 +19,8 @@ import {
 } from "../filtrosPersonas";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 300px)";
+const ALTO_TABLA = "calc(100dvh - 300px)";
 const ANCHO_NOMBRE = 160;
-const ETIQUETAS_ESTADO: Record<EstadoPersona, string> = {
-  activo: "Activo",
-  inactivo: "Inactivo",
-  sin_cuenta: "Sin cuenta",
-};
 
 interface TablaPersonasProps {
   personas: Persona[];
@@ -84,7 +81,7 @@ export function TablaPersonas({
 
   return (
     <Table>
-      <Table.Root maxHeight={ALTO_TABLA}>
+      <ContenedorTabla etiqueta="Personas" maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
             <Table.HeaderCell sort={sort("nombre")} onSortChange={() => onOrdenar("nombre")}>
@@ -157,7 +154,6 @@ export function TablaPersonas({
             </Table.Row>
           )}
           {personas.map((persona) => {
-            const estado = estadoDe(persona);
             return (
               <Table.Row key={persona.personaId} {...propsFilaClickeable(() => onAbrir(persona))}>
                 <Table.Cell>
@@ -172,50 +168,16 @@ export function TablaPersonas({
                 <Table.Cell className="adoc-mono">{persona.legajo ?? "—"}</Table.Cell>
                 <Table.Cell>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                    {persona.roles.length === 0 ? (
-                      <span className="adoc-badge s-rechazado" style={BADGE_CHICO}>
-                        Sin rol
-                      </span>
-                    ) : (
-                      persona.roles.map((rol) => (
-                        <span
-                          key={rol.id}
-                          className={
-                            rol.codigo === "jefe_catedra"
-                              ? "adoc-badge s-aprobado"
-                              : "adoc-badge s-pendiente"
-                          }
-                          style={BADGE_CHICO}
-                        >
-                          {rol.nombre}
-                        </span>
-                      ))
-                    )}
+                    <InsigniasRoles persona={persona} />
                   </div>
                 </Table.Cell>
                 <Table.Cell>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                    {persona.asignaciones.map((a) => (
-                      <span
-                        key={a.id}
-                        className="adoc-badge s-pendiente"
-                        style={BADGE_CHICO}
-                        title={`${a.materiaNombre} · ${a.horas} h`}
-                      >
-                        {a.materiaCodigo} – {a.cargoAbreviatura || a.cargoNombre}
-                      </span>
-                    ))}
+                    <InsigniasAsignaciones persona={persona} />
                   </div>
                 </Table.Cell>
                 <Table.Cell style={{ whiteSpace: "nowrap", width: "1%" }}>
-                  {estado === "sin_cuenta" ? (
-                    <StatusBadge kind="pendiente" label="Sin cuenta" />
-                  ) : (
-                    <StatusBadge
-                      kind={estado === "activo" ? "aprobado" : "rechazado"}
-                      label={ETIQUETAS_ESTADO[estado]}
-                    />
-                  )}
+                  <InsigniaEstado persona={persona} />
                 </Table.Cell>
                 <Table.Cell
                   className="adoc-table-actions adoc-acciones-fila"
@@ -234,12 +196,10 @@ export function TablaPersonas({
             );
           })}
         </Table.Body>
-      </Table.Root>
+      </ContenedorTabla>
     </Table>
   );
 }
-
-const BADGE_CHICO = { fontSize: "11px", height: "20px", padding: "0 8px" } as const;
 
 function Encabezado({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return (

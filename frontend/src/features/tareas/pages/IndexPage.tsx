@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button, InlineAlert, Select } from "@ars-docendi/ui";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { usePestanaURL } from "../../../shared/navegacion/estadoURL";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { PanelPestana, Pestanas } from "../../../shared/ui/Pestanas";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { CuadroProyecto } from "../components/CuadroProyecto";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
 import { TablaTareas } from "../components/TablaTareas";
@@ -33,6 +35,7 @@ export function IndexPage() {
   const { data: tareas, isLoading, isError } = useListadoTareas();
   const { data: proyectos = [] } = useListadoProyectos();
   const crearTarea = useCrearTarea();
+  const telefono = usePantallaTelefono();
 
   // Preset y alcance viven en el query (defaults omitidos): Atrás y recargar los restauran.
   const [, setParams] = useSearchParams();
@@ -95,16 +98,18 @@ export function IndexPage() {
 
       {!isLoading && !isError && total > 0 && (
         <div className="adoc-preset-estado" role="group" aria-label="Filtros del listado">
-          <label>
-            Estado:{" "}
-            <Select value={preset} onChange={(e) => elegirPreset(e.target.value as PresetEstado)}>
-              {(Object.keys(ETIQUETA_PRESET) as PresetEstado[]).map((opcion) => (
-                <option key={opcion} value={opcion}>
-                  {ETIQUETA_PRESET[opcion]}
-                </option>
-              ))}
-            </Select>
-          </label>
+          {!telefono && (
+            <label>
+              Estado:{" "}
+              <Select value={preset} onChange={(e) => elegirPreset(e.target.value as PresetEstado)}>
+                {(Object.keys(ETIQUETA_PRESET) as PresetEstado[]).map((opcion) => (
+                  <option key={opcion} value={opcion}>
+                    {ETIQUETA_PRESET[opcion]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
           {puedeCrearTarea && (
             <label>
               Tareas:{" "}
@@ -136,28 +141,38 @@ export function IndexPage() {
         </InlineAlert>
       )}
 
-      {!isLoading && !isError && total > 0 && !puedeCrearTarea && (
-        <TablaTareas
-          tareas={visibles}
-          prefijoURL={PREFIJO_TABLA}
-          preset={preset}
-          proyectos={proyectos}
+      {!isLoading && !isError && total > 0 && telefono && (
+        <Pestanas
+          prefijo="tareas-estado"
+          aria-label="Estado de las tareas"
+          items={PRESETS.map((opcion) => ({ id: opcion, label: ETIQUETA_PRESET[opcion] }))}
+          value={preset}
+          onChange={(id) => elegirPreset(id as PresetEstado)}
         />
       )}
 
-      {!isLoading &&
-        !isError &&
-        total > 0 &&
-        puedeCrearTarea &&
-        cuadros.map((cuadro) => (
-          <CuadroProyecto
-            key={cuadro.proyecto?.id ?? "generales"}
-            proyecto={cuadro.proyecto}
-            tareas={cuadro.tareas}
-            preset={preset}
-            prefijoURL={prefijoDeCuadro(cuadro.proyecto)}
-          />
-        ))}
+      {!isLoading && !isError && total > 0 && (
+        <ContenidoPreset telefono={telefono} preset={preset}>
+          {puedeCrearTarea ? (
+            cuadros.map((cuadro) => (
+              <CuadroProyecto
+                key={cuadro.proyecto?.id ?? "generales"}
+                proyecto={cuadro.proyecto}
+                tareas={cuadro.tareas}
+                preset={preset}
+                prefijoURL={prefijoDeCuadro(cuadro.proyecto)}
+              />
+            ))
+          ) : (
+            <TablaTareas
+              tareas={visibles}
+              prefijoURL={PREFIJO_TABLA}
+              preset={preset}
+              proyectos={proyectos}
+            />
+          )}
+        </ContenidoPreset>
+      )}
 
       <ModalNuevaTarea
         open={modalNuevaTareaAbierto}
@@ -170,5 +185,24 @@ export function IndexPage() {
         error={crearTarea.isError ? crearTarea.error.message : undefined}
       />
     </>
+  );
+}
+
+/** On phones the tab strip labels the content it filters; on desktop there is no wrapper. */
+function ContenidoPreset({
+  telefono,
+  preset,
+  children,
+}: {
+  telefono: boolean;
+  preset: PresetEstado;
+  children: ReactNode;
+}) {
+  return telefono ? (
+    <PanelPestana prefijo="tareas-estado" id={preset}>
+      {children}
+    </PanelPestana>
+  ) : (
+    <>{children}</>
   );
 }

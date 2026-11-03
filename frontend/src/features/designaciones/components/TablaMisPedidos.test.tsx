@@ -48,7 +48,8 @@ describe("TablaMisPedidos", () => {
       />,
     );
 
-    expect(screen.getByRole("table", { name: "Mis pedidos de designación" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Mis pedidos de designación" })).toBeInTheDocument();
+    expect(screen.getByRole("table")).toBeInTheDocument();
     const fila = screen.getByRole("row", { name: /Ver el pedido de Ana García/ });
     await user.click(fila);
     expect(onVer).toHaveBeenCalledOnce();
