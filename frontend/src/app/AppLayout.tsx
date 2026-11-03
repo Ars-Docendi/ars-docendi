@@ -159,7 +159,7 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
         onToggleCollapse={alternarColapsada}
         user={user}
         campana={angosta ? undefined : campana}
-        lanzador={angosta ? undefined : lanzador}
+        lanzador={angosta ? undefined : <LanzadorAsistente colapsado={colapsado} />}
       />
       <main className="adoc-main" id={ID_CONTENIDO} tabIndex={-1}>
         <Outlet />

@@ -37,8 +37,9 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 
 ## Flujo principal
 
-1. Desde cualquier pantalla, el usuario pulsa **«Preguntar»** en la barra superior (pastilla con
-   destello). Se abre un modal centrado titulado «Asistente» con el foco en el campo de pregunta.
+1. Desde cualquier pantalla, el usuario pulsa **«Preguntar»** en el pie de la barra lateral (fila
+   con destello en color de acento, como «Centro de ayuda»; colapsada, sólo el destello con
+   tooltip) o, en pantallas angostas, en la barra superior (pastilla con destello). Se abre un modal centrado titulado «Asistente» con el foco en el campo de pregunta.
    (Desde v3 no hay página `/asistente`: un vínculo viejo redirige a la home con el modal abierto.)
 2. Ve el **estado inicial**: título «¿Qué querés saber del sistema?», una presentación escrita para
    su rol —por qué cosas suele venir a preguntar—, debajo y en secundario el alcance de sus datos

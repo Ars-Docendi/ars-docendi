@@ -15,7 +15,7 @@ import "../asistente.css";
  * descubrimiento: si el usuario tiene que acordarse de que el asistente existe y buscar dónde
  * está, no lo usa.
  */
-export function LanzadorAsistente() {
+export function LanzadorAsistente({ colapsado = false }: { colapsado?: boolean }) {
   const { tieneAcceso, capacidades } = useAccesoAlAsistente();
   const [abierto, setAbierto] = useState(false);
   const asistente = useAsistente({ redaccionEnFlujo: capacidades?.redaccionEnFlujo === true });
@@ -107,10 +107,12 @@ export function LanzadorAsistente() {
         ref={lanzador}
         type="button"
         className="adoc-asistente-lanzador"
+        aria-label={colapsado ? "Preguntar" : undefined}
+        data-tooltip={colapsado ? "Preguntar" : undefined}
         onClick={() => setAbierto(true)}
       >
         <span className="ico">{sparkIcon}</span>
-        Preguntar
+        {!colapsado && "Preguntar"}
       </button>
 
       {/* EL TÍTULO SIGUE SIENDO «Asistente», Y EL DIÁLOGO SIGUE NOMBRÁNDOSE POR ÉL:
