@@ -78,6 +78,11 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       respuesta:
         "Dentro del Centro de ayuda el menú se reduce a íconos para dejar lugar al índice de la documentación. Podés desplegarlo con el botón ☰, y al salir de la ayuda vuelve a mostrarse como lo tenías.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En el celular (menos de 560 px) las listas pasan de tabla a tarjetas, con un único botón «Filtros (n)» que abre una hoja con todos los filtros y un selector «Ordenar por». Las pestañas se deslizan con el dedo y, en las pantallas de detalle, las acciones principales quedan fijas en una barra al pie. En tablets las tablas se mantienen, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.",
+    },
   ],
   relacionados: [
     "primeros-pasos/permisos-y-pantallas-visibles",

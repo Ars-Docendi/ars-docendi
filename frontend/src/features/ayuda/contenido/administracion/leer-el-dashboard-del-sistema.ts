@@ -79,6 +79,11 @@ export const leerElDashboardDelSistema: ArticuloAyuda = {
       respuesta:
         "No. Solo nombres de componentes, estados, duraciones y horas. Si la base falla, el mensaje no expone datos de conexión.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px las comprobaciones se muestran como tarjetas, una por componente, con su estado, duración y última comprobación. El botón Actualizar sigue disponible arriba.",
+    },
   ],
   relacionados: ["administracion/consultar-la-auditoria"],
 };

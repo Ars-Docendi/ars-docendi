@@ -80,6 +80,11 @@ export const revisarElTablero: ArticuloAyuda = {
       respuesta:
         "El selector Filtrar por período arranca en el período abierto. Cambialo a otro período o a Todos los períodos para ver los demás.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px los pedidos se muestran como tarjetas: el nombre del docente abre el pedido y debajo ves legajo, tipo, fechas y estado. Las áreas son pestañas que se deslizan con el dedo, cada una con su cantidad. Un único botón «Filtros (n)» abre una hoja con todos los filtros, con «Limpiar» y un «Ver N resultados» que se actualiza al elegir; lo aplicado queda como chips que se quitan de a uno o con «Limpiar filtros». El orden se elige en el selector «Ordenar por». La lista pagina de a 20 tarjetas. En tablets la tabla se mantiene, con la primera columna fija.",
+    },
   ],
   relacionados: [
     "designaciones/resolver-un-pedido",

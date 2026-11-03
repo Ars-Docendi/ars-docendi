@@ -64,6 +64,12 @@ El acceso efectivo se controla por `sistema.estado.ver` y `auditoria.ver`; la es
 - Resumir un `UPDATE` como una baja sin regla que lo sustente.
 - Ocultar controles esenciales en móvil, quitar el foco visible o usar colores como único indicador de estado.
 
+## Teléfono
+
+- Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
+- **Auditoría**: cada evento es una tarjeta (fecha, usuario, acción, módulo y resumen) sin menú «⋯», porque la fila solo abre el detalle. Los filtros de la consulta se reúnen en «Filtros (n)» (hoja inferior con «Limpiar» y «Ver N resultados») y siguen aplicándose con la acción **Buscar**. La paginación del servidor se mantiene.
+- **Dashboard**: cada comprobación es una tarjeta con estado, duración y última comprobación; **Actualizar** sigue arriba.
+
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)

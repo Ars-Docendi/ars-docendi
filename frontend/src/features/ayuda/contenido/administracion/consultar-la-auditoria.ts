@@ -91,6 +91,11 @@ export const consultarLaAuditoria: ArticuloAyuda = {
       respuesta:
         "La lista no se actualiza sola: pulsá Actualizar. Si usás filtros de fecha, revisá que Hasta incluya el momento del cambio.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px los eventos se muestran como tarjetas con fecha, usuario, acción y módulo, y el detalle se abre desde la tarjeta. Los filtros de la consulta se reúnen en el botón «Filtros (n)», que abre una hoja con «Limpiar» y «Ver N resultados». La consulta sigue paginando como en escritorio.",
+    },
   ],
   relacionados: [
     "administracion/leer-el-dashboard-del-sistema",

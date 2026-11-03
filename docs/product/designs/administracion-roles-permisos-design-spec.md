@@ -46,3 +46,10 @@ Los módulos usan `<details>`/`<summary>`, operables con teclado; la casilla de 
 accesible («Todos los permisos de <módulo>») y no pliega el bloque. Las casillas se deshabilitan sin
 `roles.gestionar_membresia` o con el guardado pendiente. Los conflictos de concurrencia mantienen el contexto seleccionado y
 requieren recargar la versión vigente; no se muestran datos ajenos ni mensajes técnicos.
+
+## Teléfono
+
+- Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
+- **Tarjetas**: cada rol es una tarjeta con el nombre como enlace, la cantidad de permisos y personas como línea de datos, insignia de estado y menú «⋯» (44 px) con las acciones de la fila.
+- **Filtros y orden**: botón «Filtros (n)» con hoja inferior («Limpiar», «Ver N resultados»), chips quitables con «Limpiar filtros» y selector nativo «Ordenar por».
+- **Paginación**: 20 tarjetas por página, solo en teléfono.
