@@ -190,6 +190,77 @@ public sealed class ServicioTareas(
         return await MapearDetalleAsync(tarea, ct);
     }
 
+    /// <summary>
+    /// Vuelve hija a una tarea existente: la decide la autoridad creadora del padre. La tarea y sus
+    /// descendientes toman el Proyecto del padre, como una hija creada desde cero.
+    /// </summary>
+    public async Task<TareaDto> VincularHijaAsync(Guid id, VincularHijaRequest datos, CancellationToken ct)
+    {
+        if (id == datos.TareaId) throw ReglaDeJerarquia("Una tarea no puede ser hija de sí misma.");
+
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareasAsync([id, datos.TareaId], ct);
+        var actor = await directorio.ResolverActorAsync(ct);
+        var padre = await RequerirAsync(id, actor, ct);
+        MaquinaEstadosTarea.RequerirPuedeEditarCampos(padre, actor);
+        var hija = await RequerirAsync(datos.TareaId, actor, ct);
+        RequerirVersion(hija.Version, datos.Version);
+        var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
+
+        if (hija.TareaPadreId is not null)
+            throw ReglaDeJerarquia("La tarea ya es hija de otra. Desvinculala primero.");
+        if (hija.EstadoId == Cancelada(catalogos))
+            throw ReglaDeJerarquia("Una tarea cancelada no se puede vincular.");
+        var descendientes = await repositorio.DescendientesAsync(hija.Id, ct);
+        if (descendientes.Any(d => d.Id == padre.Id))
+            throw ReglaDeJerarquia("Una tarea no puede ser hija de una de sus propias hijas.");
+
+        var ahora = DateTimeOffset.UtcNow;
+        if (hija.ProyectoId != padre.ProyectoId)
+        {
+            await RequerirProyectoQueAdmiteTareasAsync(padre.ProyectoId, catalogos, ct);
+            hija.ProyectoId = padre.ProyectoId;
+            foreach (var descendiente in descendientes)
+            {
+                descendiente.ProyectoId = padre.ProyectoId;
+                MaquinaEstadosTarea.Registrar(descendiente, actor, AccionesHistorial.Editar, null, ahora);
+            }
+        }
+
+        hija.TareaPadreId = padre.Id;
+        MaquinaEstadosTarea.Registrar(hija, actor, AccionesHistorial.Editar, $"Vinculada como hija de la tarea N° {padre.Numero}", ahora);
+        MaquinaEstadosTarea.Registrar(padre, actor, AccionesHistorial.Editar, $"Vinculó como hija la tarea N° {hija.Numero}", ahora);
+        await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(padre.Id, actor, catalogos, ct);
+        await transaccion.CommitAsync(ct);
+        return await MapearDetalleAsync(padre, ct);
+    }
+
+    /// <summary>La tarea queda sin padre y conserva su Proyecto; el avance del padre se recalcula sin ella.</summary>
+    public async Task<TareaDto> DesvincularHijaAsync(Guid id, Guid hijaId, uint? version, CancellationToken ct)
+    {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareasAsync([id, hijaId], ct);
+        var actor = await directorio.ResolverActorAsync(ct);
+        var padre = await RequerirAsync(id, actor, ct);
+        MaquinaEstadosTarea.RequerirPuedeEditarCampos(padre, actor);
+        var hija = await RequerirAsync(hijaId, actor, ct);
+        if (hija.TareaPadreId != id) throw NoEncontrada("La tarea no es hija de esta tarea.");
+        RequerirVersion(hija.Version, version);
+
+        var ahora = DateTimeOffset.UtcNow;
+        hija.TareaPadreId = null;
+        MaquinaEstadosTarea.Registrar(hija, actor, AccionesHistorial.Editar, $"Desvinculada de la tarea N° {padre.Numero}", ahora);
+        MaquinaEstadosTarea.Registrar(padre, actor, AccionesHistorial.Editar, $"Desvinculó la tarea N° {hija.Numero}", ahora);
+        await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(padre.Id, actor, await repositorio.ObtenerCatalogosAsync(ct), ct);
+        await transaccion.CommitAsync(ct);
+        return await MapearDetalleAsync(padre, ct);
+    }
+
+    private static ExcepcionAplicacion ReglaDeJerarquia(string mensaje) =>
+        new(TipoErrorAplicacion.ReglaDeNegocio, "tarea-regla-invalida", mensaje);
+
     public async Task<TareaDto> ComentarAsync(Guid id, ComentarTareaRequest datos, CancellationToken ct)
     {
         await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);

@@ -57,6 +57,17 @@ public sealed class TareasController : ControllerBase
     public Task<TareaDto> EditarAvance(Guid id, EditarAvanceRequest datos, ServicioTareas servicio, CancellationToken ct) =>
         servicio.EditarAvanceAsync(id, datos, ct);
 
+    [Authorize(Policy = Permisos.TareasGestionar)]
+    [HttpPost("{id:guid}/hijas")]
+    public Task<TareaDto> VincularHija(Guid id, VincularHijaRequest datos, ServicioTareas servicio, CancellationToken ct) =>
+        servicio.VincularHijaAsync(id, datos, ct);
+
+    [Authorize(Policy = Permisos.TareasGestionar)]
+    [HttpDelete("{id:guid}/hijas/{hijaId:guid}")]
+    public Task<TareaDto> DesvincularHija(
+        Guid id, Guid hijaId, [FromQuery] uint? version, ServicioTareas servicio, CancellationToken ct) =>
+        servicio.DesvincularHijaAsync(id, hijaId, version, ct);
+
     [Authorize(Policy = Permisos.TareasVer)]
     [HttpPost("{id:guid}/comentarios")]
     public async Task<ActionResult<TareaDto>> Comentar(

@@ -63,6 +63,8 @@ vi.mock("../hooks/useAccionesTarea", () => {
     useEditarAvance: mutacion,
     useEditarTarea: mutacion,
     useQuitarRelacion: mutacion,
+    useVincularHija: mutacion,
+    useDesvincularHija: mutacion,
   };
 });
 

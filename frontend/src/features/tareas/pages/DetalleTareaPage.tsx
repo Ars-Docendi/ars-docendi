@@ -262,6 +262,7 @@ function DetalleCargado({
               tarea={tarea}
               todas={todas}
               puedeCrear={puedeCrearHija}
+              puedeVincular={puedeCrearHija && puedeEditar}
               onCrearHija={() => setModalHijaAbierto(true)}
             />
 

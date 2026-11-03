@@ -81,6 +81,9 @@ public sealed record CambiarEstadoTareaRequest(string Estado, string? Comentario
 
 public sealed record EditarAvanceRequest(int PorcentajeAvance, uint? Version = null);
 
+/// <summary><c>Version</c> es la de la tarea que se vincula: es la que cambia de padre.</summary>
+public sealed record VincularHijaRequest(Guid TareaId, uint? Version = null);
+
 public sealed record ComentarTareaRequest(string Texto);
 
 public sealed record RelacionarTareaRequest(Guid OtraTareaId);

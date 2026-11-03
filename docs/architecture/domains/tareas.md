@@ -45,4 +45,5 @@ El comportamiento vigente está en las specs; este documento no lo repite:
 
 - **Trello, no Jira**: el alcance es coordinación interna liviana; no se agregan flujos de aprobación dentro del módulo.
 - **Rollup sólo del avance**: el % de avance de una tarea con hijas no canceladas es el promedio redondeado de sus hijas directas, se recalcula subiendo por los ancestros y no se edita a mano; una tarea cerrada conserva el suyo hasta reabrirse. Resolver una tarea lleva su avance a 100. El estado del padre no se deriva de sus hijas.
+- **Vincular hijas existentes**: lo decide la autoridad creadora del padre; la tarea y sus descendientes toman su Proyecto. Mover entre padres exige desvincular primero, para no reubicar una tarea sin querer.
 - **Sin BR**: ninguna regla de Tareas proviene de normativa institucional ([business-rules/tareas.md](../../business-rules/tareas.md)).
