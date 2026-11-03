@@ -200,4 +200,26 @@ describe("ArticuloAyudaPage", () => {
       );
     });
   });
+
+  it("en pantalla angosta no hay sidebar y el índice 'En esta página' lleva al paso", async () => {
+    vi.stubGlobal("matchMedia", (consulta: string) => ({
+      matches: consulta.includes("max-width: 900px"),
+      media: consulta,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    const user = userEvent.setup();
+    const router = renderAyuda("/ayuda/general/bienvenida");
+    const contenido = await contenidoAyuda();
+    await contenido.findByRole("heading", { level: 1 });
+
+    expect(screen.queryByRole("navigation", { name: "Documentación de ayuda" })).toBeNull();
+    scrollIntoView.mockClear();
+    await user.click(contenido.getByText("En esta página"));
+    await user.click(contenido.getByRole("link", { name: "Cerrá la sesión" }));
+
+    expect(router.state.location.hash).toBe("#paso-3");
+    await waitFor(() => expect(elementosEnfocados()).toContain("paso-3"));
+    vi.unstubAllGlobals();
+  });
 });
