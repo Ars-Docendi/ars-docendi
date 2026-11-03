@@ -1,7 +1,7 @@
 ## 1. Contrato de Guaraní
 
-- [ ] 1.1 Recibir los dos endpoints (comisiones por período y períodos lectivos) con docentes, propuestas y bandas como listas, y guardar respuestas de ejemplo con datos ocultados como fixtures JSON en `backend/tests/ArsDocendi.IntegrationTests/Designaciones/Guarani/`; verificar que los documentos de los fixtures son ficticios y no hay CUIL ni correos
-- [ ] 1.2 Registrar en `design.md` los paths confirmados (cierra las Open Questions) y verificar que cada campo de la spec `importar-comisiones-guarani` tiene origen identificado
+- [x] 1.1 Recibir los dos endpoints (comisiones por período y períodos lectivos) como filas planas, y guardar respuestas de ejemplo con datos ocultados como fixtures JSON en `backend/tests/ArsDocendi.IntegrationTests/Designaciones/Guarani/`; verificar que los documentos de los fixtures son ficticios y no hay CUIL ni correos
+- [x] 1.2 Registrar en `design.md` el contrato confirmado (los paths de cada ambiente son configuración) y verificar que cada campo de la spec `importar-comisiones-guarani` tiene origen identificado
 
 ## 2. Datos y permisos
 
@@ -62,3 +62,9 @@ Fuera del alcance de este change: la resuelve la rama del asistente (`feature/as
 ## 12. Selección por año y período
 
 - [x] 12.1 Separar el selector en año y período lectivo, ambos en la URL; verificar con tests de página el cambio de año y el período por defecto
+
+## 13. Ajustes de revisión
+
+- [x] 13.1 Aplicar el plazo también a la lectura del cuerpo y traducir sus fallas a 504 y 502; verificar con `ClienteGuaraniTests`
+- [x] 13.2 Exigir HTTPS con credenciales o fuera de Development, y rutas relativas al origen; verificar con `ClienteGuaraniTests`
+- [x] 13.3 Rechazar un período con salto de línea final; verificar con `ComisionesHttpTests`

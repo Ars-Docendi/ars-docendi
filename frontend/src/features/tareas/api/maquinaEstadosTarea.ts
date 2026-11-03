@@ -32,6 +32,11 @@ export function puedeEditarAvance(tarea: Tarea, actor: ActorTarea): boolean {
 
 const ESTADOS_TERMINALES: readonly EstadoTarea[] = ["resuelta", "cancelada"];
 
+/** Una tarea cerrada conserva su avance: no sigue el promedio de sus hijas hasta reabrirse. */
+export function avanceSigueALasHijas(tarea: Tarea): boolean {
+  return tarea.avanceCalculado && !ESTADOS_TERMINALES.includes(tarea.estado);
+}
+
 function esTerminal(estado: EstadoTarea): boolean {
   return ESTADOS_TERMINALES.includes(estado);
 }

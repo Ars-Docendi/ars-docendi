@@ -138,6 +138,18 @@ public sealed class ComisionesHttpTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Periodo_con_salto_de_linea_se_rechaza()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(GuaraniDePrueba.ConFixtures());
+        using var cliente = Cliente(host, Secretaria, "secretaria");
+
+        using var respuesta = await cliente.GetAsync("/api/designaciones/comisiones?periodoLectivoId=152%0A", Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+    }
+
+    [Fact]
     public async Task Exportacion_exige_comisiones_ver_y_rechaza_pedidos_invalidos()
     {
         await SembrarAsync();

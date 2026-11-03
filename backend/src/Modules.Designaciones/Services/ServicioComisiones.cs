@@ -212,6 +212,8 @@ public sealed partial class ServicioComisiones(
             logger.LogError(
                 "Integración Guaraní sin credenciales: definir las variables de entorno {VariableUsuario} y {VariableContrasena}",
                 OpcionesGuarani.VariableUsuario, OpcionesGuarani.VariableContrasena);
+        if (opciones.Value.TieneEndpoints && opciones.Value.FaltaHttps)
+            logger.LogError("Integración Guaraní deshabilitada: Guarani:UrlBase debe usar HTTPS");
         if (!guarani.EstaConfigurado)
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.ServicioExternoNoConfigurado,
@@ -255,6 +257,6 @@ public sealed partial class ServicioComisiones(
                 new Dictionary<string, string[]> { ["periodoLectivoId"] = ["Formato inválido."] });
     }
 
-    [GeneratedRegex("^[A-Za-z0-9_-]{1,32}$")]
+    [GeneratedRegex(@"\A[A-Za-z0-9_-]{1,32}\z")]
     private static partial Regex FormatoPeriodo();
 }

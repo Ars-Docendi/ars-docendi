@@ -202,7 +202,8 @@ Compose project, base y storage únicamente en la VM.
   entorno local conectado a esa red (`dotnet user-secrets` en local). Las credenciales
   salen de las variables de entorno `guarani_user` y `guarani_pass`: son obligatorias
   salvo en Development, y si faltan la importación responde
-  `503 guarani-no-configurado` y el log indica cuáles definir. En prod, los secrets
+  `503 guarani-no-configurado` y el log indica cuáles definir. La URL debe ser HTTPS salvo en
+  Development sin credenciales, y las rutas, relativas a ella; si no, responde el mismo `503`. En prod, los secrets
   `GUARANI_USER` y `GUARANI_PASS` del Environment `prod` llegan como esas variables;
   `GUARANI_URL_BASE`, `GUARANI_RUTA_PERIODOS_LECTIVOS` y `GUARANI_RUTA_COMISIONES` son
   repository variables que `compose.base.yml` mapea a `Guarani__*`. Staging, previews y CI

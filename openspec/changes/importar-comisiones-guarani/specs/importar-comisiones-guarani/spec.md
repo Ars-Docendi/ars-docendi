@@ -78,7 +78,7 @@ Cada comisión importada SHALL guardar, sin requerir que exista nada en los cat�
 
 ### Requirement: Vinculación con personas y catálogos del sistema
 
-Durante la importación, cada docente de una comisión SHALL vincularse con la persona del sistema que tenga el mismo documento, cada carrera con la carrera del sistema que tenga el mismo código, y la materia de la comisión con la materia del sistema que tenga ese código dentro de cada carrera vinculada. Lo que no tenga correspondencia MUST importarse igual, sin vínculo. Los vínculos MUST recalcularse completos en cada importación y MUST NOT depender de vínculos cargados a mano. El documento MUST usarse sólo para vincular y MUST NOT persistirse.
+Durante la importación, cada docente de una comisión SHALL vincularse con la persona del sistema que tenga el mismo documento, cada carrera con la carrera del sistema que tenga el mismo código, y la materia de la comisión con la materia canónica del sistema que tenga ese código. Lo que no tenga correspondencia MUST importarse igual, sin vínculo. Los vínculos MUST recalcularse completos en cada importación y MUST NOT depender de vínculos cargados a mano. El documento MUST usarse sólo para vincular y MUST NOT persistirse.
 
 #### Scenario: Docente existente en el sistema
 
@@ -141,7 +141,7 @@ Cada intento de importación SHALL registrarse con período lectivo, actor, fech
 
 ### Requirement: Credenciales de Guaraní en el servidor
 
-Las credenciales de la API de Guaraní MUST provenir de las variables de entorno `guarani_user` y `guarani_pass` del servidor. MUST NOT solicitarse al usuario, enviarse al navegador, persistirse en la base ni escribirse en logs. Son obligatorias salvo en Development, donde la API local se usa sin credenciales. Si la configuración está incompleta, los endpoints que contactan a Guaraní MUST responder con un error identificable de integración no configurada, sin intentar la llamada.
+Las credenciales de la API de Guaraní MUST provenir de las variables de entorno `guarani_user` y `guarani_pass` del servidor. MUST NOT solicitarse al usuario, enviarse al navegador, persistirse en la base ni escribirse en logs. Son obligatorias salvo en Development, donde la API local se usa sin credenciales. La URL de Guaraní MUST usar HTTPS salvo en Development sin credenciales, y sus rutas MUST ser relativas a esa URL. Si la configuración está incompleta, los endpoints que contactan a Guaraní MUST responder con un error identificable de integración no configurada, sin intentar la llamada.
 
 #### Scenario: Integración no configurada
 

@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { puedeCambiarEstado, puedeEditarAvance, puedeEditarCampos } from "./maquinaEstadosTarea";
+import {
+  avanceSigueALasHijas,
+  puedeCambiarEstado,
+  puedeEditarAvance,
+  puedeEditarCampos,
+} from "./maquinaEstadosTarea";
 import type { ActorTarea, Tarea } from "../types";
 
 const SECRETARIA: ActorTarea = { nombre: "Lucía Fernández", rol: "Secretaría Académica" };
@@ -45,6 +50,14 @@ describe("Administrador de Sistemas", () => {
     expect(puedeEditarAvance(tarea(), ADMINISTRADOR)).toBe(true);
     expect(puedeCambiarEstado(tarea(), ADMINISTRADOR, "cancelada")).toBe(true);
     expect(puedeCambiarEstado(tarea({ estado: "resuelta" }), ADMINISTRADOR, "en_curso")).toBe(true);
+  });
+});
+
+describe("avanceSigueALasHijas", () => {
+  it("sólo mientras la tarea está abierta", () => {
+    expect(avanceSigueALasHijas(tarea({ avanceCalculado: true }))).toBe(true);
+    expect(avanceSigueALasHijas(tarea({ avanceCalculado: true, estado: "resuelta" }))).toBe(false);
+    expect(avanceSigueALasHijas(tarea({ avanceCalculado: false }))).toBe(false);
   });
 });
 

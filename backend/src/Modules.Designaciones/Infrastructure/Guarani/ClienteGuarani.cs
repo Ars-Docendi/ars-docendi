@@ -70,10 +70,14 @@ public sealed class ClienteGuarani(
                 Encoding.UTF8.GetBytes($"{opciones.Value.Usuario}:{opciones.Value.Contrasena}")));
         solicitud.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
+        // Con ResponseHeadersRead, HttpClient.Timeout deja de correr al llegar los encabezados.
+        using var plazo = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        plazo.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, opciones.Value.TimeoutSegundos)));
+
         HttpResponseMessage respuesta;
         try
         {
-            respuesta = await http.SendAsync(solicitud, HttpCompletionOption.ResponseHeadersRead, ct);
+            respuesta = await http.SendAsync(solicitud, HttpCompletionOption.ResponseHeadersRead, plazo.Token);
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -94,8 +98,8 @@ public sealed class ClienteGuarani(
                     (int)respuesta.StatusCode, periodo);
             try
             {
-                await using var cuerpo = await respuesta.Content.ReadAsStreamAsync(ct);
-                var json = await JsonDocument.ParseAsync(cuerpo, cancellationToken: ct);
+                await using var cuerpo = await respuesta.Content.ReadAsStreamAsync(plazo.Token);
+                var json = await JsonDocument.ParseAsync(cuerpo, cancellationToken: plazo.Token);
                 if (json.RootElement.ValueKind != JsonValueKind.Array
                     || json.RootElement.EnumerateArray().Any(f => f.ValueKind != JsonValueKind.Object))
                 {
@@ -104,9 +108,13 @@ public sealed class ClienteGuarani(
                 }
                 return json;
             }
-            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 throw Fallo(CausasImportacion.Timeout, "Guaraní no respondió a tiempo.", null, periodo);
+            }
+            catch (IOException)
+            {
+                throw Fallo(CausasImportacion.NoDisponible, "Se cortó la conexión con Guaraní.", null, periodo);
             }
             catch (JsonException)
             {

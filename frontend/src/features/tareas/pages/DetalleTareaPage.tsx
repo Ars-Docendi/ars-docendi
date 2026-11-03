@@ -20,7 +20,11 @@ import { TareasHijas } from "../components/TareasHijas";
 import { IconoBan, IconoSquarePen } from "../components/lucide";
 import { formatearFecha, historialAAuditEntries } from "../components/detalleAdapters";
 import { estadoSemaforo, etiquetaSemaforo, muestraSemaforo } from "../components/semaforoTarea";
-import { puedeCambiarEstado, puedeEditarCampos } from "../api/maquinaEstadosTarea";
+import {
+  avanceSigueALasHijas,
+  puedeCambiarEstado,
+  puedeEditarCampos,
+} from "../api/maquinaEstadosTarea";
 import { useActorTareas, usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas, useTarea } from "../hooks/useTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
@@ -287,9 +291,8 @@ function DetalleCargado({
           </div>
 
           <aside className="adoc-det-tarea-rail">
-            {/* Se remonta si el avance cambió por otra vía (Resuelta) para no quedar con el valor anterior. */}
             <AccionesEstadoTarea
-              key={`${tarea.id}:${tarea.porcentajeAvance}`}
+              key={tarea.id}
               tarea={tarea}
               actor={actor}
               enviando={enviando}
@@ -328,7 +331,8 @@ function DetalleCargado({
                 <div className="adoc-det-tarea-dato">
                   <dt>% de avance</dt>
                   <dd>
-                    {tarea.porcentajeAvance}%{tarea.avanceCalculado && " · según sus tareas hijas"}
+                    {tarea.porcentajeAvance}%
+                    {avanceSigueALasHijas(tarea) && " · según sus tareas hijas"}
                   </dd>
                 </div>
                 <div className="adoc-det-tarea-dato">

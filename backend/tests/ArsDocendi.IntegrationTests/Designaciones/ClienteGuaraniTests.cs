@@ -79,6 +79,43 @@ public sealed class ClienteGuaraniTests
     }
 
     [Fact]
+    public async Task Cuerpo_que_se_detiene_tras_los_encabezados_es_timeout()
+    {
+        var guarani = new GuaraniDePrueba().Fallar(GuaraniDePrueba.RutaPeriodos,
+            () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new FlujoQueFalla(null)) });
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(
+            () => guarani.Cliente(GuaraniDePrueba.Opciones(timeoutSegundos: 1)).ListarPeriodosLectivosAsync(Ct));
+
+        Assert.Equal(CausasImportacion.Timeout, error.Causa);
+    }
+
+    [Fact]
+    public async Task Conexion_cortada_durante_la_lectura_es_no_disponible()
+    {
+        var guarani = new GuaraniDePrueba().Fallar(GuaraniDePrueba.RutaPeriodos,
+            () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new FlujoQueFalla(new IOException("corte"))) });
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(() => guarani.Cliente().ListarPeriodosLectivosAsync(Ct));
+
+        Assert.Equal(CausasImportacion.NoDisponible, error.Causa);
+    }
+
+    /// <summary>Cuerpo que falla con <paramref name="error"/> o, sin error, espera hasta que lo cancelen.</summary>
+    private sealed class FlujoQueFalla(Exception? error) : MemoryStream
+    {
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (error is not null) throw error;
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+    }
+
+    [Fact]
     public async Task Red_caida_es_no_disponible()
     {
         var guarani = new GuaraniDePrueba().Fallar(GuaraniDePrueba.RutaPeriodos,
@@ -119,6 +156,9 @@ public sealed class ClienteGuaraniTests
     [InlineData("https://g.invalid/", "u", "c", true, true)]
     [InlineData("https://g.invalid/", "", "", false, true)]
     [InlineData("", "", "", false, false)]
+    [InlineData("http://g.invalid/", "", "", false, true)]
+    [InlineData("http://g.invalid/", "u", "c", false, false)]
+    [InlineData("http://g.invalid/", "u", "c", true, false)]
     public void Configuracion_incompleta_deshabilita_la_integracion(
         string url, string usuario, string contrasena, bool exigeCredenciales, bool esperada)
     {
@@ -145,6 +185,22 @@ public sealed class ClienteGuaraniTests
         var conCredenciales = GuaraniDePrueba.ConFixtures();
         await conCredenciales.Cliente().ListarPeriodosLectivosAsync(Ct);
         Assert.Equal("Basic", Assert.Single(conCredenciales.Solicitudes).Headers.Authorization?.Scheme);
+    }
+
+    [Theory]
+    [InlineData("https://otro.invalid/periodos")]
+    [InlineData("//otro.invalid/periodos")]
+    [InlineData("/api/periodos")]
+    [InlineData("\\\\otro.invalid\\periodos")]
+    public void Ruta_que_no_es_relativa_al_origen_no_esta_configurada(string ruta)
+    {
+        var periodos = GuaraniDePrueba.Opciones();
+        periodos.RutaPeriodosLectivos = ruta;
+        var comisiones = GuaraniDePrueba.Opciones();
+        comisiones.RutaComisiones = ruta + OpcionesGuarani.MarcadorPeriodo;
+
+        Assert.False(periodos.EstaConfigurada);
+        Assert.False(comisiones.EstaConfigurada);
     }
 
     [Fact]
