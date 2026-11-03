@@ -59,12 +59,23 @@ While push is not active and available the panel SHALL show at most one small hi
 
 ### Requirement: Service worker and manifest
 
-The app SHALL serve `/sw.js` and `/manifest.webmanifest` (name, short name, start URL, `display: standalone`, 192 and 512 px PNG icons, a maskable icon and an `apple-touch-icon`). The service worker MUST show the notification with the received title and body, tag it with the notice id, and on click focus an open window or open the URL, navigating to the deep link. The web server MUST send `Cache-Control: no-cache` for the worker and the manifest.
+The app SHALL serve `/sw.js` and `/manifest.webmanifest` (name, short name, start URL, `display: standalone`, 192 and 512 px PNG icons, a maskable icon and an `apple-touch-icon`). The service worker MUST show the notification with the received title and body, tag it with the notice id, and on click focus an open window or open the URL, navigating to the deep link. Because a standalone web app on iOS can cold-start at its start page and lose a message posted to it, the worker MUST also persist the tapped target `{ url, id, en }` in Cache Storage before focusing or opening, and the app MUST consume (read and delete) it on mount and when it becomes visible, navigating once with replace when it is less than 2 minutes old and an in-app path, and ignoring it otherwise. The web server MUST send `Cache-Control: no-cache` for the worker and the manifest.
 
 #### Scenario: Click on a push
 
 - **WHEN** the user taps a notification with `url: /tareas/123`
 - **THEN** the app SHALL open or focus on that route
+
+#### Scenario: Cold start on iOS
+
+- **GIVEN** the app was closed and starts at its start page after the tap
+- **WHEN** the app mounts and finds a pending target of less than 2 minutes
+- **THEN** it SHALL navigate to that route once and delete the target
+
+#### Scenario: Stale target
+
+- **WHEN** the pending target is older than 2 minutes or not an in-app path
+- **THEN** it SHALL be deleted and ignored
 
 ### Requirement: Help article
 

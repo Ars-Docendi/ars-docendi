@@ -27,6 +27,7 @@
 - [x] 4.2 `pushApi`, device hook (support detection, permission, subscribe, sync on session change, unsubscribe on logout) and preferences hook; the re-sync is deduplicated per user and subscription.
 - [x] 4.3 Preferences view, gear button, dismissible hint, iOS-not-installed explanation; CSS at 390 px.
 - [x] 4.4 Frontend tests: switch states, disabled groups, unsupported and iOS-not-installed messages, hint dismissal.
+- [x] 4.5 Robust deep link on iOS cold start: the worker parks the tapped target in Cache Storage and the app consumes it on mount and on visibility (test: recent navigates once, stale ignored).
 
 ## 5. Docs and operations
 

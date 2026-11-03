@@ -39,3 +39,7 @@ Los navegadores sólo permiten Web Push en `https://` o en `localhost`. Para pro
 - **Suscripciones caducadas**: un `404`/`410` del servicio borra la suscripción. Otros fallos la conservan.
 - **TTL**: 24 h. Un aviso que no pudo entregarse en un día (teléfono apagado) se descarta en el servicio de push; el aviso sigue en el panel.
 - **Servidor web**: `frontend/nginx.conf` sirve `sw.js` y `manifest.webmanifest` con `Cache-Control: no-cache` para que un service worker nuevo se tome en la próxima carga.
+
+## Abrir el aviso al tocar la notificación (iOS)
+
+En iPhone, una web app instalada que está cerrada o suspendida puede arrancar en su página de inicio (`/` → `/portal`) en lugar de la URL de la notificación, y un mensaje enviado desde el service worker a una ventana que todavía está arrancando se pierde. Por eso `frontend/public/sw.js`, antes de enfocar o abrir una ventana, guarda el destino `{ url, id, en }` en Cache Storage (cache `ars-docendi-push`, clave `/__push-pendiente`) e intenta además `client.navigate`, `postMessage` y `openWindow`. La app (`useAbrirDesdePush`) lee y **borra** ese destino al montar y cada vez que la página vuelve a ser visible; si tiene menos de 2 minutos y es una ruta interna, navega a ella con el router (`replace`), marca el aviso como leído y refresca los contadores. El mensaje y el destino pendiente son idempotentes entre sí: el destino se borra al consumirlo, así que no hay doble navegación.
