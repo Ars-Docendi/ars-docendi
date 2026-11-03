@@ -2,7 +2,7 @@ import { useId } from "react";
 import { Link } from "react-router-dom";
 
 import type { DispositivoPush, EstadoDispositivo } from "../push/useDispositivoPush";
-import { gruposVisibles, RUTA_AYUDA_PUSH } from "../push/tiposPush";
+import { modulosVisibles, RUTA_AYUDA_PUSH } from "../push/modulosPush";
 import { usePreferenciasPush } from "../push/usePreferenciasPush";
 import { Interruptor } from "./Interruptor";
 
@@ -23,11 +23,11 @@ const TEXTO_ESTADO: Record<EstadoDispositivo, string> = {
 
 interface PreferenciasNotificacionesProps {
   dispositivo: DispositivoPush;
-  /** Permissions of the active role; unknown (`undefined`) shows every group. */
+  /** Permissions of the active role; unknown (`undefined`) shows every module. */
   permisos?: readonly string[];
 }
 
-/** "Preferencias de notificaciones": this device's push switch and the per-type switches. */
+/** "Preferencias de notificaciones": this device's push switch and one switch per module. */
 export function PreferenciasNotificaciones({
   dispositivo,
   permisos,
@@ -36,9 +36,9 @@ export function PreferenciasNotificaciones({
   const idEstado = useId();
   const activo = dispositivo.estado === "activo";
   const puedeCambiar = activo || dispositivo.estado === "desactivado";
-  const mostrarTipos = dispositivo.estado !== "servidor-apagado";
-  const preferencias = usePreferenciasPush(mostrarTipos);
-  const grupos = gruposVisibles(permisos);
+  const mostrarModulos = dispositivo.estado !== "servidor-apagado";
+  const preferencias = usePreferenciasPush(mostrarModulos);
+  const modulos = modulosVisibles(permisos);
 
   return (
     <div className="adoc-notif-prefs">
@@ -71,15 +71,15 @@ export function PreferenciasNotificaciones({
         </p>
       </section>
 
-      {mostrarTipos && (
+      {mostrarModulos && (
         <section
           className="adoc-notif-prefs-bloque"
-          aria-label="Qué avisos recibir en el dispositivo"
+          aria-label="Qué módulos te avisan en el dispositivo"
         >
-          <h3>Qué avisos querés recibir</h3>
+          <h3>De qué querés recibir avisos</h3>
           <p className="adoc-notif-prefs-ayuda">
             {activo
-              ? "Elegí de qué te avisamos al dispositivo. En el panel vas a ver todos igual."
+              ? "Elegí de qué módulos te avisamos al dispositivo. En el panel vas a ver todos los avisos igual."
               : "Activá las notificaciones en este dispositivo para elegir. En el panel vas a ver todos los avisos igual."}
           </p>
           {preferencias.fallo && (
@@ -90,38 +90,28 @@ export function PreferenciasNotificaciones({
               </button>
             </p>
           )}
-          {grupos.map((grupo) => (
-            <div
-              key={grupo.modulo}
-              role="group"
-              aria-labelledby={`notif-prefs-grupo-${grupo.modulo}`}
-              className="adoc-notif-prefs-grupo"
-            >
-              <h4 id={`notif-prefs-grupo-${grupo.modulo}`}>{grupo.titulo}</h4>
-              <ul className="adoc-notif-ul">
-                {grupo.tipos.map((tipo) => (
-                  <li key={tipo.id} className="adoc-notif-prefs-fila">
-                    <div className="adoc-notif-prefs-texto">
-                      <span id={`notif-prefs-${tipo.id}`} className="adoc-notif-prefs-nombre">
-                        {tipo.etiqueta}
-                      </span>
-                      <span id={`notif-prefs-${tipo.id}-d`} className="adoc-notif-prefs-ayuda">
-                        {tipo.descripcion}
-                      </span>
-                    </div>
-                    <Interruptor
-                      id={`notif-prefs-tipo-${tipo.id}`}
-                      etiquetadoPor={`notif-prefs-${tipo.id}`}
-                      descritoPor={`notif-prefs-${tipo.id}-d`}
-                      activo={preferencias.estaHabilitado(tipo.id)}
-                      disabled={!activo || preferencias.cargando || preferencias.fallo}
-                      onCambiar={(quiere) => preferencias.cambiar(tipo.id, quiere)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <ul className="adoc-notif-ul">
+            {modulos.map((modulo) => (
+              <li key={modulo.id} className="adoc-notif-prefs-fila">
+                <div className="adoc-notif-prefs-texto">
+                  <span id={`notif-prefs-${modulo.id}`} className="adoc-notif-prefs-nombre">
+                    {modulo.titulo}
+                  </span>
+                  <span id={`notif-prefs-${modulo.id}-d`} className="adoc-notif-prefs-ayuda">
+                    {modulo.descripcion}
+                  </span>
+                </div>
+                <Interruptor
+                  id={`notif-prefs-modulo-${modulo.id}`}
+                  etiquetadoPor={`notif-prefs-${modulo.id}`}
+                  descritoPor={`notif-prefs-${modulo.id}-d`}
+                  activo={preferencias.estaHabilitado(modulo.id)}
+                  disabled={!activo || preferencias.cargando || preferencias.fallo}
+                  onCambiar={(quiere) => preferencias.cambiar(modulo.id, quiere)}
+                />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </div>

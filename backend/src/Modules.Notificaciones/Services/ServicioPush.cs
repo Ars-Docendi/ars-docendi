@@ -15,9 +15,9 @@ public sealed record SuscripcionPushDto(string Endpoint, ClavesSuscripcionDto? K
 
 public sealed record CancelarSuscripcionPushDto(string Endpoint);
 
-public sealed record PreferenciaPushDto(string TipoEvento, bool Habilitado);
+public sealed record PreferenciaPushDto(string Modulo, bool Habilitado);
 
-public sealed record PreferenciasPushDto(IReadOnlyList<PreferenciaPushDto> Tipos);
+public sealed record PreferenciasPushDto(IReadOnlyList<PreferenciaPushDto> Modulos);
 
 public interface IServicioPush
 {
@@ -63,21 +63,21 @@ internal sealed class ServicioPush(
     public async Task<PreferenciasPushDto> ObtenerPreferenciasAsync(CancellationToken ct)
     {
         var guardadas = await repositorio.ListarPreferenciasAsync(UsuarioId(), ct);
-        return new PreferenciasPushDto(TiposEventoNotificacion.Todos
-            .Select(tipo => new PreferenciaPushDto(tipo, guardadas.GetValueOrDefault(tipo, true)))
+        return new PreferenciasPushDto(ModulosPush.Todos
+            .Select(modulo => new PreferenciaPushDto(modulo, guardadas.GetValueOrDefault(modulo, true)))
             .ToList());
     }
 
     public async Task<PreferenciasPushDto> GuardarPreferenciasAsync(PreferenciasPushDto dto, CancellationToken ct)
     {
         var usuarioId = UsuarioId();
-        var desconocidos = (dto.Tipos ?? []).Select(t => t.TipoEvento)
-            .Where(tipo => !TiposEventoNotificacion.Todos.Contains(tipo)).Distinct().ToArray();
-        if (dto.Tipos is null || desconocidos.Length > 0)
-            throw Validacion("tipos", "Hay tipos de aviso desconocidos o la lista falta.");
+        var desconocidos = (dto.Modulos ?? []).Select(m => m.Modulo)
+            .Where(modulo => !ModulosPush.Todos.Contains(modulo)).Distinct().ToArray();
+        if (dto.Modulos is null || desconocidos.Length > 0)
+            throw Validacion("modulos", "Hay módulos desconocidos o la lista falta.");
 
-        // Last entry wins for a repeated type; nothing is written unless the whole body is valid.
-        var cambios = dto.Tipos.GroupBy(t => t.TipoEvento).ToDictionary(g => g.Key, g => g.Last().Habilitado);
+        // Last entry wins for a repeated module; nothing is written unless the whole body is valid.
+        var cambios = dto.Modulos.GroupBy(m => m.Modulo).ToDictionary(g => g.Key, g => g.Last().Habilitado);
         await repositorio.GuardarPreferenciasAsync(usuarioId, cambios, ct);
         return await ObtenerPreferenciasAsync(ct);
     }

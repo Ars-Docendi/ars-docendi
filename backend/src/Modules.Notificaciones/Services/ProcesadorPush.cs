@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Modules.Notificaciones.Domain;
 using Modules.Notificaciones.Repositories;
 
 namespace Modules.Notificaciones.Services;
@@ -46,7 +47,10 @@ internal sealed class ProcesadorPush(
         var repositorio = scope.ServiceProvider.GetRequiredService<RepositorioPush>();
 
         var usuarios = trabajo.Destinos.Select(d => d.UsuarioId).Distinct().ToArray();
-        var desactivaron = await repositorio.ListarQueDesactivaronAsync(usuarios, trabajo.TipoEvento, detener);
+        var modulo = ModulosPush.DeEntidad(trabajo.TipoEntidad);
+        var desactivaron = modulo is null
+            ? new HashSet<Guid>()
+            : await repositorio.ListarQueDesactivaronAsync(usuarios, modulo, detener);
         var destinos = trabajo.Destinos.Where(d => !desactivaron.Contains(d.UsuarioId)).ToList();
         if (destinos.Count == 0) return;
 

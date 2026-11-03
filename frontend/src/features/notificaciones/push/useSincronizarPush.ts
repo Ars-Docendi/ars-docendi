@@ -8,6 +8,6 @@ import { sincronizarSuscripcion } from "./dispositivoPush";
  */
 export function useSincronizarPush(usuarioId: string) {
   useEffect(() => {
-    void sincronizarSuscripcion();
+    void sincronizarSuscripcion(usuarioId);
   }, [usuarioId]);
 }

@@ -69,24 +69,42 @@ export async function activarEnDispositivo(
 export async function desactivarEnDispositivo(): Promise<void> {
   const suscripcion = await suscripcionActual();
   if (!suscripcion) return;
+  sincronizado = null;
   await cancelarSuscripcionPush(suscripcion.endpoint);
   await suscripcion.unsubscribe();
 }
 
+// What the server already holds for this tab, so the re-sync does not repeat itself: the shell can
+// mount several times at app load (StrictMode in development, session loading) and each mount runs it.
+let sincronizado: string | null = null;
+let enCurso: { usuarioId: string; promesa: Promise<void> } | null = null;
+
 /**
  * Session start or change: if this browser already holds a subscription and the permission is
  * granted, registers it for the session user (the server reassigns a device to whoever is logged
- * in). Never prompts and never throws: push is an enhancement.
+ * in). Concurrent calls for the same user share one run, and a subscription already registered for
+ * that user is not sent again. Never prompts and never throws: push is an enhancement.
  */
-export async function sincronizarSuscripcion(): Promise<void> {
-  try {
-    if (!soportaPush() || Notification.permission !== "granted") return;
-    if ((await obtenerClavePublicaPush()) === null) return;
-    const suscripcion = await suscripcionActual();
-    if (suscripcion) await registrarSuscripcionPush(suscripcion.toJSON());
-  } catch {
-    // Best effort.
-  }
+export function sincronizarSuscripcion(usuarioId: string): Promise<void> {
+  if (enCurso?.usuarioId === usuarioId) return enCurso.promesa;
+  const promesa = (async () => {
+    try {
+      if (!soportaPush() || Notification.permission !== "granted") return;
+      if ((await obtenerClavePublicaPush()) === null) return;
+      const suscripcion = await suscripcionActual();
+      if (!suscripcion) return;
+      const huella = `${usuarioId}|${suscripcion.endpoint}`;
+      if (sincronizado === huella) return;
+      await registrarSuscripcionPush(suscripcion.toJSON());
+      sincronizado = huella;
+    } catch {
+      // Best effort.
+    }
+  })().finally(() => {
+    if (enCurso?.promesa === promesa) enCurso = null;
+  });
+  enCurso = { usuarioId, promesa };
+  return promesa;
 }
 
 /**
@@ -94,6 +112,7 @@ export async function sincronizarSuscripcion(): Promise<void> {
  * its subscription, so the next login only re-registers it. Never throws and never blocks logout.
  */
 export async function desuscribirDelServidor(): Promise<void> {
+  sincronizado = null;
   try {
     if (!soportaPush()) return;
     const registro = await navigator.serviceWorker.getRegistration();

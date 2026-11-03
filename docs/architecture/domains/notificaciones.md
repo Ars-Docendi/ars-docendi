@@ -10,7 +10,7 @@ Todos los usuarios autenticados, sobre sus propias notificaciones y bajo el rol 
 
 ## Bounded context
 
-- **Pertenece**: la notificación (una fila por usuario destinatario), su estado de lectura, la resolución de destinatarios, el contrato `INotificador`, las suscripciones Web Push por dispositivo, las preferencias de push por tipo de aviso y el envío.
+- **Pertenece**: la notificación (una fila por usuario destinatario), su estado de lectura, la resolución de destinatarios, el contrato `INotificador`, las suscripciones Web Push por dispositivo, las preferencias de push por módulo y el envío.
 - **No pertenece**: el hecho que la origina (vive en Aulas, Designaciones o Tareas), el texto de cada aviso (lo arma el módulo emisor con su propio vocabulario y queda congelado), la identidad y los roles (se leen de `identity`).
 
 ## Entidades principales
@@ -19,7 +19,7 @@ Todos los usuarios autenticados, sobre sus propias notificaciones y bajo el rol 
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | `Notificacion`    | Aviso para un usuario: perfil de destino opcional, evento, entidad de origen, título y mensaje inmutables, contexto JSON, lectura y alta. | `notificaciones.notificaciones`     |
 | `SuscripcionPush` | Dispositivo (endpoint + claves) de un usuario para Web Push; el endpoint es único y pasa al usuario que lo suscribe.                      | `notificaciones.suscripciones_push` |
-| `PreferenciaPush` | Interruptor del push por tipo de aviso y usuario (el aviso in-app no se silencia).                                                        | `notificaciones.preferencias_push`  |
+| `PreferenciaPush` | Interruptor del push por módulo (Aulas, Designaciones, Tareas) y usuario (el aviso in-app no se silencia).                                | `notificaciones.preferencias_push`  |
 
 ## API pública (contract)
 
@@ -43,7 +43,7 @@ Detalle en [api-contracts.md](../api-contracts.md#notificaciones-apinotificacion
 | PATCH         | `/api/notificaciones/leidas`             | sesión    | Marca varias (`ids` o `todas` + `hasta`)            |
 | GET           | `/api/notificaciones/push/clave-publica` | sesión    | Clave VAPID pública (404 si push está apagado)      |
 | POST / DELETE | `/api/notificaciones/push/suscripciones` | sesión    | Alta (upsert que reasigna) y baja de un dispositivo |
-| GET / PUT     | `/api/notificaciones/push/preferencias`  | sesión    | Interruptores de push por tipo de aviso             |
+| GET / PUT     | `/api/notificaciones/push/preferencias`  | sesión    | Interruptores de push por módulo                    |
 
 ## Quién avisa a quién
 

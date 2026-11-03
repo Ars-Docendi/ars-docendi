@@ -515,15 +515,6 @@
   font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
 }
-.adoc-notif-prefs-grupo {
-  margin-top: 16px;
-}
-.adoc-notif-prefs-grupo h4 {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: var(--weight-medium);
-  color: var(--neutral-600);
-}
 .adoc-notif-prefs-fila {
   display: flex;
   align-items: center;

@@ -1,12 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Toaster } from "../../../shared/ui/Toaster";
 import { limpiarToasts } from "../../../shared/ui/toasts";
-import { GRUPOS_PUSH } from "../push/tiposPush";
+import { MODULOS_PUSH } from "../push/modulosPush";
 import type { DispositivoPush, EstadoDispositivo } from "../push/useDispositivoPush";
 import { PreferenciasNotificaciones } from "./PreferenciasNotificaciones";
 
@@ -15,8 +15,6 @@ const api = vi.hoisted(() => ({
   guardarPreferenciasPush: vi.fn(),
 }));
 vi.mock("../api/pushApi", () => api);
-
-const TODOS = GRUPOS_PUSH.flatMap((g) => g.tipos.map((t) => t.id));
 
 function dispositivo(
   estado: EstadoDispositivo,
@@ -51,12 +49,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   limpiarToasts();
   api.obtenerPreferenciasPush.mockResolvedValue({
-    tipos: TODOS.map((tipoEvento) => ({
-      tipoEvento,
-      habilitado: tipoEvento !== "TAREA_COMENTADA",
-    })),
+    modulos: MODULOS_PUSH.map(({ id }) => ({ modulo: id, habilitado: id !== "TAREAS" })),
   });
-  api.guardarPreferenciasPush.mockResolvedValue({ tipos: [] });
+  api.guardarPreferenciasPush.mockResolvedValue({ modulos: [] });
 });
 
 describe("interruptor del dispositivo", () => {
@@ -96,11 +91,11 @@ describe("interruptor del dispositivo", () => {
     );
   });
 
-  it("sin soporte o con el servidor apagado: lo dice y no ofrece los avisos por tipo", () => {
+  it("sin soporte o con el servidor apagado: lo dice y no ofrece los avisos por módulo", () => {
     renderizar(dispositivo("servidor-apagado"));
     expect(screen.getByText(/No disponibles por ahora/)).toBeInTheDocument();
     expect(interruptorDispositivo()).toBeDisabled();
-    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Tareas" })).not.toBeInTheDocument();
     expect(api.obtenerPreferenciasPush).not.toHaveBeenCalled();
   });
 
@@ -110,63 +105,63 @@ describe("interruptor del dispositivo", () => {
   });
 });
 
-describe("interruptores por tipo de aviso", () => {
-  it("con el dispositivo activo reflejan lo guardado y cada cambio guarda sólo ese tipo", async () => {
+describe("interruptores por módulo", () => {
+  it("con el dispositivo activo reflejan lo guardado y cada cambio guarda sólo ese módulo", async () => {
     renderizar(dispositivo("activo"));
-    const comentario = await screen.findByRole("switch", { name: "Comentario nuevo" });
-    await waitFor(() => expect(comentario).toBeEnabled());
-    expect(comentario).not.toBeChecked();
-    expect(screen.getByRole("switch", { name: "Aula asignada" })).toBeChecked();
+    const tareas = await screen.findByRole("switch", { name: "Tareas" });
+    await waitFor(() => expect(tareas).toBeEnabled());
+    expect(tareas).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Reserva de aulas" })).toBeChecked();
+    expect(
+      screen.getByText("Asignaciones, cambios, rechazos y cancelaciones de tus reservas."),
+    ).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("switch", { name: "Aula asignada" }));
+    await userEvent.click(screen.getByRole("switch", { name: "Reserva de aulas" }));
     expect(api.guardarPreferenciasPush).toHaveBeenCalledWith([
-      { tipoEvento: "AULA_ASIGNADA", habilitado: false },
+      { modulo: "AULAS", habilitado: false },
     ]);
-    expect(screen.getByRole("switch", { name: "Aula asignada" })).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Reserva de aulas" })).not.toBeChecked();
   });
 
   it("si guardar falla, vuelve atrás y avisa", async () => {
     api.guardarPreferenciasPush.mockRejectedValue(new Error("500"));
     renderizar(dispositivo("activo"));
-    const aula = await screen.findByRole("switch", { name: "Aula asignada" });
-    await waitFor(() => expect(aula).toBeEnabled());
+    const aulas = await screen.findByRole("switch", { name: "Reserva de aulas" });
+    await waitFor(() => expect(aulas).toBeEnabled());
 
-    await userEvent.click(aula);
+    await userEvent.click(aulas);
     expect(await screen.findByText("No pudimos guardar el cambio")).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.getByRole("switch", { name: "Aula asignada" })).toBeChecked(),
+      expect(screen.getByRole("switch", { name: "Reserva de aulas" })).toBeChecked(),
     );
   });
 
   it("con el dispositivo desactivado están deshabilitados y se pide activarlo primero", async () => {
     renderizar(dispositivo("desactivado"));
-    const aula = await screen.findByRole("switch", { name: "Aula asignada" });
-    expect(aula).toBeDisabled();
+    const aulas = await screen.findByRole("switch", { name: "Reserva de aulas" });
+    expect(aulas).toBeDisabled();
     expect(
       screen.getByText(/Activá las notificaciones en este dispositivo para elegir/),
     ).toBeInTheDocument();
-    await userEvent.click(aula);
+    await userEvent.click(aulas);
     expect(api.guardarPreferenciasPush).not.toHaveBeenCalled();
   });
 
   it("sólo ofrece los módulos que el rol activo puede recibir", async () => {
     renderizar(dispositivo("activo"), ["tareas.ver", "portal.ver"]);
-    await screen.findByRole("switch", { name: "Tarea asignada" });
-    expect(screen.getByRole("group", { name: "Tareas" })).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Reserva de aulas" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Designaciones" })).not.toBeInTheDocument();
+    await screen.findByRole("switch", { name: "Tareas" });
+    expect(screen.queryByRole("switch", { name: "Reserva de aulas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Designaciones" })).not.toBeInTheDocument();
   });
 
-  it("sin lista de permisos muestra los tres módulos con todos sus tipos", async () => {
+  it("sin lista de permisos muestra los tres módulos", async () => {
     renderizar(dispositivo("activo"));
-    await screen.findByRole("switch", { name: "Aula asignada" });
-    expect(screen.getAllByRole("group").map((g) => g.getAttribute("aria-labelledby"))).toHaveLength(
-      3,
-    );
-    const total = screen.getAllByRole("switch").length - 1; // minus the device switch
-    expect(total).toBe(TODOS.length);
-    expect(
-      within(screen.getByRole("group", { name: "Designaciones" })).getAllByRole("switch"),
-    ).toHaveLength(3);
+    await screen.findByRole("switch", { name: "Reserva de aulas" });
+    const interruptores = screen.getAllByRole("switch").slice(1); // after the device switch
+    expect(interruptores.map((i) => i.getAttribute("id"))).toEqual([
+      "notif-prefs-modulo-AULAS",
+      "notif-prefs-modulo-DESIGNACIONES",
+      "notif-prefs-modulo-TAREAS",
+    ]);
   });
 });

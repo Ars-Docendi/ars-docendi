@@ -25,23 +25,23 @@ The device switch SHALL reflect one of: `activas` (permission granted and subscr
 - **GIVEN** an iPhone browser without `PushManager`
 - **THEN** the view SHALL NOT be empty: it SHALL explain "Agregar a pantalla de inicio" and link the help article
 
-### Requirement: Per-type switches
+### Requirement: Per-module switches
 
-The type switches SHALL list Aulas (`AULA_ASIGNADA`, `AULA_ACTUALIZADA`, `SOLICITUD_RECHAZADA`, `RESERVA_CANCELADA`, `SOLICITUD_CANCELADA_DOCENTE`), Designaciones (`PEDIDO_PARA_REVISAR`, `PEDIDO_RECHAZADO`, `PEDIDO_DEVUELTO`) and Tareas (`TAREA_ASIGNADA`, `TAREA_ESTADO_CAMBIADO`, `TAREA_COMENTADA`) with plain-language labels. They MUST be disabled while the device switch is off. Only the groups the active role's permissions can receive SHALL be shown. A switch change SHALL persist through `PUT` and roll back with an error message when it fails.
+The view SHALL show one switch per module, each with a short description of what it notifies: Reserva de aulas ("Asignaciones, cambios, rechazos y cancelaciones de tus reservas."), Designaciones and Tareas. A module switch covers every event type of that module. They MUST be disabled while the device switch is off. Only the modules the active role's permissions can receive SHALL be shown. A switch change SHALL persist through `PUT` and roll back with an error message when it fails.
 
 #### Scenario: Device off
 
 - **GIVEN** the device switch is off
-- **THEN** every type switch SHALL be disabled
+- **THEN** every module switch SHALL be disabled
 
 #### Scenario: Role without Aulas
 
 - **GIVEN** a session without `aulas.solicitar` and `aulas.aprobar`
-- **THEN** the Aulas group SHALL NOT be shown
+- **THEN** the Aulas switch SHALL NOT be shown
 
 ### Requirement: Subscription sync and logout
 
-When the session is available the app SHALL register the service worker and, if the browser already holds a push subscription and the permission is granted, re-send it to the server on load and whenever the session user changes. On logout the app SHALL ask the server to delete the subscription of that endpoint before the session ends, and a failure MUST NOT block the logout.
+When the session is available the app SHALL register the service worker and, if the browser already holds a push subscription and the permission is granted, re-send it to the server on load and whenever the session user changes, at most once per user and subscription however many times the shell mounts. On logout the app SHALL ask the server to delete the subscription of that endpoint before the session ends, and a failure MUST NOT block the logout.
 
 #### Scenario: Another user on the same phone
 

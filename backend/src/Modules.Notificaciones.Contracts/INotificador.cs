@@ -64,12 +64,4 @@ public static class TiposEventoNotificacion
     public const string TareaAsignada = "TAREA_ASIGNADA";
     public const string TareaEstadoCambiado = "TAREA_ESTADO_CAMBIADO";
     public const string TareaComentada = "TAREA_COMENTADA";
-
-    /// <summary>Every event type, for the per-type push preferences. A new constant goes here too.</summary>
-    public static IReadOnlyList<string> Todos { get; } =
-    [
-        AulaAsignada, AulaActualizada, SolicitudRechazada, ReservaCancelada, SolicitudCanceladaDocente,
-        PedidoParaRevisar, PedidoRechazado, PedidoDevuelto,
-        TareaAsignada, TareaEstadoCambiado, TareaComentada,
-    ];
 }

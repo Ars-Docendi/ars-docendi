@@ -2,7 +2,7 @@
 
 ### Requirement: Push subscriptions belong to the session user
 
-The system SHALL store one Web Push subscription per device endpoint (`endpoint`, `p256dh`, `auth`, owner, creation instant). `POST /api/notificaciones/push/suscripciones` SHALL be an upsert by endpoint: when the endpoint already exists it MUST be reassigned to the session user and its keys refreshed. `DELETE /api/notificaciones/push/suscripciones` with `{ endpoint }` MUST remove the row only when it belongs to the session user and MUST answer 204 either way. All routes MUST require an authenticated session.
+The system SHALL store one Web Push subscription per device endpoint (`endpoint`, `p256dh`, `auth`, owner, creation instant). `POST /api/notificaciones/push/suscripciones` SHALL be an upsert by endpoint: when the endpoint already exists it MUST be reassigned to the session user and its keys refreshed, atomically: concurrent requests for the same endpoint MUST all succeed without a constraint violation. `DELETE /api/notificaciones/push/suscripciones` with `{ endpoint }` MUST remove the row only when it belongs to the session user and MUST answer 204 either way. All routes MUST require an authenticated session.
 
 #### Scenario: A device changes hands
 
@@ -10,6 +10,11 @@ The system SHALL store one Web Push subscription per device endpoint (`endpoint`
 - **WHEN** user B logs in on that device and subscribes the same endpoint
 - **THEN** exactly one row SHALL exist for the endpoint
 - **AND** it SHALL belong to user B, so user A no longer receives pushes there
+
+#### Scenario: Concurrent upserts of one endpoint
+
+- **WHEN** several `POST` requests for the same endpoint arrive at once
+- **THEN** every response SHALL be 204, exactly one row SHALL exist and no database error SHALL be raised
 
 #### Scenario: Deleting another user's subscription
 
@@ -41,25 +46,25 @@ For every in-app notice the system SHALL send each recipient's subscribed device
 - **THEN** her subscribed devices SHALL receive a push titled with the room and a message naming the date, materia and commission
 - **AND** `url` SHALL point to the request
 
-### Requirement: Per-type push preferences
+### Requirement: Per-module push preferences
 
-`GET /api/notificaciones/push/preferencias` SHALL answer, for the session user, every known event type with its `habilitado` state, all enabled by default. `PUT` with `{ tipos: [{ tipoEvento, habilitado }] }` SHALL persist the given states and MUST reject with 400, writing nothing, a body that contains an unknown event type. The system MUST NOT send a push of a type the recipient disabled; the in-app notice MUST be created regardless.
+`GET /api/notificaciones/push/preferencias` SHALL answer, for the session user, every module (`AULAS`, `DESIGNACIONES`, `TAREAS`) with its `habilitado` state, all enabled by default. `PUT` with `{ modulos: [{ modulo, habilitado }] }` SHALL persist the given states and MUST reject with 400, writing nothing, a body that contains an unknown module. The module of a notice is derived from the entity it points to (`SOLICITUD_AULA`, `PEDIDO_DESIGNACION`, `TAREA`). The system MUST NOT send a push of a module the recipient disabled, whatever the event type; the in-app notice MUST be created regardless.
 
 #### Scenario: Opt-out
 
-- **GIVEN** a user who disabled `TAREA_ASIGNADA`
-- **WHEN** a task is assigned to them
-- **THEN** the notice SHALL exist in the panel and no push SHALL be sent
+- **GIVEN** a user who disabled `TAREAS`
+- **WHEN** a task is assigned to them, or one of their tasks changes state
+- **THEN** the notices SHALL exist in the panel and no push SHALL be sent
 - **AND** an `AULA_ASIGNADA` push to the same user SHALL still be sent
 
-#### Scenario: Unknown type
+#### Scenario: Unknown module
 
-- **WHEN** the body contains `{ "tipoEvento": "INVENTADO", "habilitado": false }`
+- **WHEN** the body contains `{ "modulo": "INVENTADO", "habilitado": false }`
 - **THEN** the response SHALL be 400 and no preference SHALL change
 
 ### Requirement: Delivery never blocks the business request
 
-`INotificador` SHALL return once the in-app notices are stored; pushes MUST be delivered by a background worker through a bounded queue, each send with a timeout. A subscription whose push service answers 404 or 410 MUST be deleted. Any other failure MUST be logged with the status code and the push service's reason only and MUST NOT affect other devices or the business flow.
+`INotificador` SHALL return once the in-app notices are stored; pushes MUST be delivered by a background worker through a bounded queue, each send with a timeout. A subscription whose push service answers 404 or 410 MUST be deleted. A push accepted by the push service MUST be logged at Information level with the status code and the push service's host only. Any other failure MUST be logged with the status code and the push service's reason only and MUST NOT affect other devices or the business flow.
 
 #### Scenario: Slow push service
 

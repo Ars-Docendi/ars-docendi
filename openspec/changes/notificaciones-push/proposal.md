@@ -9,10 +9,10 @@ In-app notifications only help while the app is open. Teachers, Jefes and Secret
 - **Web Push subscriptions**: one row per user and device (`notificaciones.suscripciones_push`). Subscribing an endpoint already stored by another user REASSIGNS it to the session user (a device belongs to whoever is logged in). The browser re-syncs its subscription on app load and session change and removes it on logout.
 - **Endpoint allowlist**: only `https` endpoints on known push services are accepted.
 - **Descriptive pushes**: the push carries the notice's real title and message plus a deep link and the notice id (`{ titulo, mensaje, url, id }`), encrypted end to end (RFC 8291). The notice builders of Aulas, Designaciones and Tareas get shorter, more concrete titles.
-- **Per-type preferences** (push only; the in-app notice is always kept): `GET/PUT /api/notificaciones/push/preferencias`, default all enabled, opt-outs persisted per user in `notificaciones.preferencias_push`.
+- **Per-module preferences** (push only; the in-app notice is always kept): `GET/PUT /api/notificaciones/push/preferencias`, default all enabled, opt-outs persisted per user in `notificaciones.preferencias_push`.
 - **Delivery off the request path**: `Notificador` enqueues a job in a bounded in-memory queue; a hosted service delivers with a per-send timeout. 404/410 delete the subscription.
 - **VAPID configuration** `Notificaciones:WebPush:{PublicKey,PrivateKey,Subject}`, validated at startup; without keys push is disabled. Wired through Compose and the deploy workflows.
-- **UI**: a settings button in the notifications panel opens "Preferencias de notificaciones" (device switch with state text, per-type switches grouped by module, help link), a dismissible hint in the panel, and an explanation for iPhone without Home Screen install.
+- **UI**: a settings button in the notifications panel opens "Preferencias de notificaciones" (device switch with state text, one switch per module with a short description, help link), a dismissible hint in the panel, and an explanation for iPhone without Home Screen install.
 - **PWA basics**: `sw.js`, web manifest and PNG icons; nginx serves the service worker without caching.
 - **Centro de ayuda**: new article "Activar las notificaciones en el celular".
 
@@ -20,7 +20,7 @@ In-app notifications only help while the app is open. Teachers, Jefes and Secret
 
 ### New Capabilities
 
-- `notificaciones-push`: subscriptions, endpoint allowlist, push content, per-type preferences, asynchronous delivery and VAPID configuration.
+- `notificaciones-push`: subscriptions, endpoint allowlist, push content, per-module preferences, asynchronous delivery and VAPID configuration.
 - `preferencias-notificaciones-push`: the preferences view of the notifications panel, the activation hint, PWA basics and the help article.
 
 ### Modified Capabilities

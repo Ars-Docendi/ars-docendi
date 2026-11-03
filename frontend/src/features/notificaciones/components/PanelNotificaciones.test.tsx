@@ -29,7 +29,7 @@ vi.mock("../push/useDispositivoPush", () => ({
   }),
 }));
 vi.mock("../api/pushApi", () => ({
-  obtenerPreferenciasPush: vi.fn().mockResolvedValue({ tipos: [] }),
+  obtenerPreferenciasPush: vi.fn().mockResolvedValue({ modulos: [] }),
   guardarPreferenciasPush: vi.fn(),
 }));
 vi.mock("../api/notificacionesApi", async (importarOriginal) => ({

@@ -16,7 +16,9 @@
 
 **D5. Endpoint allowlist.** The endpoint is an arbitrary URL the server later POSTs to, so it is an SSRF vector. Accept only `https`, default port, no credentials, and a host equal to `fcm.googleapis.com` or `updates.push.services.mozilla.com`, or ending in `.push.apple.com`, `.notify.windows.com` or `.push.services.mozilla.com`. Anything else is a validation error (400). The check is a pure function.
 
-**D6. Preferences.** Table `notificaciones.preferencias_push (usuario_id, tipo_evento, habilitado)`; a missing row means enabled. `GET` returns every known event type with its state; `PUT` accepts a partial list and upserts it; an unknown type is a 400 and nothing is written. The known types are the constants of `TiposEventoNotificacion` (Contracts), so a new event type shows up without a schema change. The sender skips a recipient who disabled that type; the in-app notice is unaffected. Preferences are per user, not per device.
+**D6. Preferences.** One on/off switch per module, not per event type. Table `notificaciones.preferencias_push (usuario_id, modulo, habilitado)` with a CHECK on `modulo` (`AULAS`, `DESIGNACIONES`, `TAREAS`); a missing row means enabled. The module of a notice is derived from its `TipoEntidad` (`SOLICITUD_AULA` to Aulas, `PEDIDO_DESIGNACION` to Designaciones, `TAREA` to Tareas), so every event type of a module follows the same switch and a new event type needs no schema change. `GET` returns every module with its state; `PUT` accepts a partial list and upserts it; an unknown module is a 400 and nothing is written. The sender skips a recipient who disabled the notice's module; the in-app notice is unaffected. Preferences are per user, not per device.
+
+**D6b. Atomic subscription upsert.** The browser may re-sync the same endpoint from several places at once, so the upsert is one `INSERT ... ON CONFLICT (endpoint) DO UPDATE` statement: concurrent requests never raise the unique violation. The frontend also shares one in-flight re-sync per user and skips a subscription already registered for that user.
 
 **D7. VAPID configuration.** `Notificaciones:WebPush:{PublicKey,PrivateKey,Subject}`. Empty keys: feature off (the public-key endpoint answers 404 and the UI says it is unavailable). Only one key set, malformed keys or a subject that is not `mailto:`/`https:` is an error; so is a subject on a reserved domain (`.local`, `.localhost`, `.test`, `.example`, `.invalid`, `example.com|org|net`) because Apple answers 403. In Production an error stops the host at startup (same stance as the sealing keys); elsewhere the feature is disabled and the error logged, except the reserved-domain case, which only warns outside Production because Chrome and Firefox accept it. Keys come from the environment, never from the repository.
 
@@ -32,7 +34,7 @@
 
 - Queue jobs are lost on a process crash: accepted, push is a convenience over the durable in-app notice.
 - A single instance consumes the queue; with several replicas each one sends for its own requests, so there is no duplication.
-- Content now crosses push services, encrypted. A device that is compromised or a lock screen can show it; the user controls per-type delivery and the OS controls lock-screen previews.
+- Content now crosses push services, encrypted. A device that is compromised or a lock screen can show it; the user controls per-module delivery and the OS controls lock-screen previews.
 - `WebPush` 1.0.13 is a small, widely used library; the VAPID/encryption code is not reimplemented.
 
 ## Migration / Rollback

@@ -7,7 +7,7 @@ namespace ArsDocendi.IntegrationTests.Notificaciones;
 public sealed class PushEntregaTests(PostgresFixture postgres) : PushTestBase(postgres, "push_entrega")
 {
     [Fact]
-    public async Task El_push_lleva_el_texto_real_y_el_enlace_y_respeta_lo_que_el_usuario_desactivo()
+    public async Task El_push_lleva_el_texto_real_y_el_enlace_y_respeta_los_modulos_que_el_usuario_desactivo()
     {
         await SembrarAsync();
         var enviador = new EnviadorFalso();
@@ -17,12 +17,14 @@ public sealed class PushEntregaTests(PostgresFixture postgres) : PushTestBase(po
         await InsertarSuscripcionAsync(Docente, endpointDocente);
         await InsertarSuscripcionAsync(Jefe, endpointJefe);
         await EjecutarAsync(
-            "INSERT INTO notificaciones.preferencias_push(usuario_id, tipo_evento, habilitado) VALUES (@u, 'AULA_ASIGNADA', false)",
+            "INSERT INTO notificaciones.preferencias_push(usuario_id, modulo, habilitado) VALUES (@u, 'AULAS', false)",
             30, ("u", Jefe));
         var solicitud = Guid.NewGuid();
 
         await EmitirAsync(host, TiposEventoNotificacion.AulaAsignada, TiposEntidadNotificacion.SolicitudAula, solicitud, Docente, Jefe);
-        // A type the Jefe did not switch off still reaches them.
+        // Another event type of the same module is silenced too: the switch is per module.
+        await EmitirAsync(host, TiposEventoNotificacion.AulaActualizada, TiposEntidadNotificacion.SolicitudAula, solicitud, Jefe);
+        // A module the Jefe did not switch off still reaches them.
         var tarea = Guid.NewGuid();
         await EmitirAsync(host, TiposEventoNotificacion.TareaAsignada, TiposEntidadNotificacion.Tarea, tarea, Jefe);
         await enviador.EsperarAsync(2);
@@ -40,8 +42,8 @@ public sealed class PushEntregaTests(PostgresFixture postgres) : PushTestBase(po
         var aJefe = Assert.Single(enviador.Enviados, e => e.Endpoint == endpointJefe);
         Assert.Equal($"/tareas/{tarea}", JsonDocument.Parse(aJefe.Carga).RootElement.GetProperty("url").GetString());
 
-        // Switching a type off only silences the push: the in-app notice is always created.
-        Assert.Equal(2, (await NotificacionesAsync(Jefe)).Count);
+        // Switching a module off only silences the push: the in-app notices are always created.
+        Assert.Equal(3, (await NotificacionesAsync(Jefe)).Count);
     }
 
     [Fact]

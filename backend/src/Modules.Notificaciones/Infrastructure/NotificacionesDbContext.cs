@@ -57,9 +57,9 @@ public sealed class NotificacionesDbContext(DbContextOptions<NotificacionesDbCon
         modelBuilder.Entity<PreferenciaPush>(e =>
         {
             e.ToTable("preferencias_push", Schema, t => t.ExcludeFromMigrations());
-            e.HasKey(x => new { x.UsuarioId, x.TipoEvento });
+            e.HasKey(x => new { x.UsuarioId, x.Modulo });
             e.Property(x => x.UsuarioId).HasColumnName("usuario_id");
-            e.Property(x => x.TipoEvento).HasColumnName("tipo_evento");
+            e.Property(x => x.Modulo).HasColumnName("modulo");
             e.Property(x => x.Habilitado).HasColumnName("habilitado");
             e.Property(x => x.ActualizadaEn).HasColumnName("actualizada_en");
         });

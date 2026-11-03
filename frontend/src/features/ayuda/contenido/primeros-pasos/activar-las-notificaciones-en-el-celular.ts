@@ -67,14 +67,14 @@ export const activarLasNotificacionesEnElCelular: ArticuloAyuda = {
         "Encendé el interruptor Notificaciones en este dispositivo. El celular te pregunta si Ars Docendi puede enviarte notificaciones: tocá Permitir. El texto debajo del interruptor cambia a Activas. Para cada celular o navegador donde quieras recibir avisos tenés que repetir este paso.",
     },
     {
-      titulo: "Elegí qué avisos querés recibir",
-      etiquetaIndice: "Elegir los avisos",
+      titulo: "Elegí de qué módulos querés recibir avisos",
+      etiquetaIndice: "Elegir los módulos",
       cuerpo:
-        "Debajo del interruptor del dispositivo aparecen los avisos agrupados por módulo: reserva de aulas, designaciones y tareas. Por defecto llegan todos. Apagá los que no quieras recibir en el celular, por ejemplo «Tarea asignada» pero no «Aula asignada». Solo se muestran los módulos que tu rol puede usar.",
+        "Debajo del interruptor del dispositivo hay un interruptor por módulo: reserva de aulas, designaciones y tareas. Por defecto están todos encendidos. Apagá el módulo del que no quieras recibir avisos en el celular, por ejemplo Tareas pero no Reserva de aulas. Solo se muestran los módulos que tu rol puede usar.",
       nota: {
         tipo: "info",
         cuerpo:
-          "Apagar un aviso solo lo silencia en el celular: en la campana lo seguís viendo siempre.",
+          "Apagar un módulo solo silencia sus avisos en el celular: en la campana los seguís viendo siempre.",
       },
     },
   ],
@@ -86,7 +86,7 @@ export const activarLasNotificacionesEnElCelular: ArticuloAyuda = {
       {
         termino: "Desde el sistema",
         descripcion:
-          "Abrí las preferencias y apagá Notificaciones en este dispositivo (o solo los avisos que no querés).",
+          "Abrí las preferencias y apagá Notificaciones en este dispositivo (o solo los módulos que no querés).",
       },
       {
         termino: "iPhone o iPad",

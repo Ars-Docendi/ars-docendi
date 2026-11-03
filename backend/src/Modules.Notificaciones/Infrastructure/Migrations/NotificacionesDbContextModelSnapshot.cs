@@ -134,9 +134,9 @@ namespace Modules.Notificaciones.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("usuario_id");
 
-                    b.Property<string>("TipoEvento")
+                    b.Property<string>("Modulo")
                         .HasColumnType("text")
-                        .HasColumnName("tipo_evento");
+                        .HasColumnName("modulo");
 
                     b.Property<DateTimeOffset>("ActualizadaEn")
                         .HasColumnType("timestamp with time zone")
@@ -146,7 +146,7 @@ namespace Modules.Notificaciones.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("habilitado");
 
-                    b.HasKey("UsuarioId", "TipoEvento");
+                    b.HasKey("UsuarioId", "Modulo");
 
                     b.ToTable("preferencias_push", "notificaciones", t =>
                         {

@@ -48,27 +48,41 @@ afterEach(() => {
 describe("sincronizarSuscripcion (al cargar la app o cambiar de usuario)", () => {
   it("registra para el usuario de la sesión la suscripción que el navegador ya tiene", async () => {
     navegadorConPush(suscripcion, "granted");
-    await sincronizarSuscripcion();
+    await sincronizarSuscripcion("u-registra");
     expect(api.registrarSuscripcionPush).toHaveBeenCalledWith(suscripcion.toJSON());
+  });
+
+  it("varias llamadas simultáneas o repetidas del mismo usuario registran una sola vez, y un usuario nuevo vuelve a registrar", async () => {
+    navegadorConPush(suscripcion, "granted");
+    await Promise.all([
+      sincronizarSuscripcion("u-dedupe"),
+      sincronizarSuscripcion("u-dedupe"),
+      sincronizarSuscripcion("u-dedupe"),
+    ]);
+    await sincronizarSuscripcion("u-dedupe");
+    expect(api.registrarSuscripcionPush).toHaveBeenCalledOnce();
+
+    await sincronizarSuscripcion("u-otro");
+    expect(api.registrarSuscripcionPush).toHaveBeenCalledTimes(2);
   });
 
   it("no pide permiso ni registra nada si el permiso no está concedido o no hay suscripción", async () => {
     navegadorConPush(suscripcion, "default");
-    await sincronizarSuscripcion();
+    await sincronizarSuscripcion("u-permiso");
     navegadorConPush(null, "granted");
-    await sincronizarSuscripcion();
+    await sincronizarSuscripcion("u-permiso");
     expect(api.registrarSuscripcionPush).not.toHaveBeenCalled();
   });
 
   it("no hace nada si el servidor tiene el push apagado, y un fallo no se propaga", async () => {
     navegadorConPush(suscripcion, "granted");
     api.obtenerClavePublicaPush.mockResolvedValue(null);
-    await sincronizarSuscripcion();
+    await sincronizarSuscripcion("u-apagado");
     expect(api.registrarSuscripcionPush).not.toHaveBeenCalled();
 
     api.obtenerClavePublicaPush.mockResolvedValue("clave");
     api.registrarSuscripcionPush.mockRejectedValue(new Error("red"));
-    await expect(sincronizarSuscripcion()).resolves.toBeUndefined();
+    await expect(sincronizarSuscripcion("u-fallo")).resolves.toBeUndefined();
   });
 });
 

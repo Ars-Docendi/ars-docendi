@@ -35,7 +35,7 @@ Los navegadores sólo permiten Web Push en `https://` o en `localhost`. Para pro
 ## Operación
 
 - **Entrega**: `Notificador` sólo encola (cola en memoria de 1000 trabajos); `ProcesadorPush` envía en segundo plano con un timeout de 10 s por envío. Si la cola se llena se descarta el trabajo y se registra una advertencia con el tipo de aviso.
-- **Logs**: sólo código de estado y motivo del servicio de push (por ejemplo `403 {"reason":"BadJwtToken"}`) o el tipo de excepción. Nunca títulos, mensajes ni endpoints.
+- **Logs**: un push aceptado se registra a nivel Information con el código de estado y el host del servicio de push (sirve para confirmar un envío); un fallo, sólo código de estado y motivo del servicio (por ejemplo `403 {"reason":"BadJwtToken"}`) o el tipo de excepción. Nunca títulos, mensajes, ids de usuario ni endpoints.
 - **Suscripciones caducadas**: un `404`/`410` del servicio borra la suscripción. Otros fallos la conservan.
 - **TTL**: 24 h. Un aviso que no pudo entregarse en un día (teléfono apagado) se descarta en el servicio de push; el aviso sigue en el panel.
 - **Servidor web**: `frontend/nginx.conf` sirve `sw.js` y `manifest.webmanifest` con `Cache-Control: no-cache` para que un service worker nuevo se tome en la próxima carga.

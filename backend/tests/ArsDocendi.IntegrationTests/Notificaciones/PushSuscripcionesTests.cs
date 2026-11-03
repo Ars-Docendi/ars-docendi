@@ -70,42 +70,50 @@ public sealed class PushSuscripcionesTests(PostgresFixture postgres) : PushTestB
     }
 
     [Fact]
-    public async Task Las_preferencias_arrancan_todas_activas_y_un_tipo_desconocido_se_rechaza_sin_escribir()
+    public async Task Las_preferencias_arrancan_todas_activas_y_un_modulo_desconocido_se_rechaza_sin_escribir()
     {
         await SembrarAsync();
         using var host = CrearHostPush(new EnviadorFalso());
         using var docente = ClienteDe(host, Docente, "docente");
 
         var inicial = (await docente.GetFromJsonAsync<PreferenciasPushDto>("/api/notificaciones/push/preferencias", Ct))!;
-        Assert.Equal(Modules.Notificaciones.Contracts.TiposEventoNotificacion.Todos, inicial.Tipos.Select(t => t.TipoEvento));
-        Assert.All(inicial.Tipos, t => Assert.True(t.Habilitado));
+        Assert.Equal(["AULAS", "DESIGNACIONES", "TAREAS"], inicial.Modulos.Select(m => m.Modulo));
+        Assert.All(inicial.Modulos, m => Assert.True(m.Habilitado));
 
         var guardada = await docente.PutAsJsonAsync("/api/notificaciones/push/preferencias",
-            new { tipos = new[] { new { tipoEvento = "TAREA_ASIGNADA", habilitado = false } } }, Ct);
+            new { modulos = new[] { new { modulo = "TAREAS", habilitado = false } } }, Ct);
         Assert.Equal(HttpStatusCode.OK, guardada.StatusCode);
         var luego = (await docente.GetFromJsonAsync<PreferenciasPushDto>("/api/notificaciones/push/preferencias", Ct))!;
-        Assert.False(luego.Tipos.Single(t => t.TipoEvento == "TAREA_ASIGNADA").Habilitado);
-        Assert.True(luego.Tipos.Single(t => t.TipoEvento == "AULA_ASIGNADA").Habilitado);
+        Assert.False(luego.Modulos.Single(m => m.Modulo == "TAREAS").Habilitado);
+        Assert.True(luego.Modulos.Single(m => m.Modulo == "AULAS").Habilitado);
 
         var invalida = await docente.PutAsJsonAsync("/api/notificaciones/push/preferencias", new
         {
-            tipos = new[] { new { tipoEvento = "AULA_ASIGNADA", habilitado = false }, new { tipoEvento = "INVENTADO", habilitado = false } },
+            modulos = new[] { new { modulo = "AULAS", habilitado = false }, new { modulo = "INVENTADO", habilitado = false } },
         }, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalida.StatusCode);
         var intacta = (await docente.GetFromJsonAsync<PreferenciasPushDto>("/api/notificaciones/push/preferencias", Ct))!;
-        Assert.True(intacta.Tipos.Single(t => t.TipoEvento == "AULA_ASIGNADA").Habilitado);
+        Assert.True(intacta.Modulos.Single(m => m.Modulo == "AULAS").Habilitado);
 
         // Each user has their own switches.
         using var jefe = ClienteDe(host, Jefe, "jefe_catedra");
         var deJefe = (await jefe.GetFromJsonAsync<PreferenciasPushDto>("/api/notificaciones/push/preferencias", Ct))!;
-        Assert.True(deJefe.Tipos.Single(t => t.TipoEvento == "TAREA_ASIGNADA").Habilitado);
+        Assert.True(deJefe.Modulos.Single(m => m.Modulo == "TAREAS").Habilitado);
     }
 
     [Fact]
-    public void La_lista_de_tipos_conocidos_incluye_todas_las_constantes_de_eventos()
+    public async Task Suscribir_el_mismo_endpoint_en_simultaneo_deja_una_fila_sin_errores()
     {
-        var constantes = typeof(Modules.Notificaciones.Contracts.TiposEventoNotificacion).GetFields()
-            .Where(f => f.IsLiteral).Select(f => (string)f.GetRawConstantValue()!);
-        Assert.Equal(constantes.Order(), Modules.Notificaciones.Contracts.TiposEventoNotificacion.Todos.Order());
+        await SembrarAsync();
+        using var host = CrearHostPush(new EnviadorFalso());
+        using var docente = ClienteDe(host, Docente, "docente");
+        var endpoint = EndpointFcm + "carrera-" + Guid.NewGuid();
+
+        // The frontend re-sync fired several identical POSTs at once; a unique violation must not surface.
+        var respuestas = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => SuscribirAsync(docente, endpoint)));
+
+        Assert.All(respuestas, r => Assert.Equal(HttpStatusCode.NoContent, r.StatusCode));
+        Assert.Equal(1, await EscalarAsync("SELECT count(*) FROM notificaciones.suscripciones_push"));
+        Assert.Equal(Docente, await PropietarioAsync(endpoint));
     }
 }

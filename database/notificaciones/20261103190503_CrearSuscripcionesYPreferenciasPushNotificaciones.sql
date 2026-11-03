@@ -8,10 +8,11 @@
 -- user holds REASSIGNS the row to the session user (a device belongs to whoever is logged in).
 -- Rows are deleted on unsubscribe, when the push service answers 404/410, and with the user.
 --
--- preferencias_push: per-user, per-event-type switch for the PUSH channel only (the in-app
--- notice is always created). A missing row means enabled. tipo_evento has no CHECK on purpose:
--- the closed list lives in Modules.Notificaciones.Contracts (TiposEventoNotificacion) and the
--- API rejects unknown types, so a new event type needs no schema change.
+-- preferencias_push: per-user, per-module switch for the PUSH channel only (the in-app notice is
+-- always created). A missing row means enabled. The module of a notice comes from the entity it
+-- points to (SOLICITUD_AULA -> AULAS, PEDIDO_DESIGNACION -> DESIGNACIONES, TAREA -> TAREAS), so
+-- every event type of a module follows the same switch. The CHECK mirrors ModulosPush in
+-- Modules.Notificaciones; a new module needs a new incremental migration.
 --
 -- Like notificaciones.notificaciones, no audit.attach: these are device and UI settings, and the
 -- keys of a subscription must not be copied into the audit log.
@@ -36,10 +37,10 @@ CREATE INDEX suscripciones_push_usuario_idx ON notificaciones.suscripciones_push
 
 CREATE TABLE notificaciones.preferencias_push (
     usuario_id   UUID         NOT NULL REFERENCES identity.users(id) ON DELETE CASCADE,
-    tipo_evento  TEXT         NOT NULL,
+    modulo       TEXT         NOT NULL,
     habilitado   BOOLEAN      NOT NULL,
     actualizada_en TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-    PRIMARY KEY (usuario_id, tipo_evento),
-    CONSTRAINT preferencias_push_tipo_no_vacio CHECK (btrim(tipo_evento) <> '')
+    PRIMARY KEY (usuario_id, modulo),
+    CONSTRAINT preferencias_push_modulo_valido CHECK (modulo IN ('AULAS', 'DESIGNACIONES', 'TAREAS'))
 );

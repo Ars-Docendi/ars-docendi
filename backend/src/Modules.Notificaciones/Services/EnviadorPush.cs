@@ -41,6 +41,13 @@ internal sealed class EnviadorWebPush(
         {
             await cliente.SendNotificationAsync(
                 new PushSubscription(destino.Endpoint, destino.P256dh, destino.Auth), carga, opciones, ct);
+            // The client only returns when the service accepted the message (RFC 8030: 201 Created); any
+            // other status throws. Log the push service's host and that status, nothing else: the endpoint
+            // path identifies a device, and no user ids or texts.
+            logger.LogInformation(
+                "Push aceptado por el servicio {ServicioPush} ({Estado})",
+                Uri.TryCreate(destino.Endpoint, UriKind.Absolute, out var uri) ? uri.Host : "desconocido",
+                (int)HttpStatusCode.Created);
             return ResultadoEnvioPush.Enviado;
         }
         catch (WebPushException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)

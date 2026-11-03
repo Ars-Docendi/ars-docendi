@@ -25,12 +25,12 @@ export async function cancelarSuscripcionPush(endpoint: string): Promise<void> {
 }
 
 export interface PreferenciaPush {
-  tipoEvento: string;
+  modulo: string;
   habilitado: boolean;
 }
 
 export interface PreferenciasPush {
-  tipos: PreferenciaPush[];
+  modulos: PreferenciaPush[];
 }
 
 export async function obtenerPreferenciasPush(): Promise<PreferenciasPush> {
@@ -42,7 +42,7 @@ export async function guardarPreferenciasPush(
   cambios: PreferenciaPush[],
 ): Promise<PreferenciasPush> {
   const { data } = await apiClient.put<PreferenciasPush>("/api/notificaciones/push/preferencias", {
-    tipos: cambios,
+    modulos: cambios,
   });
   return data;
 }

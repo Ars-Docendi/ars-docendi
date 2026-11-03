@@ -89,10 +89,10 @@ rol con que está operando (las tareas no tienen rol y se ven bajo cualquiera).
    cerrar). Abre, dentro del mismo panel, la vista **Preferencias de notificaciones**; una flecha
    "Volver a las notificaciones" regresa a la lista (el foco pasa de un botón al otro).
 2. La vista tiene tres bloques: (a) el interruptor **Notificaciones en este dispositivo** con su texto
-   de estado, (b) los interruptores **por tipo de aviso** agrupados por módulo (Reserva de aulas,
-   Designaciones, Tareas) y (c) el enlace "¿Cómo activarlas en el celular?" al artículo de ayuda.
+   de estado, (b) **un interruptor por módulo** (Reserva de aulas, Designaciones, Tareas), cada uno con una
+   descripción corta de lo que avisa (p. ej. "Asignaciones, cambios, rechazos y cancelaciones de tus reservas.") y (c) el enlace "¿Cómo activarlas en el celular?" al artículo de ayuda.
 3. Encender el interruptor del dispositivo pide el permiso del navegador, suscribe y registra el
-   dispositivo; apagarlo lo da de baja. Los interruptores por tipo se guardan al instante y sólo
+   dispositivo; apagarlo lo da de baja. Los interruptores por módulo se guardan al instante y sólo
    silencian el push: el aviso siempre aparece en el panel.
 4. Mientras el push no está activo (y podría estarlo), la pestaña "No leídas" muestra una sola línea
    chica y descartable: "Recibí los avisos en este dispositivo, aunque no tengas la app abierta" con un
@@ -109,7 +109,7 @@ rol con que está operando (las tareas no tienen rol y se ven bajo cualquiera).
 | No disponibles      | Navegador sin Web Push, o el sistema sin claves VAPID                                | deshabilitado |
 | Comprobando / error | "Comprobando…" / "No pudimos comprobar el estado…"                                   | deshabilitado |
 
-Los interruptores por tipo están deshabilitados mientras el dispositivo no esté activo, con la
+Los interruptores por módulo están deshabilitados mientras el dispositivo no esté activo, con la
 indicación "Activá las notificaciones en este dispositivo para elegir". Sólo se muestran los módulos
 que los permisos del rol activo pueden recibir (`aulas.solicitar|aulas.aprobar`,
 `designaciones.gestionar|designaciones.revisar`, `tareas.ver`); sin permisos se muestran los tres. Con

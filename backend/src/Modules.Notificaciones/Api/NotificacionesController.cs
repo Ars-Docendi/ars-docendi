@@ -60,7 +60,7 @@ public sealed class NotificacionesController(IServicioNotificaciones servicio, I
         return NoContent();
     }
 
-    /// <summary>Per-type push switches of the session user; every known type, enabled by default.</summary>
+    /// <summary>Per-module push switches of the session user; every module, enabled by default.</summary>
     [HttpGet("push/preferencias")]
     [Authorize]
     public Task<PreferenciasPushDto> PreferenciasPush(CancellationToken ct) => push.ObtenerPreferenciasAsync(ct);

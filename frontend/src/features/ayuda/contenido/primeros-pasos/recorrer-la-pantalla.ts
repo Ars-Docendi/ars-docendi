@@ -55,7 +55,7 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       titulo: "Mirá tus notificaciones",
       etiquetaIndice: "Notificaciones",
       cuerpo:
-        "La campana está al pie del menú lateral, entre el Centro de ayuda y tu usuario (en el celular, en la barra de arriba), y muestra cuántos avisos tenés sin leer. Al tocarla se abre un panel con las pestañas No leídas y Leídas: tocá un aviso para ir directo a la solicitud, el pedido o la tarea. Con el engranaje del panel elegís qué avisos querés recibir también como notificación del celular.",
+        "La campana está al pie del menú lateral, entre el Centro de ayuda y tu usuario (en el celular, en la barra de arriba), y muestra cuántos avisos tenés sin leer. Al tocarla se abre un panel con las pestañas No leídas y Leídas: tocá un aviso para ir directo a la solicitud, el pedido o la tarea. Con el engranaje del panel elegís de qué módulos querés recibir también notificaciones en el celular.",
       nota: {
         tipo: "consejo",
         cuerpo:
