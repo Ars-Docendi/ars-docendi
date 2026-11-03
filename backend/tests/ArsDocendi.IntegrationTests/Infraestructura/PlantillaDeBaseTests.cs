@@ -17,8 +17,8 @@ namespace ArsDocendi.IntegrationTests.Infraestructura;
 /// pone rojo — sólo dejan de probar lo que dicen probar. Los que sostienen el
 /// invariante #14 pasarían a verde sin verificar nada.
 ///
-/// Hoy no puede pasar porque los roles se crean DESPUÉS del clon, sobre él. Este
-/// test es lo que hace que siga sin poder pasar.
+/// Los roles y sus GRANT sí vienen en la plantilla, pero el ajuste se fija sobre
+/// cada clon ya creado. Este test es lo que hace que no se pierda.
 /// </remarks>
 public sealed class PlantillaDeBaseTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "plantilla")
@@ -41,7 +41,7 @@ public sealed class PlantillaDeBaseTests(PostgresFixture postgres)
             string.IsNullOrWhiteSpace(efectivo) || efectivo == "\"\"",
             $"El search_path efectivo del rol es «{efectivo}» y tiene que ser vacío. "
             + "Vive en pg_db_role_setting, cuya clave es el OID de la base, y NO se "
-            + "clona: si la plantilla pasara a traer los roles, esto quedaría con el "
+            + "clona: si dejara de fijarse sobre cada clon, esto quedaría con el "
             + "default y los tests del invariante #14 pasarían a verde sin probar nada.");
     }
 

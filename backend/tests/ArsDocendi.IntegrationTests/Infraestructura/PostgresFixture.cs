@@ -34,6 +34,10 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <summary>Password de los roles del asistente en el contenedor efímero de test.</summary>
     internal const string PasswordDeRol = "asistente-de-prueba";
 
+    // Uno por corrida: el contenedor es de la corrida (ver la plantilla).
+    private const string RolSoloLectura = "asistente_ro_corrida";
+    private const string RolSoloLecturaPii = "asistente_ro_pii_corrida";
+
     private readonly PostgreSqlContainer _contenedor = new PostgreSqlBuilder("postgres:18-alpine")
         .WithDatabase("ars_docendi_tests")
         .WithUsername("postgres")
@@ -68,18 +72,18 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <c>CREATE DATABASE … TEMPLATE</c>, que PostgreSQL resuelve copiando
     /// archivos.
     ///
-    /// <b>La plantilla NO lleva roles ni privilegios</b>, y eso no es una omisión.
-    /// Los roles son objetos de CLUSTER y los GRANT los nombran: clonar una base
-    /// con GRANT adentro dejaría el clon concediéndole a los roles de la
-    /// plantilla, no a los de la clase. Se crean después del clon, sobre él, con
-    /// el mismo código que usa el migrador del módulo.
+    /// <b>La plantilla lleva también el migrador del asistente</b>: su esquema y los
+    /// GRANT a los dos roles de la corrida, aplicados con el mismo código que usa el
+    /// módulo. Los roles son objetos de CLUSTER y los GRANT los nombran por OID, así
+    /// que un clon le concede exactamente a esos dos roles. Por eso son uno por
+    /// corrida y no uno por test: ningún test altera los roles mismos, sólo los
+    /// privilegios dentro de su base, que son locales al clon.
     ///
-    /// Ese orden resuelve además la trampa del <c>search_path</c>: vive en
-    /// <c>pg_db_role_setting</c>, cuya clave es el OID de la base, y <b>no se
-    /// clona</b>. Como los roles se crean sobre el clon ya existente, el
-    /// <c>ALTER ROLE … IN DATABASE</c> apunta al OID correcto. Si algún día la
-    /// plantilla llevara roles, esto pasaría a ser un falso verde silencioso en
-    /// todos los tests que sostienen el invariante #14; hay un test que lo vigila.
+    /// Lo que NO se clona es el <c>search_path</c> vacío de los roles: vive en
+    /// <c>pg_db_role_setting</c>, cuya clave es el OID de la base. Se fija sobre cada
+    /// clon ya creado (<see cref="CrearBaseMigradaAsync"/>). Si eso se perdiera, sería
+    /// un falso verde silencioso en todos los tests que sostienen el invariante #14;
+    /// <c>PlantillaDeBaseTests</c> lo vigila.
     /// </remarks>
     private string? _plantilla;
 
@@ -114,6 +118,20 @@ public sealed class PostgresFixture : IAsyncLifetime
             var nombre = $"plantilla_{Guid.NewGuid():N}";
             await CrearBaseVaciaAsync(nombre);
             await MigrarAsync(CadenaDe(nombre));
+            await CrearRolesDelAsistenteAsync();
+
+            // Los GRANT se aplican con el MISMO código que el migrador del módulo, no
+            // con una copia del script: si acá se probara una copia, la prueba diría
+            // que la copia funciona.
+            await new MigradorAsistente(
+                Options.Create(new OpcionesAsistente
+                {
+                    RolSoloLectura = RolSoloLectura,
+                    RolSoloLecturaPii = RolSoloLecturaPii,
+                }),
+                new CadenaDuena(CadenaDe(nombre)),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<MigradorAsistente>.Instance)
+                .MigrarAsync(CancellationToken.None);
 
             // Sin esto, la primera clonación falla: PostgreSQL no admite
             // CREATE DATABASE … TEMPLATE mientras alguien esté conectado a la
@@ -281,16 +299,14 @@ public sealed class PostgresFixture : IAsyncLifetime
     public async Task<BaseDePrueba> CrearBaseMigradaAsync(
         string prefijo, string? migracionDesignaciones = null, bool sembrada = false)
     {
-        var identificador = Guid.NewGuid();
-        var nombre = $"{prefijo}_{identificador:N}";
-        var sufijoRol = identificador.ToString("N")[..8];
-        var rolSoloLectura = $"asistente_ro_t{sufijoRol}";
-        var rolSoloLecturaPii = $"asistente_ro_pii_t{sufijoRol}";
+        var nombre = $"{prefijo}_{Guid.NewGuid():N}";
+
+        // También crea los roles de la corrida, que la migración parcial necesita igual.
+        var plantilla = await PlantillaAsync();
 
         if (migracionDesignaciones is null)
         {
-            await CrearBaseVaciaAsync(
-                nombre, sembrada ? await PlantillaSembradaAsync() : await PlantillaAsync());
+            await CrearBaseVaciaAsync(nombre, sembrada ? await PlantillaSembradaAsync() : plantilla);
         }
         else
         {
@@ -298,32 +314,19 @@ public sealed class PostgresFixture : IAsyncLifetime
             await MigrarAsync(CadenaDe(nombre), migracionDesignaciones);
         }
 
-        var cadena = CadenaDe(nombre, conPool: true);
-
-        await CrearRolesDelAsistenteAsync(nombre, rolSoloLectura, rolSoloLecturaPii);
-
-        // Los GRANT se aplican con el MISMO código que el migrador del módulo, no
-        // con una copia del script: si acá se probara una copia, la prueba diría
-        // que la copia funciona.
-        //
-        // NO se aplican sobre un esquema a medio migrar: los privilegios del
-        // asistente nombran tablas y columnas del esquema COMPLETO, así que sobre
-        // un estado histórico fallan con «relation does not exist». Quien pide una
-        // migración parcial está probando la migración, no los privilegios.
-        if (migracionDesignaciones is null)
+        // Igual que en producción: nombres calificados obligatorios. Va por clon porque no se
+        // clona. Sobre una migración parcial, el esquema del asistente no está: quien la pide
+        // prueba la migración, no los privilegios.
+        await using (var conexion = new NpgsqlConnection(_contenedor.GetConnectionString()))
         {
-            await new MigradorAsistente(
-                Options.Create(new OpcionesAsistente
-                {
-                    RolSoloLectura = rolSoloLectura,
-                    RolSoloLecturaPii = rolSoloLecturaPii,
-                }),
-                new CadenaDuena(cadena),
-                Microsoft.Extensions.Logging.Abstractions.NullLogger<MigradorAsistente>.Instance)
-                .MigrarAsync(CancellationToken.None);
+            await conexion.OpenAsync();
+            foreach (var rol in new[] { RolSoloLectura, RolSoloLecturaPii })
+            {
+                await EjecutarAsync(conexion, $"ALTER ROLE \"{rol}\" IN DATABASE \"{nombre}\" SET search_path = ''");
+            }
         }
 
-        return new BaseDePrueba(cadena, rolSoloLectura, rolSoloLecturaPii, PasswordDeRol);
+        return new BaseDePrueba(CadenaDe(nombre, conPool: true), RolSoloLectura, RolSoloLecturaPii, PasswordDeRol);
     }
 
     /// <summary>Borra una base que el test creó por su cuenta, sin roles del asistente.</summary>
@@ -341,36 +344,20 @@ public sealed class PostgresFixture : IAsyncLifetime
         NpgsqlConnection.ClearPool(delPool);
     }
 
-    public async Task EliminarBaseAsync(BaseDePrueba baseDePrueba)
-    {
-        await EliminarBaseAsync(baseDePrueba.Cadena);
+    // Los roles son de la corrida y mueren con el contenedor: sólo se borra la base.
+    public Task EliminarBaseAsync(BaseDePrueba baseDePrueba) => EliminarBaseAsync(baseDePrueba.Cadena);
 
-        await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
-        await conexion.OpenAsync();
-
-        // Los roles sobreviven al DROP DATABASE: son de cluster. Sin esta baja, cada
-        // clase de test dejaría dos roles colgados en el contenedor compartido.
-        foreach (var rol in new[] { baseDePrueba.RolSoloLectura, baseDePrueba.RolSoloLecturaPii })
-        {
-            await EjecutarAsync(conexion, $"DROP ROLE IF EXISTS \"{rol}\"");
-        }
-    }
-
-    private async Task CrearRolesDelAsistenteAsync(string baseDeDatos, params string[] roles)
+    private async Task CrearRolesDelAsistenteAsync()
     {
         await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
         await conexion.OpenAsync();
-        foreach (var rol in roles)
+        foreach (var rol in new[] { RolSoloLectura, RolSoloLecturaPii })
         {
             await EjecutarAsync(conexion,
                 $"""
                 CREATE ROLE "{rol}" WITH LOGIN PASSWORD '{PasswordDeRol}'
                     NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT
                 """);
-
-            // Igual que en producción: nombres calificados obligatorios.
-            await EjecutarAsync(conexion,
-                $"ALTER ROLE \"{rol}\" IN DATABASE \"{baseDeDatos}\" SET search_path = ''");
         }
     }
 
