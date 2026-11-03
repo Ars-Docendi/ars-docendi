@@ -1,8 +1,8 @@
 ---
 status: draft
 owner: ""
-feature: "openspec/changes/notificaciones-in-app"
-last_updated: 2026-11-02
+feature: "openspec/changes/notificaciones-in-app, openspec/changes/notificaciones-push"
+last_updated: 2026-11-03
 ---
 
 # Design spec: Notificaciones in-app
@@ -12,7 +12,8 @@ last_updated: 2026-11-02
 Una campana en el shell avisa cuántas notificaciones sin leer tiene la persona bajo el rol con que
 opera y abre un panel lateral donde las lee, las marca y salta a lo que las originó (una solicitud de
 aula, un pedido de designación, una tarea). La referencia de aceptación es el prototipo
-`notificaciones.html`; el correo queda fuera.
+`notificaciones.html`; el correo queda fuera. Desde `notificaciones-push`, el mismo aviso puede llegar
+también como notificación del celular (Web Push) si la persona lo activa en las preferencias del panel.
 
 ## Roles que ven esta surface
 
@@ -79,3 +80,52 @@ rol con que está operando (las tareas no tienen rol y se ven bajo cualquiera).
 - **Pantallas angostas**: por debajo de 560 px el panel ocupa todo el ancho y el botón de cierre mide 44 px.
 - **Toasts**: un host propio de la app (`shared/ui/Toaster`) porque el `Toast` de la librería es sólo
   una tarjeta.
+
+## Notificaciones push (change `notificaciones-push`)
+
+### Flujo principal
+
+1. En el encabezado del panel hay un botón de engranaje ("Preferencias de notificaciones", junto al de
+   cerrar). Abre, dentro del mismo panel, la vista **Preferencias de notificaciones**; una flecha
+   "Volver a las notificaciones" regresa a la lista (el foco pasa de un botón al otro).
+2. La vista tiene tres bloques: (a) el interruptor **Notificaciones en este dispositivo** con su texto
+   de estado, (b) los interruptores **por tipo de aviso** agrupados por módulo (Reserva de aulas,
+   Designaciones, Tareas) y (c) el enlace "¿Cómo activarlas en el celular?" al artículo de ayuda.
+3. Encender el interruptor del dispositivo pide el permiso del navegador, suscribe y registra el
+   dispositivo; apagarlo lo da de baja. Los interruptores por tipo se guardan al instante y sólo
+   silencian el push: el aviso siempre aparece en el panel.
+4. Mientras el push no está activo (y podría estarlo), la pestaña "No leídas" muestra una sola línea
+   chica y descartable: "Recibí los avisos en este dispositivo, aunque no tengas la app abierta" con un
+   botón "Activar" que abre las preferencias. Descartada, no vuelve en ese navegador.
+
+### Estados del interruptor del dispositivo
+
+| Estado              | Texto                                                                                | Interruptor   |
+| ------------------- | ------------------------------------------------------------------------------------ | ------------- |
+| Activas             | "Activas. Te avisamos en este dispositivo aunque no tengas la app abierta."          | encendido     |
+| Desactivadas        | "Desactivadas. Activalas para recibir los avisos en este dispositivo."               | apagado       |
+| Bloqueadas          | Explica cómo permitirlas desde la configuración del navegador                        | deshabilitado |
+| iPhone sin instalar | Explica "Agregar a pantalla de inicio" (iOS 16.4+) y enlaza la ayuda; no queda vacío | deshabilitado |
+| No disponibles      | Navegador sin Web Push, o el sistema sin claves VAPID                                | deshabilitado |
+| Comprobando / error | "Comprobando…" / "No pudimos comprobar el estado…"                                   | deshabilitado |
+
+Los interruptores por tipo están deshabilitados mientras el dispositivo no esté activo, con la
+indicación "Activá las notificaciones en este dispositivo para elegir". Sólo se muestran los módulos
+que los permisos del rol activo pueden recibir (`aulas.solicitar|aulas.aprobar`,
+`designaciones.gestionar|designaciones.revisar`, `tareas.ver`); sin permisos se muestran los tres. Con
+el sistema sin claves VAPID no se muestran.
+
+### Decisiones de diseño
+
+- **Interruptor propio**: `@ars-docendi/ui` no tiene switch; es un `button` con `role="switch"`,
+  etiquetado y descrito, con área táctil de 44 px, y se opera con Espacio y Enter.
+- **Dentro del panel, no un modal**: en 390 px el panel ocupa toda la pantalla, así que la vista de
+  preferencias es una pantalla más con "Volver", sin apilar capas.
+- **Una sugerencia, no un banner**: una línea descartable en vez de un bloque permanente sobre las
+  pestañas (el prototipo del spike lo tenía fijo y se veía sin terminar).
+- **Contenido del push**: título corto con la entidad ("Aula asignada: Aula 204", "Pedido 2026-9002
+  devuelto", "Tarea N° 12: nuevo comentario") y cuerpo con lo ocurrido. Al tocarlo abre la app en la
+  misma ruta que el panel y marca el aviso como leído.
+- **iPhone**: sin instalar, la vista explica el paso previo en vez de ocultar la función.
+- **Ayuda**: artículo «Activar las notificaciones en el celular» (Primeros pasos) y paso «Mirá tus
+  notificaciones» en «Cómo recorrer la pantalla».
