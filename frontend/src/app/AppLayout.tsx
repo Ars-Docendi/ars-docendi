@@ -8,6 +8,8 @@ import {
 import { PanelNotificaciones } from "../features/notificaciones/components/PanelNotificaciones";
 import { useCantidadNoLeidas } from "../features/notificaciones/hooks/useNotificaciones";
 import { rutaDeEntidad } from "../features/notificaciones/presentacion";
+import { useAbrirDesdePush } from "../features/notificaciones/push/useAbrirDesdePush";
+import { useSincronizarPush } from "../features/notificaciones/push/useSincronizarPush";
 import type { Notificacion } from "../features/notificaciones/types";
 import { useCurrentUser, type CurrentUser } from "../shared/auth/useCurrentUser";
 import { GestorDeNavegacion } from "../shared/navegacion/GestorDeNavegacion";
@@ -113,6 +115,9 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
   // Las notificaciones se ven por perfil: el rol activo es parte de toda clave.
   const rol = user.roleCode;
   const { data: cantidad } = useCantidadNoLeidas(rol);
+  // Un dispositivo es de quien tiene la sesión: se re-registra al cargar y al cambiar de usuario.
+  useSincronizarPush(user.id);
+  useAbrirDesdePush();
 
   const alternarNotificaciones = () => setNotifAbierta((abierta) => !abierta);
   // El panel se cierra cuando la página realmente cambia (lo hace él mismo al ver `rutaActual`),
@@ -165,6 +170,7 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
         triggerRef={campanaRef}
         desplazamiento={angosta ? 0 : colapsado ? ANCHO_BARRA.colapsada : ANCHO_BARRA.expandida}
         rol={rol}
+        permisos={user.permissions}
         rutaActual={pathname}
         onNavegar={irANotificacion}
       />
