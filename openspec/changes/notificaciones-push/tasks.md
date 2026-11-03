@@ -2,38 +2,38 @@
 
 ## 1. Database and domain
 
-- [ ] 1.1 Scaffold the migration with `node scripts/migrations/scaffold.mjs Notificaciones CrearSuscripcionesYPreferenciasPushNotificaciones`; create `suscripciones_push` and `preferencias_push` (FKs to `identity.users`, unique endpoint, checks). Keep the EF model and snapshot in sync.
-- [ ] 1.2 Add the `WebPush` package to `Modules.Notificaciones` and the entities `SuscripcionPush` and `PreferenciaPush`.
+- [x] 1.1 Scaffold the migration with `node scripts/migrations/scaffold.mjs Notificaciones CrearSuscripcionesYPreferenciasPushNotificaciones`; create `suscripciones_push` and `preferencias_push` (FKs to `identity.users`, unique endpoint, checks). Keep the EF model and snapshot in sync.
+- [x] 1.2 Add the `WebPush` package to `Modules.Notificaciones` and the entities `SuscripcionPush` and `PreferenciaPush`.
 
 ## 2. Backend
 
-- [ ] 2.1 `OpcionesWebPush` with startup validation (subject scheme and reserved domains, key pair) and a singleton that exposes the public key or "disabled".
-- [ ] 2.2 `EndpointsPush` allowlist (pure function) and the subscription service: upsert that reassigns, delete only own rows.
-- [ ] 2.3 Preferences service and `GET/PUT push/preferencias`, validating against `TiposEventoNotificacion`.
-- [ ] 2.4 `IEnviadorPush` + `EnviadorWebPush`, `ColaPush` and `ProcesadorPush` with the per-send timeout, 404/410 cleanup and content-free logging; `Notificador` enqueues after saving.
-- [ ] 2.5 Rewrite the notice titles in `AvisosAulas`, `AvisosPedido`, `AvisosTarea` and update the emission tests.
+- [x] 2.1 `OpcionesWebPush` with startup validation (subject scheme and reserved domains, key pair) and a singleton that exposes the public key or "disabled".
+- [x] 2.2 `EndpointsPush` allowlist (pure function) and the subscription service: upsert that reassigns, delete only own rows.
+- [x] 2.3 Preferences service and `GET/PUT push/preferencias`, validating against `TiposEventoNotificacion`.
+- [x] 2.4 `IEnviadorPush` + `EnviadorWebPush`, `ColaPush` and `ProcesadorPush` with the per-send timeout, 404/410 cleanup and content-free logging; `Notificador` enqueues after saving.
+- [x] 2.5 Rewrite the notice titles in `AvisosAulas`, `AvisosPedido`, `AvisosTarea` and update the emission tests.
 
 ## 3. Backend tests
 
-- [ ] 3.1 Opt-out respected and payload content and deep link per entity type.
-- [ ] 3.2 Subscription ownership (upsert reassigns, delete only own) and endpoint allowlist.
-- [ ] 3.3 Preferences validation and defaults; key endpoint with and without keys.
-- [ ] 3.4 Delivery does not block `NotificarAsync`; a 410 deletes the subscription.
-- [ ] 3.5 VAPID configuration rules.
+- [x] 3.1 Opt-out respected and payload content and deep link per entity type.
+- [x] 3.2 Subscription ownership (upsert reassigns, delete only own) and endpoint allowlist.
+- [x] 3.3 Preferences validation and defaults; key endpoint with and without keys.
+- [x] 3.4 Delivery does not block `NotificarAsync`; a 410 deletes the subscription.
+- [x] 3.5 VAPID configuration rules.
 
 ## 4. Frontend
 
-- [ ] 4.1 `sw.js`, manifest, PNG icons, `index.html` links; nginx no-cache headers for the worker and manifest.
-- [ ] 4.2 `pushApi`, device hook (support detection, permission, subscribe, sync on session change, unsubscribe on logout) and preferences hook.
-- [ ] 4.3 Preferences view, gear button, dismissible hint, iOS-not-installed explanation; CSS at 390 px.
-- [ ] 4.4 Frontend tests: switch states, disabled groups, unsupported and iOS-not-installed messages, hint dismissal.
+- [x] 4.1 `sw.js`, manifest, PNG icons, `index.html` links; nginx no-cache headers for the worker and manifest.
+- [x] 4.2 `pushApi`, device hook (support detection, permission, subscribe, sync on session change, unsubscribe on logout) and preferences hook.
+- [x] 4.3 Preferences view, gear button, dismissible hint, iOS-not-installed explanation; CSS at 390 px.
+- [x] 4.4 Frontend tests: switch states, disabled groups, unsupported and iOS-not-installed messages, hint dismissal.
 
 ## 5. Docs and operations
 
-- [ ] 5.1 Centro de ayuda article "Activar las notificaciones en el celular" and its registration; link from the view.
-- [ ] 5.2 Design spec, `api-contracts`, `data-model`, `domains/notificaciones`, `stack`.
-- [ ] 5.3 Compose and workflow wiring (`WEBPUSH_*`), `docs/operations` and README note about the dev subject.
+- [x] 5.1 Centro de ayuda article "Activar las notificaciones en el celular" and its registration; link from the view.
+- [x] 5.2 Design spec, `api-contracts`, `data-model`, `domains/notificaciones`, `stack`.
+- [x] 5.3 Compose and workflow wiring (`WEBPUSH_*`), `docs/operations` and README note about the dev subject.
 
 ## 6. Verification
 
-- [ ] 6.1 Run every check of `AGENTS.md → Verificación` that applies and record the result.
+- [x] 6.1 Run every check of `AGENTS.md → Verificación` that applies and record the result.
