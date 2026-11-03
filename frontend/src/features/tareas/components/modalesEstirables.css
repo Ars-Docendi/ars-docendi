@@ -7,8 +7,8 @@
 
 /* Buscar Responsable: la tabla ocupa el alto disponible al estirar. */
 .adoc-modal.adoc-modal-tareas-responsable {
-  width: 640px;
-  height: 560px;
+  width: 900px;
+  height: 600px;
 }
 .adoc-modal-tareas-responsable > .body {
   display: flex;
