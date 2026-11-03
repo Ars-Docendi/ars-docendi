@@ -16,7 +16,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// identificadores del motor y que ningún dato personal llegue al prompt de redacción.
 /// </summary>
 public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_mascara")
+    : ClasePostgresAislada(postgres, "asistente_mascara", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -34,7 +34,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         // EL TEST QUE SOSTIENE TODO EL DISEÑO. El alias no está en ningún
         // manifiesto: lo que la tapa es el identificador que reporta el motor. Con
         // una comparación por nombre, esta columna pasaría entera.
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT documento AS codigo_interno FROM identity.personas ORDER BY legajo",
@@ -52,7 +51,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     {
         // El ejecutor envuelve la consulta en una subconsulta para imponer el
         // límite. Si esa envoltura borrara el origen, todo quedaría desconocido.
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             """
@@ -73,7 +71,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     {
         // El riesgo residual declarado, fijado en un test para que se vea. Se trata
         // como pública porque enmascarar todo origen desconocido rompería count(*).
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT count(*) AS total FROM identity.personas", Secretaria, conDatosPersonales: true);
@@ -86,7 +83,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_catalogo_se_resuelve_una_sola_vez()
     {
-        await SembrarAsync();
 
         var catalogo = new CatalogoDeSensibilidad(Apertura, ManifiestoDeSensibilidad.Cargar());
         var ct = TestContext.Current.CancellationToken;
@@ -100,7 +96,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task La_resolucion_encuentra_las_columnas_personales()
     {
-        await SembrarAsync();
 
         var catalogo = new CatalogoDeSensibilidad(Apertura, ManifiestoDeSensibilidad.Cargar());
         await catalogo.PrepararAsync(TestContext.Current.CancellationToken);
@@ -124,7 +119,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     {
         // Un manifiesto viejo es exactamente el que deja de clasificar la columna
         // nueva que ocupó el lugar de la que se fue. Falla en vez de ignorarla.
-        await SembrarAsync();
 
         var catalogo = new CatalogoDeSensibilidad(
             Apertura,
@@ -146,7 +140,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_documento_no_llega_al_prompt_de_redaccion_pero_si_al_llamador()
     {
-        await SembrarAsync();
 
         var (turno, proveedor) = await PreguntarAsync(
             Secretaria,
@@ -168,7 +161,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_turno_declara_que_columnas_son_sensibles()
     {
-        await SembrarAsync();
 
         var (turno, _) = await PreguntarAsync(
             Secretaria,
@@ -183,7 +175,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_comentario_del_historial_no_llega_al_modelo()
     {
-        await SembrarAsync();
 
         // La pregunta evita a propósito la palabra «comentario»: el prompt lleva la
         // pregunta del usuario tal cual, así que buscarla en todo el texto daría un
@@ -213,7 +204,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_log_del_turno_no_contiene_valores_de_filas()
     {
-        await SembrarAsync();
 
         var registro = new RegistroDeCapturas();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
@@ -244,7 +234,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Unmasked_option_in_effect_puts_the_document_in_the_redaction_prompt()
     {
-        await SembrarAsync();
 
         var (turno, proveedor) = await PreguntarAsync(
             Secretaria, "¿Cuál es el documento de los docentes?", SqlDeDocumentos, SinEnmascarar());
@@ -261,7 +250,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Unmasked_option_with_a_remote_provider_keeps_the_document_out_of_the_prompt()
     {
-        await SembrarAsync();
 
         var (_, proveedor) = await PreguntarAsync(
             Secretaria,
@@ -276,7 +264,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task A_cloud_adapter_resolved_for_the_turn_masks_even_when_the_environment_runs_on_own_hardware()
     {
-        await SembrarAsync();
 
         // The environment says own hardware with the option on; the turn resolved a
         // cloud company (a runtime selection). The turn's decision wins: masked.
@@ -296,7 +283,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task An_own_hardware_adapter_resolved_for_the_turn_unmasks_per_the_environment_option()
     {
-        await SembrarAsync();
 
         // The reverse: a cloud environment, and the turn resolved own hardware.
         var (_, proveedor) = await PreguntarAsync(
@@ -312,7 +298,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Unmasked_option_with_a_cassette_directory_keeps_the_document_out_of_the_prompt()
     {
-        await SembrarAsync();
 
         var (_, proveedor) = await PreguntarAsync(
             Secretaria,
@@ -327,7 +312,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Unmasked_option_in_effect_still_suppresses_the_history_comment()
     {
-        await SembrarAsync();
 
         var (turno, proveedor) = await PreguntarAsync(
             Secretaria,
@@ -347,7 +331,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task A_scoped_actor_asking_for_phones_gets_none_with_the_option_in_effect()
     {
-        await SembrarAsync();
 
         var (turno, proveedor) = await PreguntarAsync(
             Coordinador,
@@ -367,7 +350,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task The_turn_log_carries_no_row_value_with_the_option_in_effect()
     {
-        await SembrarAsync();
 
         var registro = new RegistroDeCapturas();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(SqlDeDocumentos));
@@ -388,7 +370,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     public async Task A_one_column_template_states_the_real_value_only_when_the_option_is_in_effect(
         string provider, bool statesTheValue)
     {
-        await SembrarAsync();
 
         var (turno, proveedor) = await PreguntarAsync(
             Secretaria,
@@ -407,7 +388,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_actor_global_con_permiso_resuelve_a_la_conexion_con_datos_personales()
     {
-        await SembrarAsync();
 
         var perfil = await new ConsultorDeAlcance(Apertura)
             .ObtenerAsync(Secretaria, TestContext.Current.CancellationToken);
@@ -420,7 +400,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     public async Task Un_actor_de_ambito_acotado_resuelve_a_la_conexion_basica()
     {
         // La política de la aplicación es la puerta; el acotamiento se aplica después, en el controller.
-        await SembrarAsync();
 
         var perfil = await new ConsultorDeAlcance(Apertura)
             .ObtenerAsync(Coordinador, TestContext.Current.CancellationToken);
@@ -434,7 +413,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     {
         // La restricción la impone el motor, no el código: cualquier camino nuevo
         // que se olvide del filtro falla igual.
-        await SembrarAsync();
 
         var excepcion = await Assert.ThrowsAsync<ConsultaSinPrivilegio>(
             () => EjecutarAsync(
@@ -450,7 +428,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_actor_acotado_que_pregunta_por_telefonos_no_los_recibe()
     {
-        await SembrarAsync();
 
         var (turno, proveedor) = await PreguntarAsync(
             Coordinador,
@@ -468,7 +445,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_rechazo_del_motor_no_se_filtra_al_usuario()
     {
-        await SembrarAsync();
 
         var (turno, _) = await PreguntarAsync(
             Coordinador,
@@ -542,7 +518,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Through_the_real_composition_a_cloud_selection_masks_and_own_hardware_unmasks()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var cable = new CableDeRedaccion();
 

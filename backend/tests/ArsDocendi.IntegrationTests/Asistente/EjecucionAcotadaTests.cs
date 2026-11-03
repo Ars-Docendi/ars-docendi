@@ -9,7 +9,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>Verifica la ejecución envuelta de la consulta generada.</summary>
 public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_ejecucion")
+    : ClasePostgresAislada(postgres, "asistente_ejecucion", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -33,7 +33,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         // libre con `public.unaccent` de los dos lados; esto fija que el rol de solo lectura del
         // asistente REALMENTE pueda hacerlo —schema `public` alcanzable con `search_path` vacío,
         // extensión creada, EXECUTE concedido—.
-        await SembrarAsync();
 
         const string Cruda =
             "SELECT apellido FROM identity.personas WHERE apellido ILIKE '%Diaz%'";
@@ -55,7 +54,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_actor_acota_el_resultado()
     {
-        await SembrarAsync();
         await AcotarAUnaSolaMateriaAsync(Jefe);
 
         var global = await EjecutarAsync(ContarPedidos, Secretaria);
@@ -74,7 +72,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Dos_turnos_consecutivos_no_heredan_el_actor()
     {
-        await SembrarAsync();
         await AcotarAUnaSolaMateriaAsync(Jefe);
         var ejecutor = Ejecutor();
         var ct = TestContext.Current.CancellationToken;
@@ -95,7 +92,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_ajuste_del_actor_no_sobrevive_a_la_ejecucion()
     {
-        await SembrarAsync();
         await EjecutarAsync(ContarPedidos, Secretaria);
 
         // Conexión nueva del mismo rol: el ajuste murió con el COMMIT.
@@ -111,7 +107,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_identificador_del_directorio_externo_falla_de_forma_visible()
     {
-        await SembrarAsync();
 
         // Sin esta comprobación, el turno respondería "no encontré nada" sobre una
         // base llena: el oid no corresponde a ninguna fila de identity.users, las
@@ -123,7 +118,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_perfil_distingue_el_alcance_global_del_acotado()
     {
-        await SembrarAsync();
         var perfiles = Perfiles();
         var ct = TestContext.Current.CancellationToken;
 
@@ -135,7 +129,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_acceso_a_datos_personales_exige_alcance_global_ademas_del_permiso()
     {
-        await SembrarAsync();
         var perfiles = Perfiles();
         var ct = TestContext.Current.CancellationToken;
 
@@ -150,7 +143,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_escritura_no_sobrevive_a_la_envoltura()
     {
-        await SembrarAsync();
 
         // El validador ya habría rechazado esto. Se prueba igual porque la garantía tiene que valer
         // AUNQUE el validador falle entero.
@@ -167,7 +159,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_rol_del_asistente_no_puede_escribir_ni_fuera_de_la_envoltura()
     {
-        await SembrarAsync();
 
         // La primera capa, sin ninguna de las otras: conexión directa del rol, sin envoltura, sin
         // transacción de solo lectura, sin validador.
@@ -184,7 +175,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task La_transaccion_de_solo_lectura_rechaza_una_escritura()
     {
-        await SembrarAsync();
 
         // La segunda capa, aislada de la primera: se usa una tabla temporal, que el rol SÍ podría
         // crear si la transacción no fuera de solo lectura.
@@ -211,7 +201,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task La_transaccion_se_declara_de_solo_lectura()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT current_setting('transaction_read_only') AS modo", Secretaria);
@@ -222,7 +211,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_timeout_de_sentencia_queda_fijado_en_la_transaccion()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT current_setting('statement_timeout') AS tope", Secretaria);
@@ -237,7 +225,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_resultado_por_debajo_del_tope_no_se_marca_truncado()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT numero FROM designaciones.pedidos ORDER BY numero", Secretaria, tope: 100);
@@ -249,7 +236,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_resultado_exactamente_en_el_tope_no_se_marca_truncado()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT numero FROM designaciones.pedidos ORDER BY numero", Secretaria, tope: 8);
@@ -262,7 +248,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_resultado_por_encima_del_tope_se_recorta_y_se_marca()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT numero FROM designaciones.pedidos ORDER BY numero", Secretaria, tope: 3);
@@ -274,7 +259,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task La_fila_sonda_nunca_sale_del_ejecutor()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT numero FROM designaciones.pedidos ORDER BY numero", Secretaria, tope: 5);
@@ -308,7 +292,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Cero_filas_se_reconoce_como_vacio()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'", Secretaria);
@@ -320,7 +303,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_agregacion_sobre_nada_devuelve_una_fila_de_nulos_y_es_vacio()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT max(horas) AS tope FROM designaciones.designaciones WHERE horas < 0",
@@ -335,7 +317,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_conteo_en_cero_no_es_vacio()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             "SELECT count(*) AS cantidad FROM designaciones.pedidos WHERE numero = 'no-existe'",
@@ -350,7 +331,6 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     [Fact]
     public async Task Las_columnas_llegan_con_su_nombre()
     {
-        await SembrarAsync();
 
         var resultado = await EjecutarAsync(
             """SELECT count(*) AS "cantidad de pedidos" FROM designaciones.pedidos""", Secretaria);

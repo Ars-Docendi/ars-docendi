@@ -10,7 +10,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>Verifica la capa conversacional de punta a punta, contra una base real.</summary>
 public sealed class CapaConversacionalTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_conversacion")
+    : ClasePostgresAislada(postgres, "asistente_conversacion", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -27,7 +27,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [InlineData("¿qué podés hacer?")]
     public async Task Un_mensaje_social_no_llama_al_modelo(string mensaje)
     {
-        await SembrarAsync();
         var banco = Banco();
 
         var turno = await banco.Capa().ResponderAsync(
@@ -42,7 +41,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_pregunta_con_apertura_cortes_sigue_al_carril()
     {
-        await SembrarAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
         var turno = await banco.Capa().ResponderAsync(
@@ -58,7 +56,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_primer_turno_no_paga_la_reescritura()
     {
-        await SembrarAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
         await banco.Capa().ResponderAsync(
@@ -75,7 +72,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_seguimiento_paga_la_reescritura_y_le_manda_el_turno_anterior()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -102,7 +98,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     public async Task En_el_pivote_no_se_le_manda_ningun_turno_anterior()
     {
         // EL TEST DEL CAMBIO DE TEMA. No mira la salida del modelo: mira qué se le mandó.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -129,7 +124,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_pregunta_ambigua_pide_aclaracion_sin_llamar_al_modelo()
     {
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = Banco();
 
@@ -145,7 +139,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Elegir_una_opcion_resuelve_la_pregunta()
     {
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco();
@@ -168,7 +161,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // Sin la guarda, «gracias» le robaría la respuesta al menú abierto y la
         // aclaración quedaría colgada.
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco();
@@ -187,7 +179,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Al_agotar_los_intentos_la_aclaracion_se_abandona()
     {
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco();
@@ -212,7 +203,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_hilo_una_pregunta_autocontenida_se_responde_igual()
     {
-        await SembrarAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
         var turno = await banco.Capa().ResponderAsync(
@@ -225,7 +215,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_hilo_ajeno_se_rechaza()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4.");
 
@@ -240,7 +229,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_turno_acumula_en_el_hilo()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4.");
 
@@ -258,7 +246,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // La misma restricción que el enmascarador impuso en la salida, sostenida en el historial:
         // si el hilo guardara filas, los datos personales volverían al prompt por la puerta del historial.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
             ProveedorGuionado.Generacion(
@@ -284,7 +271,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_hilo_arrastra_la_consulta_que_respondio()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4.");
 
@@ -301,7 +287,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // Ofrecerle al modelo una consulta que no encontró nada lo invita a
         // repetirla, y el turno siguiente heredaría el error del anterior.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
             ProveedorGuionado.Generacion(
@@ -322,7 +307,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // EL CASO QUE MOTIVÓ EL CAMBIO. «esa materia» se refiere a algo que apareció en la
         // RESPUESTA, nunca en una pregunta: con sólo preguntas en el hilo no hay forma de resolverlo.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
             ProveedorGuionado.Generacion(ContarDocentes),
@@ -354,7 +338,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // El reescritor promete «una pregunta que se entienda sola» y a veces devuelve algo que no
         // se entiende solo.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
             ProveedorGuionado.Generacion(ContarDocentes),
@@ -378,7 +361,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         // LA CONDICIÓN QUE EVITA LA EXPLICACIÓN FALSA. Un seguimiento que se rechaza por estar
         // fuera del esquema no tiene ningún problema de referencia, y decirle al usuario que nombre
         // algo lo manda a corregir lo que no estaba mal.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
             ProveedorGuionado.Generacion(ContarDocentes),
@@ -400,7 +382,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // Sin historial no hubo seguimiento que resolver: el demostrativo es del
         // usuario, no un residuo de la reescritura.
-        await SembrarAsync();
         var banco = Banco(ProveedorGuionado.NoContestable());
 
         var turno = await banco.Capa().ResponderAsync(
@@ -415,7 +396,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_conversacion_nueva_arranca_en_la_primera_variante()
     {
-        await SembrarAsync();
         var banco = Banco(ProveedorGuionado.NoContestable());
 
         var turno = await banco.Capa().ResponderAsync(
@@ -429,7 +409,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Dos_rechazos_consecutivos_en_el_mismo_hilo_difieren()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         const string Pregunta = "¿instalás linux en el servidor?";
 
@@ -463,7 +442,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Cinco_rechazos_consecutivos_nunca_repiten_texto_seguido()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         const string Pregunta = "¿instalás linux en el servidor?";
 
@@ -499,7 +477,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         // El turno reemplazado se saca del hilo ANTES de resolver la edición (design.md D9 de
         // asistente-rediseno-v3), así que `RechazosPrevios()` vuelve a cero para ella: no cuenta el
         // turno que reemplaza, cuenta el que reemplazó.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.NoContestable(), ProveedorGuionado.NoContestable());
 
@@ -520,7 +497,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         // La precedencia de CierreDelTurno.TextoDelRechazo se sostiene aunque la
         // escalación ya esté en la segunda variante: el diagnóstico de
         // referencia sin resolver es más específico que el motivo del modelo.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
             ProveedorGuionado.NoContestable(),
@@ -540,7 +516,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // Mientras el generador pueda contestar —y con el arrastre muchas veces
         // puede— no hay nada que explicar.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(
             ProveedorGuionado.Generacion(ContarDocentes),
@@ -562,7 +537,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_colision_termina_en_aclaracion()
     {
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -581,7 +555,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_el_ultimo_turno_lo_saca_del_hilo_y_agrega_el_nuevo()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -604,7 +577,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_un_turno_que_no_es_el_ultimo_es_rechazado_y_no_cambia_nada()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -629,7 +601,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_un_hilo_vencido_es_rechazado()
     {
-        await SembrarAsync();
         var banco = Banco();
 
         await Assert.ThrowsAsync<ReemplazoInvalido>(
@@ -643,7 +614,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     {
         // design.md D9, punto 4: el rechazo del candado no cambia nada — ni el
         // hilo, ni el historial.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -669,7 +639,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_reemplazo_revoca_el_token_viejo_y_mintea_uno_nuevo()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -693,7 +662,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task El_historial_conserva_solo_la_version_final()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -716,7 +684,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         // design.md D9: «un seguimiento tras un reemplazo usa el contexto reemplazado» — la
         // pregunta con anáfora que sigue al reemplazo tiene que ver, en la reescritura, la pregunta
         // y la consulta NUEVAS, nunca las reemplazadas.
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
 
@@ -745,7 +712,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_la_pregunta_que_sigue_a_un_saludo_funciona()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco();
 
@@ -768,7 +734,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_la_pregunta_que_sigue_a_una_meta_pregunta_funciona()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco();
 
@@ -789,7 +754,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_la_pregunta_que_dejo_un_menu_de_aclaracion_abierto_funciona()
     {
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var ct = TestContext.Current.CancellationToken;
         var banco = Banco();
@@ -813,7 +777,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_la_pregunta_que_termino_degradada_antes_del_carril_sql_funciona()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var (basica, pii) = CadenasDeLectura();
         var opciones = new OpcionesAsistente { FallosParaAbrirElBreaker = 1 };
@@ -837,7 +800,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_el_ultimo_turno_de_una_conversacion_reanudada_cuyo_ultimo_turno_fue_social()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
         var hilos = NuevosHilos();
         var idDelTurnoSocial = Guid.NewGuid();

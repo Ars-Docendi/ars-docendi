@@ -10,7 +10,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>Verifica el carril SQL de punta a punta, contra una base real.</summary>
 public sealed class CarrilSqlTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_carril")
+    : ClasePostgresAislada(postgres, "asistente_carril", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -33,7 +33,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_pregunta_de_cobertura_de_catedra_responde_acotada_al_actor()
     {
-        await SembrarAsync();
 
         var (global, _) = await PreguntarAsync(
             Secretaria, "¿Qué docentes están designados?", CoberturaDeCatedra);
@@ -54,7 +53,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task La_respuesta_trae_las_columnas_y_el_razonamiento()
     {
-        await SembrarAsync();
 
         var (turno, _) = await PreguntarAsync(
             Secretaria, "¿Cuántos pedidos hay?", ContarPedidos, "Conté los pedidos del sistema.");
@@ -68,7 +66,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_pregunta_no_contestable_corta_el_turno()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestable());
 
         var turno = await CarrilCon(proveedor).ResponderAsync(
@@ -83,7 +80,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_razonamiento_sobrevive_a_la_abstencion()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.NoContestable("Eso no está entre los datos que puedo consultar."));
 
@@ -96,7 +92,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_generacion_cortada_por_presupuesto_abstiene_igual_pero_no_se_registra_como_abstencion()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             """{"es_contestable": true, "sql": "SELECT count(*) AS cantidad FROM designaci""")
         {
@@ -115,7 +110,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_consulta_rechazada_por_el_validador_no_se_reintenta_a_ciegas()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             """SELECT "set_config"('app.asistente_user_id','x',true)"""));
 
@@ -136,7 +130,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_ataque_del_prototipo_no_obtiene_alcance_global()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             $"""
             SELECT count(*) AS cantidad
@@ -158,7 +151,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_texto_del_rechazo_no_nombra_la_consulta()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             """SELECT "set_config"('app.asistente_user_id','x',true)"""));
 
@@ -174,7 +166,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Cada_motivo_declarado_produce_su_propio_texto()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
 
         var textos = new List<string>();
@@ -192,7 +183,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_motivo_declarado_queda_anotado_en_el_resultado()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.NoContestableConMotivo("muy_general"));
 
@@ -205,7 +195,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_razonamiento_del_modelo_nunca_llega_al_cuerpo_del_rechazo()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestableConMotivo(
             "no_cubierto", razonamiento: "Frase muy particular que jamás debería aparecer citada."));
 
@@ -219,7 +208,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_termino_del_mensaje_crudo_se_cita_y_el_de_la_pregunta_reescrita_no()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
 
         var conElTermino = new ProveedorGuionado(
@@ -242,7 +230,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_falla_del_catalogo_de_capacidades_no_rompe_el_rechazo()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"));
 
@@ -260,7 +247,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_rechazo_declarado_por_el_modelo_gasta_una_sola_llamada()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestableConMotivo("no_cubierto"));
 
         var turno = await CarrilCon(proveedor).ResponderAsync(
@@ -278,7 +264,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_rechazo_del_motor_por_privilegio_mantiene_su_texto_generico_sin_motivo()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT telefono FROM identity.personas"));
 
@@ -306,7 +291,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_actor_acotado_un_vacio_no_gasta_el_reintento()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"));
 
@@ -326,7 +310,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_actor_global_un_vacio_si_gasta_el_reintento()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"));
 
@@ -343,7 +326,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     {
         // asistente-proveedor-local, D6: el reintento repite el prompt byte a byte, y con un modelo
         // local a temperatura 0 devuelve la misma consulta.
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"));
 
@@ -363,7 +345,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     {
         // D3: un proveedor que puede imponer la forma —un servidor local con decodificación
         // restringida— la recibe en la solicitud.
-        await SembrarAsync();
         var (_, proveedor) = await PreguntarAsync(Secretaria, "¿Cuántos pedidos hay?", ContarPedidos);
 
         var esquema = System.Text.Json.JsonDocument.Parse(
@@ -384,7 +365,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     public async Task Con_contexto_el_reintento_por_vacio_le_dice_al_modelo_que_consulta_no_trajo_filas()
     {
         // D4: el prompt idéntico, a temperatura 0, devolvía la misma consulta.
-        await SembrarAsync();
         const string Vacia = "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'";
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(Vacia));
 
@@ -403,7 +383,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     public async Task Una_consulta_que_el_motor_rechaza_tiene_una_ronda_de_reparacion()
     {
         // D4: la columna no existe, el motor la rechaza, y la segunda generación —con el error— corrige.
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"),
             ProveedorGuionado.Generacion(ContarPedidos),
@@ -420,7 +399,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_la_opcion_una_consulta_rechazada_no_se_repara()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"));
 
@@ -441,7 +419,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     public async Task Con_el_razonamiento_el_reintento_por_vacio_pide_esfuerzo_alto_con_o_sin_contexto(
         bool conContexto)
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(ConsultaVacia));
 
         await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente
@@ -458,7 +435,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_razonamiento_la_reparacion_pide_esfuerzo_alto_y_la_primera_generacion_no()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"),
             ProveedorGuionado.Generacion(ContarPedidos),
@@ -478,7 +454,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_el_razonamiento_el_reintento_es_igual_a_la_primera_generacion_en_esfuerzo_y_techo()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(ConsultaVacia));
 
         await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente
@@ -497,7 +472,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     {
         // El razonamiento se comió el techo antes de cerrar el objeto. La primera
         // respuesta llegó entera, así que `SeQuedaSinTokens` no la descarta.
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion(ConsultaVacia),
             """{"es_contestable":true,"sql":"SELECT numero FROM designaciones.ped""")
@@ -521,7 +495,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_reparacion_truncada_con_el_razonamiento_relanza_el_rechazo_original()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"),
             """{"es_contestable":true,"sql":"SELECT count(*) FROM designaciones.ped""")
@@ -546,7 +519,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     {
         // D6: la segunda vez no hay llamada de generación —sólo la de redacción—, y
         // la consulta se ejecuta de nuevo: las filas son las de ESTE actor.
-        await SembrarAsync();
         var cache = new CacheDeConsultasGeneradas(TimeProvider.System);
         var opciones = new OpcionesAsistente { VigenciaDeCacheDeConsultasMinutos = 10 };
         var primera = new ProveedorGuionado(ProveedorGuionado.Generacion(ContarPedidos), "Hay pedidos.");
@@ -566,7 +538,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_pregunta_con_consultas_anteriores_no_usa_la_cache()
     {
-        await SembrarAsync();
         var cache = new CacheDeConsultasGeneradas(TimeProvider.System);
         var opciones = new OpcionesAsistente { VigenciaDeCacheDeConsultasMinutos = 10 };
 
@@ -587,7 +558,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task La_redaccion_no_declara_forma_porque_es_texto_libre()
     {
-        await SembrarAsync();
         var (_, proveedor) = await PreguntarAsync(Secretaria, "¿Cuántos pedidos hay?", ContarPedidos);
 
         Assert.True(proveedor.Llamadas >= 2);
@@ -599,7 +569,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     {
         // D4: el texto le dice al usuario que pruebe en unos segundos. El de
         // proveedor caído —«más tarde»— lo mandaría a esperar de más.
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado { Falla = new ProveedorSaturado(TimeSpan.FromSeconds(45)) };
 
         var turno = await CarrilCon(proveedor).ResponderAsync(
@@ -613,7 +582,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_actor_acotado_el_vacio_no_se_narra_como_inexistencia()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"));
 
@@ -628,7 +596,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_vacio_no_deja_el_razonamiento_prometiendo_filas()
     {
-        await SembrarAsync();
 
         // El razonamiento que el modelo escribe ANTES de ejecutar promete filas.
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
@@ -646,7 +613,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_con_filas_deja_el_razonamiento_intacto()
     {
-        await SembrarAsync();
 
         // La aclaración es del caso vacío y de ningún otro: acá las filas están a
         // la vista y contradicen solas cualquier promesa mal calibrada.
@@ -668,7 +634,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         // del turno daba verdadero; la RLS de portal le devuelve un solo perfil —el suyo— y a una
         // pregunta por una habilidad que otros declararon el asistente contestaba «no encontré
         // ningún registro».
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             """
             SELECT p.apellido
@@ -693,7 +658,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         // LA MITAD QUE NO SE PUEDE ROMPER AL ARREGLAR LA OTRA. El permiso de portal no puede pasar
         // a hacer falta para preguntas que no son de portal: si pasara, todo vacío de designaciones
         // se narraría como límite de alcance y el asistente dejaría de poder decir «no hay» nunca.
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion(
                 "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"),
@@ -710,7 +674,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_reintento_se_queda_con_la_segunda_consulta_si_esa_trae_datos()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion(
                 "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"),
@@ -728,7 +691,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_resultado_truncado_llega_marcado_y_sin_conteo()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
             "SELECT numero FROM designaciones.pedidos ORDER BY numero"));
 
@@ -748,7 +710,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task La_pregunta_interpretada_se_devuelve_solo_cuando_difiere()
     {
-        await SembrarAsync();
         var ct = TestContext.Current.CancellationToken;
 
         var igual = await CarrilCon(Guion()).ResponderAsync(
@@ -763,7 +724,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_pregunta_interpretada_se_usa_el_mensaje()
     {
-        await SembrarAsync();
         var proveedor = Guion();
 
         var turno = await CarrilCon(proveedor).ResponderAsync(
@@ -778,7 +738,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_proveedor_caido_resuelve_servicio_degradado()
     {
-        await SembrarAsync();
         var proveedor = new ProveedorGuionado { Falla = new HttpRequestException("sin ruta") };
 
         var turno = await CarrilCon(proveedor).ResponderAsync(
@@ -791,7 +750,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_techo_de_llamadas_agotado_resuelve_servicio_degradado()
     {
-        await SembrarAsync();
         var contador = new ContadorDeLlamadasDelTurno(1);
         contador.Reservar();
 
@@ -804,7 +762,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_actor_que_no_existe_no_se_disfraza_de_respuesta_vacia()
     {
-        await SembrarAsync();
 
         // El oid del directorio externo. Sin la validación explícita, el turno
         // habría contestado «no encontré nada» sobre una base llena.
@@ -821,7 +778,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_completo_consume_exactamente_dos_llamadas()
     {
-        await SembrarAsync();
         var proveedor = Guion();
 
         var turno = await CarrilCon(proveedor).ResponderAsync(
@@ -835,7 +791,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_turno_no_supera_el_techo_de_llamadas_por_defecto()
     {
-        await SembrarAsync();
 
         // El peor caso del carril: generación, reintento y redacción. El techo por
         // omisión es cuatro.
@@ -856,7 +811,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task La_redaccion_usa_temperatura_baja_pero_no_cero()
     {
-        await SembrarAsync();
         var proveedor = Guion();
 
         await CarrilCon(proveedor).ResponderAsync(
@@ -872,7 +826,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Toda_consulta_del_catalogo_ejecuta_contra_el_esquema_vigente()
     {
-        await SembrarAsync();
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var ejecutor = new EjecutorDeConsulta(Apertura, ClasificadorDeSensibilidad(),
             Options.Create(new OpcionesAsistente()));
@@ -903,7 +856,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         // La pregunta dice «Ingeniería Informática» y el SQL del ejemplo filtra por 'Ingeniería en
         // Informática', el nombre real.
         const string pregunta = "¿Cuántos profesores titulares hay en la carrera de Ingeniería Informática?";
-        await SembrarAsync();
         var sql = new SelectorDeEjemplos().Catalogo.Single(e => e.Pregunta == pregunta).Sql;
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(sql), "Hay titulares.");
 
@@ -920,7 +872,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_mencion_filtra_por_el_marcador_exacto()
     {
-        await SembrarAsync();
 
         var materia = new ResultadoDeMencion(
             MateriaAlgoritmos, "Algoritmos y Estructuras de Datos", Carrera: "Ingeniería en Informática");
@@ -944,7 +895,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_consulta_que_ignora_el_marcador_declarado_se_abstiene()
     {
-        await SembrarAsync();
 
         var materia = new ResultadoDeMencion(MateriaAlgoritmos, "Algoritmos y Estructuras de Datos");
 
@@ -963,7 +913,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     [Fact]
     public async Task El_turno_respondido_anota_los_bindings_ejecutados()
     {
-        await SembrarAsync();
 
         var materia = new ResultadoDeMencion(MateriaAlgoritmos, "Algoritmos y Estructuras de Datos");
 
@@ -985,7 +934,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         // real: ni el turno con la mención nueva, ni el seguimiento que hereda su marcador (vía
         // `referenciasHeredadas`, el mismo mecanismo que usa CapaConversacional), le mandan el uuid
         // al proveedor — ni en el mensaje del turno, ni en el prefijo, ni en ninguno de los dos turnos.
-        await SembrarAsync();
 
         var materia = new ResultadoDeMencion(
             MateriaAlgoritmos, "Algoritmos y Estructuras de Datos", Carrera: "Ingeniería en Informática");
@@ -1035,7 +983,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         // un turno anterior del MISMO hilo en vivo, ligado sin volver a preguntarle a
         // `IBuscadorDeMenciones`, seguiría devolviendo la materia aunque el alcance del actor se
         // haya achicado entre los dos turnos.
-        await SembrarAsync();
 
         var materia = new ResultadoDeMencion(
             MateriaAlgoritmos, "Algoritmos y Estructuras de Datos", Carrera: "Ingeniería en Informática");

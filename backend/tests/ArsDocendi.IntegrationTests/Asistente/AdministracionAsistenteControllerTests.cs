@@ -20,7 +20,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// grupo 6 de asistente-administracion-de-uso).
 /// </summary>
 public sealed class AdministracionAsistenteControllerTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_administracion_controller")
+    : ClasePostgresAislada(postgres, "asistente_administracion_controller", sembrada: true)
 {
     // sys_admin ya tiene asistente.administrar por default (migración 020).
     private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
@@ -29,7 +29,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Sin_el_permiso_el_toggle_se_rechaza_y_no_cambia_nada()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -46,7 +45,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Activar_sin_razon_se_rechaza_y_el_flag_no_cambia()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -64,7 +62,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Con_el_permiso_y_razon_activa_y_audita_una_fila()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -93,7 +90,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Desactivar_no_exige_razon_y_audita_otra_fila()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -122,7 +118,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Sin_el_permiso_el_panel_de_uso_se_rechaza()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -136,7 +131,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Con_el_permiso_el_panel_de_uso_agrega_por_usuario_rol_y_organizacion()
     {
-        await SembrarAsync();
         await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 2, 100, 50, 10);
 
         using var host = CrearHost();
@@ -160,7 +154,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Cada_fila_de_usuario_trae_sus_codigos_de_rol()
     {
-        await SembrarAsync();
         await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
 
         using var host = CrearHost();
@@ -177,7 +170,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task El_override_de_un_usuario_gana_al_cupo_de_su_rol_en_el_panel_de_uso()
     {
-        await SembrarAsync();
         await FijarCupoDeRolAsync("secretaria", 3);
         await FijarOverrideAsync(Secretaria, 100);
         await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
@@ -200,7 +192,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         // El mínimo entre los roles ACTIVADOS de Secretaria (3 y 10) es 3 —
         // misma regla que CuotaPersistente aplicaría de verdad al bloquear un
         // turno (CuotaPersistenteTests.Con_varios_roles_activados_...).
-        await SembrarAsync();
         await FijarCupoDeRolAsync("secretaria", 3);
         await FijarCupoDeRolAsync("decanato", 10);
         await AgregarRolAsync(Secretaria, "decanato");
@@ -233,7 +224,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Editar_el_cupo_de_un_rol_audita_antes_y_despues()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -253,7 +243,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Sin_el_permiso_editar_el_cupo_de_un_rol_se_rechaza()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -269,7 +258,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Editar_el_override_de_un_usuario_audita_antes_y_despues()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -290,7 +278,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Editar_el_tope_organizacional_audita_antes_y_despues()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -310,7 +297,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     {
         // Interpolado, un decimal sale con la coma de la cultura del proceso (es-AR: «12,5») y la
         // fila de auditoría deja de ser JSON.
-        await SembrarAsync();
         using var host = CrearHost();
         host.Server.PreserveExecutionContext = true;
         using var cliente = host.CreateClient();
@@ -342,7 +328,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Sin_el_permiso_leer_los_presupuestos_se_rechaza()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -359,7 +344,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         // El seed de 006_asistente_administracion.sql deja el tope en 0 y el
         // cupo de los siete roles de sistema en 0 (design.md, Open Questions):
         // un default adivinado y restrictivo es peor que arrancar "apagado".
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -378,7 +362,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Los_valores_editados_por_PUT_se_leen_de_vuelta_por_GET()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -406,7 +389,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task El_gasto_del_mes_coincide_con_el_costo_que_reporta_el_panel_de_uso()
     {
-        await SembrarAsync();
         await FijarPrecioVigenteAsync("anthropic", "claude-sonnet-5", 0.001m);
         await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 1000, 0, 10);
 
@@ -434,7 +416,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Sin_proveedor_local_la_telemetria_dice_que_no_esta_configurado()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
@@ -451,7 +432,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Sin_el_permiso_la_telemetria_se_rechaza()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -467,7 +447,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Quitar_el_acceso_de_un_usuario_se_ve_en_el_panel_y_se_audita()
     {
-        await SembrarAsync();
         await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
@@ -494,7 +473,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Apagar_el_acceso_de_un_rol_lo_hereda_el_usuario_y_se_audita()
     {
-        await SembrarAsync();
         await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
@@ -518,7 +496,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Restablecer_el_cupo_de_un_usuario_vuelve_al_del_rol_y_se_audita()
     {
-        await SembrarAsync();
         await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
         await FijarCupoDeRolAsync("secretaria", 15);
         await FijarOverrideAsync(Secretaria, 60);
@@ -543,7 +520,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     [Fact]
     public async Task Sin_el_permiso_cambiar_el_acceso_se_rechaza()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");

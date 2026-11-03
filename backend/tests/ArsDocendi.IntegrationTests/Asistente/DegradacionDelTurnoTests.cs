@@ -8,7 +8,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>Verifica qué sigue funcionando cuando no hay modelo, y qué cuesta un turno.</summary>
 public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_degradacion")
+    : ClasePostgresAislada(postgres, "asistente_degradacion", sembrada: true)
 {
     private static readonly DateTimeOffset Ancla = new(2026, 8, 25, 10, 0, 0, TimeSpan.Zero);
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
@@ -27,7 +27,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // Este test es sobre LlamadasAlModelo, no sobre la cuota: la cuota va
         // sin tope (default) para no interferir con lo que mide.
-        await SembrarAsync();
         var banco = Banco(
             new OpcionesAsistente(),
             guion:
@@ -60,7 +59,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         // asistente-proveedor-local, D5: la llamada del reescritor está fuera del try del carril, y
         // una falla del proveedor ahí —saturado, timeout, transporte— terminaba el turno en
         // «excepción no prevista».
-        await SembrarAsync();
         var llamadas = 0;
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion(ContarDocentes),
@@ -97,7 +95,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // asistente-optimizaciones-modelo-local, D7: el seguimiento hace DOS llamadas —generación y
         // redacción— en vez de tres.
-        await SembrarAsync();
         const string Resuelta = "¿cuántos docentes están designados en Sistemas?";
         var proveedor = new ProveedorGuionado(
             ProveedorGuionado.Generacion(ContarDocentes),
@@ -122,7 +119,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_saludo_no_consume_cupo()
     {
-        await SembrarAsync();
         var banco = Banco(new OpcionesAsistente(), cupoDiario: 1);
         var ct = TestContext.Current.CancellationToken;
 
@@ -138,7 +134,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         // No una que falle: NINGUNA. Se cuenta contra el proveedor y no contra el
         // estado devuelto, porque el estado se puede acertar sin haber evitado el
         // gasto, que es lo único que la cuota existe para evitar.
-        await SembrarAsync();
         var banco = Banco(
             new OpcionesAsistente(),
             cupoDiario: 1,
@@ -162,7 +157,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_mensaje_de_cuota_agotada_dice_cuando_vuelve_el_cupo()
     {
-        await SembrarAsync();
         var banco = Banco(
             new OpcionesAsistente(),
             cupoDiario: 1,
@@ -185,7 +179,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Dos_actores_no_comparten_cupo()
     {
-        await SembrarAsync();
         var banco = Banco(new OpcionesAsistente(), cupoDiario: 1, guion: [.. GuionDeTurnos(2)]);
 
         var ct = TestContext.Current.CancellationToken;
@@ -202,7 +195,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_cupo_en_cero_nunca_bloquea()
     {
-        await SembrarAsync();
         var banco = Banco(new OpcionesAsistente(), cupoDiario: 0, guion: [.. GuionDeTurnos(5)]);
 
         var ct = TestContext.Current.CancellationToken;
@@ -221,7 +213,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // Si el cargo fuera solo al terminar bien, fallar sería una forma de consultar gratis:
         // bastaría con hacer explotar el turno después de la llamada cara.
-        await SembrarAsync();
         var banco = BancoCon(
             new OpcionesAsistente(),
             null,
@@ -250,7 +241,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // ÉSTE ES EL MODO DE FALLA QUE RNF-09 NOMBRA. Cada llamada tarda 16 s con un timeout de 20,
         // así que ninguna se pasa; entre dos suman 32 s contra un presupuesto de 30.
-        await SembrarAsync();
         var reloj = new RelojFijo(Ancla);
 
         var banco = BancoCon(
@@ -278,7 +268,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // Sin esta distinción, cada persona que cierra la pestaña quedaría contada
         // como una caída del servicio y la métrica de disponibilidad mentiría.
-        await SembrarAsync();
         var banco = Banco(new OpcionesAsistente());
 
         using var fuente = new CancellationTokenSource();
@@ -294,7 +283,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // La cuota se deriva de registro_operativo: si el token cancelado del request cortaba la
         // escritura de la fila, irse a mitad del turno era una forma de consultar sin que el cupo lo contara.
-        await SembrarAsync();
         var (basica, pii) = CadenasDeLectura();
         using var fuente = new CancellationTokenSource();
         var registro = new RegistroQueRespetaLaCancelacion();
@@ -322,7 +310,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_presupuesto_en_cero_deja_el_turno_sin_cota()
     {
-        await SembrarAsync();
         var banco = Banco(
             new OpcionesAsistente { PresupuestoDelTurnoSegundos = 0 },
             guion: [ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."]);
@@ -337,7 +324,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task El_resultado_reporta_el_consumo_real_de_llamadas()
     {
-        await SembrarAsync();
         var banco = Banco(
             new OpcionesAsistente(),
             guion: [ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."]);
@@ -355,7 +341,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_breaker_abierto_un_saludo_sigue_costando_cero()
     {
-        await SembrarAsync();
         var banco = BancoSinProveedor();
 
         var turno = await banco.Capa().ResponderAsync(
@@ -370,7 +355,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // El menú sale de una consulta a la base, no del modelo. Si la falta de proveedor cortara
         // el turno, se perdería el único estado que le dice al usuario cómo destrabar su propia pregunta.
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = BancoSinProveedor();
 
@@ -387,7 +371,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_breaker_abierto_la_respuesta_a_una_aclaracion_se_reconoce()
     {
-        await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = BancoSinProveedor();
         var ct = TestContext.Current.CancellationToken;
@@ -410,7 +393,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_breaker_abierto_una_pregunta_de_datos_resuelve_degradada()
     {
-        await SembrarAsync();
         var banco = BancoSinProveedor();
 
         var turno = await banco.Capa().ResponderAsync(
@@ -427,7 +409,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // Sale del orden: el veredicto se resuelve ANTES del pipeline, así que sin modelo no hay
         // llamadas, y sin llamadas no hay nada que cobrar.
-        await SembrarAsync();
         var banco = BancoSinProveedor(cupoDiario: 4);
         var ct = TestContext.Current.CancellationToken;
 
@@ -443,7 +424,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_cupo_un_saludo_sigue_resolviendo()
     {
-        await SembrarAsync();
         var banco = Banco(new OpcionesAsistente(), cupoDiario: 1);
         var ct = TestContext.Current.CancellationToken;
 
@@ -465,7 +445,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // «No contestable» significa que la pregunta no se puede responder nunca; degradado
         // significa que ahora no.
-        await SembrarAsync();
 
         var caido = BancoSinProveedor();
         var degradado = await caido.Capa().ResponderAsync(
@@ -492,7 +471,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // La cuota se cobra en un `finally` y el registro no: un turno que revienta pagaba llamadas
         // que después no aparecían en ningún lado.
-        await SembrarAsync();
 
         var banco = BancoCon(
             new OpcionesAsistente(),

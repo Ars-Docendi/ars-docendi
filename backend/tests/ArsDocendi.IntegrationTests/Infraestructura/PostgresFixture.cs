@@ -83,6 +83,13 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// </remarks>
     private string? _plantilla;
 
+    /// <summary>
+    /// La plantilla con el seed sintético ya aplicado, para las clases donde todos los
+    /// tests lo necesitan: aplicarlo cuesta ~0,5 s por test y es idéntico siempre.
+    /// Como la otra, nunca lleva roles.
+    /// </summary>
+    private string? _plantillaSembrada;
+
     private readonly SemaphoreSlim _candadoDeLaPlantilla = new(1, 1);
 
     // PostgreSQL rechaza clonar una plantilla mientras otra copia la está leyendo
@@ -122,6 +129,34 @@ public sealed class PostgresFixture : IAsyncLifetime
         }
     }
 
+    private async Task<string> PlantillaSembradaAsync()
+    {
+        var migrada = await PlantillaAsync();
+
+        await _candadoDeLaPlantilla.WaitAsync();
+        try
+        {
+            if (_plantillaSembrada is not null)
+            {
+                return _plantillaSembrada;
+            }
+
+            var nombre = $"plantilla_sembrada_{Guid.NewGuid():N}";
+            await CrearBaseVaciaAsync(nombre, migrada);
+            await ClasePostgresAislada.SembrarEnAsync(CadenaDe(nombre), CancellationToken.None);
+
+            // Mismo motivo que en PlantillaAsync: sin conexiones vivas no se puede clonar.
+            NpgsqlConnection.ClearAllPools();
+
+            _plantillaSembrada = nombre;
+            return nombre;
+        }
+        finally
+        {
+            _candadoDeLaPlantilla.Release();
+        }
+    }
+
     private async Task CrearBaseVaciaAsync(string nombre, string? plantilla = null)
     {
         if (plantilla is not null)
@@ -149,11 +184,14 @@ public sealed class PostgresFixture : IAsyncLifetime
         }
     }
 
-    private string CadenaDe(string nombre) =>
+    // Sin pool por defecto: una plantilla con conexiones vivas no se puede clonar. Las bases de
+    // test sí lo usan, como producción: sin él, cada consulta del host abre un backend nuevo
+    // (~10 ms) y un turno del asistente paga ~25 aperturas.
+    private string CadenaDe(string nombre, bool conPool = false) =>
         new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
         {
             Database = nombre,
-            Pooling = false,
+            Pooling = conPool,
         }.ConnectionString;
 
     /// <summary>Corre las migraciones de identity, storage, designaciones y portal, en el orden del Host.</summary>
@@ -241,7 +279,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// se comportaba el esquema ANTES de una migración.
     /// </remarks>
     public async Task<BaseDePrueba> CrearBaseMigradaAsync(
-        string prefijo, string? migracionDesignaciones = null)
+        string prefijo, string? migracionDesignaciones = null, bool sembrada = false)
     {
         var identificador = Guid.NewGuid();
         var nombre = $"{prefijo}_{identificador:N}";
@@ -251,7 +289,8 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         if (migracionDesignaciones is null)
         {
-            await CrearBaseVaciaAsync(nombre, await PlantillaAsync());
+            await CrearBaseVaciaAsync(
+                nombre, sembrada ? await PlantillaSembradaAsync() : await PlantillaAsync());
         }
         else
         {
@@ -259,7 +298,7 @@ public sealed class PostgresFixture : IAsyncLifetime
             await MigrarAsync(CadenaDe(nombre), migracionDesignaciones);
         }
 
-        var cadena = CadenaDe(nombre);
+        var cadena = CadenaDe(nombre, conPool: true);
 
         await CrearRolesDelAsistenteAsync(nombre, rolSoloLectura, rolSoloLecturaPii);
 
@@ -296,6 +335,10 @@ public sealed class PostgresFixture : IAsyncLifetime
         await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
         await conexion.OpenAsync();
         await EjecutarAsync(conexion, $"DROP DATABASE IF EXISTS \"{nombre}\" WITH (FORCE)");
+
+        // El FORCE ya cortó sus backends; esto suelta los conectores muertos del lado del cliente.
+        await using var delPool = new NpgsqlConnection(cadena);
+        NpgsqlConnection.ClearPool(delPool);
     }
 
     public async Task EliminarBaseAsync(BaseDePrueba baseDePrueba)
@@ -422,7 +465,8 @@ public sealed class PostgresFixture : IAsyncLifetime
 /// comodidad del ciclo de trabajo, no un recorte de lo que se verifica.
 /// </remarks>
 [Trait("carril", "base")]
-public abstract class ClasePostgresAislada(PostgresFixture postgres, string prefijo) : IAsyncLifetime
+public abstract class ClasePostgresAislada(PostgresFixture postgres, string prefijo, bool sembrada = false)
+    : IAsyncLifetime
 {
     private BaseDePrueba? _base;
 
@@ -446,7 +490,7 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
 
     public async ValueTask InitializeAsync()
     {
-        _base = await postgres.CrearBaseMigradaAsync(prefijo);
+        _base = await postgres.CrearBaseMigradaAsync(prefijo, sembrada: sembrada);
     }
 
     public async ValueTask DisposeAsync()
@@ -533,7 +577,9 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
     /// reconstruir una no toca a la vecina—. Comparte el archivo cacheado con la
     /// sobrecarga de arriba: es el mismo seed, leído una sola vez por corrida.
     /// </remarks>
-    protected static async Task SembrarAsync(string cadena, CancellationToken ct)
+    protected static Task SembrarAsync(string cadena, CancellationToken ct) => SembrarEnAsync(cadena, ct);
+
+    internal static async Task SembrarEnAsync(string cadena, CancellationToken ct)
     {
         var sql = await Semilla.Value;
 

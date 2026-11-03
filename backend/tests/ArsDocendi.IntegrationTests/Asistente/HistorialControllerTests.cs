@@ -20,7 +20,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// El historial propio, por HTTP de verdad (asistente-historial-conversaciones §6-8).
 /// </summary>
 public sealed class HistorialControllerTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_historial_endpoint")
+    : ClasePostgresAislada(postgres, "asistente_historial_endpoint", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -31,7 +31,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Lista_solo_las_conversaciones_propias()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
         await SembrarTurnoAsync(propia, "¿cuántos docentes hay?", "SELECT 1");
@@ -52,7 +51,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task La_busqueda_encuentra_una_conversacion_por_su_pregunta()
     {
-        await SembrarAsync();
 
         var conDesignaciones = await SembrarHiloAsync(Secretaria, "sobre designaciones", Ancla);
         await SembrarTurnoAsync(
@@ -77,7 +75,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Obtener_una_conversacion_ajena_da_404()
     {
-        await SembrarAsync();
 
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
         await SembrarTurnoAsync(ajena, "algo", "SELECT 1");
@@ -95,7 +92,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_el_permiso_de_ver_la_consulta_el_campo_sql_no_viaja()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
         await SembrarTurnoAsync(propia, "¿cuántos docentes hay?", "SELECT count(*) FROM x");
@@ -116,7 +112,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_permiso_de_ver_la_consulta_el_campo_sql_si_viaja()
     {
-        await SembrarAsync();
         await ConcederVerConsultaASecretariaAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
@@ -137,7 +132,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Renombrar_una_conversacion_propia_cambia_el_titulo()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "viejo título", Ancla);
 
@@ -159,7 +153,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Renombrar_una_conversacion_ajena_se_rechaza()
     {
-        await SembrarAsync();
 
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
 
@@ -183,7 +176,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Archivar_una_conversacion_propia_la_marca()
     {
-        await SembrarAsync();
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
 
         using var host = CrearHost();
@@ -202,7 +194,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Desarchivar_le_quita_la_marca()
     {
-        await SembrarAsync();
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
 
         using var host = CrearHost();
@@ -225,7 +216,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [InlineData("desarchivar")]
     public async Task Archivar_o_desarchivar_una_conversacion_ajena_da_404(string accion)
     {
-        await SembrarAsync();
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
 
         using var host = CrearHost();
@@ -248,7 +238,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task La_busqueda_encuentra_una_conversacion_archivada_y_la_marca()
     {
-        await SembrarAsync();
         var archivada = await SembrarHiloAsync(Secretaria, "sobre designaciones", Ancla);
         await SembrarTurnoAsync(archivada, "¿cuántas designaciones vencen este cuatrimestre?", "SELECT 1");
 
@@ -268,7 +257,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Archivar_no_toca_la_ultima_actividad()
     {
-        await SembrarAsync();
         var vieja = Ancla.AddDays(-100);
         var propia = await SembrarHiloAsync(Secretaria, "propia", vieja);
 
@@ -288,7 +276,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Eliminar_devuelve_el_lote_y_la_conversacion_desaparece_de_la_lista_de_inmediato()
     {
-        await SembrarAsync();
 
         var unaConversacion = await SembrarHiloAsync(Secretaria, "uno", Ancla);
         var otraConversacion = await SembrarHiloAsync(Secretaria, "dos", Ancla);
@@ -316,7 +303,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_conversacion_pendiente_es_invisible_para_obtener_reanudar_y_renombrar()
     {
-        await SembrarAsync();
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
 
         using var host = CrearHost();
@@ -340,7 +326,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Eliminar_una_conversacion_ajena_se_rechaza_y_sigue_existiendo()
     {
-        await SembrarAsync();
 
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
 
@@ -360,7 +345,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Eliminar_todo_marca_las_propias_archivadas_incluidas_y_deja_la_ajena()
     {
-        await SembrarAsync();
 
         var unaPropia = await SembrarHiloAsync(Secretaria, "uno", Ancla);
         var archivada = await SembrarHiloAsync(Secretaria, "dos", Ancla);
@@ -393,7 +377,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Deshacer_dentro_de_la_ventana_restaura_la_conversacion_sin_cambios()
     {
-        await SembrarAsync();
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
         await SembrarTurnoAsync(propia, "¿cuántos hay?", "SELECT 1");
 
@@ -419,7 +402,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Deshacer_un_lote_ajeno_da_404_y_no_restaura_nada()
     {
-        await SembrarAsync();
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
         var lote = Guid.NewGuid();
         await MarcarPendienteAsync(ajena, Ancla, lote);
@@ -441,7 +423,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Deshacer_un_lote_desconocido_da_404()
     {
-        await SembrarAsync();
 
         using var host = CrearHost();
         using var cliente = host.CreateClient();
@@ -457,7 +438,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Deshacer_fuera_de_la_ventana_da_404_y_la_conversacion_sigue_pendiente()
     {
-        await SembrarAsync();
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
 
         var reloj = new RelojFijo(Ancla);
@@ -484,7 +464,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     public async Task Borrar_una_y_despues_borrar_todo_deshacer_todo_deja_la_primera_pendiente_por_su_cuenta()
     {
         // EL CASO EXACTO DE LA SPEC: A se borra sola; dentro de su ventana se borran todas.
-        await SembrarAsync();
         var a = await SembrarHiloAsync(Secretaria, "a", Ancla);
         var b = await SembrarHiloAsync(Secretaria, "b", Ancla);
 
@@ -517,7 +496,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_borrado_fuera_de_la_ventana_se_purga_por_el_barrido_y_desaparece_de_verdad()
     {
-        await SembrarAsync();
         var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
         await SembrarTurnoAsync(propia, "¿cuántos hay?", "SELECT 1");
 
@@ -546,7 +524,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reanudar_devuelve_un_hilo_nuevo_con_los_turnos_pasados()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         await SembrarTurnoAsync(propia, "¿y el de Gómez?", "SELECT 1", Ancla);
@@ -567,7 +544,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reanudar_una_conversacion_ajena_se_rechaza()
     {
-        await SembrarAsync();
 
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
 
@@ -587,7 +563,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         // asistente-rechazos-dinamicos, design.md D5: `HistorialController.Reanudar` siembra
         // `Estado: t.Estado` en cada `TurnoDelHilo`, así que `RechazosPrevios()` cuenta el rechazo
         // persistido AUNQUE el hilo en memoria acabe de nacer — el conteo es del actor, no del proceso.
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         await SembrarTurnoAsync(propia, "no sé qué preguntar", null, Ancla, estado: "NoContestable");
@@ -632,7 +607,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reejecutar_un_turno_respondido_devuelve_una_tabla_de_verdad_sin_llamar_al_modelo()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         var turno = await SembrarTurnoAsync(
@@ -667,7 +641,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reejecutar_un_turno_sin_respuesta_se_rechaza()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         var turno = await SembrarTurnoAsync(
@@ -687,7 +660,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reejecutar_un_turno_ajeno_se_rechaza()
     {
-        await SembrarAsync();
 
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
         var turno = await SembrarTurnoAsync(ajena, "algo", "SELECT 1");
@@ -706,7 +678,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reejecutar_una_sql_que_ya_no_corre_falla_amigablemente()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         var turno = await SembrarTurnoAsync(
@@ -734,7 +705,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reejecutar_con_una_referencia_vigente_la_vuelve_a_bindear()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         var turno = await SembrarTurnoAsync(
@@ -767,7 +737,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         // "the stored bindings are re-validated against the actor's current scope on reuse": el
         // coordinador tiene ámbito de Ingeniería en Informática, y la referencia guardada nombra
         // una materia de Ingeniería Industrial.
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
         var turno = await SembrarTurnoAsync(
@@ -791,7 +760,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reanudar_siembra_las_referencias_del_turno_persistido()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         await SembrarTurnoAsync(
@@ -816,7 +784,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Obtener_expone_la_mencion_como_chip_cuando_sigue_en_el_alcance_actual()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         await SembrarTurnoAsync(
@@ -844,7 +811,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     {
         // El coordinador tiene ámbito de Ingeniería Informática; la referencia guardada nombra una
         // materia de Ingeniería Industrial.
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
         await SembrarTurnoAsync(
@@ -866,7 +832,6 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
     [Fact]
     public async Task Reanudar_tambien_expone_las_menciones_como_chip()
     {
-        await SembrarAsync();
 
         var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
         await SembrarTurnoAsync(

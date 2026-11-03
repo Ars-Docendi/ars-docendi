@@ -23,7 +23,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// and <c>POST /api/asistente/retroalimentacion</c> (asistente-retroalimentacion).
 /// </summary>
 public sealed class RetroalimentacionTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_retroalimentacion")
+    : ClasePostgresAislada(postgres, "asistente_retroalimentacion", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
@@ -37,7 +37,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task Only_a_Respondida_result_carries_a_feedback_token()
     {
-        await SembrarAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes));
 
         var respondida = await banco.Capa().ResponderAsync(
@@ -50,7 +49,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task No_other_turn_state_carries_a_feedback_token()
     {
-        await SembrarAsync();
 
         var rechazo = await Banco(ProveedorGuionado.NoContestable()).Capa().ResponderAsync(
             Secretaria, null, "¿cuál es la temperatura del aula 302?",
@@ -109,7 +107,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_valid_token_from_a_just_answered_turn_records_a_row()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -125,7 +122,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task An_unknown_token_and_an_expired_one_get_the_same_rejection()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -151,7 +147,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task Submitting_twice_upserts_one_row_with_the_latest_vote()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -171,7 +166,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_thumbs_up_with_a_reason_present_stores_no_reason()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -189,7 +183,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_thumbs_down_with_several_reasons_stores_all_of_them()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -217,7 +210,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_duplicated_reason_is_rejected()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -235,7 +227,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_comment_within_the_limit_is_stored_trimmed()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -253,7 +244,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_comment_over_the_limit_after_trimming_is_rejected()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -270,7 +260,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_whitespace_only_comment_is_stored_as_absent()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -287,7 +276,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_thumbs_up_with_a_comment_present_stores_no_comment()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -304,7 +292,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task A_token_that_was_never_issued_for_a_non_answered_turn_404s()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -319,7 +306,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task An_unrecognized_reason_is_rejected()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -337,7 +323,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task Faltan_datos_is_accepted_as_a_reason()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -355,7 +340,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task Lento_is_rejected_like_any_other_unknown_reason()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -374,7 +358,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task The_turns_log_entry_and_the_feedback_endpoints_never_share_actor_and_token()
     {
-        await SembrarAsync();
         var registrador = new RegistradorDeEventos();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), registrador);
 
@@ -464,7 +447,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task El_token_del_turno_reemplazado_se_rechaza_como_desconocido()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -485,7 +467,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task El_token_del_turno_nuevo_se_acepta()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -505,7 +486,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     [Fact]
     public async Task El_voto_del_turno_reemplazado_se_conserva()
     {
-        await SembrarAsync();
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");

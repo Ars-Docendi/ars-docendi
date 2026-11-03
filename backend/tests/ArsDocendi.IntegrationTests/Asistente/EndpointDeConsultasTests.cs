@@ -16,7 +16,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>Verifica la puerta del turno: permiso, idempotencia y forma de la respuesta.</summary>
 public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_endpoint")
+    : ClasePostgresAislada(postgres, "asistente_endpoint", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -32,7 +32,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_identidad_el_endpoint_rechaza()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
 
@@ -46,7 +45,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     {
         // `docente` es el único rol de sistema al que la siembra NO le concede
         // `asistente.consultar`.
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Docente, "docente");
@@ -64,7 +62,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_la_clave_de_idempotencia_el_pedido_se_rechaza_nombrandola()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -80,7 +77,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_clave_en_blanco_no_cuenta_como_clave()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -94,7 +90,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     public async Task El_pedido_repetido_devuelve_lo_mismo_sin_volver_a_llamar_al_proveedor()
     {
         // Cada turno cuesta dos o tres llamadas al modelo: un doble submit se factura completo dos veces.
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -114,7 +109,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_clave_distinta_si_procesa()
     {
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -133,7 +127,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // Sin acotar por actor, la clave de un usuario le devolvería a otro una respuesta calculada
         // con el alcance del primero: una fuga trivial de disparar y difícil de notar, porque el
         // segundo recibe algo que parece correcto.
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         var clave = Guid.NewGuid().ToString();
 
@@ -194,7 +187,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task La_respuesta_trae_el_estado_el_hilo_y_las_metricas()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -215,7 +207,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // «¿esto se le puede MOSTRAR?» y depende de `asistente.ver_consulta`; `SqlEjecutado` es
         // «¿esto sirve para continuar la conversación?» y no depende de ningún permiso porque nunca
         // sale del servidor.
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -233,7 +224,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     {
         // El nombre del enum es un detalle interno del backend: renombrarlo no puede
         // romper a los clientes en silencio.
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -248,7 +238,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task El_endpoint_de_capacidades_responde_por_actor()
     {
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
 
         using var deSecretaria = host.CreateClient();
@@ -282,7 +271,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_la_opcion_capacidades_ofrece_el_flujo()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _, enFlujo: true);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -296,7 +284,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task El_flujo_manda_la_redaccion_por_fragmentos_y_termina_con_el_resultado()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _, enFlujo: true);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -323,7 +310,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Sin_la_opcion_el_flujo_trae_solo_el_resultado()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -339,7 +325,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task El_flujo_rechaza_antes_de_empezar_con_el_status_de_siempre()
     {
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor, enFlujo: true);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -355,7 +340,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task El_flujo_respeta_la_idempotencia_del_turno()
     {
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor, enFlujo: true);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -380,7 +364,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_turno_persistido_nombra_la_conversacion_que_lista_GET_historial()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -406,7 +389,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // `HiloHistorico` (ver su propio catch), así que un doble que no lo fija reproduce
         // EXACTAMENTE el mismo estado que ve `CapaConversacional` cuando la escritura falla, sin
         // acoplar este test a cómo se rompe una conexión.
-        await SembrarAsync();
         using var host = CrearHost(out _, historialQueNuncaEscribe: true);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -424,7 +406,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // dos tablas que TD-012 mantiene sin nada que las vincule a una conversación o a un actor
         // identificable — agregarle una columna a cualquiera de las dos reabriría exactamente el
         // cruce que design.md D13 promete no crear.
-        await SembrarAsync();
 
         var columnas = await EscalarAsync<long>(
             """
@@ -443,7 +424,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_una_pregunta_que_no_es_la_ultima_devuelve_409()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -462,7 +442,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Reemplazar_sobre_un_hilo_que_no_existe_devuelve_409_y_no_escribe_nada()
     {
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -478,7 +457,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_reemplazo_valido_actualiza_la_conversacion_persistida()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -504,7 +482,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task El_reemplazo_revoca_el_token_viejo_y_acepta_el_nuevo()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -537,7 +514,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // «quota charged once even on retry with the same Idempotency-Key»: la
         // segunda vez con la misma clave y el mismo objetivo tiene que devolver
         // lo mismo sin volver a llamar al proveedor ni reemplazar de nuevo.
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -573,7 +549,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task GET_menciones_devuelve_materias_dentro_del_alcance()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -593,7 +568,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task GET_menciones_con_menos_de_dos_letras_es_400()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -607,7 +581,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task GET_menciones_con_un_tipo_desconocido_es_400()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -621,7 +594,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_referencia_fuera_de_alcance_es_400_sin_gastar_cupo_ni_historial()
     {
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
         // Coordinador: ámbito de Ingeniería en Informática. La materia
@@ -641,7 +613,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     {
         // Sin oráculo de existencia (design.md D11): mismo código y mismo cuerpo
         // para las dos causas.
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Coordinador, "coordinador_carrera");
@@ -665,7 +636,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Un_tipo_de_referencia_desconocido_es_400_como_cualquier_referencia_invalida()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -679,7 +649,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Mas_de_cinco_referencias_es_400_antes_de_resolver_nada()
     {
-        await SembrarAsync();
         using var host = CrearHost(out var proveedor);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -697,7 +666,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     [Fact]
     public async Task Una_referencia_valida_dentro_del_alcance_no_se_rechaza()
     {
-        await SembrarAsync();
         using var host = CrearHost(out _);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -718,7 +686,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // declaró una mención válida y el controller ya la revalidó antes del candado; esa mención
         // tiene que sobrevivir al historial igual que la pregunta misma, para que un turno
         // reanudado o revisitado la muestre como chip.
-        await SembrarAsync();
         using var host = CrearHost(out _, guionPropio: [ProveedorGuionado.NoContestable()]);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -743,7 +710,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // `Sugerencias` (eliminado, ARS-149) son campos de servidor: `RespuestaDelAsistente.De` los
         // deja afuera del DTO a propósito, así que ninguna clave del JSON puede nombrarlos —el
         // rechazo se explica por su texto solo.
-        await SembrarAsync();
         using var host = CrearHost(out _, guionPropio: [ProveedorGuionado.NoContestable()]);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
@@ -765,7 +731,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         // las menciones propias se excluyen de la ambigüedad, así que «Bases de Datos» —sembrada
         // acá como homónimo— sigue pidiendo aclaración aunque la pregunta también mencione
         // @Algoritmos y Estructuras de Datos).
-        await SembrarAsync();
         await AgregarUnHomonimoAsync();
         using var host = CrearHost(out _, guionPropio: []);
         using var cliente = host.CreateClient();
