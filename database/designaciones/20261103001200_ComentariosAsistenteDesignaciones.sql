@@ -1,6 +1,6 @@
 -- ---------------------------------------------------------------------------
 -- Comentarios de dominio sobre los objetos de `designaciones` que el asistente
--- lee. Ver la nota extensa en database/identity/20261020000200_ComentariosAsistenteIdentity.sql:
+-- lee. Ver la nota extensa en database/identity/20261103000200_ComentariosAsistenteIdentity.sql:
 -- estos COMMENT ON son la capa que le permite al modelo mapear lenguaje natural
 -- a tablas, no documentación para humanos.
 --

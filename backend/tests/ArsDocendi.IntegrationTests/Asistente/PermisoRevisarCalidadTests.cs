@@ -16,7 +16,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 public sealed class PermisoRevisarCalidadTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso_revisar_calidad")
 {
-    private const string Recurso = "identity/20261025020726_PermisoAsistenteRevisarCalidadIdentity.sql";
+    private const string Recurso = "identity/20261103001000_PermisoAsistenteRevisarCalidadIdentity.sql";
 
     [Fact]
     public async Task Ningun_rol_lo_tiene_ni_siquiera_sys_admin()

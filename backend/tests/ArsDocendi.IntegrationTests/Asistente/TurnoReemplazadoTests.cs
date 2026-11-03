@@ -1,12 +1,7 @@
 using System.Net.Http.Json;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
-using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Modules.Asistente;
 using Modules.Asistente.Api;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
@@ -19,7 +14,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// (asistente-metricas-de-calidad, design D4, task 2.8).
 /// </summary>
 public sealed class TurnoReemplazadoTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_turno_reemplazado")
+    : AsistenteHttpBase(postgres, "asistente_turno_reemplazado")
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
@@ -30,7 +25,7 @@ public sealed class TurnoReemplazadoTests(PostgresFixture postgres)
     public async Task Replacing_an_answered_turn_flags_that_turn_only_and_keeps_its_vote()
     {
         await SembrarAsync();
-        using var host = CrearHost(new ProveedorGuionado(
+        using var host = CrearHostAsistente(new ProveedorGuionado(
             ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.",
             ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."));
         using var cliente = Autenticado(host);
@@ -57,7 +52,7 @@ public sealed class TurnoReemplazadoTests(PostgresFixture postgres)
     {
         await SembrarAsync();
         var llamadas = 0;
-        using var host = CrearHost(new ProveedorGuionado(
+        using var host = CrearHostAsistente(new ProveedorGuionado(
             ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.",
             ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
         {
@@ -93,7 +88,7 @@ public sealed class TurnoReemplazadoTests(PostgresFixture postgres)
     public async Task Replacing_a_turn_that_was_not_answered_flags_nothing_because_its_id_is_not_kept()
     {
         await SembrarAsync();
-        using var host = CrearHost(new ProveedorGuionado(
+        using var host = CrearHostAsistente(new ProveedorGuionado(
             ProveedorGuionado.NoContestable(),
             ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."));
         using var cliente = Autenticado(host);
@@ -112,7 +107,7 @@ public sealed class TurnoReemplazadoTests(PostgresFixture postgres)
     public async Task A_new_turn_is_never_flagged()
     {
         await SembrarAsync();
-        using var host = CrearHost(new ProveedorGuionado(
+        using var host = CrearHostAsistente(new ProveedorGuionado(
             ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."));
         using var cliente = Autenticado(host);
 
@@ -126,27 +121,6 @@ public sealed class TurnoReemplazadoTests(PostgresFixture postgres)
     private Task<bool> ReemplazadoAsync(Guid analiticoId) =>
         EscalarAsync<bool>(
             "SELECT reemplazado FROM asistente.registro_analitico WHERE id = @id", ("id", analiticoId));
-
-    private WebApplicationFactory<Program> CrearHost(ProveedorGuionado guionado) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Development");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLectura)}", RolSoloLectura);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLecturaPii)}", RolSoloLecturaPii);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLectura)}",
-                PostgresFixture.PasswordDeRol);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
-                PostgresFixture.PasswordDeRol);
-
-            builder.ConfigureTestServices(servicios =>
-                servicios.AddSingleton(new ProveedorBase(guionado)));
-        });
 
     private static HttpClient Autenticado(WebApplicationFactory<Program> host)
     {

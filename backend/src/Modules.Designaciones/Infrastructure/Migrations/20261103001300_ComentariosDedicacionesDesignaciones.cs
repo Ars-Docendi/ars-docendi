@@ -8,8 +8,8 @@ namespace Modules.Designaciones.Infrastructure.Migrations;
 /// Comentarios del catálogo de dedicaciones, para el prefijo del asistente.
 /// </summary>
 [DbContext(typeof(DesignacionesDbContext))]
-[Migration("20261020001200_ComentariosDedicacionesDesignaciones")]
-[RecursosMigracionSql("designaciones/20261020001200_ComentariosDedicacionesDesignaciones.sql")]
+[Migration("20261103001300_ComentariosDedicacionesDesignaciones")]
+[RecursosMigracionSql("designaciones/20261103001300_ComentariosDedicacionesDesignaciones.sql")]
 public sealed class ComentariosDedicacionesDesignaciones : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>

@@ -22,8 +22,8 @@ namespace Modules.Designaciones.Infrastructure.Migrations;
 /// consulta, y este predicado es el que decide quién ve el perfil de quién.
 /// </remarks>
 [DbContext(typeof(DesignacionesDbContext))]
-[Migration("20261020001300_FuncionAlcanceDePersonaAsistenteDesignaciones")]
-[RecursosMigracionSql("designaciones/20261020001300_FuncionAlcanceDePersonaAsistenteDesignaciones.sql")]
+[Migration("20261103001400_FuncionAlcanceDePersonaAsistenteDesignaciones")]
+[RecursosMigracionSql("designaciones/20261103001400_FuncionAlcanceDePersonaAsistenteDesignaciones.sql")]
 public sealed class FuncionAlcanceDePersonaAsistenteDesignaciones : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>

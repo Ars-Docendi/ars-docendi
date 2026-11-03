@@ -14,7 +14,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 public sealed class PermisoLeerHistorialAjenoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso_historial_ajeno")
 {
-    private const string Recurso = "identity/20261020000700_PermisoAsistenteLeerHistorialAjenoIdentity.sql";
+    private const string Recurso = "identity/20261103000600_PermisoAsistenteLeerHistorialAjenoIdentity.sql";
 
     [Fact]
     public async Task Ningun_rol_lo_tiene_ni_siquiera_sys_admin()

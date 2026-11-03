@@ -16,7 +16,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 public sealed class PermisoAdministrarTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso_administrar")
 {
-    private const string Recurso = "identity/20261020000900_PermisoAsistenteAdministrarIdentity.sql";
+    private const string Recurso = "identity/20261103000800_PermisoAsistenteAdministrarIdentity.sql";
 
     [Fact]
     public async Task Esta_concedido_a_sys_admin()

@@ -1,8 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
-using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -16,7 +14,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>Verifica la puerta del turno: permiso, idempotencia y forma de la respuesta.</summary>
 public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_endpoint", sembrada: true)
+    : AsistenteHttpBase(postgres, "asistente_endpoint", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -819,12 +817,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
             LlamadasAlModelo: 0,
             Guid.NewGuid());
 
-    private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
-    {
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
-    }
-
     private static async Task<HttpResponseMessage> Preguntar(
         HttpClient cliente,
         string mensaje,
@@ -896,34 +888,14 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         var guionado = new ProveedorGuionado(guion);
         proveedor = guionado;
 
-        return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        return CrearHostAsistente(guionado, configurar: builder =>
         {
-            builder.UseEnvironment("Development");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLectura)}",
-                RolSoloLectura);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLecturaPii)}",
-                RolSoloLecturaPii);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLectura)}",
-                PostgresFixture.PasswordDeRol);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
-                PostgresFixture.PasswordDeRol);
             builder.UseSetting(
                 $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.StreamingDeRedaccion)}",
                 enFlujo ? "true" : "false");
 
-            // El proveedor guionado reemplaza al simulado: contar sus llamadas es lo
-            // único que prueba de verdad que la idempotencia no volvió a gastar.
             builder.ConfigureTestServices(servicios =>
             {
-                servicios.AddSingleton(new ProveedorBase(guionado));
-
                 if (historialQueNuncaEscribe)
                 {
                     // Registrado DESPUÉS del `AddScoped<IRegistroDeHistorial, RegistroDeHistorial>`
@@ -954,5 +926,4 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
             Modules.Asistente.Application.TurnoParaHistorial turno,
             CancellationToken ct) => Task.CompletedTask;
     }
-
 }

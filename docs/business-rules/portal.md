@@ -27,7 +27,7 @@
   **Consecuencia asumida:** es la finalidad más amplia de las que se evaluaron, y por eso **no acota el `GRANT`**: se concede la trayectoria completa —formación, experiencia, certificaciones y habilidades— sin vínculo con un trámite. Una finalidad más estrecha, como «armar el proyecto docente», habría permitido recortar columnas. Se eligió la amplia con conocimiento de eso.
 
 - **Roles afectados:** todos los que pueden usar el asistente.
-- **Implementación:** el permiso `portal.ver_trayectoria_ajena` nace concedido a nadie (`database/identity/20261020000400_PermisoPortalTrayectoriaAjenaIdentity.sql`). Conceder es una decisión de Secretaría, no un despliegue.
+- **Implementación:** el permiso `portal.ver_trayectoria_ajena` nace concedido a nadie (`database/identity/20261103000400_PermisoPortalTrayectoriaAjenaIdentity.sql`). Conceder es una decisión de Secretaría, no un despliegue.
 - **Mapping a test:** `PermisoYPersonaPortalTests.El_permiso_existe_y_no_lo_tiene_ningun_rol`.
 
 ### BR-`portal`-002 Quién puede otorgar el permiso de trayectoria ajena

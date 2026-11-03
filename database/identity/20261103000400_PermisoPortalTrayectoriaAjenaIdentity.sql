@@ -37,7 +37,7 @@
 --
 -- El id es ...031 y no ...023: `develop` tomó ...023 para `sistema.estado.ver` en
 -- `012_identity_permisos_administracion_sistema.sql`. Mismo choque que documenta
--- `20261020000000_PermisoAsistenteConsultarIdentity.sql`; cede esta migración porque todavía no
+-- `20261103000000_PermisoAsistenteConsultarIdentity.sql`; cede esta migración porque todavía no
 -- llegó a `develop`.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES

@@ -138,7 +138,8 @@
   padding-inline: var(--space-2);
 }
 
-.adoc-asistente-rail-encabezado {
+.adoc-asistente-rail-encabezado,
+.adoc-asistente-rail-busqueda {
   flex: none;
   display: flex;
   align-items: center;
@@ -237,13 +238,6 @@
   white-space: nowrap;
 }
 
-.adoc-asistente-rail-busqueda {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .adoc-asistente-rail-busqueda input {
   flex: 1;
   min-width: 0;
@@ -258,7 +252,11 @@
   overflow-y: auto;
 }
 
-.adoc-asistente-rail-vacio {
+.adoc-asistente-rail-vacio,
+.adoc-asistente-inicio-alcance,
+.adoc-asistente-detenido,
+.adoc-asistente-interpretada,
+.adoc-asistente-soporte-sin-razon {
   margin: 0;
   font-size: var(--text-body-sm-size);
   color: var(--color-text-secondary);
@@ -432,9 +430,9 @@
   font-family: var(--font-mono);
 }
 
-/* La marca «Archivada», junto al título — en los resultados de búsqueda y
-   en la propia sección de archivadas. */
-.adoc-asistente-rail-marca-archivada {
+/* Marcas de estado junto al título, tanto en el rail como en el historial de soporte. */
+.adoc-asistente-rail-marca-archivada,
+.adoc-asistente-soporte-marca {
   margin-left: var(--space-2);
   padding: 1px 6px;
   border-radius: var(--radius-pill);
@@ -727,12 +725,6 @@
   margin: 0;
 }
 
-.adoc-asistente-inicio-alcance {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
-}
-
 /* Los límites, separados del resto por un filete. Era una grilla de dos columnas
    con «Puedo consultar:» al lado, hasta que esa sección se fue: pintaba el
    comentario de la tabla que se escribió para el modelo. */
@@ -862,7 +854,9 @@
   border-color: var(--color-border-focus);
 }
 
-.adoc-asistente-pregunta-edicion-acciones {
+.adoc-asistente-pregunta-edicion-acciones,
+.adoc-asistente-voto-panel-acciones,
+.adoc-asistente-admin-mantenimiento-acciones {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
@@ -877,14 +871,6 @@
 /* «Reintentar», debajo del mensaje de la alerta de error. */
 .adoc-asistente-reintento {
   margin-top: var(--space-2);
-}
-
-/* Se dejó de esperar: una nota bajo la pregunta y no una alerta, porque no es un
-   error —lo pidió el usuario—. */
-.adoc-asistente-detenido {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
 }
 
 /* El lugar de la respuesta mientras se espera (asistente-rediseno-v3, D14):
@@ -1245,12 +1231,6 @@
   line-height: 1.6;
 }
 
-.adoc-asistente-interpretada {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
-}
-
 /* ─────────────────────────────────── la tabla ──────────────────────────────── */
 
 /* La tabla scrollea DENTRO de su propio marco, en los dos ejes. El envoltorio de la
@@ -1330,7 +1310,8 @@
   height: 0.875rem;
 }
 
-.adoc-asistente-leyenda-sensible {
+.adoc-asistente-leyenda-sensible,
+.adoc-asistente-orden-anuncio {
   margin: var(--space-2) 0 0;
   font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
@@ -1394,12 +1375,6 @@
 
 .adoc-asistente-orden-icono--activo {
   color: var(--color-accent);
-}
-
-.adoc-asistente-orden-anuncio {
-  margin: var(--space-2) 0 0;
-  font-size: var(--text-caption-size);
-  color: var(--color-text-secondary);
 }
 
 /* ────────────────────────── exportar a CSV (sin controlar) ─────────────────── */
@@ -1536,7 +1511,9 @@
   background: var(--color-bg-surface);
 }
 
-.adoc-asistente-voto-panel-titulo {
+.adoc-asistente-voto-panel-titulo,
+.adoc-asistente-opciones-titulo,
+.adoc-asistente-admin-mantenimiento-titulo {
   margin: 0;
   font-size: var(--text-body-sm-size);
   font-weight: var(--weight-semibold);
@@ -1547,7 +1524,8 @@
   color: var(--color-text-tertiary);
 }
 
-.adoc-asistente-pastillas {
+.adoc-asistente-pastillas,
+.adoc-asistente-soporte-personas {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1636,12 +1614,6 @@
   white-space: nowrap;
 }
 
-.adoc-asistente-voto-panel-acciones {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
 .adoc-asistente-voto-confirmacion {
   flex: 0 0 100%;
   margin: 0;
@@ -1685,12 +1657,6 @@
   border-radius: var(--radius-pill);
   white-space: normal;
   text-align: start;
-}
-
-.adoc-asistente-opciones-titulo {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  font-weight: var(--weight-semibold);
 }
 
 /* ─────────────────────────────────── el pie ────────────────────────────────── */
@@ -1792,21 +1758,6 @@
   gap: var(--space-2);
 }
 
-.adoc-asistente-soporte-personas {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.adoc-asistente-soporte-sin-razon {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
-}
-
 .adoc-asistente-soporte-lista ul {
   list-style: none;
   margin: 0;
@@ -1824,20 +1775,6 @@
   font-size: var(--text-body-sm-size);
   color: var(--color-text-link);
   text-align: start;
-}
-
-/* Marcas «Archivada» / «Pendiente de borrado» junto al título, en la lista
-   de soporte (asistente-acceso-de-soporte-al-historial, design.md D4). */
-.adoc-asistente-soporte-marca {
-  margin-left: var(--space-2);
-  padding: 1px 6px;
-  border-radius: var(--radius-pill);
-  background: var(--color-bg-sunken);
-  color: var(--color-text-tertiary);
-  font-size: 10px;
-  font-weight: var(--weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .adoc-asistente-soporte-detalle {
@@ -2683,12 +2620,6 @@
   min-width: 0;
 }
 
-.adoc-asistente-admin-mantenimiento-titulo {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  font-weight: var(--weight-semibold);
-}
-
 .adoc-asistente-admin-mantenimiento-punto {
   flex: none;
   width: 10px;
@@ -2751,12 +2682,6 @@
   background: var(--warning-100);
   border-top: var(--border-default) solid var(--warning-500);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-}
-
-.adoc-asistente-admin-mantenimiento-acciones {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
 }
 
 /* ---------- KPIs organizacionales + tope mensual ---------- */
@@ -2831,10 +2756,10 @@
   gap: var(--space-2);
 }
 
-/* `.adoc-btn.` antepuesto por la misma razón que `.adoc-asistente-admin-cupo-editar`
-   más abajo: sin la especificidad extra, `.adoc-btn.sz-sm` le imponía 12px de
-   padding horizontal y el ícono terminaba encogido a invisible. */
-.adoc-btn.adoc-asistente-admin-tope-editar {
+/* La especificidad de dos clases evita que `.adoc-btn.sz-sm` imponga su padding
+   horizontal y deje al ícono sin espacio dentro del botón de 26px. */
+.adoc-btn.adoc-asistente-admin-tope-editar,
+.adoc-btn.adoc-asistente-admin-cupo-editar {
   flex: none;
   width: 26px;
   height: 26px;
@@ -3079,23 +3004,6 @@
 .adoc-asistente-admin-cupo-valor {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-}
-
-/* El lápiz reemplaza el texto «Editar» (fidelidad con el canvas, punto 3):
-   mismo tamaño de ícono que el resto de los botones-ícono de esta pantalla.
-   `.adoc-btn.` antepuesto por especificidad: `.adoc-btn.sz-sm` (dos clases)
-   le ganaba a esta regla de una sola clase y le imponía sus 12px de padding
-   horizontal — con un ancho fijo de 26px eso dejaba casi cero lugar para el
-   ícono, que terminaba encogido a un ancho invisible (bug encontrado en la
-   pasada de fidelidad: el botón nunca se veía, no era un tema de hover). */
-.adoc-btn.adoc-asistente-admin-cupo-editar {
-  flex: none;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .adoc-asistente-admin-cupo-editar svg {
@@ -3537,7 +3445,8 @@
   white-space: nowrap;
 }
 
-.calidad-grafico-encabezado-derecha {
+.calidad-grafico-encabezado-derecha,
+.calidad-paginacion-botones {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
@@ -3694,12 +3603,6 @@
   gap: var(--space-3);
   font-size: var(--text-body-sm-size);
   color: var(--color-text-secondary);
-}
-
-.calidad-paginacion-botones {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
 }
 
 @media (max-width: 1100px) {

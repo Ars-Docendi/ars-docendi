@@ -205,7 +205,7 @@ fila mismos, y el actor tal como se muestra (incluyendo los literales «Proceso 
 nunca es un oráculo para un dato enmascarado o sin clasificar — hay un test que sembra un valor
 enmascarado y uno seguro y verifica que ninguno de los dos aparece en los resultados de una
 búsqueda por ese valor. La comparación usa la extensión PostgreSQL `unaccent` más `ILIKE`
-(`database/audit/20261020000800_AuditBusquedaIdentity.sql`, aplicada por una migración de `IdentityDbContext` —
+(`database/audit/20261103000700_AuditBusquedaIdentity.sql`, aplicada por una migración de `IdentityDbContext` —
 el Host no depende del orden de migración del asistente, que ya la requiere por su cuenta).
 
 **`q` también encuentra por el sujeto humanizado (fix, 2026-09-27)**: como el objeto de

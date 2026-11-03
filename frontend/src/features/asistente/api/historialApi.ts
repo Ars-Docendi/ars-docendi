@@ -1,6 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
 import type {
-  ConversacionDetalle,
   ConversacionResumen,
   LoteDeBorrado,
   ReanudarRespuesta,
@@ -17,12 +16,6 @@ export async function listarConversaciones(q?: string): Promise<ConversacionResu
   const { data } = await apiClient.get<ConversacionResumen[]>("/api/asistente/historial", {
     params: q ? { q } : undefined,
   });
-  return data;
-}
-
-/** Una conversación propia, con sus turnos. */
-export async function obtenerConversacion(hiloId: string): Promise<ConversacionDetalle> {
-  const { data } = await apiClient.get<ConversacionDetalle>(`/api/asistente/historial/${hiloId}`);
   return data;
 }
 

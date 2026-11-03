@@ -1,13 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
-using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Modules.Asistente;
@@ -23,7 +18,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// (asistente-acceso-de-soporte-al-historial).
 /// </summary>
 public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_soporte_historial")
+    : AsistenteHttpBase(postgres, "asistente_soporte_historial")
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
@@ -39,7 +34,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         _ = sujeto;
 
         // Secretaría tiene asistente.consultar, pero NO asistente.leer_historial_ajeno.
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -61,7 +56,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
 
         var conversacion = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -80,7 +75,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         await SembrarAsync();
         await ConcederPermisoDeSoporteAAsync(Secretaria);
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -100,7 +95,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         await ConcederPermisoDeSoporteAAsync(Secretaria);
         await SembrarHiloAsync(Coordinador, "una charla", Ancla);
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -137,7 +132,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         var archivada = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
         await MarcarArchivadaAsync(archivada);
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -159,7 +154,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         await MarcarPendienteAsync(pendiente, Ancla.AddSeconds(-3), Guid.NewGuid());
 
         var reloj = new RelojFijo(Ancla);
-        using var host = CrearHost(reloj: reloj);
+        using var host = CrearHostAsistente(reloj: reloj);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -183,7 +178,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         await MarcarPendienteAsync(vencida, Ancla.AddSeconds(-16), Guid.NewGuid());
 
         var reloj = new RelojFijo(Ancla);
-        using var host = CrearHost(reloj: reloj);
+        using var host = CrearHostAsistente(reloj: reloj);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -210,7 +205,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         await MarcarPendienteAsync(pendiente, Ancla.AddSeconds(-3), Guid.NewGuid());
 
         var reloj = new RelojFijo(Ancla);
-        using var host = CrearHost(reloj: reloj);
+        using var host = CrearHostAsistente(reloj: reloj);
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -236,7 +231,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         var conversacion = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
         await SembrarTurnoAsync(conversacion, "¿cuántos hay?", "SELECT count(*) FROM x");
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -269,7 +264,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
                 + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
             referencias: ReferenciaJson("materia", materiaAlgoritmos));
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -297,7 +292,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
 
         var conversacion = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -371,7 +366,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         var conversacion = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
         var turno = await SembrarTurnoAsync(conversacion, "¿cuántos hay?", "SELECT 1");
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         // Secretaría, que AHORA tiene el permiso de soporte, intenta usar el
         // endpoint de re-ejecución PROPIO contra un turno que no es suyo.
@@ -406,51 +401,6 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         comando.Parameters.AddWithValue("actor", actor);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
-
-    private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
-    {
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
-    }
-
-    private static async Task<T> LeerAsync<T>(HttpResponseMessage respuesta)
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
-
-        Assert.True(respuesta.IsSuccessStatusCode, cuerpo);
-
-        return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
-    }
-
-    private WebApplicationFactory<Program> CrearHost(TimeProvider? reloj = null) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            // Reemplaza al `TimeProvider.System` que el módulo registra con
-            // `TryAddSingleton` — la última registración gana — para poder
-            // adelantar la ventana de «Deshacer» sin esperarla de verdad.
-            if (reloj is not null)
-            {
-                builder.ConfigureTestServices(servicios => servicios.AddSingleton(reloj));
-            }
-
-            builder.UseEnvironment("Development");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLectura)}",
-                RolSoloLectura);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLecturaPii)}",
-                RolSoloLecturaPii);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLectura)}",
-                PostgresFixture.PasswordDeRol);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
-                PostgresFixture.PasswordDeRol);
-        });
 
     private async Task<Guid> SembrarHiloAsync(Guid actor, string titulo, DateTimeOffset actividad)
     {

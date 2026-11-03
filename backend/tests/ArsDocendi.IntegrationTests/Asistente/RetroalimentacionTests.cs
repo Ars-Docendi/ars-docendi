@@ -1,11 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,7 +20,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// and <c>POST /api/asistente/retroalimentacion</c> (asistente-retroalimentacion).
 /// </summary>
 public sealed class RetroalimentacionTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_retroalimentacion", sembrada: true)
+    : AsistenteHttpBase(postgres, "asistente_retroalimentacion", sembrada: true)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
@@ -586,12 +583,6 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
             lector.IsDBNull(2) ? null : lector.GetString(2));
     }
 
-    private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
-    {
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
-    }
-
     private WebApplicationFactory<Program> CrearHost()
     {
         var guion = Enumerable.Range(0, 12).SelectMany(_ => new[]
@@ -602,27 +593,7 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
 
         var guionado = new ProveedorGuionado(guion);
 
-        return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Development");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLectura)}",
-                RolSoloLectura);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLecturaPii)}",
-                RolSoloLecturaPii);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLectura)}",
-                PostgresFixture.PasswordDeRol);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
-                PostgresFixture.PasswordDeRol);
-
-            builder.ConfigureTestServices(servicios =>
-                servicios.AddSingleton(new ProveedorBase(guionado)));
-        });
+        return CrearHostAsistente(guionado);
     }
 
     /// <summary>Mirrors the reason values without depending on the internal type.</summary>

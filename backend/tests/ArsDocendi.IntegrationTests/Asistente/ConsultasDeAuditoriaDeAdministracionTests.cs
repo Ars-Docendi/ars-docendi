@@ -1,10 +1,6 @@
 using System.Net.Http.Json;
-using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Modules.Asistente;
 using Modules.Asistente.Api;
 using Modules.Asistente.Infrastructure;
 using Npgsql;
@@ -16,7 +12,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// el controller real (sistema-seccion-unificada, design.md D1, tarea 1.2).
 /// </summary>
 public sealed class ConsultasDeAuditoriaDeAdministracionTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "consultas_auditoria_administracion")
+    : AsistenteHttpBase(postgres, "consultas_auditoria_administracion")
 {
     private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
@@ -25,7 +21,7 @@ public sealed class ConsultasDeAuditoriaDeAdministracionTests(PostgresFixture po
     public async Task Una_fila_por_tipo_de_accion_redondea_por_el_controller_real()
     {
         await SembrarAsync();
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -85,7 +81,7 @@ public sealed class ConsultasDeAuditoriaDeAdministracionTests(PostgresFixture po
     public async Task Presupuesto_de_usuario_con_cupo_previo_nulo_da_valor_anterior_nulo()
     {
         await SembrarAsync();
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -227,31 +223,4 @@ public sealed class ConsultasDeAuditoriaDeAdministracionTests(PostgresFixture po
         comando.Parameters.AddWithValue("ocurrido_en", ocurridoEn);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
-
-    private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
-    {
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
-    }
-
-    private WebApplicationFactory<Program> CrearHost() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Development");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLectura)}",
-                RolSoloLectura);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLecturaPii)}",
-                RolSoloLecturaPii);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLectura)}",
-                PostgresFixture.PasswordDeRol);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
-                PostgresFixture.PasswordDeRol);
-        });
 }

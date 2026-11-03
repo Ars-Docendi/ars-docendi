@@ -1,4 +1,4 @@
--- 20261020000800_AuditBusquedaIdentity.sql
+-- 20261103000700_AuditBusquedaIdentity.sql
 --
 -- La búsqueda label-only del feed unificado de auditoría (sistema-seccion-unificada,
 -- design.md D4) normaliza acentos con la extensión `unaccent` de PostgreSQL, tanto

@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Modules.Designaciones.Infrastructure.Migrations;
 
 [DbContext(typeof(DesignacionesDbContext))]
-[Migration("20261020001100_ComentariosAsistenteDesignaciones")]
-[RecursosMigracionSql("designaciones/20261020001100_ComentariosAsistenteDesignaciones.sql")]
+[Migration("20261103001200_ComentariosAsistenteDesignaciones")]
+[RecursosMigracionSql("designaciones/20261103001200_ComentariosAsistenteDesignaciones.sql")]
 public sealed class ComentariosAsistenteDesignaciones : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>

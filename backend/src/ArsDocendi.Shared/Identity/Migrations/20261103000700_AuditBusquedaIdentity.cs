@@ -11,8 +11,8 @@ namespace ArsDocendi.Shared.Identity.Migrations;
 /// extensión, idempotente, por su cuenta).
 /// </summary>
 [DbContext(typeof(IdentityDbContext))]
-[Migration("20261020000800_AuditBusquedaIdentity")]
-[RecursosMigracionSql("audit/20261020000800_AuditBusquedaIdentity.sql")]
+[Migration("20261103000700_AuditBusquedaIdentity")]
+[RecursosMigracionSql("audit/20261103000700_AuditBusquedaIdentity.sql")]
 public sealed class AuditBusquedaIdentity : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>

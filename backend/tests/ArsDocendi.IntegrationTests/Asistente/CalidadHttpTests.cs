@@ -1,14 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
-using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
-using Modules.Asistente;
 using Modules.Asistente.Application;
 using Npgsql;
 
@@ -18,7 +11,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// The quality endpoints over real HTTP and a real database (asistente-metricas-de-calidad, section 3).
 /// </summary>
 public sealed class CalidadHttpTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "asistente_calidad_http")
+    : AsistenteHttpBase(postgres, "asistente_calidad_http")
 {
     private const string Ruta = "/api/asistente/administracion/calidad";
     private const string ModeloA = "ollama/qwen3.5:9b";
@@ -204,7 +197,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
     public async Task Un_periodo_fuera_de_7_30_o_90_se_rechaza(int periodo)
     {
         await SembrarAsync(TestContext.Current.CancellationToken);
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -249,7 +242,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
         await SembrarConjuntoAsync();
         await ConcederRevisarCalidadAsync(Sistemas);
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -277,7 +270,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
     {
         await SembrarAsync(TestContext.Current.CancellationToken);
         await SembrarConjuntoAsync();
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -294,7 +287,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
     {
         await SembrarAsync(TestContext.Current.CancellationToken);
         await SembrarConjuntoAsync();
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -310,7 +303,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
         await SembrarAsync(TestContext.Current.CancellationToken);
         await SembrarConjuntoAsync();
         await ConcederRevisarCalidadAsync(Secretaria);
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
@@ -327,7 +320,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
         await SembrarAsync(TestContext.Current.CancellationToken);
         await SembrarConjuntoAsync();
         await ConcederRevisarCalidadAsync(Sistemas);
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -378,7 +371,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
         await SembrarAsync(TestContext.Current.CancellationToken);
         await SembrarConjuntoAsync();
         await ConcederRevisarCalidadAsync(Sistemas);
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -400,7 +393,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
             await SembrarVotoAsync(turno, false, ["otro"]);
         }
 
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
         var ct = TestContext.Current.CancellationToken;
@@ -429,7 +422,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
     {
         await SembrarAsync(TestContext.Current.CancellationToken);
         await ConcederRevisarCalidadAsync(Sistemas);
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -544,7 +537,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
 
     private async Task<JsonNode> ObtenerJsonAsync(string url)
     {
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -557,7 +550,7 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
 
     private async Task<CalidadAgregada> ObtenerAsync(string url)
     {
-        using var host = CrearHost();
+        using var host = CrearHostAsistente(reloj: new RelojFijo(Ahora));
         using var cliente = host.CreateClient();
         Autenticar(cliente, Sistemas, "sys_admin");
 
@@ -566,42 +559,4 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
 
     private static Dictionary<string, int> Conteos(JsonNode lista) =>
         lista.AsArray().ToDictionary(c => (string)c!["clave"]!, c => (int)c!["cantidad"]!);
-
-    private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
-    {
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
-    }
-
-    private static async Task<T> LeerAsync<T>(HttpResponseMessage respuesta)
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
-
-        Assert.True(respuesta.IsSuccessStatusCode, cuerpo);
-
-        return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
-    }
-
-    private WebApplicationFactory<Program> CrearHost() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Development");
-            builder.ConfigureTestServices(servicios => servicios.AddSingleton<TimeProvider>(new RelojFijo(Ahora)));
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLectura)}",
-                RolSoloLectura);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLecturaPii)}",
-                RolSoloLecturaPii);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLectura)}",
-                PostgresFixture.PasswordDeRol);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
-                PostgresFixture.PasswordDeRol);
-        });
 }

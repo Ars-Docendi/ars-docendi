@@ -1,4 +1,4 @@
--- 20261020000950_RevocacionEnSnapshotDeRolesIdentity (Identity).
+-- 20261103000900_RevocacionEnSnapshotDeRolesIdentity (Identity).
 --
 -- La allowlist de snapshots de AuditoriaPrecisaIdentity nombra `revocado_at` para
 -- identity.user_roles, una columna que no existe: la revocación de una asignación

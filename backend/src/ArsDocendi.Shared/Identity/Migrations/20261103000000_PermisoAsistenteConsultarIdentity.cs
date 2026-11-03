@@ -5,12 +5,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ArsDocendi.Shared.Identity.Migrations;
 
 [DbContext(typeof(IdentityDbContext))]
-[Migration("20261020000100_FuncionesAsistenteIdentity")]
-[RecursosMigracionSql("identity/20261020000100_FuncionesAsistenteIdentity.sql")]
-public sealed class FuncionesAsistenteIdentity : Migration
+[Migration("20261103000000_PermisoAsistenteConsultarIdentity")]
+[RecursosMigracionSql("identity/20261103000000_PermisoAsistenteConsultarIdentity.sql")]
+public sealed class PermisoAsistenteConsultarIdentity : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>
-        migrationBuilder.AplicarRecursosSql(typeof(FuncionesAsistenteIdentity));
+        migrationBuilder.AplicarRecursosSql(typeof(PermisoAsistenteConsultarIdentity));
 
     protected override void Down(MigrationBuilder migrationBuilder) =>
         throw new NotSupportedException("Recuperación explícita desde respaldo; no revertir DDL automáticamente.");

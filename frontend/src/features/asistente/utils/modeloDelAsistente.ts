@@ -4,7 +4,6 @@ import type {
   CredencialDeEmpresa,
   EmpresaDelCatalogo,
   EstadoDelModelo,
-  ModeloEnUso,
   PedidoDeModelo,
   PedidoDePrecio,
   PrecioDelModelo,
@@ -126,10 +125,6 @@ export function pedidoDe(
 /** Identifica «lo que se probó»: una prueba vale sólo para el pedido que la originó. */
 export function firmaDelPedido(pedido: PedidoDeModelo | null): string | null {
   return pedido ? `${pedido.empresa}|${pedido.modelo}|${pedido.claveNueva ?? ""}` : null;
-}
-
-export function esElModeloEnUso(enUso: ModeloEnUso, empresa: string, modelo: string): boolean {
-  return enUso.empresa === empresa && enUso.modelo === modelo;
 }
 
 /** El código de un fallo: el `codigo` del ProblemDetails, o uno propio para 403 y red. */

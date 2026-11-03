@@ -131,7 +131,7 @@ public sealed class MencionesTests(PostgresFixture postgres)
         await SembrarAsync();
 
         // El docente (rol de ámbito de materia) sólo tiene portal.ver/portal.editar
-        // — ver 20261020001000_RlsAsistenteDesignaciones.sql—, así que la policy le deja
+        // — ver 20261103001100_RlsAsistenteDesignaciones.sql—, así que la policy le deja
         // la tabla entera vacía, sea cual sea el término.
         var resultado = await Buscador().BuscarAsync(
             Docente, TipoDeMencion.Docente, "a", TestContext.Current.CancellationToken);

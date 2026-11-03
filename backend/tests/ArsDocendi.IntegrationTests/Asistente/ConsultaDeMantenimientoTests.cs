@@ -2,9 +2,6 @@ using System.Net.Http.Json;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Modules.Asistente;
 using Modules.Asistente.Api;
 using Modules.Asistente.Application;
 using Modules.Asistente.Contracts;
@@ -17,7 +14,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// (sistema-seccion-unificada, design.md D7, tarea 1.3).
 /// </summary>
 public sealed class ConsultaDeMantenimientoTests(PostgresFixture postgres)
-    : ClasePostgresAislada(postgres, "consulta_de_mantenimiento")
+    : AsistenteHttpBase(postgres, "consulta_de_mantenimiento")
 {
     private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
 
@@ -25,7 +22,7 @@ public sealed class ConsultaDeMantenimientoTests(PostgresFixture postgres)
     public async Task Refleja_el_toggle_activado_por_PATCH_mantenimiento()
     {
         await SembrarAsync();
-        using var host = CrearHost();
+        using var host = CrearHostAsistente();
         using var cliente = host.CreateClient();
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Sistemas.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "sys_admin");
@@ -60,25 +57,4 @@ public sealed class ConsultaDeMantenimientoTests(PostgresFixture postgres)
 
         Assert.Equal(["Activo"], propiedades);
     }
-
-    private WebApplicationFactory<Program> CrearHost() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Development");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
-
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLectura)}",
-                RolSoloLectura);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.RolSoloLecturaPii)}",
-                RolSoloLecturaPii);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLectura)}",
-                PostgresFixture.PasswordDeRol);
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
-                PostgresFixture.PasswordDeRol);
-        });
 }

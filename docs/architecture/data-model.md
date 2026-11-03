@@ -592,7 +592,7 @@ Cinco funciones en `identity`, todas `SECURITY DEFINER` y `STABLE`, responden en
 
 ### Comentarios de esquema: parte del contrato con el asistente
 
-Toda tabla y toda columna que el manifiesto declara concedida lleva un `COMMENT ON` en español. Viven en el DDL de **cada módulo dueño** —`database/identity/20261020000200_ComentariosAsistenteIdentity.sql` y `database/designaciones/20261020001100_ComentariosAsistenteDesignaciones.sql`—, por el mismo criterio con que las policies RLS viven en el DDL de `designaciones`: el dueño del bounded context escribe el DDL de sus objetos.
+Toda tabla y toda columna que el manifiesto declara concedida lleva un `COMMENT ON` en español. Viven en el DDL de **cada módulo dueño** —`database/identity/20261103000200_ComentariosAsistenteIdentity.sql` y `database/designaciones/20261103001200_ComentariosAsistenteDesignaciones.sql`—, por el mismo criterio con que las policies RLS viven en el DDL de `designaciones`: el dueño del bounded context escribe el DDL de sus objetos.
 
 **No son documentación.** El proveedor de esquema del asistente los lee del catálogo y los inyecta en el prompt de sistema, así que una columna sin comentar le llega al modelo como un nombre pelado y un tipo. Por eso incluyen a propósito los sinónimos con que el Departamento nombra cada cosa —«docente/profesor/agente», «materia/asignatura/cátedra», «pedido/trámite/solicitud»— que en el esquema no aparecen, y por eso advierten las dos colisiones del dominio: los nombres de materia se repiten entre códigos —y una misma materia canónica se dicta en varias carreras, según `identity.materias_plan`— y los apellidos se repiten entre personas.
 
@@ -640,7 +640,7 @@ El permiso `auditoria.ver` habilita ese nombre mínimo necesario; UPN, correo, d
 etiquetas — módulo, objeto, campo, tabla, clave de fila y el actor tal como se muestra— nunca
 contra un valor de columna, para que un dato enmascarado o sin clasificar no sea buscable ni
 indirectamente. La comparación normaliza acentos con la extensión PostgreSQL `unaccent`
-(`database/audit/20261020000800_AuditBusquedaIdentity.sql`, `CREATE EXTENSION IF NOT EXISTS unaccent`, aplicada por
+(`database/audit/20261103000700_AuditBusquedaIdentity.sql`, `CREATE EXTENSION IF NOT EXISTS unaccent`, aplicada por
 una migración de `IdentityDbContext`) combinada con `ILIKE`. `unaccent` ya era una dependencia
 del asistente (`database/asistente/001_asistente_grants.sql`, para sus propias columnas); ahora
 es también una dependencia explícita de `audit`, declarada por su cuenta — las dos migraciones
