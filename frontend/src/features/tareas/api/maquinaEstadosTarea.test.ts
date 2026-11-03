@@ -20,6 +20,8 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
     tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
+
+    avanceCalculado: false,
     responsable: { id: "u2", ...RESPONSABLE },
     creadoPor: { id: "u4", ...SECRETARIA },
     comentarios: [],
@@ -51,6 +53,11 @@ describe("puedeEditarAvance", () => {
     expect(puedeEditarAvance(tarea(), RESPONSABLE)).toBe(true);
     expect(puedeEditarAvance(tarea(), SECRETARIA)).toBe(true);
     expect(puedeEditarAvance(tarea(), OTRO)).toBe(false);
+  });
+
+  it("nadie lo edita a mano si se calcula con las tareas hijas", () => {
+    expect(puedeEditarAvance(tarea({ avanceCalculado: true }), RESPONSABLE)).toBe(false);
+    expect(puedeEditarAvance(tarea({ avanceCalculado: true }), SECRETARIA)).toBe(false);
   });
 });
 

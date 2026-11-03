@@ -28,6 +28,23 @@ export function porcentajeTranscurrido(
   return (transcurridos / totalDias) * 100;
 }
 
+/** La tarea vence al terminar su fecha de fin, en el día local: el día de vencimiento todavía no está vencida. */
+function estaVencida(fechaFin: string, hoy: Date): boolean {
+  const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+  const dia = String(hoy.getDate()).padStart(2, "0");
+  return `${hoy.getFullYear()}-${mes}-${dia}` > fechaFin.slice(0, 10);
+}
+
+/** Texto del semáforo: el rojo avisa que queda poco plazo, y sólo es "Vencido" si la fecha ya pasó. */
+export function etiquetaSemaforo(
+  fechaInicio: string,
+  fechaFin: string,
+  hoy: Date = new Date(),
+): string {
+  if (estaVencida(fechaFin, hoy)) return "Vencido";
+  return estadoSemaforo(fechaInicio, fechaFin, hoy) === "green" ? "A tiempo" : "Próximo a vencer";
+}
+
 /** Estado del semáforo (verde/amarillo/rojo) según el % del plazo transcurrido. */
 export function estadoSemaforo(
   fechaInicio: string,

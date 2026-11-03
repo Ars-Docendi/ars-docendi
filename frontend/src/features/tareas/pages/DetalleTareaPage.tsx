@@ -19,7 +19,7 @@ import { TareasRelacionadas } from "../components/TareasRelacionadas";
 import { TareasHijas } from "../components/TareasHijas";
 import { IconoBan, IconoSquarePen } from "../components/lucide";
 import { formatearFecha, historialAAuditEntries } from "../components/detalleAdapters";
-import { estadoSemaforo, muestraSemaforo } from "../components/semaforoTarea";
+import { estadoSemaforo, etiquetaSemaforo, muestraSemaforo } from "../components/semaforoTarea";
 import { puedeCambiarEstado, puedeEditarCampos } from "../api/maquinaEstadosTarea";
 import { useActorTareas, usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas, useTarea } from "../hooks/useTareas";
@@ -286,7 +286,9 @@ function DetalleCargado({
           </div>
 
           <aside className="adoc-det-tarea-rail">
+            {/* Se remonta si el avance cambió por otra vía (Resuelta) para no quedar con el valor anterior. */}
             <AccionesEstadoTarea
+              key={`${tarea.id}:${tarea.porcentajeAvance}`}
               tarea={tarea}
               actor={actor}
               enviando={enviando}
@@ -312,20 +314,21 @@ function DetalleCargado({
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>Fecha de fin</dt>
-                  <dd>
-                    {muestraSemaforo(tarea.estado) ? (
+                  <dd className="adoc-det-tarea-fecha-fin">
+                    {formatearFecha(tarea.fechaFin)}
+                    {muestraSemaforo(tarea.estado) && (
                       <TrafficLight
                         state={estadoSemaforo(tarea.fechaInicio, tarea.fechaFin)}
-                        due={formatearFecha(tarea.fechaFin)}
+                        label={etiquetaSemaforo(tarea.fechaInicio, tarea.fechaFin)}
                       />
-                    ) : (
-                      formatearFecha(tarea.fechaFin)
                     )}
                   </dd>
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>% de avance</dt>
-                  <dd>{tarea.porcentajeAvance}%</dd>
+                  <dd>
+                    {tarea.porcentajeAvance}%{tarea.avanceCalculado && " · según sus tareas hijas"}
+                  </dd>
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>Responsable</dt>

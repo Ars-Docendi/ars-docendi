@@ -56,13 +56,13 @@ export const cambiarElEstadoDeUnaTarea: ArticuloAyuda = {
       titulo: "Resolvé la tarea con una solución",
       etiquetaIndice: "Resuelta",
       cuerpo:
-        "Pulsá Resuelta. En el campo Solución («Contá cómo se resolvió la tarea…») explicá cómo se cerró y confirmá con Confirmar Resuelta. La solución es obligatoria y aparece luego en su propio panel del detalle. Una tarea Resuelta deja de mostrar semáforo.",
+        "Pulsá Resuelta. En el campo Solución («Contá cómo se resolvió la tarea…») explicá cómo se cerró y confirmá con Confirmar Resuelta. La solución es obligatoria y aparece luego en su propio panel del detalle. Al resolverla, el avance pasa a 100%. Una tarea Resuelta deja de mostrar semáforo.",
     },
     {
       titulo: "Actualizá el % de avance",
       etiquetaIndice: "% de avance",
       cuerpo:
-        "En el campo % de avance cargá un número entero entre 0 y 100 y pulsá Guardar. El avance es independiente del estado: poner una tarea en Resuelta no lo lleva a 100 ni al revés.",
+        "En el campo % de avance cargá un número entero entre 0 y 100 y pulsá Guardar. Llegar a 100 no cambia el estado de la tarea. Si la tarea tiene hijas no canceladas, el campo no aparece: su avance es el promedio de ellas.",
     },
     {
       titulo: "Cancelá una tarea (autoridad creadora)",

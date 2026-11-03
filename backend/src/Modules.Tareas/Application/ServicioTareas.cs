@@ -28,7 +28,8 @@ public sealed class ServicioTareas(
         var personas = await directorio.CargarAsync(tareas.SelectMany(t => new[] { t.ResponsableId, t.CreadoPorId }).Distinct().ToArray(), ct);
         var relaciones = Vecinos(await repositorio.ListarRelacionesDeAsync(tareas.Select(t => t.Id).ToArray(), ct));
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        return tareas.Select(t => Mapear(t, catalogos, personas, relaciones.GetValueOrDefault(t.Id) ?? [], detalle: false)).ToList();
+        var conHijas = (await repositorio.TareasConHijasVigentesAsync(Cancelada(catalogos), ct)).ToHashSet();
+        return tareas.Select(t => Mapear(t, catalogos, personas, relaciones.GetValueOrDefault(t.Id) ?? [], conHijas.Contains(t.Id), detalle: false)).ToList();
     }
 
     public async Task<TareaDto> ObtenerAsync(Guid id, CancellationToken ct)
@@ -93,6 +94,7 @@ public sealed class ServicioTareas(
 
         repositorio.Agregar(tarea);
         await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(tarea.TareaPadreId, actor, catalogos, ct);
         await transaccion.CommitAsync(ct);
         await AvisarAsignacionAsync(tarea);
         return await MapearDetalleAsync(tarea, ct);
@@ -164,6 +166,8 @@ public sealed class ServicioTareas(
 
         MaquinaEstadosTarea.CambiarEstado(tarea, actor, actual, destino, datos.Comentario, datos.Solucion);
         await repositorio.GuardarAsync(ct);
+        // Desde la propia tarea: al reabrirse vuelve a tomar el promedio de sus hijas.
+        await RecalcularAvanceAsync(tarea.Id, actor, catalogos, ct);
         await transaccion.CommitAsync(ct);
         await AvisarAAmbosAsync(tarea, actor.UsuarioId, TiposEventoNotificacion.TareaEstadoCambiado,
             nombreActor => AvisosTarea.EstadoCambiado(tarea, nombreActor, actual.Nombre, destino.Nombre));
@@ -177,8 +181,11 @@ public sealed class ServicioTareas(
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
         RequerirVersion(tarea.Version, datos.Version);
-        MaquinaEstadosTarea.EditarAvance(tarea, actor, datos.PorcentajeAvance);
+        var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
+        var hijas = await repositorio.AvancesDeHijasVigentesAsync(id, Cancelada(catalogos), ct);
+        MaquinaEstadosTarea.EditarAvance(tarea, actor, datos.PorcentajeAvance, hijas.Count > 0);
         await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(tarea.TareaPadreId, actor, catalogos, ct);
         await transaccion.CommitAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
@@ -321,6 +328,32 @@ public sealed class ServicioTareas(
         return (prioridadElegida, tipoElegido);
     }
 
+    private static short Cancelada(CatalogosTareas catalogos) =>
+        catalogos.EstadoTarea(EstadosTarea.Cancelada)?.Id
+            ?? throw new InvalidOperationException("Falta el estado Cancelada en el catálogo.");
+
+    /// <summary>
+    /// Sube por los ancestros actualizando el promedio de cada uno. Corre bajo el bloqueo de la
+    /// raíz que ya tomó el comando y guarda en cada nivel para que el siguiente lea el valor nuevo.
+    /// Una tarea cerrada conserva su avance, pero su padre igual se recalcula.
+    /// </summary>
+    private async Task RecalcularAvanceAsync(Guid? desdeId, ActorTareas actor, CatalogosTareas catalogos, CancellationToken ct)
+    {
+        var cancelada = Cancelada(catalogos);
+        for (var id = desdeId; id is { } actual;)
+        {
+            var tarea = await repositorio.ObtenerAsync(actual, ct)
+                ?? throw NoEncontrada("La tarea no existe.");
+            if (!EstadosTarea.EsTerminal(catalogos.EstadoTarea(tarea.EstadoId)?.Codigo ?? string.Empty))
+            {
+                var hijas = await repositorio.AvancesDeHijasVigentesAsync(actual, cancelada, ct);
+                MaquinaEstadosTarea.AplicarAvanceDeHijas(tarea, actor, hijas);
+                await repositorio.GuardarAsync(ct);
+            }
+            id = tarea.TareaPadreId;
+        }
+    }
+
     private async Task<TareaDto> MapearDetalleAsync(Tarea tarea, CancellationToken ct)
     {
         var ids = tarea.Comentarios.Select(c => c.AutorId).Concat(tarea.Historial.Select(h => h.ActorId))
@@ -328,7 +361,8 @@ public sealed class ServicioTareas(
         var personas = await directorio.CargarAsync(ids, ct);
         var vecinos = Vecinos(await repositorio.ListarRelacionesDeAsync(tarea.Id, ct));
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        return Mapear(tarea, catalogos, personas, vecinos.GetValueOrDefault(tarea.Id) ?? [], detalle: true);
+        var hijas = await repositorio.AvancesDeHijasVigentesAsync(tarea.Id, Cancelada(catalogos), ct);
+        return Mapear(tarea, catalogos, personas, vecinos.GetValueOrDefault(tarea.Id) ?? [], hijas.Count > 0, detalle: true);
     }
 
     private static TareaDto Mapear(
@@ -336,6 +370,7 @@ public sealed class ServicioTareas(
         CatalogosTareas catalogos,
         IReadOnlyDictionary<Guid, PersonaResuelta> personas,
         IReadOnlyList<Guid> relacionadas,
+        bool avanceCalculado,
         bool detalle) =>
         new(
             t.Id, t.Numero, t.Titulo, t.Descripcion, t.FechaInicio, t.FechaFin,
@@ -355,7 +390,7 @@ public sealed class ServicioTareas(
                     .Select(e => new EventoTareaDto(e.Id, e.Accion, e.ActorRol, Persona(personas, e.ActorId).Nombre, catalogos.EstadoTarea(e.EstadoId)?.Codigo ?? string.Empty, e.Detalle, e.CreadoEn))
                     .ToList()
                 : [],
-            t.ProyectoId, t.TareaPadreId, relacionadas, t.Version);
+            t.ProyectoId, t.TareaPadreId, relacionadas, t.Version, avanceCalculado);
 
     internal static PersonaTareaDto Persona(IReadOnlyDictionary<Guid, PersonaResuelta> personas, Guid id) =>
         personas.TryGetValue(id, out var p)

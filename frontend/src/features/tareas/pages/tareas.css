@@ -66,6 +66,14 @@
   color: var(--color-text-primary);
 }
 
+/* La fecha primero, alineada con Fecha de inicio; el semáforo a continuación. */
+.adoc-det-tarea-fecha-fin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+}
+
 .adoc-det-tarea-datos-fila {
   display: grid;
   grid-template-columns: 1fr 1fr;

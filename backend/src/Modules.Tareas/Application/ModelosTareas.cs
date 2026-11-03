@@ -31,7 +31,8 @@ public sealed record TareaDto(
     Guid? ProyectoId,
     Guid? TareaPadreId,
     IReadOnlyList<Guid> TareasRelacionadasIds,
-    uint Version);
+    uint Version,
+    bool AvanceCalculado);
 
 /// <summary><c>AdmiteTareas</c> sale del catálogo de estados: un proyecto que la admite recibe tareas nuevas y genera cuadro en la pantalla inicial.</summary>
 public sealed record ProyectoTareasDto(
