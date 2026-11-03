@@ -25,6 +25,15 @@ public static class ModuleExtensions
         services.AddScoped<IServicioNotificaciones, ServicioNotificaciones>();
         services.AddScoped<INotificador, Notificador>();
 
+        services.Configure<OpcionesWebPush>(configuration.GetSection(OpcionesWebPush.Seccion));
+        services.AddSingleton<ConfiguracionWebPush>();
+        services.AddSingleton<ColaPush>();
+        services.AddSingleton(_ => new WebPush.WebPushClient());
+        services.AddSingleton<IEnviadorPush, EnviadorWebPush>();
+        services.AddHostedService<ProcesadorPush>();
+        services.AddScoped<RepositorioPush>();
+        services.AddScoped<IServicioPush, ServicioPush>();
+
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);
 

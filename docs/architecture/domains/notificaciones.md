@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Avisar dentro del sistema (in-app) a la persona que tiene que actuar o enterarse de algo que le pasó a un trámite suyo: un aula asignada, un pedido devuelto, una tarea reasignada. El correo es otro trabajo y está fuera de este módulo.
+Avisar dentro del sistema (in-app) a la persona que tiene que actuar o enterarse de algo que le pasó a un trámite suyo: un aula asignada, un pedido devuelto, una tarea reasignada. El correo es otro trabajo y está fuera de este módulo. Además del panel, el aviso llega como notificación push al celular o al navegador (Web Push) si la persona lo activó.
 
 ## Roles que interactúan
 
@@ -10,14 +10,16 @@ Todos los usuarios autenticados, sobre sus propias notificaciones y bajo el rol 
 
 ## Bounded context
 
-- **Pertenece**: la notificación (una fila por usuario destinatario), su estado de lectura, la resolución de destinatarios y el contrato `INotificador`.
+- **Pertenece**: la notificación (una fila por usuario destinatario), su estado de lectura, la resolución de destinatarios, el contrato `INotificador`, las suscripciones Web Push por dispositivo, las preferencias de push por tipo de aviso y el envío.
 - **No pertenece**: el hecho que la origina (vive en Aulas, Designaciones o Tareas), el texto de cada aviso (lo arma el módulo emisor con su propio vocabulario y queda congelado), la identidad y los roles (se leen de `identity`).
 
 ## Entidades principales
 
-| Entidad        | Descripción                                                                                                                               | Schema/Tabla                    |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `Notificacion` | Aviso para un usuario: perfil de destino opcional, evento, entidad de origen, título y mensaje inmutables, contexto JSON, lectura y alta. | `notificaciones.notificaciones` |
+| Entidad           | Descripción                                                                                                                               | Schema/Tabla                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `Notificacion`    | Aviso para un usuario: perfil de destino opcional, evento, entidad de origen, título y mensaje inmutables, contexto JSON, lectura y alta. | `notificaciones.notificaciones`     |
+| `SuscripcionPush` | Dispositivo (endpoint + claves) de un usuario para Web Push; el endpoint es único y pasa al usuario que lo suscribe.                      | `notificaciones.suscripciones_push` |
+| `PreferenciaPush` | Interruptor del push por tipo de aviso y usuario (el aviso in-app no se silencia).                                                        | `notificaciones.preferencias_push`  |
 
 ## API pública (contract)
 
@@ -32,13 +34,16 @@ Todos los usuarios autenticados, sobre sus propias notificaciones y bajo el rol 
 
 Detalle en [api-contracts.md](../api-contracts.md#notificaciones-apinotificaciones).
 
-| Método | Path                                     | Rol       | Descripción                                       |
-| ------ | ---------------------------------------- | --------- | ------------------------------------------------- |
-| GET    | `/api/notificaciones/ping`               | (anónimo) | Health check                                      |
-| GET    | `/api/notificaciones/no-leidas/cantidad` | sesión    | Cantidad de no leídas del usuario y perfil activo |
-| GET    | `/api/notificaciones`                    | sesión    | Lista paginada (`NO_LEIDAS` / `LEIDAS`)           |
-| PATCH  | `/api/notificaciones/{id}/leida`         | sesión    | Marca una como leída (idempotente)                |
-| PATCH  | `/api/notificaciones/leidas`             | sesión    | Marca varias (`ids` o `todas` + `hasta`)          |
+| Método        | Path                                     | Rol       | Descripción                                         |
+| ------------- | ---------------------------------------- | --------- | --------------------------------------------------- |
+| GET           | `/api/notificaciones/ping`               | (anónimo) | Health check                                        |
+| GET           | `/api/notificaciones/no-leidas/cantidad` | sesión    | Cantidad de no leídas del usuario y perfil activo   |
+| GET           | `/api/notificaciones`                    | sesión    | Lista paginada (`NO_LEIDAS` / `LEIDAS`)             |
+| PATCH         | `/api/notificaciones/{id}/leida`         | sesión    | Marca una como leída (idempotente)                  |
+| PATCH         | `/api/notificaciones/leidas`             | sesión    | Marca varias (`ids` o `todas` + `hasta`)            |
+| GET           | `/api/notificaciones/push/clave-publica` | sesión    | Clave VAPID pública (404 si push está apagado)      |
+| POST / DELETE | `/api/notificaciones/push/suscripciones` | sesión    | Alta (upsert que reasigna) y baja de un dispositivo |
+| GET / PUT     | `/api/notificaciones/push/preferencias`  | sesión    | Interruptores de push por tipo de aviso             |
 
 ## Quién avisa a quién
 
@@ -67,11 +72,12 @@ Sin reglas de normativa institucional. Es comportamiento de producto, especifica
 
 - **Hacia adentro**: `ArsDocendi.Shared` (`IConsultasIdentity`, `ICurrentUser`, `Permisos` no se usa), `ArsDocendi.Migraciones`. Ningún otro módulo.
 - **Hacia afuera**: Aulas, Designaciones y Tareas referencian `Modules.Notificaciones.Contracts`. El Host referencia `Modules.Notificaciones`.
-- **Externas**: ninguna.
+- **Externas**: servicios de Web Push de Google, Mozilla, Apple y Microsoft (sólo hosts de la lista permitida), a través de `IEnviadorPush` y el paquete `WebPush`. Configuración VAPID en [operations/web-push.md](../../operations/web-push.md).
 
 ## Decisiones registradas
 
-- **Sólo in-app, sin outbox** — el equipo aceptó que un aviso fallido se pierda (se registra sin datos personales) a cambio de no acoplar la acción de negocio a la entrega.
+- **Push por cola en memoria, sin outbox** — `Notificador` sólo encola; `ProcesadorPush` (`BackgroundService`) envía con timeout por envío, borra suscripciones 404/410 y registra únicamente código y motivo del servicio. Se aceptan trabajos perdidos si el proceso cae: el aviso in-app es el registro durable. El texto viaja cifrado (RFC 8291) y jamás se loguea.
+- **Sin outbox** — el equipo aceptó que un aviso fallido se pierda (se registra sin datos personales) a cambio de no acoplar la acción de negocio a la entrega.
 - **Fan-out al emitir, una fila por usuario** — varios Jefes de una materia leen y marcan por separado; la consulta de lectura es un índice por usuario, sin joins con roles.
 - **Texto congelado en el emisor** — Notificaciones no lee datos ajenos y el aviso no cambia si el pedido cambia después.
 - **Sin `audit.attach`** — ver [data-model.md](../data-model.md#notificaciones-schema-notificaciones).

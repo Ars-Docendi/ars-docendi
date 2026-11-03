@@ -24,7 +24,7 @@ Monolito modular en un único `ArsDocendi.slnx`. Cada módulo es un proyecto sep
 | `Modules.Aulas` + `.Contracts`          | Reserva de aulas para exámenes: solicitudes del Docente y su gestión administrativa.                  |
 | `Modules.Portal` + `.Contracts`         | Perfil del docente: contacto, CV, trayectoria y experticia.                                           |
 | `Modules.Tareas` + `.Contracts`         | Tablero de tareas y proyectos internos con semáforo de vencimiento.                                   |
-| `Modules.Notificaciones` + `.Contracts` | Notificaciones in-app por usuario y perfil, emitidas por los demás módulos.                           |
+| `Modules.Notificaciones` + `.Contracts` | Notificaciones in-app por usuario y perfil, emitidas por los demás módulos, y su envío Web Push.      |
 
 Restricciones (ver [`module-anatomy.md`](./module-anatomy.md)):
 

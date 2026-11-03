@@ -115,6 +115,8 @@ flowchart TD
 | `Modules.Designaciones`  | `Modules.Notificaciones.Contracts` | project reference | `INotificador`: avisos al aceptar, rechazar o devolver un pedido, después del commit               |
 | `Modules.Tareas`         | `Modules.Notificaciones.Contracts` | project reference | `INotificador`: avisos de asignación, estado y comentarios, después del commit                     |
 
+`Modules.Notificaciones` agrega una dependencia de **paquete** (no un edge del grafo): `WebPush` 1.0.13, cliente Web Push con VAPID y cifrado RFC 8291, usado sólo detrás de `IEnviadorPush`.
+
 Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyectos, pero explican por qué Shared ya no es puro):
 
 | Paquete                                    | Razón                                              |
