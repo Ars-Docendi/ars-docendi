@@ -5,7 +5,7 @@ export const recorrerLaPantalla: ArticuloAyuda = {
   moduloSlug: "primeros-pasos",
   grupo: "Moverte por el sistema",
   titulo: "Cómo recorrer la pantalla",
-  resumen: "Menú lateral, migas de pan y cierre de sesión.",
+  resumen: "Menú lateral, notificaciones, migas de pan y cierre de sesión.",
   introduccion:
     "Todas las pantallas del sistema comparten la misma estructura: un menú a la izquierda y el contenido de la pantalla a la derecha. En el celular el menú se abre desde el botón ☰ de la barra de arriba.",
   permisos: [],
@@ -21,6 +21,8 @@ export const recorrerLaPantalla: ArticuloAyuda = {
     "usuario",
     "rol",
     "cambiar rol",
+    "notificaciones",
+    "campana",
   ],
   pasos: [
     {
@@ -47,6 +49,17 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       captura: {
         src: "/ayuda/primeros-pasos/recorrer-la-pantalla-paso-3.webp",
         alt: "Migas de pan de una pantalla de tres niveles, por ejemplo el detalle de un pedido.",
+      },
+    },
+    {
+      titulo: "Mirá tus notificaciones",
+      etiquetaIndice: "Notificaciones",
+      cuerpo:
+        "La campana está al pie del menú lateral, entre el Centro de ayuda y tu usuario (en el celular, en la barra de arriba), y muestra cuántos avisos tenés sin leer. Al tocarla se abre un panel con las pestañas No leídas y Leídas: tocá un aviso para ir directo a la solicitud, el pedido o la tarea. Con el engranaje del panel elegís qué avisos querés recibir también como notificación del celular.",
+      nota: {
+        tipo: "consejo",
+        cuerpo:
+          "Para recibir los avisos en el celular aunque no tengas el sistema abierto, seguí la guía «Activar las notificaciones en el celular».",
       },
     },
     {
@@ -87,5 +100,6 @@ export const recorrerLaPantalla: ArticuloAyuda = {
   relacionados: [
     "primeros-pasos/permisos-y-pantallas-visibles",
     "primeros-pasos/usar-el-centro-de-ayuda",
+    "primeros-pasos/activar-las-notificaciones-en-el-celular",
   ],
 };
