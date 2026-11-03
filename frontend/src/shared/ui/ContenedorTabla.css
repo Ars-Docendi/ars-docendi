@@ -1,0 +1,55 @@
+/* Scroll region of the data tables (see ContenedorTabla.tsx). */
+.adoc-contenedor-tabla {
+  /* Focused cells scroll into view clear of the sticky first column and header. */
+  scroll-padding-inline-start: var(--ancho-col-fija, 0px);
+  scroll-padding-block-start: var(--alto-encabezado, 0px);
+}
+.adoc-contenedor-tabla:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+
+/* Sticky first column: opaque so scrolled content does not show through. */
+.adoc-contenedor-tabla table.adoc-table > thead > tr > :first-child,
+.adoc-contenedor-tabla table.adoc-table > tbody > tr > :first-child {
+  position: sticky;
+  left: 0;
+  background: var(--color-bg-raised, #fff);
+}
+.adoc-contenedor-tabla table.adoc-table > thead > tr > :first-child {
+  z-index: 3;
+  background: var(--color-bg-canvas);
+}
+.adoc-contenedor-tabla table.adoc-table > tbody > tr > :first-child {
+  z-index: 1;
+}
+.adoc-contenedor-tabla table.adoc-table > tbody > tr:hover > :first-child {
+  background: var(--color-bg-canvas);
+}
+.adoc-contenedor-tabla table.adoc-table > tbody > tr.selected > :first-child {
+  background: var(--accent-100);
+}
+/* A single-cell "empty" row spans every column: it must not stay pinned. */
+.adoc-contenedor-tabla table.adoc-table > tbody > tr > td.empty:first-child {
+  position: static;
+}
+
+/* Right-edge shadow while more columns remain; first-column shadow once scrolled sideways. */
+.adoc-contenedor-tabla-marco {
+  position: relative;
+}
+.adoc-contenedor-tabla-marco[data-desborde]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  background: linear-gradient(to left, rgb(0 0 0 / 14%), transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+.adoc-contenedor-tabla-marco[data-desplazada] table.adoc-table > thead > tr > :first-child,
+.adoc-contenedor-tabla-marco[data-desplazada] table.adoc-table > tbody > tr > :first-child {
+  box-shadow: 6px 0 6px -6px rgb(0 0 0 / 20%);
+}
