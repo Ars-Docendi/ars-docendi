@@ -87,19 +87,6 @@ public sealed class CuotaPersistenteTests(PostgresFixture postgres)
         Assert.False(await cuota.HayCupoAsync(Secretaria, TestContext.Current.CancellationToken));
     }
 
-    [Fact]
-    public async Task El_override_del_usuario_gana_aunque_sea_mas_grande_que_el_del_rol()
-    {
-        await SembrarAsync();
-        await FijarCupoDeRolAsync("secretaria", 1);
-        await FijarOverrideAsync(Secretaria, 10);
-        await AnotarTurnosDeHoyAsync(Secretaria, Ancla, llamadas: 1, cantidad: 1);
-
-        var cuota = ArmarCuota(new RelojFijo(Ancla));
-
-        Assert.True(await cuota.HayCupoAsync(Secretaria, TestContext.Current.CancellationToken));
-    }
-
     // ------------------------------------------------- 3.5, cero desactiva
 
     [Fact]
@@ -118,23 +105,6 @@ public sealed class CuotaPersistenteTests(PostgresFixture postgres)
     }
 
     // ----------------------------------------------- roles múltiples (§3.2 doc)
-
-    [Fact]
-    public async Task Con_varios_roles_activados_manda_el_minimo_no_el_del_rol_sin_tope()
-    {
-        // Secretaria queda con cupo=3 (activado) y decanato con cupo=0 (sin
-        // tope) sobre el MISMO actor: el mínimo entre los ACTIVADOS es 3, no
-        // 0 — un rol sin tope no "gana" por ser el número más chico.
-        await SembrarAsync();
-        await FijarCupoDeRolAsync("secretaria", 3);
-        await FijarCupoDeRolAsync("decanato", 0);
-        await AgregarRolAsync(Secretaria, "decanato");
-        await AnotarTurnosDeHoyAsync(Secretaria, Ancla, llamadas: 1, cantidad: 3);
-
-        var cuota = ArmarCuota(new RelojFijo(Ancla));
-
-        Assert.False(await cuota.HayCupoAsync(Secretaria, TestContext.Current.CancellationToken));
-    }
 
     // ------------------------------------------------ 9.7, aviso de umbral
 

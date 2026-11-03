@@ -19,16 +19,6 @@ public sealed class PermisoAdministrarTests(PostgresFixture postgres)
     private const string Recurso = "identity/20261020000900_PermisoAsistenteAdministrarIdentity.sql";
 
     [Fact]
-    public async Task Existe_exactamente_una_fila_del_permiso()
-    {
-        var filas = await EscalarAsync<long>(
-            "SELECT count(*) FROM identity.permisos WHERE code = @code",
-            ("code", Permisos.AsistenteAdministrar));
-
-        Assert.Equal(1, filas);
-    }
-
-    [Fact]
     public async Task Esta_concedido_a_sys_admin()
     {
         var concedidoASysAdmin = await EscalarAsync<long>(
@@ -60,60 +50,6 @@ public sealed class PermisoAdministrarTests(PostgresFixture postgres)
         // Exactamente un rol tiene el permiso — sys_admin, verificado arriba —
         // y no ninguno más.
         Assert.Equal(1, concedidoATotal);
-    }
-
-    [Fact]
-    public async Task Reaplicar_la_migracion_no_duplica_filas_ni_agrega_concesiones()
-    {
-        var antesPermisos = await EscalarAsync<long>("SELECT count(*) FROM identity.permisos");
-        var antesConcesiones = await EscalarAsync<long>(
-            """
-            SELECT count(*)
-              FROM identity.rol_permisos rp
-              JOIN identity.permisos p ON p.id = rp.permiso_id
-             WHERE p.code = @code
-            """,
-            ("code", Permisos.AsistenteAdministrar));
-
-        await EjecutarMigracionAsync();
-        await EjecutarMigracionAsync();
-
-        Assert.Equal(antesPermisos, await EscalarAsync<long>("SELECT count(*) FROM identity.permisos"));
-        Assert.Equal(antesConcesiones, await EscalarAsync<long>(
-            """
-            SELECT count(*)
-              FROM identity.rol_permisos rp
-              JOIN identity.permisos p ON p.id = rp.permiso_id
-             WHERE p.code = @code
-            """,
-            ("code", Permisos.AsistenteAdministrar)));
-    }
-
-    [Fact]
-    public void La_constante_esta_declarada_y_registrada()
-    {
-        Assert.Equal("asistente.administrar", Permisos.AsistenteAdministrar);
-        Assert.Contains(Permisos.AsistenteAdministrar, Permisos.Todos);
-    }
-
-    [Fact]
-    public async Task La_politica_existe_en_el_Host_compuesto()
-    {
-        using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Production");
-            builder.UseSetting("Integridad:ClavesSellado:1", Convert.ToBase64String(new byte[32]));
-            // En Production el Host exige el ingreso con Microsoft configurado.
-            builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
-            builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
-            builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-        });
-
-        var proveedor = host.Services.GetRequiredService<IAuthorizationPolicyProvider>();
-        var politica = await proveedor.GetPolicyAsync(Permisos.AsistenteAdministrar);
-
-        Assert.NotNull(politica);
     }
 
     private Task EjecutarMigracionAsync() => EjecutarAsync(

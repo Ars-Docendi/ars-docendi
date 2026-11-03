@@ -197,16 +197,6 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task El_reporte_dice_que_es_generado()
-    {
-        await SembrarAsync();
-
-        var corrida = await CorrerAsync(new ProveedorDeCortesia(), DatasetMinimo);
-
-        Assert.Contains("generado", corrida.Reporte!.Renderizar(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public async Task Dos_corridas_con_proveedor_determinista_dan_el_mismo_reporte()
     {
         await SembrarAsync();

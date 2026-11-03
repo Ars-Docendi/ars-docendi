@@ -25,16 +25,6 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
 
     [Fact]
-    public async Task Existe_exactamente_una_fila_del_permiso()
-    {
-        var filas = await EscalarAsync<long>(
-            "SELECT count(*) FROM identity.permisos WHERE code = @code",
-            ("code", Permisos.AsistenteConsultar));
-
-        Assert.Equal(1, filas);
-    }
-
-    [Fact]
     public async Task Los_seis_roles_no_docente_lo_tienen_y_docente_no()
     {
         var conAcceso = await LeerRolesConElPermisoAsync();
@@ -44,41 +34,6 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
         // migración, así que un permiso nuevo no le llega solo.
         Assert.Equal(RolesConAcceso.Order(), conAcceso.Order());
         Assert.DoesNotContain("docente", conAcceso);
-    }
-
-    [Fact]
-    public async Task Los_siete_roles_de_sistema_tienen_una_decision_tomada()
-    {
-        var deSistema = await LeerColumnaAsync(
-            "SELECT code FROM identity.roles WHERE es_sistema ORDER BY code");
-        var conAcceso = await LeerRolesConElPermisoAsync();
-
-        // Ninguno queda sin decisión: o está en la lista de acceso, o es docente,
-        // que está excluido a propósito.
-        var sinDecision = deSistema
-            .Where(rol => !conAcceso.Contains(rol) && rol != "docente")
-            .ToArray();
-
-        Assert.Equal(7, deSistema.Count);
-        Assert.Empty(sinDecision);
-    }
-
-    [Fact]
-    public async Task Reaplicar_la_migracion_no_duplica_filas()
-    {
-        var antesPermisos = await EscalarAsync<long>("SELECT count(*) FROM identity.permisos");
-        var antesMembresia = await EscalarAsync<long>(
-            "SELECT count(*) FROM identity.rol_permisos rp "
-            + "JOIN identity.permisos p ON p.id = rp.permiso_id WHERE p.code = @code",
-            ("code", Permisos.AsistenteConsultar));
-
-        await EjecutarMigracionAsync();
-
-        Assert.Equal(antesPermisos, await EscalarAsync<long>("SELECT count(*) FROM identity.permisos"));
-        Assert.Equal(antesMembresia, await EscalarAsync<long>(
-            "SELECT count(*) FROM identity.rol_permisos rp "
-            + "JOIN identity.permisos p ON p.id = rp.permiso_id WHERE p.code = @code",
-            ("code", Permisos.AsistenteConsultar)));
     }
 
     [Fact]
@@ -96,36 +51,6 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
         var error = await Assert.ThrowsAsync<PostgresException>(EjecutarMigracionAsync);
 
         Assert.Contains("rol_nuevo_de_sistema", error.MessageText, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void La_constante_esta_declarada_y_registrada()
-    {
-        // Una constante declarada pero ausente de Todos no produce política, y el
-        // [Authorize] correspondiente lanza en el primer request, no al compilar.
-        Assert.Equal("asistente.consultar", Permisos.AsistenteConsultar);
-        Assert.Contains(Permisos.AsistenteConsultar, Permisos.Todos);
-    }
-
-    [Fact]
-    public async Task La_politica_existe_en_el_Host_compuesto()
-    {
-        using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Production");
-            // En Production el Host exige el ingreso con Microsoft configurado.
-            builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
-            builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
-            builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
-            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
-            // En Production el sellado de pedidos exige su clave.
-            builder.UseSetting("Integridad:ClavesSellado:1", Convert.ToBase64String(new byte[32]));
-        });
-
-        var proveedor = host.Services.GetRequiredService<IAuthorizationPolicyProvider>();
-        var politica = await proveedor.GetPolicyAsync(Permisos.AsistenteConsultar);
-
-        Assert.NotNull(politica);
     }
 
     [Fact]

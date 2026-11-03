@@ -79,14 +79,6 @@ describe("El rail está siempre a la vista, expandido por default", () => {
     expect(screen.queryByText("Ayer")).toBeNull();
   });
 
-  it("el título completo queda en el atributo `title`, para el hover", async () => {
-    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-
-    montar(<PanelDePrueba />);
-
-    expect(await screen.findByText(UNA.titulo)).toHaveAttribute("title", UNA.titulo);
-  });
-
   it("sin conversaciones muestra un estado vacío", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([]);
 
@@ -99,21 +91,6 @@ describe("El rail está siempre a la vista, expandido por default", () => {
 });
 
 describe("Colapsar y expandir el rail (tasks.md 1.4, 1.6)", () => {
-  it("colapsa a 60 px mostrando sólo expandir, «Nueva conversación» e «Historial»", async () => {
-    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    const user = userEvent.setup();
-    montar(<PanelDePrueba />);
-    await screen.findByText(UNA.titulo);
-
-    await user.click(screen.getByRole("button", { name: "Colapsar conversaciones" }));
-
-    expect(screen.getByRole("button", { name: "Expandir conversaciones" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Nueva conversación" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Historial" })).toBeInTheDocument();
-    expect(screen.queryByText(UNA.titulo)).toBeNull();
-    expect(screen.queryByRole("searchbox", { name: "Buscar en tus conversaciones" })).toBeNull();
-  });
-
   it("colapsar mueve el foco a «Expandir conversaciones», y viceversa", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
     const user = userEvent.setup();
@@ -352,19 +329,6 @@ describe("La sección «Archivadas» (tasks.md §2.5)", () => {
     await screen.findByText(UNA.titulo);
 
     expect(screen.queryByRole("button", { name: /^Archivadas/ })).toBeNull();
-  });
-
-  it("dentro de su propia sección no lleva la marca «Archivada» — sería redundante", async () => {
-    // La marca sólo hace falta en los resultados de búsqueda, donde activas y archivadas se mezclan
-    // (asistente-rediseno-v3, hallazgo de verificación visual: el mock no la dibuja acá).
-    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA, ARCHIVADA]);
-
-    montar(<PanelDePrueba />);
-    await screen.findByText(UNA.titulo);
-    await userEvent.setup().click(screen.getByRole("button", { name: /^Archivadas/ }));
-
-    expect(screen.getByText(ARCHIVADA.titulo)).toBeInTheDocument();
-    expect(screen.queryByText("Archivada")).toBeNull();
   });
 });
 

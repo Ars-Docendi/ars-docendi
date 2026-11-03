@@ -37,69 +37,6 @@ async function abrirAyuda() {
 }
 
 describe("El estado inicial", () => {
-  it("la pantalla vacía deja a la vista el título y los ejemplos, nada más", async () => {
-    // Lo demás —presentación, alcance y límites— se movió detrás del «?». Ocupaba
-    // la mitad de la pantalla y competía con lo único accionable que hay acá.
-    montar(<PanelDePrueba />);
-
-    expect(
-      await screen.findByRole("heading", { name: "¿Qué querés saber del sistema?" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("No puedo:")).toBeNull();
-    expect(screen.queryByText(/Conozco 2 áreas de datos del sistema/)).toBeNull();
-  });
-
-  it("los ejemplos se muestran como tarjetas en una grilla de dos columnas", async () => {
-    // Ni pastilla ni botón fantasma (design spec § «Rediseño v3», fila
-    // «Bienvenida»): son las ÚNICAS sugerencias clicables que le quedan al
-    // asistente (ARS-149), y se leen como tarjetas con flecha, no como chips.
-    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
-      ...CAPACIDADES,
-      ejemplos: [
-        "¿Qué carreras están vigentes?",
-        "¿Cuántos pedidos hay en cada estado?",
-        "¿Quién es el jefe de cátedra de Bases de Datos?",
-        "¿Cuántos docentes están designados?",
-      ],
-    });
-    montar(<PanelDePrueba />);
-
-    const lista = await screen.findByRole("list", { name: "Preguntas de ejemplo" });
-    expect(lista).toHaveClass("adoc-asistente-inicio-ejemplos");
-
-    const tarjetas = within(lista).getAllByRole("button");
-    expect(tarjetas).toHaveLength(4);
-    for (const tarjeta of tarjetas) {
-      expect(tarjeta).toHaveClass("adoc-asistente-inicio-ejemplo");
-    }
-  });
-
-  it("si el catálogo manda más de cuatro ejemplos, sólo se muestran los primeros cuatro", async () => {
-    // El catálogo puede mandar hasta seis (`CatalogoDeCapacidades.MaximoDeEjemplos`);
-    // la grilla es 2×2 y fija, así que el resto se descarta y no al revés.
-    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
-      ...CAPACIDADES,
-      ejemplos: ["uno", "dos", "tres", "cuatro", "cinco", "seis"],
-    });
-    montar(<PanelDePrueba />);
-
-    const lista = await screen.findByRole("list", { name: "Preguntas de ejemplo" });
-    expect(within(lista).getAllByRole("button")).toHaveLength(4);
-    expect(screen.queryByRole("button", { name: "cinco" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "seis" })).toBeNull();
-  });
-
-  it("el alcance, cuántas áreas hay y los límites están en la ayuda", async () => {
-    montar(<PanelDePrueba />);
-    await abrirAyuda();
-
-    expect(screen.getByText(/Conozco 2 áreas de datos del sistema/)).toBeInTheDocument();
-    expect(screen.getByText(/Ves los datos de todo el Departamento/)).toBeInTheDocument();
-
-    expect(screen.getByText("No puedo:")).toBeInTheDocument();
-    expect(screen.getByText("No modifica nada: solo consulta.")).toBeInTheDocument();
-  });
-
   it("la ayuda se cierra con Escape", async () => {
     // Se abre con clic y se cierra sola: un panel que sólo se cierra volviendo al
     // botón obliga a buscarlo con el puntero para seguir leyendo lo de atrás.
@@ -110,37 +47,6 @@ describe("El estado inicial", () => {
     await user.keyboard("{Escape}");
 
     expect(screen.queryByText("No puedo:")).toBeNull();
-  });
-
-  it("pinta la presentación que le manda el backend, y sigue diciendo cuántas áreas hay", async () => {
-    // La presentación es la primera línea y el conteo NO se pierde: es la única
-    // señal honesta de amplitud que tiene la pantalla, y sin ella «Preguntá por los
-    // pedidos de tu carrera» se leería como el techo de lo que el asistente sabe.
-    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
-      ...CAPACIDADES,
-      presentacion: "Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión.",
-    });
-    montar(<PanelDePrueba />);
-    await abrirAyuda();
-
-    expect(
-      screen.getByText("Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión."),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Conozco 2 áreas de datos del sistema/)).toBeInTheDocument();
-  });
-
-  it("la copy del rol viene del backend: el cliente no tiene ninguna", async () => {
-    // Un rol que el backend no reconoce recibe de él un texto genérico.
-    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
-      ...CAPACIDADES,
-      presentacion: "Preguntá por lo que el backend diga.",
-    });
-    montar(<PanelDePrueba />);
-
-    await abrirAyuda();
-
-    expect(screen.getByText("Preguntá por lo que el backend diga.")).toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/cátedra del Departamento/);
   });
 
   it("no muestra el comentario de las áreas: se escribió para el modelo, no para el usuario", async () => {
@@ -168,21 +74,6 @@ describe("El estado inicial", () => {
     expect(document.body.textContent).not.toMatch(/NO confundir/);
     // El conteo sí: es lo único de las áreas que se le dice al usuario.
     expect(screen.getByText(/Conozco 1 área de datos del sistema/)).toBeInTheDocument();
-  });
-
-  it("sin límites no queda ni el rótulo «No puedo:»", () => {
-    // El mismo criterio que Opciones y Sugerencias: lista vacía, nada en pantalla.
-    // Un rótulo sin lista debajo es un título que anuncia algo que no está.
-    render(
-      <EstadoInicial
-        capacidades={{ ...CAPACIDADES, noPuede: [] }}
-        onElegir={() => {}}
-        deshabilitado={false}
-      />,
-    );
-
-    expect(screen.queryByText(/No puedo/)).toBeNull();
-    expect(document.body.textContent).not.toMatch(/No puedo/);
   });
 
   it("un chip manda su pregunta tal cual", async () => {

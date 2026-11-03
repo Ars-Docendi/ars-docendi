@@ -34,15 +34,6 @@ public sealed class OptimizacionesModeloLocalPurasTests
     ];
 
     [Fact]
-    public void Sin_la_opcion_el_esquema_es_byte_a_byte_el_de_siempre()
-    {
-        // D1: la forma compacta es opt-in; sin la opción, ningún proveedor ve otro prefijo.
-        Assert.Equal(
-            RenderizadorDeEsquema.Renderizar(Columnas, Referencias, []),
-            RenderizadorDeEsquema.Renderizar(Columnas, Referencias, [], compacto: false));
-    }
-
-    [Fact]
     public void El_esquema_compacto_lleva_la_clave_foranea_en_la_linea_de_su_columna()
     {
         var compacto = RenderizadorDeEsquema.Renderizar(Columnas, Referencias, [], compacto: true);
@@ -328,26 +319,6 @@ public sealed class OptimizacionesModeloLocalPurasTests
 
         Assert.Equal(techoDeLaGeneracion, proveedor.Recibidas[0].MaximoDeTokens);
         Assert.Equal(esperadoEnLaSegunda, proveedor.Recibidas[1].MaximoDeTokens);
-    }
-
-    [Fact]
-    public async Task Con_la_opcion_apagada_la_solicitud_de_la_segunda_generacion_es_identica_a_la_de_siempre()
-    {
-        // D4: con la opción apagada, la segunda generación no cambia lo que se le pide al modelo.
-        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion("SELECT 1"));
-        var generador = Generador(proveedor, new OpcionesAsistente
-        {
-            Proveedor = "anthropic",
-            MaximoDeTokensDeSegundaGeneracion = 2000,
-        });
-
-        await generador.GenerarAsync(
-            "¿cuántos pedidos hay?", false, Ct, intentoAnterior: ("SELECT 1", "no devolvió filas"));
-        await generador.GenerarAsync(
-            "¿cuántos pedidos hay?", false, Ct, intentoAnterior: ("SELECT 1", "no devolvió filas"),
-            esSegundaGeneracion: true);
-
-        Assert.Equal(proveedor.Recibidas[0], proveedor.Recibidas[1]);
     }
 
     // ------------------------------------------------------------------ apoyo

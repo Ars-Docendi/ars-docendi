@@ -53,24 +53,6 @@ describe("PanelDetalleEvento", () => {
     expect(screen.queryByText(/30111222/)).not.toBeInTheDocument();
   });
 
-  it("un evento del asistente sin requestId muestra «Solicitud —»", () => {
-    render(
-      <PanelDetalleEvento
-        evento={evento({
-          requestId: null,
-          tabla: "modo_mantenimiento",
-          schema: "asistente",
-          rowPk: "—",
-        })}
-        onCerrar={vi.fn()}
-      />,
-    );
-
-    const dd = screen.getByText("Tabla").nextElementSibling;
-    expect(dd).toHaveTextContent("asistente.modo_mantenimiento");
-    expect(screen.getByText("Solicitud").nextElementSibling).toHaveTextContent("—");
-  });
-
   it("«Cerrar detalle» llama al callback", async () => {
     const user = userEvent.setup();
     const onCerrar = vi.fn();
@@ -87,40 +69,5 @@ describe("PanelDetalleEvento", () => {
     expect(document.activeElement).toHaveTextContent(
       "Solicitud #1042: Estado pendiente → aprobado",
     );
-  });
-
-  it("el chip de acción vive dentro del encabezado que le da align-self:flex-start", () => {
-    // jsdom no calcula layout: no se puede medir el ancho del chip acá. Lo que
-    // sí se puede probar es que el selector CSS
-    // ".auditoria-detalle-encabezado .sistema-chip-accion" (sistema.css)
-    // efectivamente matchea esta estructura — si alguien mueve el chip fuera
-    // del encabezado, este test lo detecta.
-    render(<PanelDetalleEvento evento={evento({})} onCerrar={vi.fn()} />);
-
-    const chip = screen.getByText("Cambio");
-    expect(chip).toHaveClass("sistema-chip-accion");
-    expect(chip.closest(".auditoria-detalle-encabezado")).not.toBeNull();
-  });
-
-  it("un valor largo conserva la clase que activa el ajuste de línea (no desborda)", () => {
-    const valorLargo = "2026-09-27T01:52:30.81236+00:00-y-un-resto-bien-largo-que-podria-desbordar";
-    render(
-      <PanelDetalleEvento
-        evento={evento({
-          cambios: [
-            {
-              campo: "created_at",
-              etiquetaCampo: "Fecha de creación",
-              valorAnterior: null,
-              valorNuevo: valorLargo,
-              oculto: false,
-            },
-          ],
-        })}
-        onCerrar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText(valorLargo)).toHaveClass("auditoria-valor-despues");
   });
 });

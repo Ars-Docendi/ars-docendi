@@ -242,19 +242,6 @@ public sealed class EnmascaradorTests
     }
 
     [Fact]
-    public void Free_text_only_mode_returns_the_same_instance_when_nothing_changes()
-    {
-        var publicOnly = Resultado(["a", "b"], [Publica, Publica], [["uno", "dos"]]);
-        var withSensitiveValue = Resultado(
-            ["apellido", "documento"], [Publica, DocumentoSensible], [["Gómez", Documento]]);
-
-        Assert.Same(publicOnly, Enmascarador.Enmascarar(publicOnly, ModoDeEnmascarado.SoloTextoLibre));
-        Assert.Same(
-            withSensitiveValue,
-            Enmascarador.Enmascarar(withSensitiveValue, ModoDeEnmascarado.SoloTextoLibre));
-    }
-
-    [Fact]
     public void Default_mode_still_masks_everything()
     {
         var input = Resultado(

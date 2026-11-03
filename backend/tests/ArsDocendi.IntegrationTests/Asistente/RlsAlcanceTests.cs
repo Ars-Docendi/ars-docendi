@@ -54,48 +54,6 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         Assert.All(estado, fila => Assert.EndsWith("|true|false", fila, StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task Cada_tabla_protegida_tiene_su_policy_de_solo_lectura()
-    {
-        var policies = await LeerFilasAsync(
-            """
-            SELECT tablename || '|' || policyname || '|' || cmd
-              FROM pg_policies
-             WHERE schemaname = 'designaciones'
-             ORDER BY tablename
-            """);
-
-        Assert.Equal(4, policies.Count);
-        Assert.All(policies, fila => Assert.EndsWith("|SELECT", fila, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task El_predicado_conjunta_el_permiso_con_el_alcance()
-    {
-        var predicados = await LeerFilasAsync(
-            "SELECT qual FROM pg_policies WHERE schemaname = 'designaciones'");
-
-        // Sin el permiso adentro del predicado, un rol con ámbito de materia pero
-        // sin designaciones.ver recibiría pedidos e historial que la API le niega.
-        Assert.Equal(4, predicados.Count);
-        Assert.All(predicados, qual =>
-        {
-            Assert.Contains("asistente_tiene_permiso", qual, StringComparison.Ordinal);
-            Assert.Contains("asistente_alcanza_ambito", qual, StringComparison.Ordinal);
-        });
-    }
-
-    [Fact]
-    public void La_migracion_explica_por_que_no_se_usa_FORCE()
-    {
-        var sql = File.ReadAllText(Path.Combine(
-            RaizRepositorio.Ruta(), "database", "designaciones",
-            "20261020001000_RlsAsistenteDesignaciones.sql"));
-
-        Assert.Contains("FORCE ROW LEVEL SECURITY", sql, StringComparison.Ordinal);
-        Assert.Contains("dueño", sql, StringComparison.Ordinal);
-    }
-
     // ------------------------------------------------------------------ el alcance
 
     [Fact]

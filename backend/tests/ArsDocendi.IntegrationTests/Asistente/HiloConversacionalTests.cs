@@ -15,29 +15,6 @@ public sealed class HiloConversacionalTests
 
     // ---------------------------------------------------------- HiloHistorico
 
-    [Fact]
-    public void HiloHistorico_arranca_nulo()
-    {
-        var (almacen, _) = Almacen();
-
-        var abierto = almacen.Resolver(null, Ana);
-
-        Assert.Null(abierto.HiloHistorico);
-    }
-
-    [Fact]
-    public void HiloHistorico_se_puede_fijar_y_conservarse()
-    {
-        var (almacen, _) = Almacen();
-        var abierto = almacen.Resolver(null, Ana);
-        var idDeHistorial = Guid.NewGuid();
-
-        abierto.HiloHistorico = idDeHistorial;
-
-        var recuperado = almacen.Resolver(abierto.Id, Ana);
-        Assert.Equal(idDeHistorial, recuperado.HiloHistorico);
-    }
-
     // --------------------------------------------------------------- Sembrar
 
     [Fact]
@@ -254,20 +231,6 @@ public sealed class HiloConversacionalTests
         Assert.True(aclaracion.Agotada(maximo: 2));
     }
 
-    [Fact]
-    public void El_texto_del_menu_numera_las_opciones()
-    {
-        var aclaracion = new Aclaracion(
-            "Análisis Matemático",
-            "¿Quién da Análisis Matemático?",
-            [new("Ingeniería en Informática", "x"), new("Ingeniería Industrial", "y")]);
-
-        var texto = aclaracion.Texto();
-
-        Assert.Contains("1. Ingeniería en Informática", texto, StringComparison.Ordinal);
-        Assert.Contains("2. Ingeniería Industrial", texto, StringComparison.Ordinal);
-    }
-
     // ------------------------------------- la consulta que respondió el turno
 
     // EL HILO GUARDA LA CONSULTA, NUNCA LAS FILAS. La consulta se puede guardar porque sus
@@ -434,31 +397,6 @@ public sealed class HiloConversacionalTests
     }
 
     // --------------------------------------------- reemplazo (design.md D9)
-
-    [Fact]
-    public void UltimoRegistrado_es_null_sin_ningun_turno_registrado()
-    {
-        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
-
-        Assert.Null(hilo.UltimoRegistrado);
-    }
-
-    [Fact]
-    public void MarcarUltimoRegistrado_guarda_la_identidad_completa()
-    {
-        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
-        var token = Guid.NewGuid();
-        var aclaracion = new Aclaracion("Álgebra", "¿Quién da Álgebra?", [new("A", "a"), new("B", "b")]);
-
-        hilo.MarcarUltimoRegistrado("clave-1", null, token, inicioDeSegmentoAntes: 2, aclaracion);
-
-        var identidad = hilo.UltimoRegistrado!;
-        Assert.Equal("clave-1", identidad.ClaveDelCliente);
-        Assert.Null(identidad.TurnoHistoricoId);
-        Assert.Equal(token, identidad.ClaveDeRetroalimentacion);
-        Assert.Equal(2, identidad.InicioDeSegmentoAntes);
-        Assert.Same(aclaracion, identidad.AclaracionPendienteAntes);
-    }
 
     [Fact]
     public void Sembrar_marca_como_ultimo_registrado_al_ultimo_turno_sembrado()

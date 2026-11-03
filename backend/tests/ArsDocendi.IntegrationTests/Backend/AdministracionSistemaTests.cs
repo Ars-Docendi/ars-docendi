@@ -110,6 +110,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         public Task<EstadoDeMantenimientoPublico> ConsultarAsync(CancellationToken ct) =>
             throw new InvalidOperationException("Falla simulada para el test.");
     }
+    [Fact]
     public async Task Auditoria_pagina_filtra_y_oculta_valores_personales_desconocidos()
     {
         var ct = TestContext.Current.CancellationToken;

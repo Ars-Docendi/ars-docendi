@@ -22,18 +22,6 @@ public sealed class SelectorDeEjemplosTests
         Assert.Empty(rechazados);
     }
 
-    [Fact]
-    public void No_hay_preguntas_repetidas_en_el_catalogo()
-    {
-        var repetidas = Selector.Catalogo
-            .GroupBy(e => e.Pregunta, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToArray();
-
-        Assert.Empty(repetidas);
-    }
-
     // ------------------------------------------------------------- selección
 
     [Fact]

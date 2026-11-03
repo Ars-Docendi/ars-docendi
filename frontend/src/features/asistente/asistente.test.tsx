@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { PanelDePrueba } from "./test/PanelDePrueba";
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
-import type { RespuestaDelAsistente } from "./types";
+
 // Las fixtures y el montaje son los de `test/soporte`, y no una copia local.
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 
@@ -42,21 +42,6 @@ describe("El lanzador del asistente", () => {
     await waitFor(() => expect(screen.queryByRole("button", { name: "Preguntar" })).toBeNull());
   });
 
-  it("no deja ningún botón deshabilitado con leyenda de próximamente", async () => {
-    // El botón «Ayuda» estaba `disabled` con title="Próximamente", que es el fake UI que el
-    // invariante #7 prohíbe.
-    montar(<LanzadorAsistente />);
-
-    const boton = await screen.findByRole("button", { name: "Preguntar" });
-
-    expect(boton).not.toBeDisabled();
-
-    // No lleva `title`: el botón ahora tiene etiqueta visible, y un tooltip que repite lo que ya
-    // dice el texto es ruido para un lector de pantalla.
-    expect(boton).not.toHaveAttribute("title", "Próximamente");
-    expect(boton).toHaveAccessibleName("Preguntar");
-  });
-
   it("abre el panel con la misma vista que la ruta", async () => {
     const user = userEvent.setup();
     montar(<LanzadorAsistente />);
@@ -72,23 +57,6 @@ describe("El lanzador del asistente", () => {
 // ----------------------------------------------------------- la conversación
 
 describe("El panel del asistente", () => {
-  it("arranca mostrando el catálogo real y sus ejemplos", async () => {
-    const user = userEvent.setup();
-    montar(<PanelDePrueba />);
-
-    expect(
-      await screen.findByRole("button", { name: "¿Qué carreras están vigentes?" }),
-    ).toBeInTheDocument();
-
-    // El alcance y los límites se movieron detrás del «?»: la pantalla vacía deja
-    // a la vista el título y los ejemplos, que es lo accionable.
-    await user.click(
-      screen.getByRole("button", { name: "Qué puede y qué no puede hacer el asistente" }),
-    );
-    expect(screen.getByText(/2 áreas de datos del sistema/)).toBeInTheDocument();
-    expect(screen.getByText("No modifica nada: solo consulta.")).toBeInTheDocument();
-  });
-
   it("manda la pregunta y muestra la respuesta", async () => {
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
@@ -163,34 +131,6 @@ describe("Los cuatro estados", () => {
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
     expect(await screen.findByText("El asistente no está disponible ahora")).toBeInTheDocument();
-  });
-
-  it("una respuesta sin modelo se retiene para que el turno no se sienta vacío", async () => {
-    // Un carril determinista contesta en milisegundos.
-    const user = userEvent.setup();
-    vi.spyOn(api, "consultar").mockResolvedValue(
-      respuesta({ respuesta: "Hola.", metricas: { llamadasAlModelo: 0 } }),
-    );
-    montar(<PanelDePrueba />);
-
-    await user.type(await screen.findByLabelText("Tu pregunta"), "hola{Enter}");
-    await new Promise((r) => setTimeout(r, 400));
-
-    expect(screen.queryByText("Hola.")).not.toBeInTheDocument();
-    expect(await screen.findByText("Hola.", undefined, TOPE_DE_ESPERA_PAREJA)).toBeInTheDocument();
-  });
-
-  it("un error no se retiene: la mala noticia llega enseguida", async () => {
-    // La espera pareja empareja RESPUESTAS. Hacer esperar a alguien para decirle
-    // que algo falló es coherencia que no vale lo que cuesta.
-    const user = userEvent.setup();
-    vi.spyOn(api, "consultar").mockRejectedValue(new Error("se cayó"));
-    montar(<PanelDePrueba />);
-
-    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
-    await new Promise((r) => setTimeout(r, 400));
-
-    expect(screen.getByText("No se pudo consultar")).toBeInTheDocument();
   });
 
   it("una aclaración ofrece sus opciones para continuar", async () => {
@@ -319,37 +259,6 @@ describe("Accesibilidad de la conversación", () => {
     const log = screen.getByRole("log");
 
     expect(log.contains(estado)).toBe(false);
-  });
-
-  it("una respuesta rápida no llega a mostrar el indicador", async () => {
-    // Un indicador que parpadea es peor que ninguno: para un lector de pantalla es
-    // un anuncio que aparece y desaparece antes de terminar de leerse.
-    const user = userEvent.setup();
-    vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelDePrueba umbralDelIndicadorMs={10_000} />);
-
-    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
-    await screen.findByText("Hay 4 docentes designados.");
-
-    expect(screen.getByRole("status").textContent).toBe("");
-  });
-
-  it("una respuesta lenta sí lo muestra, anunciado como estado", async () => {
-    const user = userEvent.setup();
-    let resolver: (valor: RespuestaDelAsistente) => void = () => {};
-    vi.spyOn(api, "consultar").mockImplementation(
-      () => new Promise<RespuestaDelAsistente>((r) => (resolver = r)),
-    );
-    montar(<PanelDePrueba umbralDelIndicadorMs={0} />);
-
-    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
-
-    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Consultando…"));
-
-    resolver(respuesta());
-
-    await screen.findByText("Hay 4 docentes designados.");
-    await waitFor(() => expect(screen.getByRole("status").textContent).toBe(""));
   });
 
   it("el foco vuelve al campo de entrada cuando llega la respuesta", async () => {

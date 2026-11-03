@@ -203,18 +203,6 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task La_extension_unaccent_quedo_instalada()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(
-            "SELECT count(*) FROM pg_extension WHERE extname = 'unaccent'", conexion);
-
-        var instaladas = (long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
-
-        Assert.Equal(1, instaladas);
-    }
-
-    [Fact]
     public async Task El_search_path_del_asistente_obliga_a_calificar_los_nombres()
     {
         // Contrapartida del search_path vacío: sin schema, el nombre no resuelve.

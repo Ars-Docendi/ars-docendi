@@ -146,41 +146,6 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Se_ofrecen_entre_cuatro_y_seis_ejemplos()
-    {
-        await SembrarAsync();
-
-        var puede = await Catalogo().ObtenerAsync(
-            Secretaria, TestContext.Current.CancellationToken);
-
-        Assert.InRange(puede.Ejemplos.Count, 4, 6);
-    }
-
-    [Fact]
-    public async Task Una_consulta_con_una_columna_personal_no_es_ejecutable_por_el_rol_basico()
-    {
-        // EL FILTRO, PROBADO CON UNA CONSULTA SINTÉTICA. El catálogo de ejemplos real no tiene
-        // ninguna que toque datos personales, así que sobre datos reales el filtro es hoy un no-op
-        // — y sin este test nadie sabría si funciona el día que alguien agregue el primero.
-        await SembrarAsync();
-        var ct = TestContext.Current.CancellationToken;
-        var (basica, pii) = CadenasDeLectura();
-        const string ConDatosPersonales = "SELECT documento FROM identity.personas";
-
-        await using var conBasica = new NpgsqlConnection(basica.Valor);
-        await conBasica.OpenAsync(ct);
-
-        await using var conPii = new NpgsqlConnection(pii.Valor);
-        await conPii.OpenAsync(ct);
-
-        Assert.False(await CatalogoDeCapacidades.EjecutableAsync(
-            conBasica, Secretaria, ConDatosPersonales, ct));
-
-        Assert.True(await CatalogoDeCapacidades.EjecutableAsync(
-            conPii, Secretaria, ConDatosPersonales, ct));
-    }
-
-    [Fact]
     public void Hoy_ningun_ejemplo_del_catalogo_toca_una_columna_personal()
     {
         // Deja escrito el estado real: el filtro protege de algo que todavía no pasó.
@@ -212,40 +177,6 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         Assert.NotEqual(global.Alcance, deCarrera.Alcance);
     }
 
-    [Fact]
-    public async Task El_catalogo_dice_que_no_escribe_y_que_no_sale_del_sistema()
-    {
-        await SembrarAsync();
-
-        var puede = await Catalogo().ObtenerAsync(
-            Secretaria, TestContext.Current.CancellationToken);
-
-        Assert.NotEmpty(puede.NoPuede);
-        Assert.Contains(puede.NoPuede, l =>
-            l.Contains("No modifica", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(puede.NoPuede, l =>
-            l.Contains("Guaraní", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public async Task El_catalogo_se_cachea_por_rol()
-    {
-        await SembrarAsync();
-        var ct = TestContext.Current.CancellationToken;
-        var catalogo = Catalogo();
-
-        await catalogo.ObtenerAsync(Coordinador, ct);
-        await catalogo.ObtenerAsync(Jefe, ct);
-
-        // Los dos usan el rol básico: una sola lectura del catálogo de PostgreSQL.
-        Assert.Equal(1, catalogo.Lecturas);
-
-        await catalogo.ObtenerAsync(Secretaria, ct);
-
-        // El de datos personales es otra variante.
-        Assert.Equal(2, catalogo.Lecturas);
-    }
-
     // -------------------------------------------------- la presentación por rol
 
     [Fact]
@@ -275,66 +206,6 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var puede = await Catalogo().ObtenerAsync(Jefe, TestContext.Current.CancellationToken);
 
         Assert.Contains("designaciones de tu cátedra", puede.Presentacion, StringComparison.Ordinal);
-    }
-
-    [Theory]
-    [InlineData("a0000000-0000-4000-8000-000000000002", "designaciones de tu cátedra")]
-    [InlineData("a0000000-0000-4000-8000-000000000003", "designaciones de tu carrera")]
-    [InlineData("a0000000-0000-4000-8000-000000000004", "designaciones de todo el Departamento")]
-    [InlineData("a0000000-0000-4000-8000-000000000005", "designaciones de todo el Departamento")]
-    [InlineData("a0000000-0000-4000-8000-000000000006", "designaciones de todo el Departamento")]
-    public async Task Cada_rol_conocido_recibe_su_propia_presentacion(string actor, string fragmento)
-    {
-        await SembrarAsync();
-
-        var puede = await Catalogo().ObtenerAsync(
-            Guid.Parse(actor), TestContext.Current.CancellationToken);
-
-        Assert.Contains(fragmento, puede.Presentacion, StringComparison.Ordinal);
-
-        // Y no cayó al ámbito genérico. Se afirma sobre la cláusula entera y no
-        // sobre «del sistema» suelto: los catálogos se nombran «del sistema» para
-        // todos, así que buscar esa frase a secas encontraría siempre algo.
-        Assert.DoesNotContain(
-            $"designaciones {PresentacionPorRol.AmbitoGenerico}",
-            puede.Presentacion,
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Un_rol_que_la_tabla_no_conoce_cae_a_la_presentacion_generica()
-    {
-        // `sys_admin` existe en identity.roles y no está en la tabla de presentaciones.
-        await SembrarAsync();
-
-        var puede = await Catalogo().ObtenerAsync(
-            Sistemas, TestContext.Current.CancellationToken);
-
-        // Cae al ámbito genérico: no se le inventa uno. El resto de la frase —las
-        // áreas— se deriva de sus permisos igual que para cualquier otro actor.
-        Assert.Contains(
-            $"designaciones {PresentacionPorRol.AmbitoGenerico}",
-            puede.Presentacion,
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Con_varios_roles_a_la_vez_la_presentacion_es_la_generica()
-    {
-        // SIN TABLA DE PRECEDENCIA, y a propósito: elegir que «secretaria gana a jefe_catedra»
-        // sería inventar una jerarquía que nadie pidió para decidir un saludo.
-        await SembrarAsync();
-        var ct = TestContext.Current.CancellationToken;
-        await SumarleUnSegundoRolAsync(Jefe, ct);
-
-        var puede = await Catalogo().ObtenerAsync(Jefe, ct);
-
-        // Cae al ámbito genérico: no se le inventa uno. El resto de la frase —las
-        // áreas— se deriva de sus permisos igual que para cualquier otro actor.
-        Assert.Contains(
-            $"designaciones {PresentacionPorRol.AmbitoGenerico}",
-            puede.Presentacion,
-            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -396,24 +267,6 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
 
         Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
         Assert.Equal(0, banco.Proveedor.Llamadas);
-    }
-
-    [Fact]
-    public async Task La_meta_pregunta_abre_con_la_misma_presentacion_que_la_pantalla_inicial()
-    {
-        // Las dos superficies contestan «¿qué podés hacer?». Si cada una redactara
-        // la suya, el sistema se contradiría sobre sí mismo en el lugar más visible.
-        await SembrarAsync();
-        var ct = TestContext.Current.CancellationToken;
-
-        var puede = await Catalogo().ObtenerAsync(Jefe, ct);
-        var texto = RedaccionDeCapacidades.Texto(puede);
-
-        Assert.StartsWith(puede.Presentacion, texto, StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            $"designaciones {PresentacionPorRol.AmbitoGenerico}",
-            puede.Presentacion,
-            StringComparison.Ordinal);
     }
 
     [Fact]

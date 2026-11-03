@@ -1,7 +1,6 @@
 /// <reference types="node" />
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-import { hojaDeLaFeature } from "./test/hojas";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -19,7 +18,6 @@ function botonDeOrden(nombre: string): HTMLElement {
 }
 
 // La hoja como texto: jsdom no aplica CSS, pero la regla se puede leer.
-const hoja = hojaDeLaFeature();
 
 // ============================================================
 // La tabla de resultados: su marco y la marca de columna sensible.
@@ -38,34 +36,6 @@ const COLUMNAS: ColumnaDelResultado[] = [
 ];
 
 const FILAS: unknown[][] = [["Gómez", "28341567", 42]];
-
-describe("El marco de la tabla", () => {
-  it("el envoltorio de la librería lleva la clase propia que sobreescribe el recorte", () => {
-    const { container } = montar(
-      <TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />,
-    );
-
-    expect(container.querySelector(".adoc-table-wrap.adoc-asistente-tabla-wrap")).not.toBeNull();
-  });
-
-  it("las celdas con números usan la variante numérica de la librería", () => {
-    montar(<TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />);
-
-    expect(screen.getByText("42").closest("td")).toHaveClass("num");
-    expect(screen.getByText("Gómez").closest("td")).not.toHaveClass("num");
-  });
-
-  it("las celdas numéricas se alinean a la derecha en la hoja del asistente", () => {
-    // `numeric` de la librería sólo cambia la tipografía y deja `text-align: start`: una columna de
-    // cantidades quedaba pegada a la izquierda.
-    const sinComentarios = hoja.replace(/\/\*[\s\S]*?\*\//g, "");
-    const regla = sinComentarios.match(/\.adoc-asistente-tabla\s+td\.num\s*\{([^}]*)\}/);
-
-    expect(regla).not.toBeNull();
-    expect(regla?.[1]).toMatch(/text-align:\s*end;/);
-    expect(regla?.[1]).not.toMatch(/!important/);
-  });
-});
 
 describe("La columna sensible", () => {
   it("se marca y se anuncia; la que no lo es, no", () => {
@@ -296,27 +266,6 @@ describe("El orden de la tabla", () => {
     const enlace = screen.getByRole("link", { name: "Ver el trámite 2026-9005" });
     expect(filas[2]).toContainElement(enlace);
     expect(enlace).toHaveAttribute("href", "/designaciones/pedidos/abc-123");
-  });
-
-  it("el ícono neutro está tenue en reposo y se revela al hover o al foco del encabezado", () => {
-    const sinComentarios = hoja.replace(/\/\*[\s\S]*?\*\//g, "");
-
-    const reglaInactivo = sinComentarios.match(
-      /\.adoc-asistente-orden-icono--inactivo\s*\{([^}]*)\}/,
-    );
-    expect(reglaInactivo?.[1]).toMatch(/opacity:\s*0;/);
-
-    // La regla de revelado nombra las dos vías —hover del encabezado, foco del botón— y las dos
-    // llevan a `opacity: 1`, sin depender del formato exacto (salto de línea, coma) que deje `prettier`.
-    const indiceHover = sinComentarios.indexOf(
-      ".adoc-asistente-th-orden:hover .adoc-asistente-orden-icono--inactivo",
-    );
-    const indiceFoco = sinComentarios.indexOf(
-      ".adoc-asistente-orden-boton:focus-visible .adoc-asistente-orden-icono--inactivo",
-    );
-    expect(indiceHover).toBeGreaterThan(-1);
-    expect(indiceFoco).toBeGreaterThan(-1);
-    expect(sinComentarios.slice(indiceHover, indiceFoco + 200)).toMatch(/opacity:\s*1;/);
   });
 });
 

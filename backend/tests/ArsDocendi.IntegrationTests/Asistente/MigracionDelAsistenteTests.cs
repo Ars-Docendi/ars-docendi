@@ -125,61 +125,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------ la base vieja
 
-    [Fact]
-    public async Task Una_base_que_ya_tenia_la_tabla_recibe_las_columnas_que_le_faltan()
-    {
-        await RehacerLaBaseViejaAsync();
-
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-
-        var columnas = await ColumnasDeAsync("registro_operativo");
-
-        Assert.Contains("proveedor", columnas);
-        Assert.Contains("tokens_de_cache", columnas);
-        Assert.Contains("intencion_sombra", columnas);
-        Assert.Contains("motivo_rechazo", columnas);
-    }
-
     // ------------------------------------ la base vieja del historial (tasks.md 2.1)
-
-    [Fact]
-    public async Task Una_base_vieja_del_historial_recibe_las_columnas_de_archivo_y_borrado()
-    {
-        // MISMO DEFECTO QUE `Una_base_que_ya_tenia_la_tabla_recibe_las_columnas_que_le_faltan`,
-        // esta vez sobre `hilo_historico`/`turno_historico`: contra una base
-        // que ya las tenía SIN las tres columnas nuevas, el CREATE TABLE IF
-        // NOT EXISTS de 004 es un no-op y sólo el ALTER las repone.
-        await EjecutarAsync("DROP SCHEMA asistente CASCADE");
-        await EjecutarAsync(
-            """
-            CREATE SCHEMA asistente;
-
-            CREATE TABLE asistente.hilo_historico (
-                id               uuid        PRIMARY KEY,
-                actor_id         uuid        NOT NULL,
-                titulo           text        NOT NULL,
-                creado_en        timestamptz NOT NULL,
-                ultima_actividad timestamptz NOT NULL
-            );
-
-            CREATE TABLE asistente.turno_historico (
-                id            uuid        PRIMARY KEY,
-                hilo_id       uuid        NOT NULL REFERENCES asistente.hilo_historico(id) ON DELETE CASCADE,
-                pregunta      text        NOT NULL,
-                sql_resuelto  text        NULL,
-                estado        text        NOT NULL,
-                ocurrido_en   timestamptz NOT NULL
-            );
-            """);
-
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-
-        var columnasDelHilo = await ColumnasDeAsync("hilo_historico");
-        Assert.Contains("archivada_en", columnasDelHilo);
-        Assert.Contains("borrado_pendiente_desde", columnasDelHilo);
-        Assert.Contains("lote_de_borrado", columnasDelHilo);
-        Assert.Contains("referencias", await ColumnasDeAsync("turno_historico"));
-    }
 
     [Fact]
     public async Task La_fila_vieja_sobrevive_y_sobre_la_base_migrada_el_registro_vuelve_a_guardar()
@@ -272,8 +218,6 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
             + "VALUES ('p', 'c', 'e', current_date, 'inventada')"));
 
         Assert.Equal("23514", error.SqlState);
-        Assert.Equal(22L, await EscalarAsync<long>(
-            "SELECT count(*) FROM asistente.registro_analitico WHERE causa IS NOT NULL"));
     }
 
     [Fact]

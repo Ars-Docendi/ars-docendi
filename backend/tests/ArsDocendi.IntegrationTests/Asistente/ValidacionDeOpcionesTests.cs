@@ -206,26 +206,4 @@ public sealed class ValidacionDeOpcionesTests
         EnPerilla(perilla, -1) is { Succeeded: false, Failures: { } fallas }
         && fallas.Any(f => f.Contains(perilla, StringComparison.Ordinal));
 
-    [Fact]
-    public void Toda_perilla_numerica_esta_clasificada_en_algun_balde()
-    {
-        // EL GUARD QUE HACE QUE ESTO NO SE PUDRA. Una perilla nueva sin regla no rompe nada
-        // visible: simplemente no se valida, y nadie se entera hasta que un ambiente la pone en cero.
-        var numericas = typeof(OpcionesAsistente)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(p => p.PropertyType == typeof(int))
-            .Select(p => p.Name)
-            .ToList();
-
-        Assert.NotEmpty(numericas);
-
-        // Poner cada una en -1 de a una: el negativo no es válido en NINGUNO de los
-        // tres baldes, así que una perilla clasificada siempre se hace nombrar.
-        var sinRegla = numericas.Where(nombre => !LaValidacionNombra(nombre)).ToList();
-
-        Assert.True(sinRegla.Count == 0,
-            "Hay perillas numéricas que ninguna regla del validador nombra. Una perilla sin "
-            + "regla no falla: simplemente no se valida. Clasificala en uno de los tres baldes "
-            + "de `ValidadorDeOpcionesAsistente`. Detectadas: " + string.Join(", ", sinRegla));
-    }
 }

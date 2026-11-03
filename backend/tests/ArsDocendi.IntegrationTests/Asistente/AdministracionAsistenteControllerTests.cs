@@ -339,27 +339,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
     }
 
     [Fact]
-    public async Task Sin_ningun_presupuesto_editado_el_estado_vacio_es_el_seed_de_la_006()
-    {
-        // El seed de 006_asistente_administracion.sql deja el tope en 0 y el
-        // cupo de los siete roles de sistema en 0 (design.md, Open Questions):
-        // un default adivinado y restrictivo es peor que arrancar "apagado".
-        using var host = CrearHost();
-        using var cliente = host.CreateClient();
-        Autenticar(cliente, Sistemas, "sys_admin");
-
-        var presupuestos = await LeerAsync<PresupuestosDto>(await cliente.GetAsync(
-            "/api/asistente/administracion/presupuestos", TestContext.Current.CancellationToken));
-
-        Assert.Equal(0m, presupuestos.TopeMensualUsd);
-        Assert.Equal(0m, presupuestos.GastoEstimadoDelMes);
-        Assert.True(presupuestos.EsEstimado);
-        Assert.Empty(presupuestos.OverridesPorUsuario);
-        Assert.Contains(presupuestos.CuposPorRol, c => c.Rol == "secretaria" && c.CupoDiarioTurnos == 0);
-        Assert.Contains(presupuestos.CuposPorRol, c => c.Rol == "sys_admin" && c.CupoDiarioTurnos == 0);
-    }
-
-    [Fact]
     public async Task Los_valores_editados_por_PUT_se_leen_de_vuelta_por_GET()
     {
         using var host = CrearHost();

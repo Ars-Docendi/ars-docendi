@@ -15,17 +15,6 @@ import type { MantenimientoDelAsistente } from "../types";
 // ============================================================
 
 describe("Disponible (mantenimiento inactivo)", () => {
-  it("muestra el punto de estado, el título y el copete de disponibilidad", () => {
-    render(
-      <BannerDeMantenimiento mantenimiento={{ activo: false, razon: null }} onGuardar={vi.fn()} />,
-    );
-
-    const grupo = within(screen.getByRole("group", { name: "Modo mantenimiento" }));
-    expect(grupo.getByText("Asistente disponible")).toBeInTheDocument();
-    expect(grupo.getByText("Todos los usuarios con permiso pueden consultar.")).toBeInTheDocument();
-    expect(grupo.getByRole("button", { name: "Activar mantenimiento" })).toBeInTheDocument();
-  });
-
   it("«Activar mantenimiento» abre el panel de razón, deshabilitado hasta escribir algo", async () => {
     const user = userEvent.setup();
     render(

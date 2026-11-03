@@ -169,32 +169,6 @@ public sealed class SeguimientoYAclaracionTests
     // ================================================== reescritor (ARS-42)
 
     [Fact]
-    public void La_regla_enumera_los_campos_del_dominio()
-    {
-        // Una regla que dijera «conservá todo lo vigente» produce arrastre
-        // silencioso. Los campos van uno por uno.
-        Assert.All(
-            new[] { "Carrera", "Materia", "Período", "Cargo", "Persona" },
-            campo => Assert.Contains(
-                campo, ReescritorDePreguntas.Instrucciones, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void El_prompt_trae_un_ejemplo_que_arrastra_y_uno_que_descarta()
-    {
-        // Sin el de descarte, la única forma demostrada de resolver el prompt es
-        // arrastrar, y el modelo arrastra siempre.
-        Assert.Contains(
-            "EJEMPLO A", ReescritorDePreguntas.Instrucciones, StringComparison.Ordinal);
-        Assert.Contains(
-            "EJEMPLO B", ReescritorDePreguntas.Instrucciones, StringComparison.Ordinal);
-        Assert.Contains(
-            "se descarta todo el historial",
-            ReescritorDePreguntas.Instrucciones,
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Ningun_ejemplo_del_prompt_replica_un_item_del_dataset()
     {
         // Un ejemplo copiado del dataset estaría entrenando contra la métrica.

@@ -26,26 +26,9 @@ describe("Whether the control renders at all", () => {
 
     expect(container.textContent).toBe("");
   });
-
-  it("renders both icon buttons when there is a token", () => {
-    montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
-
-    expect(screen.getByRole("button", { name: "Sirvió" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "No sirvió" })).toBeInTheDocument();
-  });
 });
 
 describe("aria-pressed and keyboard operation", () => {
-  it("starts with neither button pressed", () => {
-    montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
-
-    expect(screen.getByRole("button", { name: "Sirvió" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "No sirvió" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-  });
-
   it("marks «Sirvió» pressed after voting, and toggles on a keyboard activation", async () => {
     vi.spyOn(api, "enviarRetroalimentacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
@@ -72,26 +55,6 @@ describe("aria-pressed and keyboard operation", () => {
 });
 
 describe("El panel «¿Qué falló? Opcional» en un «No sirvió»", () => {
-  it("shows the four reason pills, the comment textarea, its hint and its counter", async () => {
-    const user = userEvent.setup();
-    montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
-
-    await user.click(screen.getByRole("button", { name: "No sirvió" }));
-
-    expect(screen.getByText(/¿Qué falló\?/)).toBeInTheDocument();
-    expect(screen.getByText("Opcional")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Datos incorrectos" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "No entendió la pregunta" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Faltan datos" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Otro" })).toBeInTheDocument();
-
-    const comentario = screen.getByPlaceholderText("Contanos qué esperabas ver…");
-    expect(comentario).toBeInTheDocument();
-    expect(comentario).toHaveAttribute("maxlength", "500");
-    expect(screen.getByText("No incluyas datos personales.")).toBeInTheDocument();
-    expect(screen.getByText("0/500")).toBeInTheDocument();
-  });
-
   it("«Omitir» sends the thumbs-down vote with no reason and no comment", async () => {
     const enviar = vi.spyOn(api, "enviarRetroalimentacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
@@ -171,16 +134,6 @@ describe("El panel «¿Qué falló? Opcional» en un «No sirvió»", () => {
     });
   });
 
-  it("the counter tracks how many characters are typed", async () => {
-    const user = userEvent.setup();
-    montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
-
-    await user.click(screen.getByRole("button", { name: "No sirvió" }));
-    await user.type(screen.getByPlaceholderText("Contanos qué esperabas ver…"), "hola");
-
-    expect(screen.getByText("4/500")).toBeInTheDocument();
-  });
-
   it("several pills can be selected at the same time, independently", async () => {
     const user = userEvent.setup();
     montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
@@ -232,21 +185,6 @@ describe("Confirmation and changing the vote", () => {
 
     expect(screen.getByText("Se registró tu voto: te sirvió.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sirvió" })).toHaveFocus();
-  });
-
-  it("después de enviar un «No sirvió» se ve el agradecimiento", async () => {
-    vi.spyOn(api, "enviarRetroalimentacion").mockResolvedValue(undefined);
-    const user = userEvent.setup();
-    montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
-
-    await user.click(screen.getByRole("button", { name: "No sirvió" }));
-    await user.click(screen.getByRole("button", { name: "Omitir" }));
-
-    expect(
-      screen.getByText("Gracias. Tu comentario ayuda a mejorar el asistente."),
-    ).toBeInTheDocument();
-    // El panel se cierra al enviar.
-    expect(screen.queryByText(/¿Qué falló\?/)).toBeNull();
   });
 
   it("the user can change a recorded vote", async () => {

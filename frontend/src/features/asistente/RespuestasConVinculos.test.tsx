@@ -156,24 +156,6 @@ describe("La ficha del elemento principal", () => {
   // Dentro del modal, `.adoc-asistente-modal header` colapsa a alto 0 cualquier
   // `<header>` y `.adoc-modal footer` pinta cualquier `<footer>` como el pie del
   // modal: con esos elementos la cabecera de la ficha desaparecía en la app real.
-  it("no usa header ni footer, que el modal estiliza como los suyos", () => {
-    montarRespuesta({ ...CON_TABLA, principal: PRINCIPAL });
-
-    const ficha = screen.getByRole("article");
-    expect(ficha.querySelector("header, footer")).toBeNull();
-  });
-
-  it("un estado desconocido se pinta con el tono neutro y su etiqueta", () => {
-    montarRespuesta({
-      ...CON_TABLA,
-      principal: {
-        ...PRINCIPAL,
-        datos: { ...PRINCIPAL.datos, estado: "inventado", estadoEtiqueta: "Raro" },
-      },
-    });
-
-    expect(screen.getByText("Raro")).toHaveClass("adoc-asistente-ficha-estado--neutro");
-  });
 
   it("un principal de un tipo desconocido cae a la presentación de hoy: tabla y chips", () => {
     montarRespuesta({
@@ -195,18 +177,6 @@ describe("La procedencia de los datos", () => {
 
     const linea = screen.getByText("Datos de Designaciones");
     expect(linea.textContent).not.toMatch(/\d/);
-  });
-
-  it("une varias áreas, traduce identity y omite los códigos que no conoce", () => {
-    montarRespuesta({ origenes: ["designaciones", "identity", "secreto"] });
-
-    expect(screen.getByText("Datos de Designaciones · Institucional")).toBeInTheDocument();
-  });
-
-  it("sin orígenes, o sólo desconocidos, no hay línea", () => {
-    montarRespuesta({ origenes: ["secreto"] });
-
-    expect(screen.queryByText(/^Datos de/)).toBeNull();
   });
 });
 

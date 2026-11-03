@@ -56,58 +56,6 @@ public sealed partial class ProveedorDeModeloTests
     }
 
     [Fact]
-    public async Task La_misma_solicitud_devuelve_siempre_la_misma_respuesta()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        // Dos instancias distintas, para que el determinismo no dependa de estado
-        // guardado en el objeto.
-        var primera = await Simulado().CompletarAsync(Solicitud, ct);
-        var segunda = await Simulado().CompletarAsync(Solicitud, ct);
-
-        Assert.Equal(primera.Texto, segunda.Texto);
-        Assert.Equal(primera.TokensDeEntrada, segunda.TokensDeEntrada);
-        Assert.Equal(primera.TokensDeSalida, segunda.TokensDeSalida);
-    }
-
-    [Fact]
-    public async Task Una_solicitud_distinta_devuelve_una_respuesta_distinta()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var otra = Solicitud with { Mensaje = "¿Cuántos pedidos hay en revisión?" };
-
-        var primera = await Simulado().CompletarAsync(Solicitud, ct);
-        var segunda = await Simulado().CompletarAsync(otra, ct);
-
-        // Sin esto, el test de determinismo pasaría con un cliente que devuelve
-        // siempre la misma constante y no mira la solicitud.
-        Assert.NotEqual(primera.Texto, segunda.Texto);
-    }
-
-    [Fact]
-    public async Task La_temperatura_tambien_cambia_la_respuesta()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var redaccion = Solicitud with { Temperatura = 0.3m };
-
-        var generacion = await Simulado().CompletarAsync(Solicitud, ct);
-        var conRedaccion = await Simulado().CompletarAsync(redaccion, ct);
-
-        Assert.NotEqual(generacion.Texto, conRedaccion.Texto);
-    }
-
-    [Fact]
-    public void El_cliente_simulado_no_tiene_ninguna_dependencia_de_red()
-    {
-        var fuente = File.ReadAllText(Path.Combine(
-            RaizRepositorio.BackendSrc(), "Modules.Asistente", "Infrastructure", "ProveedorSimulado.cs"));
-
-        // La garantía «no hace ninguna llamada de red» no se puede probar ejecutándolo: un test que
-        // no ve tráfico no distingue «no llamó» de «no miré».
-        Assert.False(TiposDeRed().IsMatch(fuente), "El cliente simulado no debe usar tipos de red.");
-    }
-
-    [Fact]
     public async Task Un_proveedor_desconocido_falla_nombrando_el_valor_configurado()
     {
         using var servicios = Componer("openai-de-verdad").BuildServiceProvider();

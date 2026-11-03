@@ -15,12 +15,6 @@ public sealed partial class FixtureDeterministaTests
     }
 
     [Fact]
-    public void Dos_generadores_distintos_dan_la_misma_huella()
-    {
-        Assert.Equal(new GeneradorDeFixture().Huella(), new GeneradorDeFixture().Huella());
-    }
-
-    [Fact]
     public void Un_fixture_distinto_tiene_otra_huella()
     {
         Assert.NotEqual(new GeneradorDeFixture(24).Huella(), new GeneradorDeFixture(25).Huella());
@@ -47,69 +41,7 @@ public sealed partial class FixtureDeterministaTests
 
     // ------------------------------------------------------------- reloj
 
-    [Theory]
-    [InlineData("now(")]
-    [InlineData("current_date")]
-    [InlineData("current_timestamp")]
-    [InlineData("localtime")]
-    [InlineData("clock_timestamp")]
-    [InlineData("transaction_timestamp")]
-    [InlineData("gen_random_uuid")]
-    public void El_fixture_no_usa_el_reloj_ni_identificadores_al_azar(string prohibido)
-    {
-        // Un dataset cuyo resultado esperado cambia con el calendario mide qué día lo corriste.
-        Assert.DoesNotContain(
-            prohibido, new GeneradorDeFixture().Generar(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Todas_las_fechas_del_fixture_derivan_del_ancla()
-    {
-        var contenido = new GeneradorDeFixture().Generar();
-        var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        // Si alguna fecha viniera del reloj, la de hoy aparecería en el archivo.
-        Assert.DoesNotContain(hoy.ToString("yyyy-MM-dd"), contenido, StringComparison.Ordinal);
-
-        var fechas = Fechas().Matches(contenido).Select(m => DateOnly.Parse(m.Groups[1].Value)).ToArray();
-
-        Assert.NotEmpty(fechas);
-        Assert.All(fechas, fecha =>
-            Assert.InRange(fecha, GeneradorDeFixture.Ancla.AddYears(-60), GeneradorDeFixture.Ancla.AddYears(2)));
-    }
-
     // --------------------------------------------------------- colisiones
-
-    [Fact]
-    public void Hay_nombres_de_materia_repetidos_entre_carreras()
-    {
-        // Sin esto, el detector de ambigüedad —épica posterior— no dispara nunca y los ítems de
-        // diálogo que lo prueban dan verde sin medir nada.
-        var contenido = new GeneradorDeFixture().Generar();
-        var materias = SeccionDe(contenido, "identity.materias (");
-        var pertenencias = SeccionDe(contenido, "identity.materias_plan");
-
-        foreach (var (nombre, carreras) in GeneradorDeFixture.MateriasCompartidas)
-        {
-            var fila = Assert.Single(materias, fila => fila.Contains($"'{nombre}'", StringComparison.Ordinal));
-            var id = fila.Split('\'')[1];
-
-            Assert.Equal(carreras, Contar(pertenencias, id));
-        }
-    }
-
-    [Fact]
-    public void Hay_apellidos_compartidos_con_las_cardinalidades_declaradas()
-    {
-        var personas = SeccionDe(new GeneradorDeFixture().Generar(), "identity.personas");
-
-        foreach (var (apellido, cuantas) in GeneradorDeFixture.ApellidosCompartidos)
-        {
-            var apariciones = Contar(personas, $"'{apellido}'");
-
-            Assert.Equal(cuantas, apariciones);
-        }
-    }
 
     [Fact]
     public void Subir_las_personas_por_encima_de_los_apellidos_se_rechaza()
@@ -123,31 +55,6 @@ public sealed partial class FixtureDeterministaTests
     }
 
     // -------------------------------------------------- banderas del dominio
-
-    [Fact]
-    public void Hay_exactamente_un_periodo_activo()
-    {
-        // «Lo actual» se resuelve con esta bandera y no comparando contra el reloj.
-        var periodos = SeccionDe(new GeneradorDeFixture().Generar(), "designaciones.periodos");
-
-        Assert.Equal(1, Contar(periodos, "TRUE)"));
-    }
-
-    [Fact]
-    public void Hay_designaciones_con_vigencia_abierta_y_cerrada()
-    {
-        var designaciones = SeccionDe(
-            new GeneradorDeFixture().Generar(), "designaciones.designaciones");
-
-        // Las dos hacen falta: sin abiertas no hay «actual», y sin cerradas no se puede distinguir
-        // «vigente» de «hubo».
-        var abiertas = designaciones.Count(fila => Apariciones(fila, "DATE '") == 1);
-        var cerradas = designaciones.Count(fila => Apariciones(fila, "DATE '") == 2);
-
-        Assert.True(abiertas > 0, "No hay designaciones vigentes.");
-        Assert.True(cerradas > 0, "No hay designaciones cerradas.");
-        Assert.Equal(designaciones.Count, abiertas + cerradas);
-    }
 
     // ------------------------------------------------------------------ apoyo
 

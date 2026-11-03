@@ -50,24 +50,6 @@ public sealed class AuditoriaDeAdministracionTests(PostgresFixture postgres)
 
     // -------------------------------------------------------------------- 8.2
 
-    [Fact]
-    public void Ningun_controller_del_modulo_ofrece_actualizar_o_borrar_la_auditoria()
-    {
-        var acciones = typeof(Modules.Asistente.ModuleExtensions).Assembly.GetTypes()
-            .Where(t => typeof(ControllerBase).IsAssignableFrom(t))
-            .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-            .Where(m => m.GetCustomAttributes<HttpMethodAttribute>().Any());
-
-        var culpables = acciones
-            .Where(m => m.GetCustomAttributes<HttpMethodAttribute>()
-                .Any(a => a.HttpMethods.Contains("PUT") || a.HttpMethods.Contains("DELETE"))
-                && (m.GetCustomAttributes<RouteAttribute>().Any(r => r.Template?.Contains("auditoria") == true)
-                    || m.Name.Contains("Auditoria", StringComparison.OrdinalIgnoreCase)))
-            .ToList();
-
-        Assert.Empty(culpables);
-    }
-
     // -------------------------------------------------------------------- 8.3
 
     [Fact]

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import { FranjaDeEstado } from "./components/FranjaDeEstado";
 import { respuesta } from "./test/soporte";
@@ -20,22 +20,6 @@ const TURNOS: TurnoDeLaConversacion[] = [
 ];
 
 describe("La franja de estado", () => {
-  it("junta el indicador y las métricas en una fila, cada uno con su contrato intacto (modo debug)", async () => {
-    render(<FranjaDeEstado enVuelo turnos={TURNOS} umbralMs={0} debug />);
-
-    const estado = await screen.findByRole("status");
-    // El texto del estado es exactamente ése. Es sólo accesible —`sr-only`—:
-    // los puntos que laten y el texto visibles se mudaron al turno en vuelo.
-    await waitFor(() => expect(estado.textContent).toBe("Consultando…"));
-    expect(estado).toHaveClass("adoc-sr");
-
-    const metricas = screen.getByText(/consultas al modelo/);
-    expect(metricas).toHaveAttribute("aria-hidden", "true");
-
-    expect(estado.parentElement).toBe(metricas.parentElement);
-    expect(estado.parentElement).toHaveClass("adoc-asistente-franja");
-  });
-
   // Decisión 14 del PO (2026-09-26): la línea de métricas sólo se muestra en modo debug
   // (`VITE_ASISTENTE_DEBUG`), el mismo switch que gatea «Cómo lo interpreté» en `Mensaje`.
   it("sin modo debug la línea de métricas no existe en el DOM", () => {

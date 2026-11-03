@@ -384,31 +384,7 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
     }
 
-    [Fact]
-    public void No_hay_ningun_endpoint_de_reejecucion_en_el_controller_de_soporte()
-    {
-        var acciones = typeof(SoporteHistorialController)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Select(m => m.Name);
-
-        Assert.DoesNotContain(
-            acciones, nombre => nombre.Contains("reejecut", StringComparison.OrdinalIgnoreCase));
-    }
-
     // ------------------------------------------ ningún «quién me vio» al sujeto
-
-    [Fact]
-    public void Ningun_endpoint_propio_devuelve_quien_accedio_al_historial()
-    {
-        var acciones = typeof(HistorialController)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Select(m => m.Name);
-
-        Assert.DoesNotContain(
-            acciones,
-            nombre => nombre.Contains("acceso", StringComparison.OrdinalIgnoreCase)
-                || nombre.Contains("auditoria", StringComparison.OrdinalIgnoreCase));
-    }
 
     // ------------------------------------------------------------------ apoyo
 

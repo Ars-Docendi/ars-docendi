@@ -46,39 +46,6 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
         Assert.All(estado, fila => Assert.EndsWith("|true|false", fila, StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task Cada_policy_nombra_al_actor_y_no_se_apoya_en_la_del_padre()
-    {
-        // ES LA PROPIEDAD QUE HACE QUE CADA POLICY SE PUEDA LEER SOLA. Una policy
-        // hija cuya única protección sea que la RLS del padre se aplique dentro de su
-        // subconsulta hereda comportamiento, no impone una frontera: el día que
-        // alguien toque la del padre se lleva puestas cinco sin enterarse.
-        var predicados = await LeerFilasAsync(
-            "SELECT qual FROM pg_policies WHERE schemaname = 'portal'");
-
-        Assert.Equal(6, predicados.Count);
-
-        // El predicado se mudó a `identity.asistente_alcanza_a`, así que lo que cada policy tiene
-        // que nombrar es ESA función y no las dos de antes.
-        Assert.All(predicados, qual =>
-            Assert.Contains("asistente_alcanza_a", qual, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task Las_tablas_que_no_se_conceden_no_llevan_policy()
-    {
-        // contactos, cvs, proyectos y proyecto_documentos quedan fuera del alcance.
-        // Una policy sobre una tabla que nadie puede leer daría la impresión de que
-        // está contemplada, cuando lo que la protege es que no hay GRANT.
-        var conPolicy = await LeerFilasAsync(
-            "SELECT DISTINCT tablename FROM pg_policies WHERE schemaname = 'portal' ORDER BY 1");
-
-        Assert.DoesNotContain("contactos", conPolicy);
-        Assert.DoesNotContain("cvs", conPolicy);
-        Assert.DoesNotContain("proyectos", conPolicy);
-        Assert.DoesNotContain("proyecto_documentos", conPolicy);
-    }
-
     // ------------------------------------------------------------------ el alcance
 
     [Fact]

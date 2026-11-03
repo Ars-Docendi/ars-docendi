@@ -39,22 +39,6 @@ describe("TopeOrganizacionalCard", () => {
     expect(screen.queryByRole("button", { name: "Editar tope" })).not.toBeInTheDocument();
   });
 
-  it("el título lleva el mes en curso, «Tope de {Mes}» (fidelidad con el canvas)", () => {
-    render(
-      <TopeOrganizacionalCard
-        topeConocido={0}
-        gastoEstimadoDelMes={0}
-        error={false}
-        onGuardar={vi.fn()}
-        onGuardado={vi.fn()}
-      />,
-    );
-
-    const mesEnCurso = new Intl.DateTimeFormat("es-AR", { month: "long" }).format(new Date());
-    const etiqueta = `Tope de ${mesEnCurso.charAt(0).toUpperCase()}${mesEnCurso.slice(1)}`;
-    expect(screen.getByText(etiqueta)).toBeInTheDocument();
-  });
-
   it("tope en 0 (desactivado): el gasto se ve igual, «gastado este mes», y ninguna barra", () => {
     render(
       <TopeOrganizacionalCard

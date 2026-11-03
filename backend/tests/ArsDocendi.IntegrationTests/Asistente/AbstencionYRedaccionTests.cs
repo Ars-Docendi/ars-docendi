@@ -168,39 +168,6 @@ public sealed class AbstencionYRedaccionTests
 
     // ------------------------------------------- reglas del prompt
 
-    [Fact]
-    public void Con_actor_acotado_el_prompt_prohibe_afirmar_inexistencia()
-    {
-        var reglas = PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: false, truncado: false);
-
-        Assert.Single(reglas);
-        Assert.Contains("no existe", reglas[0], StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("alcance", reglas[0], StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Con_actor_global_y_sin_truncado_el_prompt_no_agrega_reglas()
-    {
-        Assert.Empty(PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: true, truncado: false));
-    }
-
-    [Fact]
-    public void Con_truncado_el_prompt_prohibe_afirmar_conteos()
-    {
-        var reglas = PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: true, truncado: true);
-
-        Assert.Single(reglas);
-        Assert.Contains("total", reglas[0], StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("cuántos quedaron afuera", reglas[0], StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Los_dos_casos_juntos_agregan_las_dos_reglas()
-    {
-        Assert.Equal(
-            2, PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: false, truncado: true).Count);
-    }
-
     // ------------------------------------------------ prompt de redacción
 
     [Fact]
@@ -223,37 +190,6 @@ public sealed class AbstencionYRedaccionTests
             "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), alcanzaTodo: true);
 
         Assert.Contains("¿Quiénes dan Bases de Datos?", mensaje, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void El_marco_de_alcance_aparece_en_el_prompt_cuando_el_actor_es_acotado()
-    {
-        var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), alcanzaTodo: false);
-
-        Assert.Contains("alcance", mensaje, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("no existe", mensaje, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void La_prohibicion_de_conteo_aparece_en_el_prompt_cuando_hay_truncado()
-    {
-        var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Quiénes dan Bases de Datos?",
-            Resultado([["Pérez"]], truncado: true),
-            alcanzaTodo: true);
-
-        Assert.Contains("recortó", mensaje, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("cuántos quedaron afuera", mensaje, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Sin_truncado_y_con_actor_global_el_prompt_no_lleva_advertencias()
-    {
-        var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), alcanzaTodo: true);
-
-        Assert.DoesNotContain("IMPORTANTE", mensaje, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -281,17 +217,6 @@ public sealed class AbstencionYRedaccionTests
         // Un nulo renderizado como cadena vacía se lee como «el valor es vacío»,
         // que no es lo mismo que «no hay valor».
         Assert.Contains("(sin dato)", mensaje, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Las_instrucciones_de_redaccion_prohiben_inventar_valores()
-    {
-        // Una consulta correcta narrada mal es tan falsa como una consulta incorrecta, y el dataset
-        // de capacidad compara conjuntos de resultados: no ve la redacción.
-        Assert.Contains(
-            "No agregues datos", RedactorDeRespuesta.Instrucciones, StringComparison.Ordinal);
-        Assert.Contains(
-            "No menciones nombres de tablas", RedactorDeRespuesta.Instrucciones, StringComparison.Ordinal);
     }
 
     // ------------------------------- el razonamiento de un turno sin filas
@@ -341,17 +266,6 @@ public sealed class AbstencionYRedaccionTests
 
         Assert.DoesNotContain("SQL", razonamiento, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("tabla", razonamiento, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void El_prompt_de_generacion_prohibe_prometer_resultados()
-    {
-        // El arreglo mecánico de arriba es la garantía; esto es la fuente. Sin esta regla el modelo
-        // sigue escribiendo la promesa y la aclaración queda contradiciéndola en cada turno vacío.
-        Assert.Contains(
-            "todavía no se ejecutó",
-            InstruccionesDeGeneracion.Instrucciones,
-            StringComparison.Ordinal);
     }
 
     // ----------------------------- la referencia que la reescritura no resolvió

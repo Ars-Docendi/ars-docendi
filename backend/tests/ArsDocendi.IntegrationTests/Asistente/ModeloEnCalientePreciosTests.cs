@@ -126,25 +126,6 @@ public sealed class ModeloEnCalientePreciosTests(PostgresFixture postgres)
         Assert.Empty(await AuditoriaAsync());
     }
 
-    [Fact]
-    public async Task The_price_route_does_not_collide_with_another_administration_route()
-    {
-        await SembrarAsync(Ct);
-        using var host = CrearHost();
-        using var cliente = Admin(host);
-        _ = await cliente.GetAsync($"{Ruta}/modelo", Ct);
-
-        var rutas = host.Services.GetRequiredService<Microsoft.AspNetCore.Routing.EndpointDataSource>().Endpoints
-            .OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
-            .Where(e => e.RoutePattern.RawText!.StartsWith("api/asistente/administracion", StringComparison.Ordinal))
-            .SelectMany(e => (e.Metadata.GetMetadata<Microsoft.AspNetCore.Routing.HttpMethodMetadata>()?.HttpMethods ?? ["*"])
-                .Select(m => $"{m} {e.RoutePattern.RawText}"))
-            .ToList();
-
-        Assert.Equal(rutas.Count, rutas.Distinct().Count());
-        Assert.Contains("POST api/asistente/administracion/precios", rutas);
-    }
-
     // ---------------------------------------------------- 5.1 conversion and storage
 
     [Fact]

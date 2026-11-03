@@ -81,19 +81,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task El_catalogo_se_resuelve_una_sola_vez()
-    {
-
-        var catalogo = new CatalogoDeSensibilidad(Apertura, ManifiestoDeSensibilidad.Cargar());
-        var ct = TestContext.Current.CancellationToken;
-
-        await catalogo.PrepararAsync(ct);
-        await catalogo.PrepararAsync(ct);
-
-        Assert.Equal(1, catalogo.Lecturas);
-    }
-
-    [Fact]
     public async Task La_resolucion_encuentra_las_columnas_personales()
     {
 

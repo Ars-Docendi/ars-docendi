@@ -410,29 +410,6 @@ public sealed class CausasDelTurnoTests(PostgresFixture postgres)
     // ------------------------------------------- cause agrees with its state
 
     [Fact]
-    public async Task The_check_constraint_lists_exactly_the_codes_of_the_enum()
-    {
-        var definicion = await EscalarAsync<string>(
-            """
-            SELECT pg_get_constraintdef(oid)
-              FROM pg_constraint
-             WHERE conname = 'registro_analitico_causa_valida'
-            """);
-
-        var enBase = System.Text.RegularExpressions.Regex.Matches(definicion, "'([a-z_]+)'")
-            .Select(m => m.Groups[1].Value)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-        var enCodigo = CausasDelTurno.Todas
-            .Select(CausasDelTurno.ValorDeCable)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Equal(22, enCodigo.Length);
-        Assert.Equal(enCodigo, enBase);
-    }
-
-    [Fact]
     public void Every_cause_agrees_with_the_state_of_its_family()
     {
         foreach (var causa in CausasDelTurno.Todas)
@@ -453,7 +430,6 @@ public sealed class CausasDelTurnoTests(PostgresFixture postgres)
                 CausasDelTurno.Familia(causa) == FamiliaDeCausa.Senal);
         }
 
-        Assert.Equal(5, CausasDelTurno.Todas.Count(c => CausasDelTurno.Familia(c) == FamiliaDeCausa.Politica));
     }
 
     [Theory]

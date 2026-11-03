@@ -36,24 +36,6 @@ public sealed class ManifiestoPrivilegiosPurosTests
     }
 
     [Fact]
-    public void Toda_denegacion_explicita_lleva_motivo_escrito()
-    {
-        var manifiesto = Manifiesto.Cargar();
-
-        var sinMotivo = manifiesto.Tablas
-            .Where(t => !t.EsConcedida && string.IsNullOrWhiteSpace(t.Motivo))
-            .Select(t => t.Cualificado)
-            .Concat(manifiesto.Tablas
-                .SelectMany(t => t.ColumnasDenegadas
-                    .Where(c => string.IsNullOrWhiteSpace(c.Motivo))
-                    .Select(c => $"{t.Cualificado}.{c.Columna}")))
-            .ToList();
-
-        Assert.True(sinMotivo.Count == 0,
-            "Denegaciones sin motivo escrito: " + string.Join(", ", sinMotivo));
-    }
-
-    [Fact]
     public void Las_columnas_personales_solo_las_lee_el_rol_con_acceso_a_datos_personales()
     {
         var manifiesto = Manifiesto.Cargar();

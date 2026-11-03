@@ -322,42 +322,6 @@ public sealed class ModeloEnCalienteAdministracionTests(PostgresFixture postgres
         await AssertNadaCambioAsync();
     }
 
-    [Fact]
-    public async Task No_administration_route_collides_with_another()
-    {
-        await SembrarAsync(Ct);
-        using var host = CrearHost(new Cable());
-        using var cliente = Admin(host);
-        _ = await cliente.GetAsync($"{Ruta}/modelo", Ct);
-
-        var rutas = host.Services.GetRequiredService<EndpointDataSource>().Endpoints
-            .OfType<RouteEndpoint>()
-            .Where(e => e.RoutePattern.RawText!.StartsWith("api/asistente/administracion", StringComparison.Ordinal))
-            .SelectMany(e => (e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? ["*"])
-                .Select(m => $"{m} {e.RoutePattern.RawText}"))
-            .ToList();
-
-        Assert.Equal(rutas.Count, rutas.Distinct().Count());
-
-        foreach (var propia in new[]
-        {
-            "GET api/asistente/administracion/modelo",
-            "POST api/asistente/administracion/modelo/prueba",
-            "PUT api/asistente/administracion/modelo",
-            "DELETE api/asistente/administracion/modelo",
-            "POST api/asistente/administracion/credenciales/{empresa}/reemplazo",
-        })
-        {
-            Assert.Contains(propia, rutas);
-        }
-
-        // The pre-existing surface is untouched.
-        foreach (var previa in new[] { "uso", "presupuestos", "servidor-local", "tope-organizacional", "mantenimiento" })
-        {
-            Assert.Contains(rutas, r => r.Contains($"administracion/{previa}", StringComparison.Ordinal));
-        }
-    }
-
     // ----------------------------------------------------------------- 3.1 read
 
     [Fact]

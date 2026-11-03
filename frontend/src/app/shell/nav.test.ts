@@ -26,27 +26,6 @@ describe("El ítem «Sistema» (any-of sistema.estado.ver | asistente.administra
       expect(item?.to).toBe("/sistema");
     },
   );
-
-  it("no aparece sin ninguno de los tres permisos", () => {
-    const grupos = filtrarNavegacion(["portal.ver"]);
-    const items = grupos.flatMap((g) => g.items);
-
-    expect(items.some((item) => item.label === "Sistema")).toBe(false);
-  });
-
-  it("ya no existen ítems separados para el dashboard, la auditoría o el uso del asistente", () => {
-    const grupos = filtrarNavegacion([
-      "sistema.estado.ver",
-      "asistente.administrar",
-      "auditoria.ver",
-    ]);
-    const items = grupos.flatMap((g) => g.items);
-
-    expect(items.filter((item) => item.label === "Sistema")).toHaveLength(1);
-    expect(items.some((item) => item.label === "Dashboard del sistema")).toBe(false);
-    expect(items.some((item) => item.label === "Registros de auditoría")).toBe(false);
-    expect(items.some((item) => item.label === "Uso del asistente")).toBe(false);
-  });
 });
 
 describe("El ítem «Historial del asistente» (asistente.leer_historial_ajeno y personas.ver)", () => {

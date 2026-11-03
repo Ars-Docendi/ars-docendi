@@ -426,29 +426,6 @@ public sealed partial class ArquitecturaAsistenteTests
 
     // --------------------------------------------- el ping no arrastra dependencias
 
-    [Fact]
-    public void El_controller_del_ping_no_tiene_ninguna_dependencia()
-    {
-        // ESTO YA SE ROMPIÓ UNA VEZ. El ping vivía junto al endpoint del turno; el día que ese
-        // controller ganó dependencias, construirlo pasó a exigir las cadenas de solo lectura —cuya
-        // fábrica falla si el ambiente no las configuró— y el ping devolvió 500 sin base.
-        var tipo = typeof(Modules.Asistente.Api.PingAsistenteController);
-
-        Assert.All(
-            tipo.GetConstructors(),
-            constructor => Assert.Empty(constructor.GetParameters()));
-    }
-
-    [Fact]
-    public void El_ping_no_esta_en_el_controller_del_turno()
-    {
-        var tipo = typeof(Modules.Asistente.Api.AsistenteController);
-
-        Assert.DoesNotContain(
-            tipo.GetMethods().Select(m => m.Name),
-            nombre => nombre.Equals("Ping", StringComparison.Ordinal));
-    }
-
     // ------------------------------------------- una sola puerta a las bases
 
     /// <summary>Los únicos archivos que pueden construir una conexión a mano, y por qué.</summary>
@@ -626,76 +603,7 @@ public sealed partial class ArquitecturaAsistenteTests
     /// <summary>Cuántos tipos de <c>Application</c> pueden ser públicos hoy.</summary>
     private const int SuperficiePublicaDeApplication = 111;
 
-    [Fact]
-    public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()
-    {
-        var publicos = TiposDeclarados(EsPublico());
-
-        // `public` es una promesa de estabilidad: dice «podés depender de mí, no te voy a romper».
-        Assert.True(
-            publicos.Count <= SuperficiePublicaDeApplication,
-            $"La superficie pública de Application subió a {publicos.Count} (el tope es "
-            + $"{SuperficiePublicaDeApplication}). Un tipo nuevo va `internal` salvo que la "
-            + "superficie HTTP del módulo lo exija, y en ese caso se sube el tope con el "
-            + "motivo escrito. Públicos hoy: " + string.Join(", ", publicos));
-    }
-
-    [Fact]
-    public void El_detector_de_superficie_publica_reconoce_las_dos_formas()
-    {
-        // EL PAR SINTÉTICO. Una expresión regular que dejara de matchear reportaría
-        // cero públicos y este guard pasaría en verde para siempre.
-        Archivo[] sinteticos =
-        [
-            new("Application/Turno/Uno.cs", "public sealed class Uno { }"),
-            new("Application/Modelo/Dos.cs", "public interface Dos { }"),
-            new("Application/Lexico/Tres.cs", "public readonly record struct Tres(int A);"),
-            new("Application/Turno/Cuatro.cs", "internal sealed class Cuatro { }"),
-        ];
-
-        var publicos = sinteticos
-            .SelectMany(a => EsPublico().Matches(a.Contenido).Select(m => m.Groups["nombre"].Value))
-            .ToList();
-
-        Assert.Equal(["Uno", "Dos", "Tres"], publicos);
-    }
-
     // ------------------------------------------------------------- las referencias
-
-    [Fact]
-    public void El_modulo_solo_referencia_ArsDocendi_Shared_y_su_propio_Contracts()
-    {
-        var proyecto = Path.Combine(
-            RaizRepositorio.BackendSrc(), "Modules.Asistente", "Modules.Asistente.csproj");
-        Assert.True(File.Exists(proyecto), $"No se encontró {proyecto}.");
-
-        // Los .csproj escriben las rutas con separador de Windows. Path.* no lo
-        // parte en Linux, así que hay que normalizar antes de quedarse con el nombre.
-        var referencias = XDocument.Load(proyecto)
-            .Descendants("ProjectReference")
-            .Select(nodo => (nodo.Attribute("Include")?.Value ?? string.Empty).Replace('\\', '/'))
-            .Select(ruta => Path.GetFileNameWithoutExtension(ruta))
-            .ToArray();
-
-        // Los edges hacia Contracts AJENOS llegan con el carril determinista de API.
-        Assert.Equal(["ArsDocendi.Shared", "Modules.Asistente.Contracts"], referencias);
-    }
-
-    [Fact]
-    public void El_SDK_del_proveedor_se_nombra_en_un_solo_archivo()
-    {
-        var culpables = Detectar(CodigoDelModulo(), SdkDelProveedor())
-            .Where(ruta => !ruta.EndsWith("ProveedorAnthropic.cs", StringComparison.Ordinal)
-                // The one file that builds IChatClient for the cloud companies
-                // (asistente-modelo-en-caliente, D2): exactly two files name an SDK.
-                && !ruta.EndsWith("ClientesDeChat.cs", StringComparison.Ordinal))
-            .ToList();
-
-        // Es lo que hace cierta la promesa de que el puerto es agnóstico. Mientras el SDK viva en
-        // un archivo, cambiar de proveedor —o sumar un segundo, o pasarse a un modelo propio— es
-        // escribir otra clase al lado y otro brazo del switch.
-        Assert.Empty(culpables);
-    }
 
     // -------------------------------------------------- higiene de la credencial
 

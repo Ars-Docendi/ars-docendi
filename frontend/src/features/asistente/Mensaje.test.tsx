@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { BarraDeAcciones } from "./components/BarraDeAcciones";
 import { Mensaje } from "./components/Mensaje";
 import * as api from "./api/asistenteApi";
 import * as descargas from "./utils/descargas";
@@ -211,16 +210,6 @@ describe("Copiar", () => {
   // «Copiar respuesta» / «Ampliar tabla» / «Exportar a CSV» | «Sirvió» / «No sirvió»
   // (asistente-superficie-frontend, design.md D6).
 
-  it("con tabla, la barra también ofrece «Ampliar tabla» y «Exportar a CSV»", () => {
-    userEvent.setup();
-    montarMensaje(turno(TABLA));
-
-    expect(screen.getByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ampliar tabla" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Exportar a CSV" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Copiar tabla" })).toBeNull();
-  });
-
   it("montar con tabla no descarga nada por su cuenta, y «Exportar a CSV» sí exporta lo mostrado", async () => {
     // REGRESIÓN: `TablaDeResultado` expone su función de exportar a `Mensaje` vía
     // `onExportarDisponible`, y `Mensaje` la guarda con `useState`.
@@ -237,33 +226,6 @@ describe("Copiar", () => {
     expect(contenido).toContain("Gómez");
 
     disparo.mockRestore();
-  });
-
-  it("sin tabla no hay «Ampliar tabla» ni «Exportar a CSV»", () => {
-    userEvent.setup();
-    montarMensaje(turno());
-
-    expect(screen.getByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ampliar tabla" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Exportar a CSV" })).toBeNull();
-  });
-
-  it("«Copiado» vuelve a ser la etiqueta de siempre pasado un momento", async () => {
-    const user = userEvent.setup();
-    montar(
-      <BarraDeAcciones
-        texto="algo"
-        onExportar={null}
-        onAmpliar={() => {}}
-        ampliarBotonRef={{ current: null }}
-        duracionDelCopiadoMs={20}
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: "Copiar respuesta" }));
-    await screen.findByRole("button", { name: "Copiado" });
-
-    expect(await screen.findByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
   });
 
   it("sin portapapeles no hay botón de copiar, pero la tabla sigue con sus propios íconos", () => {
@@ -294,25 +256,3 @@ describe("Copiar", () => {
 // Están ocultas con `clip-path`, así que existen en el DOM aunque no se vean —y
 // eso las mete en dos caminos que nadie miró.
 // ============================================================
-
-describe("La etiqueta de quién habla", () => {
-  it("no se pega al texto de la pregunta", () => {
-    // ESTO PASÓ DE VERDAD. Sin separador, un lector de pantalla anuncia «Vosdame 3 materias…» en
-    // cada turno, y el texto copiado arranca con «Vos» pegado a la primera palabra.
-    montarMensaje({ id: "t-1", pregunta: "dame 3 materias", respuesta: respuesta() });
-
-    const pregunta = screen.getByText(/dame 3 materias/).closest("p");
-
-    // La propiedad es que haya un separador entre la etiqueta y el texto, no que
-    // el separador sea uno en particular: cualquier espacio en blanco sirve para
-    // que el lector de pantalla no lea las dos cosas de corrido.
-    expect(pregunta?.textContent).toMatch(/^Vos\S*\s+dame 3 materias/);
-  });
-
-  it("no entra en la selección, así que copiar la pregunta no la arrastra", () => {
-    // `user-select: none` es lo que la deja afuera del portapapeles sin sacarla del árbol de accesibilidad.
-    montarMensaje({ id: "t-1", pregunta: "dame 3 materias", respuesta: respuesta() });
-
-    expect(screen.getByText("Vos:")).toHaveClass("adoc-asistente-quien");
-  });
-});

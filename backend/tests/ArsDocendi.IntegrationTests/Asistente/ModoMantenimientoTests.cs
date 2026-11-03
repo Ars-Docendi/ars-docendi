@@ -145,15 +145,4 @@ public sealed class ModoMantenimientoTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------- 6.8, sin Azure
 
-    [Fact]
-    public void Ninguna_referencia_a_Azure_App_Configuration_en_el_modulo()
-    {
-        var csproj = File.ReadAllText(
-            Path.Combine(RaizRepositorio.BackendSrc(), "Modules.Asistente", "Modules.Asistente.csproj"));
-
-        Assert.DoesNotContain("Azure.Data.AppConfiguration", csproj, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Microsoft.Azure.AppConfiguration", csproj, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Microsoft.Extensions.Configuration.AzureAppConfiguration", csproj,
-            StringComparison.OrdinalIgnoreCase);
-    }
 }

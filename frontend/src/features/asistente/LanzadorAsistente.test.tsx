@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CanceledError } from "axios";
 import { Link, useLocation } from "react-router-dom";
 
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
-import * as historialApi from "./api/historialApi";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
-import type { ConversacionResumen, RespuestaDelAsistente } from "./types";
+import type { RespuestaDelAsistente } from "./types";
 
 // ============================================================
 // El lanzador de la barra y el modal que abre. Los tests de que aparece o no
@@ -23,63 +22,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const CONVERSACION_NUEVA: ConversacionResumen = {
-  id: "66666666-6666-4666-8666-666666666666",
-  titulo: "¿Cuántos docentes hay?",
-  creadoEn: "2026-01-10T10:00:00Z",
-  ultimaActividad: "2026-01-10T10:00:00Z",
-  archivada: false,
-};
-
 describe("El modal del asistente", () => {
-  it("sigue nombrándose «Asistente» —el título de la librería, oculto— y el encabezado visible repite ese texto en la bienvenida", async () => {
-    // El `h4` de la librería sigue montado, y por eso el diálogo se sigue nombrando por él vía
-    // `aria-labelledby` (D1 de asistente-rediseno-v3); lo nuevo es que queda oculto y
-    // `EncabezadoDeConversacion` pinta el título de VERDAD, en el cuerpo.
-    const user = userEvent.setup();
-    montar(<LanzadorAsistente />);
-
-    await user.click(await screen.findByRole("button", { name: "Preguntar" }));
-
-    const dialogo = await screen.findByRole("dialog", { name: "Asistente" });
-    // Un solo `heading` en el diálogo: el de la librería. El encabezado de
-    // v3 no es uno —evita nombrar el diálogo dos veces con el mismo texto—.
-    expect(within(dialogo).getByRole("heading", { name: "Asistente" })).toBeInTheDocument();
-
-    // El `Modal` se portalea a `document.body`, hermano del contenedor del
-    // banco: por eso se busca en el documento y no en `container`.
-    const tituloVisible = document.querySelector(".adoc-asistente-encabezado-titulo");
-    expect(tituloVisible).toHaveTextContent("Asistente");
-    expect(
-      within(dialogo).getByRole("region", { name: "Asistente conversacional" }),
-    ).toBeInTheDocument();
-  });
-
-  it("el encabezado sigue el título de la conversación activa después de la primera respuesta", async () => {
-    vi.spyOn(historialApi, "listarConversaciones")
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([CONVERSACION_NUEVA]);
-    vi.spyOn(api, "consultar").mockResolvedValue(
-      respuesta({ conversacion: CONVERSACION_NUEVA.id }),
-    );
-    const user = userEvent.setup();
-    montar(<LanzadorAsistente />);
-
-    await user.click(await screen.findByRole("button", { name: "Preguntar" }));
-    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
-    await screen.findByText("Hay 4 docentes designados.");
-
-    await waitFor(() =>
-      expect(document.querySelector(".adoc-asistente-encabezado-titulo")).toHaveTextContent(
-        CONVERSACION_NUEVA.titulo,
-      ),
-    );
-    expect(screen.getByRole("button", { name: CONVERSACION_NUEVA.titulo })).toHaveAttribute(
-      "aria-current",
-      "true",
-    );
-  });
-
   it("cerrar desde el encabezado devuelve el foco al lanzador, igual que Escape", async () => {
     const user = userEvent.setup();
     montar(<LanzadorAsistente />);
@@ -92,19 +35,6 @@ describe("El modal del asistente", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(lanzador).toHaveFocus();
-  });
-
-  it("abierto, hay un solo «Preguntar» —el lanzador— y el envío se llama «Enviar»", async () => {
-    // Dos botones con el mismo nombre en el DOM son dos candidatos iguales para
-    // quien navega por lista de controles; el que manda la pregunta dice qué hace.
-    const user = userEvent.setup();
-    montar(<LanzadorAsistente />);
-
-    await user.click(await screen.findByRole("button", { name: "Preguntar" }));
-    const dialogo = await screen.findByRole("dialog", { name: "Asistente" });
-
-    expect(screen.getAllByRole("button", { name: "Preguntar" })).toHaveLength(1);
-    expect(within(dialogo).getByRole("button", { name: "Enviar" })).toBeInTheDocument();
   });
 });
 

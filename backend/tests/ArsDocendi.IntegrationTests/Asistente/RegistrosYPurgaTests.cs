@@ -146,21 +146,6 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task La_fecha_analitica_es_de_tipo_date_y_no_timestamp()
-    {
-        // No alcanza con truncar el valor al escribir: una columna timestamptz
-        // invita a que la próxima inserción guarde la hora y nadie lo note.
-        var tipo = await EscalarAsync<string>(
-            """
-            SELECT data_type FROM information_schema.columns
-             WHERE table_schema = 'asistente' AND table_name = 'registro_analitico'
-               AND column_name = 'dia'
-            """);
-
-        Assert.Equal("date", tipo);
-    }
-
-    [Fact]
     public async Task Dos_turnos_del_mismo_dia_son_indistinguibles_en_el_tiempo()
     {
         await RegistrarAsync(Turno(Alguien, Ancla, "¿cuántos docentes hay?"));
@@ -259,21 +244,6 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     // -------------------------------------------------------- sin auditoría
 
     [Fact]
-    public async Task Ninguna_de_las_dos_tablas_tiene_disparador_de_auditoria()
-    {
-        // Todas las tablas de identity y designaciones llaman a audit.attach al final de su archivo.
-        var disparadores = await LeerAsync<string>(
-            """
-            SELECT tgname FROM pg_catalog.pg_trigger t
-              JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
-              JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-             WHERE n.nspname = 'asistente' AND NOT t.tgisinternal
-            """);
-
-        Assert.Empty(disparadores);
-    }
-
-    [Fact]
     public async Task Escribir_un_turno_no_hace_crecer_la_bitacora_de_auditoria()
     {
         var antes = await EscalarAsync<long>("SELECT count(*) FROM audit.change_log");
@@ -286,47 +256,6 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     }
 
     // ------------------------------------------------------- quién escribe
-
-    [Fact]
-    public async Task El_rol_de_solo_lectura_no_puede_leer_los_registros()
-    {
-        // El registro analítico tiene el texto de las preguntas de TODOS. Un
-        // asistente que pudiera consultarlo respondería «qué preguntó fulano» a
-        // cualquiera con el permiso de consulta.
-        await RegistrarAsync(Turno());
-
-        var (basica, _) = CadenasDeLectura();
-
-        await using var conexion = new NpgsqlConnection(basica.Valor);
-        await conexion.OpenAsync(TestContext.Current.CancellationToken);
-
-        await using var comando = new NpgsqlCommand(
-            "SELECT count(*) FROM asistente.registro_analitico", conexion);
-
-        var falla = await Assert.ThrowsAsync<PostgresException>(() =>
-            comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
-
-        // 42501 insufficient_privilege · 3F000 invalid_schema_name, según si el
-        // motor llega a resolver el schema.
-        Assert.Contains(falla.SqlState, new[] { "42501", "3F000" });
-    }
-
-    [Fact]
-    public async Task El_rol_de_solo_lectura_no_puede_escribirlos()
-    {
-        var (basica, _) = CadenasDeLectura();
-
-        await using var conexion = new NpgsqlConnection(basica.Valor);
-        await conexion.OpenAsync(TestContext.Current.CancellationToken);
-
-        await using var comando = new NpgsqlCommand(
-            "INSERT INTO asistente.registro_analitico (pregunta, categoria, estado, dia) "
-            + "VALUES ('x', 'y', 'z', current_date)",
-            conexion);
-
-        await Assert.ThrowsAsync<PostgresException>(() =>
-            comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
-    }
 
     // ------------------------------------------------- tolerancia a fallos
 

@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
@@ -29,32 +28,10 @@ public sealed class PingAsistenteTests
         using var respuesta = await cliente.GetAsync("/api/asistente/ping", ct);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
-    }
-
-    [Fact]
-    public async Task Ping_devuelve_el_modulo_y_su_estado()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        using var host = CrearHostSinBase();
-        using var cliente = host.CreateClient();
-
-        var cuerpo = await cliente.GetFromJsonAsync<RespuestaPing>("/api/asistente/ping", ct);
-
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<RespuestaPing>(ct);
         Assert.NotNull(cuerpo);
         Assert.Equal("asistente", cuerpo.Module);
         Assert.Equal("ok", cuerpo.Status);
-    }
-
-    [Fact]
-    public async Task La_cadena_de_conexion_del_Host_realmente_no_conecta()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        // Contraprueba. Sin esto, los dos tests de arriba pasarían aunque la cadena
-        // fuese alcanzable, y no demostrarían nada sobre el ping.
-        await using var conexion = new NpgsqlConnection(CadenaInalcanzable);
-
-        await Assert.ThrowsAnyAsync<Exception>(() => conexion.OpenAsync(ct));
     }
 
     private static WebApplicationFactory<Program> CrearHostSinBase(

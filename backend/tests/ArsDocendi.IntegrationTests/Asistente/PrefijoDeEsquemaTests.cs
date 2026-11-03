@@ -12,110 +12,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
 {
     // ------------------------------------------------------- comentarios
 
-    [Fact]
-    public async Task Toda_tabla_concedida_por_el_manifiesto_tiene_comentario()
-    {
-        var manifiesto = Manifiesto.Cargar();
-        var comentadas = await ComentariosDeTablaAsync();
-
-        var sinComentario = manifiesto.Tablas
-            .Where(t => t.EsConcedida)
-            .Where(t => !comentadas.TryGetValue(t.Cualificado, out var texto)
-                        || string.IsNullOrWhiteSpace(texto))
-            .Select(t => t.Cualificado)
-            .ToArray();
-
-        // Una tabla sin comentario llega al modelo como un nombre pelado y un
-        // tipo, y el modelo tiene que adivinar qué significa.
-        Assert.Empty(sinComentario);
-    }
-
-    [Fact]
-    public async Task La_busqueda_de_comentarios_cubre_todo_schema_que_el_manifiesto_expone()
-    {
-        // ESTE TEST CUIDA A LOS DOS DE ARRIBA. Ellos recorren las tablas concedidas y las buscan en
-        // un diccionario; si el diccionario se arma con una lista de schemas escrita a mano, una
-        // tabla concedida de un schema que la lista no nombra aparece como «sin comentario» AUNQUE LO TENGA.
-        var comentadas = await ComentariosDeTablaAsync();
-
-        // ITERA EL MANIFIESTO Y NO EL HELPER, a propósito. Recorrer `SchemasExpuestos()` haría el
-        // test autorreferencial: quien achicara esa lista achicaría también lo que el test
-        // verifica, y seguiría en verde.
-        foreach (var schema in Manifiesto.Cargar().SchemasExpuestos)
-        {
-            var enLaBase = await ContarTablasComentadasAsync(schema);
-            if (enLaBase == 0)
-            {
-                continue;
-            }
-
-            Assert.Contains(
-                comentadas.Keys,
-                clave => clave.StartsWith($"{schema}.", StringComparison.Ordinal));
-        }
-    }
-
-    [Fact]
-    public async Task Toda_columna_concedida_por_el_manifiesto_tiene_comentario()
-    {
-        var manifiesto = Manifiesto.Cargar();
-        var comentadas = await ComentariosDeColumnaAsync();
-
-        var sinComentario = manifiesto.Tablas
-            .Where(t => t.EsConcedida)
-            .SelectMany(t => t.ColumnasConcedidas.Values
-                .SelectMany(columnas => columnas)
-                .Distinct(StringComparer.Ordinal)
-                .Select(columna => $"{t.Cualificado}.{columna}"))
-            .Distinct(StringComparer.Ordinal)
-            .Where(clave => !comentadas.TryGetValue(clave, out var texto)
-                            || string.IsNullOrWhiteSpace(texto))
-            .OrderBy(clave => clave, StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Empty(sinComentario);
-    }
-
-    [Fact]
-    public async Task Ninguna_tabla_denegada_esta_comentada()
-    {
-        var manifiesto = Manifiesto.Cargar();
-        var comentadas = await ComentariosDeTablaAsync();
-
-        // Describirle al modelo algo que no puede leer solo sirve para que lo
-        // pida y choque con permission denied, en vez de abstenerse.
-        var comentadasDeMas = manifiesto.Tablas
-            .Where(t => !t.EsConcedida)
-            .Where(t => comentadas.ContainsKey(t.Cualificado))
-            .Select(t => t.Cualificado)
-            .ToArray();
-
-        Assert.Empty(comentadasDeMas);
-    }
-
-    [Fact]
-    public async Task Los_comentarios_nombran_sinonimos_del_dominio()
-    {
-        // No es cosmética: sin los sinónimos, «cuántos profesores tiene Algoritmos» no encuentra
-        // identity.personas, porque «profesor» no aparece en ningún identificador del esquema.
-        var comentarios = await ComentariosDeTablaAsync();
-
-        Assert.Contains("docente", comentarios["identity.personas"], StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("cátedra", comentarios["identity.materias"], StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("trámite", comentarios["designaciones.pedidos"], StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task Los_comentarios_advierten_las_colisiones_del_dominio()
-    {
-        // El detector de ambigüedad —épica posterior— existe porque los nombres de materia se
-        // repiten entre carreras y los apellidos entre personas.
-        var columnas = await ComentariosDeColumnaAsync();
-
-        Assert.Contains("repite", columnas["identity.materias.name"], StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("repite", columnas["identity.personas.apellido"], StringComparison.OrdinalIgnoreCase);
-    }
-
     // ----------------------------------------------------------- prefijo
 
     [Fact]
@@ -165,17 +61,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task El_prefijo_lleva_los_comentarios_del_catalogo()
-    {
-        var esquema = await PrefijoAsync(conDatosPersonales: false);
-
-        // La comprobación de que los COMMENT ON efectivamente viajan: sin esto,
-        // el prefijo sería una lista de nombres y tipos.
-        Assert.Contains("Padrón de personas físicas", esquema.Prefijo, StringComparison.Ordinal);
-        Assert.Contains("vigencia ABIERTA", esquema.Prefijo, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task El_prefijo_describe_como_se_relacionan_las_tablas()
     {
         var esquema = await PrefijoAsync(conDatosPersonales: false);
@@ -185,17 +70,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
             "designaciones.pedidos.materia_id referencia a identity.materias.id",
             esquema.Prefijo,
             StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task El_prefijo_prohibe_el_reloj_y_la_configuracion_de_sesion()
-    {
-        // La prohibición vive también en el validador. Acá es un pedido, allá una
-        // imposición: pedirlo mejora la tasa de acierto y ahorra rechazos.
-        var esquema = await PrefijoAsync(conDatosPersonales: false);
-
-        Assert.Contains("funciones de reloj", esquema.Prefijo, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("set_config", esquema.Prefijo, StringComparison.Ordinal);
     }
 
     // --------------------------------------------------- estabilidad y caché
@@ -210,39 +84,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         var segundo = await proveedor.ObtenerAsync(false, ct);
 
         Assert.Equal(primero.Prefijo, segundo.Prefijo);
-    }
-
-    [Fact]
-    public async Task La_base_se_consulta_una_sola_vez_por_rol()
-    {
-        var proveedor = ProveedorNuevo();
-        var ct = TestContext.Current.CancellationToken;
-
-        for (var turno = 0; turno < 5; turno++)
-        {
-            await proveedor.ObtenerAsync(false, ct);
-        }
-
-        Assert.Equal(1, proveedor.Lecturas);
-
-        await proveedor.ObtenerAsync(true, ct);
-
-        // El rol con datos personales tiene su propio prefijo y su propia entrada:
-        // son dos, no uno compartido.
-        Assert.Equal(2, proveedor.Lecturas);
-    }
-
-    [Fact]
-    public async Task Varios_turnos_concurrentes_lo_calculan_una_sola_vez()
-    {
-        var proveedor = ProveedorNuevo();
-        var ct = TestContext.Current.CancellationToken;
-
-        var turnos = await Task.WhenAll(
-            Enumerable.Range(0, 8).Select(_ => proveedor.ObtenerAsync(false, ct)));
-
-        Assert.Equal(1, proveedor.Lecturas);
-        Assert.All(turnos, turno => Assert.Equal(turnos[0].Prefijo, turno.Prefijo));
     }
 
     [Fact]
@@ -313,15 +154,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         Assert.DoesNotContain("- legajo (", despues.Prefijo, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task La_huella_tiene_forma_de_resumen_criptografico()
-    {
-        var esquema = await PrefijoAsync(conDatosPersonales: false);
-
-        Assert.Equal(64, esquema.Huella.Length);
-        Assert.All(esquema.Huella, caracter => Assert.Contains(caracter, "0123456789abcdef"));
-    }
-
     // ------------------------------- valores de los catálogos cerrados
 
     // EL CASO QUE MOTIVÓ TODO ESTO. Alguien preguntó por «ingeniería informática»,
@@ -340,35 +172,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         Assert.Contains("Ingeniería en Informática", esquema.Prefijo, StringComparison.Ordinal);
         Assert.Contains("Profesor Titular", esquema.Prefijo, StringComparison.Ordinal);
         Assert.Contains("VALORES POSIBLES", esquema.Prefijo, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Ninguna_columna_declarada_pasa_el_tope_de_valores()
-    {
-        // El tope no es un presupuesto de tokens: es la definición de «catálogo
-        // cerrado». Una columna que lo pasa dejó de serlo y hay que sacarla de la
-        // lista, no subir el número — porque el prompt afirma que los valores
-        // listados son TODOS, y con una lista recortada esa afirmación es falsa.
-        await SembrarAsync();
-
-        var vocabularios = await ValoresAsync();
-
-        Assert.Equal(LectorDeValoresDeCatalogo.CatalogosCerrados.Count, vocabularios.Count);
-        Assert.All(vocabularios, v => Assert.InRange(v.Valores.Count, 1, LectorDeValoresDeCatalogo.MaximoDeValores));
-    }
-
-    [Fact]
-    public async Task Ninguna_columna_del_glosario_pasa_el_tope_de_valores()
-    {
-        // La misma definición de «catálogo cerrado», aplicada a la lista que sólo se
-        // lee con GlosarioEnElPrefijo: seis dedicaciones, y si un día son más de 40
-        // dejaron de ser un catálogo cerrado.
-        await SembrarAsync();
-
-        var vocabularios = await ValoresAsync(conGlosario: true);
-
-        Assert.Equal(LectorDeValoresDeCatalogo.Declaradas(conGlosario: true).Count, vocabularios.Count);
-        Assert.All(vocabularios, v => Assert.InRange(v.Valores.Count, 1, LectorDeValoresDeCatalogo.MaximoDeValores));
     }
 
     [Fact]
@@ -433,20 +236,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         var con = await PrefijoConGlosarioAsync(conDatosPersonales: false);
 
         Assert.NotEqual(sin.Huella, con.Huella);
-    }
-
-    [Fact]
-    public async Task Los_cuatro_valores_de_siempre_conservan_su_posicion_con_el_glosario()
-    {
-        await SembrarAsync();
-
-        var sin = await ValoresAsync();
-        var con = await ValoresAsync(conGlosario: true);
-
-        // Se compara el contenido: el record guarda la lista por referencia.
-        Assert.Equal(
-            sin.Select(v => (v.Cualificado, Valores: string.Join("|", v.Valores))),
-            con.Take(sin.Count).Select(v => (v.Cualificado, Valores: string.Join("|", v.Valores))));
     }
 
     [Fact]

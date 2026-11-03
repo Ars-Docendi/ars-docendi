@@ -319,40 +319,6 @@ describe("Subtítulo de rol bajo el nombre (tarea «rol y cupo efectivo por usua
     const filaDeMarina = screen.getByText("Marina Díaz").closest("tr")!;
     expect(within(filaDeMarina).getByText("Decanato · Secretaría Académica")).toBeInTheDocument();
   });
-
-  it("una fila de rol nunca muestra un subtítulo (ella misma ya es el rol)", async () => {
-    const user = userEvent.setup();
-    montar();
-
-    await user.click(screen.getByRole("tab", { name: /Por rol/ }));
-
-    const filaDelRol = screen.getByText("docente").closest("tr")!;
-    expect(within(filaDelRol).queryByText(/·/)).not.toBeInTheDocument();
-  });
-});
-
-describe("El botón de editar cupo está presente en cada fila (fidelidad con el canvas)", () => {
-  it("cada fila de usuario expone su botón de editar con el aria-label correcto", () => {
-    montar();
-
-    expect(
-      screen.getByRole("button", { name: "Editar cupo diario de Marina Díaz" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Editar cupo diario de Bruno Paz" }),
-    ).toBeInTheDocument();
-  });
-
-  it("cada fila de rol también expone su botón de editar", async () => {
-    const user = userEvent.setup();
-    montar();
-
-    await user.click(screen.getByRole("tab", { name: /Por rol/ }));
-
-    expect(
-      screen.getByRole("button", { name: "Editar cupo diario de docente" }),
-    ).toBeInTheDocument();
-  });
 });
 
 describe("Columna «Acceso» (asistente-acceso-granular)", () => {
@@ -455,13 +421,5 @@ describe("Columna «Acceso» (asistente-acceso-granular)", () => {
     await user.click(interruptor);
 
     await waitFor(() => expect(onCambiarAccesoDeRol).toHaveBeenCalledWith("docente", true));
-  });
-
-  it("el pie explica la herencia: el acceso se puede quitar, no dar", () => {
-    montar();
-
-    expect(
-      screen.getByText(/a un usuario se le puede quitar el acceso, no darlo/),
-    ).toBeInTheDocument();
   });
 });

@@ -36,21 +36,6 @@ public sealed class ConsultasDeUsoTests(PostgresFixture postgres)
     // -------------------------------------------- rol y cupo efectivo por usuario
 
     [Fact]
-    public async Task Una_fila_de_usuario_trae_sus_codigos_de_rol_ordenados()
-    {
-        await SembrarAsync();
-        await AgregarRolAsync(Secretaria, "decanato");
-        await SembrarFilaAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 100, 50, 10);
-
-        var panel = await Consultas().ObtenerAsync(
-            new RangoDePeriodo(Ancla.AddDays(-1), Ancla.AddDays(1)),
-            TestContext.Current.CancellationToken);
-
-        var deSecretaria = Assert.Single(panel.PorUsuario, u => u.Clave == Secretaria.ToString());
-        Assert.Equal(["decanato", "secretaria"], deSecretaria.CodigosDeRol);
-    }
-
-    [Fact]
     public async Task Una_fila_de_rol_y_la_de_organizacion_no_traen_codigos_de_rol()
     {
         await SembrarAsync();

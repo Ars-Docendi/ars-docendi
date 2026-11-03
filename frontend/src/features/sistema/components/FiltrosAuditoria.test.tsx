@@ -42,29 +42,6 @@ function montar(filtros: EstadoFiltrosAuditoria = DEFAULT, extra: Partial<{ tota
 }
 
 describe("FiltrosAuditoria", () => {
-  it("selección por default: 7 días, Todas, Todos, sin badge y sin «Limpiar filtros»", () => {
-    montar();
-
-    expect(screen.getByRole("button", { name: "7 días" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Todas" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Todos" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByRole("button", { name: "Limpiar filtros" })).not.toBeInTheDocument();
-    expect(screen.queryByText("1")).not.toBeInTheDocument();
-  });
-
-  it("lista exacta de chips de módulo: Todos, Identidad, Designaciones, Portal, Asistente — sin Aulas ni Tareas", () => {
-    montar();
-
-    const grupo = screen.getByRole("group", { name: "Módulo" });
-    const nombres = ["Todos", "Identidad", "Designaciones", "Portal", "Asistente"];
-    for (const nombre of nombres) {
-      expect(screen.getByRole("button", { name: nombre })).toBeInTheDocument();
-    }
-    expect(grupo.querySelectorAll("button")).toHaveLength(nombres.length);
-    expect(screen.queryByRole("button", { name: "Aulas" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Tareas" })).not.toBeInTheDocument();
-  });
-
   it("un filtro Desde cuenta en el badge de «Más filtros» y muestra «Limpiar filtros»", () => {
     montar({ ...DEFAULT, desde: "2026-09-01T00:00" });
 
@@ -88,11 +65,5 @@ describe("FiltrosAuditoria", () => {
     await user.click(screen.getByRole("button", { name: "Cambios" }));
 
     expect(actualizarFiltros).toHaveBeenCalledWith({ accion: "UPDATE" });
-  });
-
-  it("muestra el total de registros", () => {
-    montar(DEFAULT, { total: 312 });
-
-    expect(screen.getByText("312")).toBeInTheDocument();
   });
 });

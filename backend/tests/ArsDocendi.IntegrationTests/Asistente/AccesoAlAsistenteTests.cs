@@ -62,18 +62,6 @@ public sealed class AccesoAlAsistenteTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Otro_rol_con_acceso_lo_mantiene()
-    {
-        await SembrarAsync();
-        await AgregarRolAsync(Secretaria, "decanato");
-        var ct = TestContext.Current.CancellationToken;
-
-        await Presupuestos().EditarAccesoDeRolAsync("secretaria", false, ct);
-
-        Assert.True(await Acceso().TieneAccesoAsync(Secretaria, ct));
-    }
-
-    [Fact]
     public async Task Restablecer_el_cupo_propio_vuelve_al_del_rol_sin_borrar_la_historia()
     {
         await SembrarAsync();

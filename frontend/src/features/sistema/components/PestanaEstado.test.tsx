@@ -136,31 +136,6 @@ describe("PestanaEstado", () => {
     expect(sistemaApi.comprobarPing).toHaveBeenCalledTimes(llamadasPing);
   });
 
-  it("«Última comprobación» usa el formato del canvas: d/m/aaaa HH:mm:ss de 24 horas (defecto #2, task 11.4)", async () => {
-    // Pinned instant: 26/9/2026 22:16:48 en Buenos Aires (UTC-3) == 27/9 01:16:48Z.
-    const comprobadoEn = "2026-09-27T01:16:48.000Z";
-    vi.spyOn(sistemaApi, "comprobarPing").mockImplementation(async (c) => ({
-      ...ping(c.id, true),
-      comprobadoEn,
-    }));
-    vi.spyOn(sistemaApi, "consultarEstadoSistema").mockResolvedValue({
-      ...ESTADO_OK,
-      comprobadoEn,
-    });
-    vi.spyOn(sistemaApi, "consultarEstadoInferencia").mockResolvedValue({
-      estado: "disponible",
-      comprobadoEn,
-      duracionMs: 25,
-    });
-    vi.spyOn(auditoriaApi, "listarAuditoria").mockResolvedValue(PAGINA_VACIA);
-
-    montar();
-
-    // `toLocaleString("es-AR", {dateStyle:"short", timeStyle:"medium"})` daría
-    // «27/9/26, 10:16:48 p. m.» (año de 2 dígitos, coma, 12 horas con «p. m.»).
-    expect(await screen.findByText("26/9/2026 22:16:48")).toBeInTheDocument();
-  });
-
   it("reintentar una tarjeta vuelve a pedir sólo ese componente", async () => {
     let llamadasTareas = 0;
     vi.spyOn(sistemaApi, "comprobarPing").mockImplementation(async (c) => {

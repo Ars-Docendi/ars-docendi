@@ -18,6 +18,11 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // Cada worker mantiene su propio DOM. Acotar la concurrencia evita que las
+    // interacciones agoten sus plazos al competir por CPU en runners pequeños.
+    maxWorkers: 2,
+    // Los flujos con varios pasos de usuario no son mediciones de rendimiento.
+    testTimeout: 10_000,
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,

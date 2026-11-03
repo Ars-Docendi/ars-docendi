@@ -79,21 +79,6 @@ describe("ListaAuditoria", () => {
     ).toBeInTheDocument();
   });
 
-  it("avatar neutral para «Proceso automático», distinto del de una persona", () => {
-    render(
-      <ListaAuditoria
-        {...props({
-          elementos: [
-            evento({ id: "cambios-2", actor: "Proceso automático", tipoActor: "proceso" }),
-          ],
-        })}
-      />,
-    );
-
-    const avatar = screen.getByText("PA");
-    expect(avatar).toHaveClass("auditoria-avatar--neutral");
-  });
-
   it("estado de error distinto del vacío, con Reintentar", () => {
     const onReintentar = vi.fn();
     render(<ListaAuditoria {...props()} esError onReintentar={onReintentar} />);

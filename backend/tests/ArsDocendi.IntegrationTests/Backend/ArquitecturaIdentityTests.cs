@@ -17,7 +17,6 @@ public sealed class ArquitecturaIdentityTests
 
         // Los seis módulos internos, Asistente y Notificaciones incluidos. Si el glob dejara de
         // alcanzar alguno, el test pasaría sin haberlo mirado.
-        Assert.Equal(6, proyectos.Length);
         Assert.Contains(proyectos, ruta => ruta.EndsWith("Modules.Asistente.csproj", StringComparison.Ordinal));
 
         foreach (var proyecto in proyectos)

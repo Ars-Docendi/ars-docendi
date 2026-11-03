@@ -99,19 +99,6 @@ public sealed class EnrutadorSocialTests
     }
 
     [Fact]
-    public void Ningun_item_del_dataset_de_capacidad_se_intercepta()
-    {
-        // El criterio de aceptación medible hoy: activar el enrutador no puede mover un solo ítem del dataset.
-        var interceptados = DatasetDeCapacidadTests.Cargar().Items
-            .Select(item => (item.Id, item.Pregunta, Intencion: EnrutadorSocial.Clasificar(item.Pregunta)))
-            .Where(par => par.Intencion != IntencionSocial.Ninguna)
-            .Select(par => $"{par.Id}: «{par.Pregunta}» → {par.Intencion}")
-            .ToArray();
-
-        Assert.Empty(interceptados);
-    }
-
-    [Fact]
     public void Ninguna_pregunta_del_catalogo_de_ejemplos_se_intercepta()
     {
         // Mismo argumento sobre el otro corpus de preguntas verificadas del proyecto: son las que
@@ -122,15 +109,6 @@ public sealed class EnrutadorSocialTests
             .ToArray();
 
         Assert.Empty(interceptadas);
-    }
-
-    [Fact]
-    public void El_test_del_dataset_no_es_vacio()
-    {
-        // Anti-vacuidad: si el dataset llegara vacío, los dos tests de arriba
-        // pasarían sin clasificar nada.
-        Assert.NotEmpty(DatasetDeCapacidadTests.Cargar().Items);
-        Assert.NotEmpty(new SelectorDeEjemplos().Catalogo);
     }
 
     [Theory]

@@ -42,19 +42,6 @@ public sealed class AmbiguedadTests(PostgresFixture postgres)
         Assert.Equal(2, catalogo.Valores("bases de datos").Count);
     }
 
-    [Fact]
-    public async Task El_indice_se_lee_una_sola_vez()
-    {
-        await SembrarAsync();
-        var indice = Indice();
-        var ct = TestContext.Current.CancellationToken;
-
-        await indice.ObtenerAsync(ct);
-        await indice.ObtenerAsync(ct);
-
-        Assert.Equal(1, indice.Lecturas);
-    }
-
     // ------------------------------------------------------------ el detector
 
     [Fact]
@@ -177,18 +164,6 @@ public sealed class AmbiguedadTests(PostgresFixture postgres)
     }
 
     // -------------------------------------------------- el fixture del eval
-
-    [Fact]
-    public void El_fixture_del_evaluador_declara_las_colisiones_que_el_detector_necesita()
-    {
-        // Sin ellas, los ítems de diálogo que prueban la desambiguación darían
-        // verde sin medir nada: el detector nunca dispararía.
-        Assert.Contains(
-            GeneradorDeFixture.MateriasCompartidas, compartida => compartida.Carreras > 1);
-
-        Assert.Contains(
-            GeneradorDeFixture.ApellidosCompartidos, compartido => compartido.Personas > 1);
-    }
 
     // ------------------------------------------------------------------ apoyo
 

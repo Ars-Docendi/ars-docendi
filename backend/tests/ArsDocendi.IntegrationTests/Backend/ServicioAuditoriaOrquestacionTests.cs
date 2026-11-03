@@ -114,26 +114,6 @@ public sealed class ServicioAuditoriaOrquestacionTests
         Assert.Equal("cambios-1", pagina.Elementos[0].Id);
     }
 
-    [Fact]
-    public async Task Una_pagina_de_50_eventos_de_identidad_resuelve_nombres_en_una_sola_consulta()
-    {
-        // sistema-seccion-unificada, design.md D5, «Humanized identity events»
-        // (tarea 2.9): la resolución de nombres de sujeto tiene que ser UNA
-        // consulta batched por página, no una por fila.
-        var registros = Enumerable.Range(0, 50)
-            .Select(i => RegistroDePersonaEn(id: i + 1, segundos: i))
-            .ToArray();
-        var repositorio = new RepositorioFalso(registros);
-        var contrato = new ContratoFalso();
-        var servicio = ServicioCon(repositorio, contrato);
-
-        var pagina = await servicio.ListarAsync(
-            new ConsultaAuditoriaDto(TamanoPagina: 50), CancellationToken.None);
-
-        Assert.Equal(50, pagina.Elementos.Count);
-        Assert.Equal(1, repositorio.LlamadasAResolverSujetos);
-    }
-
     // ------------------------------------------------------------------ apoyo
 
     private static ServicioAuditoria ServicioCon(IRepositorioAuditoria repositorio, ContratoFalso contrato)

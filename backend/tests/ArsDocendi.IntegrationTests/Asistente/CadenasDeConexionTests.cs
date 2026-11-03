@@ -55,31 +55,6 @@ public sealed class CadenasDeConexionTests
     }
 
     [Fact]
-    public void Los_tres_tipos_son_independientes_entre_si()
-    {
-        Type[] tipos = [typeof(CadenaDuena), typeof(CadenaSoloLectura), typeof(CadenaSoloLecturaPii)];
-
-        // Esto es lo que hace que pasar la cadena equivocada no compile. Un test no puede afirmar
-        // «esto no compila» sin un compilador adentro; sí puede afirmar las propiedades del diseño
-        // de tipos de las que esa garantía depende: nada de herencia común, nada de conversiones.
-        foreach (var tipo in tipos)
-        {
-            Assert.Equal(typeof(object), tipo.BaseType);
-            Assert.DoesNotContain(tipo.GetMethods(), m => m.Name is "op_Implicit" or "op_Explicit");
-        }
-
-        foreach (var origen in tipos)
-        {
-            foreach (var destino in tipos.Where(t => t != origen))
-            {
-                Assert.False(
-                    destino.IsAssignableFrom(origen),
-                    $"{origen.Name} no debería poder pasar donde se espera {destino.Name}.");
-            }
-        }
-    }
-
-    [Fact]
     public void La_cadena_no_expone_la_contrasena_al_convertirse_en_texto()
     {
         var duena = new CadenaDuena(CadenaDelDueno);

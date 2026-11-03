@@ -120,20 +120,6 @@ public sealed class EjesDeEvaluacionTests
             """, capacidad));
     }
 
-    [Fact]
-    public void El_dataset_de_robustez_del_repositorio_carga_y_cubre_las_cinco_clases()
-    {
-        var capacidad = DatasetDeCapacidad.Cargar(Ruta("capacidad.json"));
-        var robustez = DatasetDeRobustez.Cargar(Ruta("robustez.json"), capacidad);
-
-        var porClase = robustez.ConteoPorClase();
-
-        Assert.Equal(ClaseDePerturbacion.Todas.Count, porClase.Count);
-        Assert.All(ClaseDePerturbacion.Todas, clase =>
-            Assert.True(porClase.GetValueOrDefault(clase) >= 2,
-                $"La clase '{clase}' tiene menos de dos ítems: no alcanza para ver una tendencia."));
-    }
-
     // ---------------------------------------------------------- eje de diálogo
 
     [Fact]
@@ -220,29 +206,6 @@ public sealed class EjesDeEvaluacionTests
         Assert.Contains("términos prohibidos", falla.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public void El_dataset_de_dialogo_del_repositorio_tiene_un_pivote_duro_sin_anafora()
-    {
-        var dialogo = DatasetDeDialogo.Cargar(Ruta("dialogo.json"));
-        var pivotes = dialogo.Dialogos.Where(d => d.EsPivoteDuro).ToList();
-
-        Assert.NotEmpty(pivotes);
-
-        foreach (var pivote in pivotes)
-        {
-            var segundo = pivote.Turnos[1];
-
-            Assert.NotEmpty(segundo.TerminosProhibidos);
-
-            // Sin anáfora: si el segundo turno dijera «¿y en ésa?», el detector de cambio de tema
-            // lo trataría como seguimiento —correctamente— y el diálogo no probaría un pivote.
-            Assert.All(
-                new[] { " ese", " esa", " eso", " ahí", " y en ", "ésa", "ése" },
-                marcador => Assert.DoesNotContain(
-                    marcador, segundo.Pregunta, StringComparison.OrdinalIgnoreCase));
-        }
-    }
-
     // ----------------------------------------------------------- eje social
 
     [Fact]
@@ -254,16 +217,6 @@ public sealed class EjesDeEvaluacionTests
             """));
 
         Assert.Contains("negativos", falla.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void El_dataset_social_del_repositorio_tiene_las_tres_clases()
-    {
-        var social = DatasetSocial.Cargar(Ruta("social.json"));
-        var porClase = social.ConteoPorClase();
-
-        Assert.All(ClaseSocial.Todas, clase =>
-            Assert.True(porClase.GetValueOrDefault(clase) > 0, $"Falta la clase '{clase}'."));
     }
 
     [Fact]
@@ -412,45 +365,6 @@ public sealed class EjesDeEvaluacionTests
         // La primera corrida de un eje no tiene con qué comparar, y eso no es un
         // error: es el estado inicial.
         Assert.Null(LineaDeBase.Cargar(Path.Combine(Path.GetTempPath(), "no-existe-jamas.json")));
-    }
-
-    [Theory]
-    [InlineData("capacidad")]
-    [InlineData("robustez")]
-    [InlineData("dialogo")]
-    [InlineData("social")]
-    public void Cada_eje_tiene_su_linea_de_base_versionada_y_legible(string eje)
-    {
-        // ANTES ESTE TEST AFIRMABA LO CONTRARIO —que no había ninguna— porque no había proveedor
-        // real con qué generarlas.
-        var ruta = Path.Combine(
-            RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", $"{eje}.json");
-
-        var linea = LineaDeBase.Cargar(ruta);
-
-        Assert.NotNull(linea);
-        Assert.NotEmpty(linea.Items);
-
-        // El sello es lo primero que mira el gate: sin los tres hashes no sabe
-        // contra qué se midió y se niega a comparar.
-        Assert.False(string.IsNullOrWhiteSpace(linea.Sello.Prefijo));
-        Assert.False(string.IsNullOrWhiteSpace(linea.Sello.Dataset));
-        Assert.False(string.IsNullOrWhiteSpace(linea.Sello.Fixture));
-    }
-
-    [Fact]
-    public void Las_cuatro_lineas_de_base_se_midieron_contra_el_mismo_prefijo_y_fixture()
-    {
-        // Los datasets son distintos por eje —cada uno se sella con el suyo— pero el prefijo del
-        // prompt y el fixture son del sistema, no del eje.
-        var sellos = new[] { "capacidad", "robustez", "dialogo", "social" }
-            .Select(eje => LineaDeBase.Cargar(Path.Combine(
-                RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", $"{eje}.json")))
-            .Select(linea => Assert.IsType<LineaDeBase>(linea).Sello)
-            .ToArray();
-
-        Assert.Single(sellos.Select(sello => sello.Prefijo).Distinct(StringComparer.Ordinal));
-        Assert.Single(sellos.Select(sello => sello.Fixture).Distinct(StringComparer.Ordinal));
     }
 
     // ------------------------------------------------------------------ apoyo

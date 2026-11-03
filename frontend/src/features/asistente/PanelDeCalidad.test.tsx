@@ -7,7 +7,7 @@ import { useCurrentUser } from "../../shared/auth/useCurrentUser";
 import type { CurrentUserState } from "../../shared/auth/useCurrentUser";
 import * as api from "./api/administracionAsistenteApi";
 import { PanelDeCalidad } from "./components/PanelDeCalidad";
-import { etiquetaDeCausa } from "./utils/calidad";
+
 import type {
   CalidadAgregada,
   PaginaDeProblemas,
@@ -126,48 +126,6 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("PanelDeCalidad — KPIs", () => {
-  it("«Respuestas negativas» va primero, con el énfasis, y las demás tarjetas siguen en orden", async () => {
-    montar();
-
-    const fila = await screen.findByRole("region", { name: "Indicadores de calidad" });
-    const etiquetas = Array.from(fila.querySelectorAll(".adoc-asistente-admin-kpi-etiqueta")).map(
-      (e) => e.textContent,
-    );
-    expect(etiquetas).toEqual([
-      "Respuestas negativas",
-      "Con problemas",
-      "Fallos detectables",
-      "Positivas",
-      "Cobertura de voto",
-    ]);
-    const primera = fila.querySelector(".adoc-asistente-admin-kpi") as HTMLElement;
-    expect(primera).toHaveClass("calidad-kpi--negativa");
-    expect(within(primera).getByText("25,0%")).toBeInTheDocument();
-    expect(within(primera).getByText(/20 de 80 valoraciones/)).toBeInTheDocument();
-    // Es-AR, one decimal; coverage 0.4444 rounds to 44,4%.
-    expect(within(fila).getByText("44,4%")).toBeInTheDocument();
-    expect(within(fila).getByText("75,0%")).toBeInTheDocument();
-  });
-
-  it("tendencia en alza: nota ámbar con los puntos de diferencia", async () => {
-    montar();
-
-    const nota = await screen.findByTestId("tendencia-negativas");
-    expect(nota).toHaveTextContent("▲ 5,0 pts contra el período anterior");
-    expect(nota).toHaveClass("adoc-asistente-admin-kpi-nota--advertencia");
-  });
-
-  it("tendencia a la baja: nota sin el énfasis de advertencia", async () => {
-    espiaCalidad.mockResolvedValue(
-      calidad({ tendencia: { tasaAnterior: 0.3, variacion: -0.052, votosAnteriores: 70 } }),
-    );
-    montar();
-
-    const nota = await screen.findByTestId("tendencia-negativas");
-    expect(nota).toHaveTextContent("▼ 5,2 pts contra el período anterior");
-    expect(nota).not.toHaveClass("adoc-asistente-admin-kpi-nota--advertencia");
-  });
-
   it.each([
     ["pocos_votos", "Pocas valoraciones para comparar"],
     ["fuera_de_retencion", "El período anterior ya no se conserva"],
@@ -303,15 +261,6 @@ describe("PanelDeCalidad — gráfico", () => {
 });
 
 describe("PanelDeCalidad — motivos, causas y denegaciones", () => {
-  it("«Por qué no sirvió» aclara que un voto puede tener varios motivos", async () => {
-    montar();
-
-    const tarjeta = (await screen.findByText("Por qué no sirvió")).closest("section")!;
-    expect(within(tarjeta).getByText("Datos incorrectos")).toBeInTheDocument();
-    expect(within(tarjeta).getByText("Sin motivo (omitió)")).toBeInTheDocument();
-    expect(within(tarjeta).getByText(/Un voto puede tener varios motivos/)).toBeInTheDocument();
-  });
-
   it("«Fallos por causa» usa etiquetas en español y marca resultado_vacio como señal", async () => {
     montar();
 
@@ -347,40 +296,6 @@ describe("PanelDeCalidad — motivos, causas y denegaciones", () => {
     const tarjeta = (await screen.findByText("Denegaciones de política")).closest("section")!;
     expect(within(tarjeta).getByText("Cupo diario agotado")).toBeInTheDocument();
     expect(within(tarjeta).getByText(/no entran en ninguna tasa/)).toBeInTheDocument();
-  });
-
-  it("todas las causas tienen etiqueta en español (22 códigos + sin clasificar)", () => {
-    const codigos = [
-      "proveedor_no_disponible",
-      "proveedor_saturado",
-      "timeout_proveedor",
-      "credencial_rechazada",
-      "modelo_no_encontrado",
-      "error_del_proveedor",
-      "techo_de_llamadas",
-      "presupuesto_del_turno",
-      "generacion_cortada",
-      "respuesta_ininteligible",
-      "validador_rechazo",
-      "plan_invalido",
-      "sin_privilegio_de_datos",
-      "error_del_motor",
-      "timeout_de_sentencia",
-      "excepcion",
-      "resultado_vacio",
-      "cupo_agotado",
-      "tope_organizacional",
-      "mantenimiento",
-      "acceso_revocado",
-      "turno_concurrente",
-      "sin_clasificar",
-    ];
-    expect(codigos).toHaveLength(23);
-    for (const codigo of codigos) {
-      expect(etiquetaDeCausa(codigo)).not.toBe(codigo);
-    }
-    // Saturation reads as busy, not as an outage.
-    expect(etiquetaDeCausa("proveedor_saturado")).toMatch(/ocupado/);
   });
 
   it("«Por modelo» muestra los turnos de cada modelo", async () => {

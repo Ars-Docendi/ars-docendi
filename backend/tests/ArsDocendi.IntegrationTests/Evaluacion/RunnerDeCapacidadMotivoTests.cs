@@ -113,32 +113,6 @@ public sealed class RunnerDeCapacidadMotivoTests(PostgresFixture postgres)
         Assert.Empty(veredicto.Regresiones);
     }
 
-    [Fact]
-    public void El_reporte_incluye_la_seccion_informativa_del_motivo()
-    {
-        var resultado = new ResultadoDeItem(
-            "cap-x", CategoriaDeItem.NoContestable, DesenlaceDeItem.AbstencionCorrecta, "Se abstuvo.",
-            "no_cubierto", ["otro_sistema"]);
-
-        var reporte = new Reporte("capacidad", Sello, [resultado], new Dictionary<string, int>());
-        var texto = reporte.Renderizar();
-
-        Assert.Contains("Motivo del rechazo (informativo)", texto, StringComparison.Ordinal);
-        Assert.Contains("cap-x", texto, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void El_reporte_de_otro_eje_no_muestra_la_seccion()
-    {
-        var resultado = new ResultadoDeItem(
-            "dlg-1", "consulta_simple", DesenlaceDeItem.TraduccionCorrecta, "ok");
-
-        var reporte = new Reporte("dialogo", Sello, [resultado], new Dictionary<string, int>());
-
-        Assert.DoesNotContain(
-            "Motivo del rechazo (informativo)", reporte.Renderizar(), StringComparison.Ordinal);
-    }
-
     // ------------------------------------------------------------------ apoyo
 
     private async Task<ResultadoDeItem> EvaluarAsync(

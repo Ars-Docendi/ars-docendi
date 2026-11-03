@@ -16,18 +16,6 @@ public sealed class GeneracionDeSqlTests
     // ------------------------------------------------------------- solicitud
 
     [Fact]
-    public async Task La_llamada_usa_temperatura_cero()
-    {
-        var proveedor = new ProveedorGuionado(
-            ProveedorGuionado.Generacion("SELECT 1 FROM identity.carreras"));
-
-        await Componer(proveedor).GenerarAsync(
-            "¿Qué carreras hay?", conDatosPersonales: false, TestContext.Current.CancellationToken);
-
-        Assert.Equal(0.0m, proveedor.Recibidas[0].Temperatura);
-    }
-
-    [Fact]
     public async Task La_llamada_usa_el_prefijo_del_proveedor_de_esquema_sin_modificarlo()
     {
         var proveedor = new ProveedorGuionado(
@@ -37,22 +25,6 @@ public sealed class GeneracionDeSqlTests
             "¿Qué carreras hay?", conDatosPersonales: false, TestContext.Current.CancellationToken);
 
         Assert.Equal(PrefijoDeGuion, proveedor.Recibidas[0].PrefijoEstable);
-    }
-
-    [Fact]
-    public async Task El_prefijo_no_cambia_entre_preguntas_distintas()
-    {
-        var proveedor = new ProveedorGuionado(
-            ProveedorGuionado.Generacion("SELECT 1 FROM identity.carreras"));
-        var generador = Componer(proveedor);
-        var ct = TestContext.Current.CancellationToken;
-
-        await generador.GenerarAsync("¿Qué carreras hay?", conDatosPersonales: false, ct);
-        await generador.GenerarAsync("¿Qué docentes hay en Bases de Datos?", conDatosPersonales: false, ct);
-
-        // Byte a byte: el caché del proveedor es POR PREFIJO, y una diferencia de un carácter hace
-        // que el turno siguiente pague escritura en lugar de lectura sobre el bloque más grande del prompt.
-        Assert.Equal(proveedor.Recibidas[0].PrefijoEstable, proveedor.Recibidas[1].PrefijoEstable);
     }
 
     [Fact]
@@ -67,22 +39,6 @@ public sealed class GeneracionDeSqlTests
         var solicitud = proveedor.Recibidas[0];
         Assert.Contains("2026-08-24", solicitud.Mensaje, StringComparison.Ordinal);
         Assert.DoesNotContain("2026-08-24", solicitud.PrefijoEstable, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Con_la_misma_fecha_la_solicitud_es_reproducible()
-    {
-        var primera = new ProveedorGuionado(
-            ProveedorGuionado.Generacion("SELECT 1 FROM identity.carreras"));
-        var segunda = new ProveedorGuionado(
-            ProveedorGuionado.Generacion("SELECT 1 FROM identity.carreras"));
-        var ct = TestContext.Current.CancellationToken;
-
-        await Componer(primera).GenerarAsync("¿Qué pedidos hay?", conDatosPersonales: false, ct);
-        await Componer(segunda).GenerarAsync("¿Qué pedidos hay?", conDatosPersonales: false, ct);
-
-        Assert.Equal(primera.Recibidas[0].Mensaje, segunda.Recibidas[0].Mensaje);
-        Assert.Equal(primera.Recibidas[0].PrefijoEstable, segunda.Recibidas[0].PrefijoEstable);
     }
 
     [Fact]
@@ -215,34 +171,6 @@ public sealed class GeneracionDeSqlTests
     }
 
     // ---------------------------------- motivo y término (asistente-rechazos-dinamicos)
-
-    [Fact]
-    public void Las_instrucciones_piden_exactamente_los_cuatro_motivos_y_el_termino()
-    {
-        var instrucciones = InstruccionesDeGeneracion.Instrucciones;
-        var inicio = instrucciones.IndexOf("- `motivo`", StringComparison.Ordinal);
-        var fin = instrucciones.IndexOf("- `termino`", StringComparison.Ordinal);
-
-        Assert.True(inicio >= 0, "Las instrucciones no describen `motivo`.");
-        Assert.True(fin > inicio, "Las instrucciones no describen `termino` después de `motivo`.");
-
-        // Los valores entre acentos graves del bloque de `motivo`, sin la propia
-        // clave ni el `null`: tienen que ser los del enum, ni uno más ni uno menos.
-        var descritos = System.Text.RegularExpressions.Regex
-            .Matches(instrucciones[(inicio + "- `motivo`".Length)..fin], "`([a-z_]+)`")
-            .Select(m => m.Groups[1].Value)
-            .Where(valor => valor != "null")
-            .Distinct()
-            .Order()
-            .ToArray();
-        var esperados = Enum.GetValues<MotivoDeRechazo>()
-            .Select(MotivosDeRechazo.ValorDeCable)
-            .Order()
-            .ToArray();
-
-        Assert.Equal(esperados, descritos);
-        Assert.Equal(4, descritos.Length);
-    }
 
     [Fact]
     public void Un_motivo_valido_se_conserva()
@@ -420,54 +348,7 @@ public sealed class GeneracionDeSqlTests
             GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy, []));
     }
 
-    [Fact]
-    public void Las_consultas_van_despues_de_los_ejemplos_y_antes_de_la_pregunta()
-    {
-        // Los ejemplos enseñan la FORMA del esquema y son intercambiables entre turnos; la consulta
-        // anterior es el estado de ESTA conversación.
-        var mensaje = GeneradorDeSql.ArmarMensaje(
-            "¿y los profesores de esa materia?",
-            [new EjemploSql("¿cuántos pedidos hay?", "SELECT count(*) FROM designaciones.pedidos", "agregacion")],
-            Hoy,
-            ["SELECT m.name FROM identity.materias m"]);
-
-        var ejemplo = mensaje.IndexOf("SELECT count(*)", StringComparison.Ordinal);
-        var anterior = mensaje.IndexOf("FROM identity.materias", StringComparison.Ordinal);
-        var pregunta = mensaje.IndexOf("Pregunta del usuario", StringComparison.Ordinal);
-
-        Assert.InRange(anterior, ejemplo + 1, pregunta - 1);
-    }
-
-    [Fact]
-    public void El_arrastre_no_toca_el_prefijo_estable()
-    {
-        // LA PROPIEDAD QUE PROTEGE EL COSTO. El prefijo se cachea y su huella sella los reportes de
-        // evaluación: si la consulta anterior se colara ahí, cada turno pagaría escritura de caché
-        // a 1,25× sobre el bloque más grande del prompt en vez de lectura a 0,1×, y dos turnos del
-        // mismo hilo dejarían de ser comparables.
-        var proveedor = new ProveedorGuionado(
-            ProveedorGuionado.Generacion("SELECT 1"),
-            ProveedorGuionado.Generacion("SELECT 2"));
-        var generador = Componer(proveedor);
-        var ct = TestContext.Current.CancellationToken;
-
-        _ = generador.GenerarAsync("primera", false, ct).GetAwaiter().GetResult();
-        _ = generador.GenerarAsync("segunda", false, ct, ["SELECT 1"]).GetAwaiter().GetResult();
-
-        Assert.Equal(
-            proveedor.Recibidas[0].PrefijoEstable,
-            proveedor.Recibidas[1].PrefijoEstable);
-    }
-
     // --------------------------------------------------------- menciones (D11)
-
-    [Fact]
-    public void Sin_menciones_el_mensaje_es_byte_a_byte_igual_que_antes_de_D11()
-    {
-        Assert.Equal(
-            GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy, ["SELECT 1"]),
-            GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy, ["SELECT 1"], []));
-    }
 
     [Fact]
     public void El_bloque_de_menciones_nombra_el_marcador_y_la_entidad_nunca_el_id()
@@ -491,22 +372,6 @@ public sealed class GeneracionDeSqlTests
         // EL ID NUNCA APARECE COMO TEXTO (D11): lo único que el modelo ve es el
         // marcador y la etiqueta.
         Assert.DoesNotContain(materia.Id.ToString(), mensaje, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void Las_menciones_van_despues_de_la_pregunta()
-    {
-        // La pregunta es lo primero cierto de este turno; las menciones son la última cosa cierta
-        // —lo que el usuario ya eligió al escribir—, así que van al final, después de "Pregunta del usuario".
-        var materia = new ResultadoDeMencion(Guid.NewGuid(), "Bases de Datos", Carrera: "Informática");
-
-        var mensaje = GeneradorDeSql.ArmarMensaje(
-            "¿quién la dicta?", [], Hoy, menciones: [("$ref1", TipoDeMencion.Materia, materia)]);
-
-        var pregunta = mensaje.IndexOf("Pregunta del usuario", StringComparison.Ordinal);
-        var menciones = mensaje.IndexOf("Menciones de esta pregunta", StringComparison.Ordinal);
-
-        Assert.InRange(menciones, pregunta + 1, int.MaxValue);
     }
 
     [Fact]

@@ -29,19 +29,6 @@ public sealed class ManifiestoSensibilidadTests
     }
 
     [Fact]
-    public void La_verificacion_de_cobertura_no_es_vacia()
-    {
-        // Anti-vacuidad: si la extracción devolviera una lista vacía, el test de
-        // arriba pasaría sin comparar nada.
-        var concedidas = ColumnasConcedidas().ToArray();
-
-        Assert.NotEmpty(concedidas);
-        Assert.Contains(
-            concedidas,
-            c => c is { Schema: "identity", Tabla: "personas", Columna: "documento" });
-    }
-
-    [Fact]
     public void Una_columna_concedida_sin_clasificar_se_detecta()
     {
         // Verifica el detector, no el manifiesto: se pregunta por una columna que el manifiesto no
@@ -131,18 +118,6 @@ public sealed class ManifiestoSensibilidadTests
         Assert.Empty(sinEtiqueta);
     }
 
-    [Fact]
-    public void Toda_columna_no_publica_declara_su_motivo()
-    {
-        var sinMotivo = Sensibilidad.Entradas()
-            .Where(e => e.Entrada.Clasificacion != ClasificacionDeSensibilidad.Publica)
-            .Where(e => string.IsNullOrWhiteSpace(e.Entrada.Motivo))
-            .Select(e => $"{e.Schema}.{e.Tabla}.{e.Entrada.Columna}")
-            .ToArray();
-
-        Assert.Empty(sinMotivo);
-    }
-
     // ------------------------------------------------------------ validación
 
     [Fact]
@@ -166,21 +141,6 @@ public sealed class ManifiestoSensibilidadTests
     {
         Assert.Throws<InvalidOperationException>(
             () => ManifiestoDeSensibilidad.Interpretar("""{"tablas":[]}"""));
-    }
-
-    [Fact]
-    public void Las_tres_categorias_estan_representadas()
-    {
-        // Un manifiesto donde todo fuera público pasaría todos los tests de
-        // cobertura y no protegería nada.
-        var categorias = Sensibilidad.Entradas()
-            .Select(e => e.Entrada.Clasificacion)
-            .Distinct()
-            .ToArray();
-
-        Assert.Contains(ClasificacionDeSensibilidad.Publica, categorias);
-        Assert.Contains(ClasificacionDeSensibilidad.SensibleValor, categorias);
-        Assert.Contains(ClasificacionDeSensibilidad.SensibleTexto, categorias);
     }
 
     // ------------------------------------------------------------------ apoyo

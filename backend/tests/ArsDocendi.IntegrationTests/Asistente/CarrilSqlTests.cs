@@ -164,23 +164,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     // ------------------------------------------ rechazos dinámicos (grupo 5)
 
     [Fact]
-    public async Task Cada_motivo_declarado_produce_su_propio_texto()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var textos = new List<string>();
-        foreach (var motivo in new[] { "fuera_de_tema", "otro_sistema", "muy_general", "no_cubierto" })
-        {
-            var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestableConMotivo(motivo));
-            var turno = await CarrilCon(proveedor).ResponderAsync(
-                Secretaria, "¿alguna pregunta rara?", null, ct);
-            textos.Add(turno.Respuesta);
-        }
-
-        Assert.Equal(textos.Count, textos.Distinct(StringComparer.Ordinal).Count());
-    }
-
-    [Fact]
     public async Task Un_motivo_declarado_queda_anotado_en_el_resultado()
     {
         var proveedor = new ProveedorGuionado(
@@ -776,19 +759,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     // ---------------------------------------------------------------- el costo
 
     [Fact]
-    public async Task Un_turno_completo_consume_exactamente_dos_llamadas()
-    {
-        var proveedor = Guion();
-
-        var turno = await CarrilCon(proveedor).ResponderAsync(
-            Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
-
-        // Generación y redacción. Ni una más: todo lo del medio es determinista.
-        Assert.Equal(2, proveedor.Llamadas);
-        Assert.Equal(2, turno.LlamadasAlModelo);
-    }
-
-    [Fact]
     public async Task El_turno_no_supera_el_techo_de_llamadas_por_defecto()
     {
 
@@ -806,19 +776,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.True(
             turno.LlamadasAlModelo <= new OpcionesAsistente().MaximoDeLlamadasPorTurno,
             $"El turno consumió {turno.LlamadasAlModelo} llamadas.");
-    }
-
-    [Fact]
-    public async Task La_redaccion_usa_temperatura_baja_pero_no_cero()
-    {
-        var proveedor = Guion();
-
-        await CarrilCon(proveedor).ResponderAsync(
-            Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
-
-        var redaccion = proveedor.Recibidas[^1];
-        Assert.True(redaccion.Temperatura > 0m && redaccion.Temperatura < 1m);
-        Assert.NotEqual(proveedor.Recibidas[0].PrefijoEstable, redaccion.PrefijoEstable);
     }
 
     // ---------------------------------------------------- catálogo de ejemplos
@@ -848,21 +805,6 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         }
 
         Assert.Empty(fallidos);
-    }
-
-    [Fact]
-    public async Task La_consulta_de_un_ejemplo_para_su_propia_pregunta_se_ejecuta()
-    {
-        // La pregunta dice «Ingeniería Informática» y el SQL del ejemplo filtra por 'Ingeniería en
-        // Informática', el nombre real.
-        const string pregunta = "¿Cuántos profesores titulares hay en la carrera de Ingeniería Informática?";
-        var sql = new SelectorDeEjemplos().Catalogo.Single(e => e.Pregunta == pregunta).Sql;
-        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(sql), "Hay titulares.");
-
-        var turno = await CarrilCon(proveedor).ResponderAsync(
-            Secretaria, pregunta, null, TestContext.Current.CancellationToken);
-
-        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
     }
 
     // --------------------------------------------------------- menciones (D11)

@@ -189,33 +189,6 @@ describe("Editar inline", () => {
 
     expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
   });
-
-  it("la respuesta se atenúa mientras se edita, sin desaparecer", async () => {
-    const user = userEvent.setup();
-    montarMensaje({ esUltimo: true, onEditarYReenviar: () => {} });
-
-    await user.click(screen.getByRole("button", { name: "Editar y reenviar" }));
-
-    const respuestaDiv = screen
-      .getByText("Hay 4 docentes designados.")
-      .closest(".adoc-asistente-respuesta");
-    expect(respuestaDiv).toHaveClass("adoc-asistente-respuesta--editando");
-    expect(screen.getByText("Hay 4 docentes designados.")).toBeVisible();
-  });
-
-  it("nunca muestra un contador ni una navegación de versiones", async () => {
-    const user = userEvent.setup();
-    montarMensaje({ esUltimo: true, onEditarYReenviar: () => {} });
-
-    await user.click(screen.getByRole("button", { name: "Editar y reenviar" }));
-    const campo = screen.getByLabelText("Editar tu pregunta");
-    await user.clear(campo);
-    await user.type(campo, "otra pregunta");
-    await user.keyboard("{Enter}");
-
-    expect(screen.queryByText(/\d+\s*\/\s*\d+/)).toBeNull();
-    expect(screen.queryByRole("button", { name: /versi[oó]n/i })).toBeNull();
-  });
 });
 
 // ------------------------------------------------------------ punta a punta

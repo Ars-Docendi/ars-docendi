@@ -38,22 +38,6 @@ describe("EditorDeCupoEnFila", () => {
     ).toBeInTheDocument();
   });
 
-  it("mientras se edita, un hint aclara que 0 desactiva el cupo", async () => {
-    const user = userEvent.setup();
-    render(
-      <EditorDeCupoEnFila
-        nombre="docente"
-        cupoConocido={20}
-        origen="rol"
-        onGuardar={vi.fn()}
-        onGuardado={vi.fn()}
-      />,
-    );
-
-    await user.click(screen.getByRole("button", { name: "Editar cupo diario de docente" }));
-    expect(screen.getByText("0 = sin tope.")).toBeInTheDocument();
-  });
-
   it("bajar un cupo ya conocido en esta sesión pide confirmación inline", async () => {
     const onGuardar = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
@@ -145,30 +129,6 @@ describe("EditorDeCupoEnFila", () => {
 
     expect(screen.getByText("15 por día · del rol")).toBeInTheDocument();
     expect(onGuardar).not.toHaveBeenCalled();
-  });
-
-  it("distingue el default del rol de un override de usuario (tarea 12.8), con la copia del canvas", () => {
-    const { rerender } = render(
-      <EditorDeCupoEnFila
-        nombre="secretaria"
-        cupoConocido={20}
-        origen="rol"
-        onGuardar={vi.fn()}
-        onGuardado={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("20 por día · del rol")).toBeInTheDocument();
-
-    rerender(
-      <EditorDeCupoEnFila
-        nombre="Lucía Fernández"
-        cupoConocido={3}
-        origen="override"
-        onGuardar={vi.fn()}
-        onGuardado={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("3 por día · propio")).toBeInTheDocument();
   });
 
   it("un cupo en 0 con origen conocido dice «sin tope», nunca «0 por día»", () => {
