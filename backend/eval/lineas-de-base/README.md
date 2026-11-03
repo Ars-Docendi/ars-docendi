@@ -71,9 +71,9 @@ en el gate, que es donde se lo quiere ver.
 **Ojo con ese ítem si el gate llegara a correr contra el modelo en vivo.** Reproducido
 de cassette es determinista —tres corridas dieron reportes idénticos byte a byte—, pero
 en vivo osciló entre acierto y abstención sin que nada cambiara. Un ítem que oscila
-produce regresiones falsas con lock por ítem. Mientras el gate reproduzca cassettes, no
-es un problema; el día que se corra en vivo, hay que decidir si se lo marca como
-tolerante o se lo reformula.
+produce regresiones falsas con lock por ítem. Los cassettes ya no existen (Anthropic dejó
+de ser proveedor de producción), así que el gate corre en vivo: hay que decidir si se lo
+marca como tolerante o se lo reformula.
 
 ## Las cuatro vigentes son de después de los rechazos dinámicos
 
@@ -109,5 +109,5 @@ niega a comparar y lo dice —«cambió el prefijo del prompt. Regenerá la lín
 volvé a correr»— en vez de emitir un veredicto sobre dos cosas que no son la misma.
 
 Es lo que va a pasar cuando `portal` entre al esquema del asistente: el prefijo cambia,
-las cuatro líneas quedan obsoletas de golpe, y hay que regenerarlas en la misma corrida
-financiada que regrabe los cassettes.
+las cuatro líneas quedan obsoletas de golpe, y hay que regenerarlas con una corrida en
+vivo contra el modelo de producción.

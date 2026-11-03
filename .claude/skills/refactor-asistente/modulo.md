@@ -64,14 +64,14 @@ lo mueva es una regresión, no una mejora.**
 
 ## 3. Dónde vive cada cosa
 
-| Carpeta                        |       LOC | Qué es                                                                                                                                                                                                      |
-| ------------------------------ | --------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Api/`                         |       340 | Tres endpoints y siete DTOs, sin lógica. Solo importa `Application`                                                                                                                                         |
-| `Application/`                 |     6.157 | Cerebro **y** puertos: orquestación, dominio puro (tokenizador, validador, enmascarador, léxico, políticas) y las 17 interfaces que Infrastructure implementa. **47 archivos en una carpeta plana**         |
-| `Infrastructure/`              |     4.526 | Adaptadores: cadena de decoradores del proveedor, transporte HTTP con grabación de cassettes, tres consultores de base, prefijo desde `pg_catalog`, cinco cachés perezosos, registro del turno. 33 archivos |
-| `ModuleExtensions.cs`          |       391 | Raíz de composición. `AddAsistenteModule` son ~272 líneas con **40 registros DI**                                                                                                                           |
-| `OpcionesAsistente.cs`         |       410 | 35 perillas planas, 22 de ellas `int`                                                                                                                                                                       |
-| `Modules.Asistente.Contracts/` | **0 .cs** | Vacío a propósito, registrado como `"estado": "huerfano"` en `backend/manifiesto-de-aristas.json:58-60`                                                                                                     |
+| Carpeta                        |       LOC | Qué es                                                                                                                                                                                              |
+| ------------------------------ | --------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Api/`                         |       340 | Tres endpoints y siete DTOs, sin lógica. Solo importa `Application`                                                                                                                                 |
+| `Application/`                 |     6.157 | Cerebro **y** puertos: orquestación, dominio puro (tokenizador, validador, enmascarador, léxico, políticas) y las 17 interfaces que Infrastructure implementa. **47 archivos en una carpeta plana** |
+| `Infrastructure/`              |     4.526 | Adaptadores: cadena de decoradores del proveedor, transporte HTTP con reintento, tres consultores de base, prefijo desde `pg_catalog`, cinco cachés perezosos, registro del turno. 33 archivos      |
+| `ModuleExtensions.cs`          |       391 | Raíz de composición. `AddAsistenteModule` son ~272 líneas con **40 registros DI**                                                                                                                   |
+| `OpcionesAsistente.cs`         |       410 | 35 perillas planas, 22 de ellas `int`                                                                                                                                                               |
+| `Modules.Asistente.Contracts/` | **0 .cs** | Vacío a propósito, registrado como `"estado": "huerfano"` en `backend/manifiesto-de-aristas.json:58-60`                                                                                             |
 
 Frontend: `frontend/src/features/asistente/` — una sola vista (`PanelAsistente`) montada dos
 veces, modal desde la barra y ruta `/asistente`. `asistente.css` son **881 líneas**, el CSS
@@ -100,12 +100,6 @@ Evaluador: `backend/src/ArsDocendi.Evaluacion.Nucleo/` (en la solución) +
   `:130-142`: invertir los dos primeros haría que el breaker contara intentos que el techo iba
   a rechazar igual. Y `MaxRetries = 0` en el SDK (`ProveedorAnthropic.cs:68`) porque dos
   reintentadores triplicarían en silencio la cota de 12.
-- **Los cassettes.** Clave = SHA-256 de cuatro campos del cable (`system`, `messages`,
-  `output_config.effort`, `model`) y deliberadamente **no** del techo de tokens, así que mover
-  esa perilla no invalida 120 cassettes. La grabación intercepta el cable
-  (`DelegatingHandler`), no el puerto — un decorador de `IProveedorDeModelo` habría grabado la
-  respuesta ya traducida. **Falla cerrado**: sin cassette y sin re-grabación, no sale a la red.
-  Los 120 son salida real del proveedor desde el commit `2d11e7f`.
 - **El enmascarado identifica por estructura**: par `(OID, attnum)` en vez del alias que
   eligió la consulta generada, con su límite declarado (se pierde ante cualquier expresión)
   registrado como TD-009.

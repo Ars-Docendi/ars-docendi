@@ -382,8 +382,7 @@ El id sigue sin llegar al modelo nunca: ver el punto siguiente.
 El turno manda hasta 5 referencias `{ tipo, id }`; el controller las revalida con
 la misma búsqueda antes del candado (una desconocida o fuera de alcance da el
 mismo `400` que cualquier otra, sin oráculo de existencia). `ArmarMensaje` agrega
-un bloque «Menciones» al prompt de usuario — nunca al prefijo cacheado, así que
-`PrefijoDeLosCassettesTests` sigue en pie sin regrabar nada — con el nombre de
+un bloque «Menciones» al prompt de usuario — nunca al prefijo cacheado — con el nombre de
 cada entidad y un marcador reservado (`$ref1`, `$ref2`…), numerados después de
 los que ya trae el segmento. El validador tokeniza `$refN` como su propia clase
 de token y rechaza tanto un marcador no declarado como uno declarado que la
@@ -535,7 +534,7 @@ proveedor a través de la generación: si alguien tipea un documento en la pregu
 llega al modelo igual. Protege el camino de vuelta, no el de ida.
 
 **Excepción opt-in: `Asistente__RedaccionSinEnmascarar`.** Con la opción en `true`,
-proveedor `local` y sin directorio de cassettes, las columnas `sensible-valor` llegan
+proveedor `local` u `ollama`, las columnas `sensible-valor` llegan
 al prompt de redacción con su valor real. Es la única excepción a la frontera: con
 cualquier otra combinación se sigue enmascarando y el arranque lo advierte;
 `sensible-texto` se suprime siempre, y el control de acceso no cambia (lo decide el
@@ -725,7 +724,7 @@ Qué cambia en la cadena con una selección:
 | Compuerta              | Sólo `ollama` y `local`: modela una GPU, vengan de una selección o del ambiente (un ambiente `anthropic` o `simulado` ya no pasa por ella aunque `MaximoDeLlamadasConcurrentes > 0`). Una empresa en la nube tiene techo y breaker, nada más. |
 | Saturación             | El 429/503 del servicio compartido sigue siendo `ProveedorSaturado`: el breaker no lo cuenta. El 429 de una empresa en la nube sí es una falla de transporte y se cuenta.                                                                     |
 | Redacción              | Con selección, `ModeloDeRedaccion` del ambiente se ignora: el modelo elegido genera **y** redacta.                                                                                                                                            |
-| Enmascarado            | `RedaccionSinEnmascarar` sólo rige si el adaptador **resuelto** corre en hardware propio (`ollama`, `local`) y no hay directorio de cassettes. Cualquier empresa en la nube enmascara, diga lo que diga el ambiente.                          |
+| Enmascarado            | `RedaccionSinEnmascarar` sólo rige si el adaptador **resuelto** corre en hardware propio (`ollama`, `local`). Cualquier empresa en la nube enmascara, diga lo que diga el ambiente.                                                           |
 | `AnuncioDeLaRedaccion` | Sigue describiendo el estado del ambiente al arrancar; el estado efectivo de un turno lo decide el adaptador resuelto.                                                                                                                        |
 | Caché de consultas     | `CacheDeConsultasGeneradas.Vaciar()` lo llama la escritura de la selección (slice 3), para que una consulta generada por el modelo anterior no se sirva después de cambiar.                                                                   |
 
@@ -750,47 +749,6 @@ conversión por token entre exacta en `numeric(18,12)`. La acción de auditoría
 `precio.cargar`. `GET /administracion/modelo` expone el precio vigente de cada modelo
 (`precios`) para que la pestaña Modelo distinga «Sin precio cargado» de «Precio vigente
 desde …».
-
-### El grabador de cassettes va por fuera del reintento
-
-Debajo de esos tres decoradores está el **cliente HTTP con nombre** del módulo,
-que es otro pipeline y se arma en el orden inverso al que se lee:
-
-```
-adaptador  →  grabador de cassettes  →  reintento de transporte  →  transporte
-```
-
-El grabador intercepta el **cable**, no al adaptador: ve cuerpos HTTP y no tipos
-del SDK, así que el guard que fija el SDK en un solo archivo sigue en pie sin
-excepción nueva. Graba el cuerpo **crudo** de la respuesta, y ahí está el punto:
-un decorador de `IProveedorDeModelo` habría sido más fácil de escribir y habría
-grabado la respuesta **ya traducida**, dejando el parseo del adaptador —la mitad
-que ningún test cubría— del lado de afuera del cassette.
-
-**Por qué por fuera y no por dentro del reintento.** Del lado de adentro grabaría
-también los fallos, con ellos el 429 y el 503 verdaderos del proveedor. Se
-descarta por tres cosas concretas:
-
-1. **Rompe la identidad del cassette.** Los cuatro campos de la clave —prefijo,
-   mensaje, esfuerzo, modelo— son idénticos en los tres intentos. Distinguirlos
-   exigiría meter el número de intento adentro de la clave, que es estado del
-   transporte y no de la pregunta.
-2. **Reproducir un fallo reproduce la espera.** El reintento haría su backoff de
-   verdad al replay, y una suite que duerme por un cassette es una suite que
-   alguien va a apagar.
-3. **No cubre nada nuevo.** `ReintentoYTechoTests` ya ejercita el reintento contra
-   el cable, `retry-after` incluido. Lo que no estaba cubierto es el parseo de una
-   respuesta **exitosa** real, y esa es la que este orden graba.
-
-Costo asumido: nunca vamos a tener un cassette de un 429 real. Si hace falta, se
-escribe a mano, que es lo que los tests del reintento ya hacen.
-
-**Apagado por default y falla cerrado.** Con `Asistente__DirectorioDeCassettes`
-vacío el handler **ni se registra** y el pipeline queda idéntico al de antes.
-Configurado y sin `Asistente__RegrabarCassettes`, una llamada sin cassette lanza
-**sin invocar hacia adentro**: es lo que hace de «nunca una llamada de red en CI»
-una propiedad del código y no una promesa. Detalle operativo en
-[el README del módulo](../../../backend/src/Modules.Asistente/README.md).
 
 ### El modo degradado no se inventa: se expone
 
@@ -1462,12 +1420,6 @@ Hoy no se puede correr, pero por la otra mitad: el adaptador real existe
 (`ProveedorAnthropic`, `Asistente__Proveedor=anthropic`) y lo que falta es una clave
 y presupuesto aprobado. Sigue registrado como TD-008, y la corrida en sí la bloquea
 **ARS-67**.
-
-Esa corrida deja además, si se la configura para eso, los **cassettes** del
-proveedor: el mecanismo ya está y probado sin clave, pero los cassettes de salida
-real llegan con ella y **no son parte de este trabajo**. Lo que la fixture congelada
-no detecta —un cambio de formato de cable del proveedor— está registrado como
-TD-017.
 
 ## Decisiones registradas
 

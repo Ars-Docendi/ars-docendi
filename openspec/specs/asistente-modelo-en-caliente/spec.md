@@ -75,7 +75,7 @@ The system SHALL decide whether redaction runs without masking `sensible-valor` 
 
 #### Scenario: Selecting own hardware keeps the environment decision
 
-- **GIVEN** the unmasking option on and no cassette directory
+- **GIVEN** the unmasking option on
 - **WHEN** an administrator selects the shared inference service or the own server
 - **THEN** redaction follows the environment option as it does without a selection
 

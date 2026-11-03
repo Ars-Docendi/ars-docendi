@@ -15,7 +15,7 @@ internal sealed class AnuncioDeLaRedaccion(
         if (opciones.RedaccionSinEnmascararVigente)
         {
             log.LogInformation(
-                "Redaction runs WITHOUT masking sensible-valor values (provider {Provider}, no cassette directory).",
+                "Redaction runs WITHOUT masking sensible-valor values (provider {Provider}).",
                 opciones.Proveedor);
         }
         else
@@ -26,12 +26,11 @@ internal sealed class AnuncioDeLaRedaccion(
         if (opciones.RedaccionSinEnmascarar && !opciones.RedaccionSinEnmascararVigente)
         {
             log.LogWarning(
-                "{Option} is set but not in effect, so redaction keeps masking: it needs provider {LocalProvider} or {OllamaProvider} (current: {Provider}) and no cassette directory (set: {HasCassettes}).",
+                "{Option} is set but not in effect, so redaction keeps masking: it needs provider {LocalProvider} or {OllamaProvider} (current: {Provider}).",
                 nameof(OpcionesAsistente.RedaccionSinEnmascarar),
                 Infrastructure.ProveedorLocal.Clave,
                 Infrastructure.ProveedorOllama.Clave,
-                opciones.Proveedor,
-                !string.IsNullOrWhiteSpace(opciones.DirectorioDeCassettes));
+                opciones.Proveedor);
         }
 
         return Task.CompletedTask;

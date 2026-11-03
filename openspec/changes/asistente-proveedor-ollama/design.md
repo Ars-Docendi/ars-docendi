@@ -29,7 +29,6 @@ Cuatro datos del servicio ordenan las decisiones:
 
 - **Decidir que `qwen3.5:9b` es suficiente.** Lo decide el evaluador (`backend/eval`) corrido contra el servicio (tarea 5.2), igual que en `asistente-proveedor-local`.
 - **Aplicar la configuración en el servidor.** Este change ajusta `infra/ollama/` (D6), pero lo aplica infraestructura en pc-prod, en una ventana aprobada.
-- **Regrabar cassettes contra Ollama.** `ClaveDeCassette` hoy espera el cuerpo de Anthropic, con `system` en la raíz. Grabar contra Ollama necesita su propio change (TD-030).
 
 ## Decisions
 
@@ -118,7 +117,7 @@ La saturación llega al pipeline como `ProveedorSaturado`, la misma que lanza la
 
 ### D7 — El servicio compartido es hardware propio para la redacción
 
-La GPU de pc-prod es del Departamento, así que `ollama` cuenta como `local` para `RedaccionSinEnmascarar` (`asistente-redaccion-sin-enmascarado-local`). El perfil la prende, y siguen sin cambiar las otras condiciones: sin cassettes, `sensible-texto` siempre suprimido, y quién lee datos personales lo decide PostgreSQL.
+La GPU de pc-prod es del Departamento, así que `ollama` cuenta como `local` para `RedaccionSinEnmascarar` (`asistente-redaccion-sin-enmascarado-local`). El perfil la prende, y siguen sin cambiar las otras condiciones: `sensible-texto` siempre suprimido, y quién lee datos personales lo decide PostgreSQL.
 
 Hay un único lugar que decide la vigencia, `OpcionesAsistente.RedaccionSinEnmascararVigente`, y ahora acepta los dos proveedores.
 
@@ -141,9 +140,8 @@ Los valores quedan en la caché KV del único slot de Ollama, que es memoria de 
 - **[Calidad no medida]**
   - Los benchmarks públicos de Qwen3.5-9B frente a Qwen3-8B son mejores en seguimiento de instrucciones (IFEval, IFBench), pero no hay números de text-to-SQL.
   - → Tarea 5.2 antes de pasar staging a `ollama`.
-- **[Sin cassettes]**
-  - El corpus grabado sigue siendo de Anthropic, y los tests del adaptador usan un servidor falso.
-  - → TD-030.
+- **[Sin respuestas grabadas]**
+  - Los tests del adaptador usan un servidor falso con respuestas escritas a mano. Los cassettes de Anthropic se eliminaron (`asistente-quitar-cassettes`).
 
 ## Migration Plan
 

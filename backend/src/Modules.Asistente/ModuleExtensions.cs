@@ -319,31 +319,6 @@ public static class ModuleExtensions
         // esa implementación lo pida por nombre y no tenga que saber nada de reintentos.
         var clienteDelProveedor = services.AddHttpClient(ClienteDelProveedor);
 
-        // EL GRABADOR VA PRIMERO, y por lo tanto POR FUERA del reintento. En AddHttpMessageHandler
-        // el orden de registración es de afuera hacia adentro, así que el pipeline queda: adaptador
-        // → grabador → reintento → transporte Con ese orden el grabador ve UNA solicitud por
-        // llamada lógica y la respuesta que el reintento resolvió.
-        var directorioDeCassettes = configuration[
-            $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.DirectorioDeCassettes)}"];
-
-        if (!string.IsNullOrWhiteSpace(directorioDeCassettes))
-        {
-            clienteDelProveedor.AddHttpMessageHandler(sp =>
-            {
-                var opciones = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
-
-                return new GrabadorDeCassettes(
-                    new AlmacenDeCassettes(opciones.DirectorioDeCassettes),
-                    !string.IsNullOrWhiteSpace(opciones.RegrabarCassettes),
-
-                    // Opcional a propósito: la registra quien sabe cuál es —el evaluador—, y sin
-                    // ella no se graba ni se sirve nada.
-                    sp.GetService<HuellaDelFixture>()?.Valor ?? string.Empty,
-                    sp.GetRequiredService<TimeProvider>(),
-                    sp.GetRequiredService<ILogger<GrabadorDeCassettes>>());
-            });
-        }
-
         clienteDelProveedor.AddHttpMessageHandler(sp =>
         {
             var opciones = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;

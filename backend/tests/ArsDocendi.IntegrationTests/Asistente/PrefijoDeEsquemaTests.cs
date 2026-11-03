@@ -407,7 +407,7 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     [Fact]
     public async Task Con_el_glosario_apagado_el_prefijo_es_el_de_siempre_para_los_dos_roles()
     {
-        // EL DEFAULT. Sin opciones —como lo construyen los tests de cassettes— y con
+        // EL DEFAULT. Sin opciones y con
         // las opciones en su default tienen que dar el mismo prefijo, y ninguno
         // puede mencionar el glosario ni las dedicaciones.
         var conOpciones = new ProveedorDeEsquema(Apertura, Options.Create(new OpcionesAsistente()));

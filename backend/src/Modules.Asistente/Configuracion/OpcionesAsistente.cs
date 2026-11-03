@@ -179,11 +179,6 @@ public sealed class OpcionesAsistente
     public int MaximoDeTokensDeReescritura { get; set; } = 1000;
 
     /// <summary>
-    /// Directorio donde viven los cassettes del proveedor. Vacío apaga el mecanismo.
-    /// </summary>
-    public string DirectorioDeCassettes { get; set; } = string.Empty;
-
-    /// <summary>
     /// URL base del servidor OpenAI-compatible del modelo propio, terminada en <c>/v1</c> (por
     /// ejemplo <c>http://llm:8000/v1</c>).
     /// </summary>
@@ -265,8 +260,8 @@ public sealed class OpcionesAsistente
     public bool RedaccionSinEnmascarar { get; set; }
 
     /// <summary>
-    /// Whether redaction runs without masking <c>sensible-valor</c>: the option on, a provider on
-    /// own hardware, and no cassette directory.
+    /// Whether redaction runs without masking <c>sensible-valor</c>: the option on and a provider on
+    /// own hardware.
     /// </summary>
     public bool RedaccionSinEnmascararVigente => RedaccionSinEnmascararCon(ProveedorEnHardwarePropio);
 
@@ -275,9 +270,7 @@ public sealed class OpcionesAsistente
     /// runtime selection resolved for the turn (asistente-modelo-en-caliente, D7).
     /// </summary>
     internal bool RedaccionSinEnmascararCon(bool adaptadorEnHardwarePropio) =>
-        RedaccionSinEnmascarar
-        && adaptadorEnHardwarePropio
-        && string.IsNullOrWhiteSpace(DirectorioDeCassettes);
+        RedaccionSinEnmascarar && adaptadorEnHardwarePropio;
 
     /// <summary>Whether <see cref="Proveedor"/> runs on the Department's hardware.</summary>
     internal bool ProveedorEnHardwarePropio =>
@@ -332,7 +325,4 @@ public sealed class OpcionesAsistente
     /// recifra con <see cref="ClaveMaestra"/> al leerlo.
     /// </summary>
     public string ClaveMaestraAnterior { get; set; } = string.Empty;
-
-    /// <summary>Cualquier valor no vacío permite salir a la red a grabar lo que falte.</summary>
-    public string RegrabarCassettes { get; set; } = string.Empty;
 }

@@ -101,8 +101,8 @@ internal static class PlantillasDeRechazo
     {
         // Variante 1, sin término: TEXTO GENÉRICO PREEXISTENTE, PALABRA POR PALABRA (design.md D11)
         // — así los tests y el evaluador que ya esperaban `PoliticaDeAbstencion.TextoNoContestable`
-        // siguen viendo lo mismo, y los cassettes viejos (sin `motivo`) resuelven exactamente como
-        // resolvían antes de este cambio.
+        // siguen viendo lo mismo, y una respuesta sin `motivo` resuelve exactamente como resolvía
+        // antes de este cambio.
         1 => termino is not null
             ? $"No puedo responder sobre «{termino}» con la información que tengo disponible."
             : PoliticaDeAbstencion.TextoNoContestable,

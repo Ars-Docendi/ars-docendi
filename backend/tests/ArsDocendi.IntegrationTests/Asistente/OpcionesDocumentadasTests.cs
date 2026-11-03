@@ -157,21 +157,6 @@ public sealed partial class OpcionesDocumentadasTests
             + string.Join(Environment.NewLine, derivas));
     }
 
-    [Fact]
-    public void Las_dos_opciones_de_los_cassettes_estan_documentadas()
-    {
-        var documentadas = FilaVacia()
-            .Matches(Readme())
-            .Select(fila => fila.Groups["opcion"].Value)
-            .ToList();
-
-        // APAGADAS POR DEFAULT ES LA GARANTÍA, y una garantía que no está escrita
-        // donde alguien la va a buscar no sirve: la variable de re-grabación es la
-        // única perilla del módulo que puede gastar plata.
-        Assert.Contains(nameof(OpcionesAsistente.DirectorioDeCassettes), documentadas);
-        Assert.Contains(nameof(OpcionesAsistente.RegrabarCassettes), documentadas);
-    }
-
     private static string Readme() => File.ReadAllText(
         Path.Combine(RaizRepositorio.BackendSrc(), "Modules.Asistente", "README.md"));
 }

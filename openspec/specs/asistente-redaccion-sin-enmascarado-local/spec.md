@@ -20,11 +20,11 @@ With the default, the redaction prompt MUST be identical to the one produced bef
 
 ### Requirement: With the local provider the redaction prompt carries the real values
 
-The system SHALL send the real values of `sensible-valor` columns in the redaction prompt when the option is `true`, the provider is `local`, and no cassette directory is configured.
+The system SHALL send the real values of `sensible-valor` columns in the redaction prompt when the option is `true` and the provider is `local`.
 
 #### Scenario: The document reaches the redaction prompt
 
-- **GIVEN** the option is `true`, the provider is `local`, no cassette directory is configured, and a result has a `sensible-valor` column with a known real value
+- **GIVEN** the option is `true`, the provider is `local`, and a result has a `sensible-valor` column with a known real value
 - **WHEN** the redaction prompt is built
 - **THEN** the prompt contains the real value and no marker for it
 
@@ -62,16 +62,6 @@ The system SHALL start normally in that configuration and MUST log a warning at 
 - **WHEN** the application starts
 - **THEN** it starts, masking is in effect, and a warning names the option as not in effect
 
-### Requirement: The option has no effect while cassettes are configured
-
-The system SHALL keep masking `sensible-valor` values when the option is `true` and a cassette directory is configured, whatever the provider.
-
-#### Scenario: A recorded response never contains a real value
-
-- **GIVEN** the option is `true`, the provider is `local`, and a cassette directory is configured
-- **WHEN** the redaction prompt is built
-- **THEN** the prompt does not contain the real value
-
 ### Requirement: Access to personal data is unchanged
 
 The option MUST NOT change which actors can read personal data.
@@ -90,6 +80,6 @@ The system SHALL log, once at startup, whether redaction masking of `sensible-va
 
 #### Scenario: The operator can tell which mode is running
 
-- **GIVEN** the option is `true`, the provider is `local`, and no cassette directory is configured
+- **GIVEN** the option is `true` and the provider is `local`
 - **WHEN** the application starts
 - **THEN** a log entry states that redaction runs without masking `sensible-valor` values

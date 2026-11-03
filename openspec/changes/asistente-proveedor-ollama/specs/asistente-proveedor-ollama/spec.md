@@ -87,19 +87,13 @@ El adaptador SHALL devolver el texto, los tokens de entrada (`prompt_eval_count`
 
 ### Requirement: El servicio compartido cuenta como hardware propio para la redacción
 
-El proveedor `ollama` SHALL contar como hardware propio para `Asistente:RedaccionSinEnmascarar`, igual que `local`: con la opción en `true` y sin directorio de cassettes, el prompt de redacción SHALL llevar el valor real de las columnas `sensible-valor`. Con cassettes MUST seguir enmascarando. Las columnas `sensible-texto` MUST seguir suprimidas. El perfil de deploy del servicio compartido SHALL prender la opción.
+El proveedor `ollama` SHALL contar como hardware propio para `Asistente:RedaccionSinEnmascarar`, igual que `local`: con la opción en `true`, el prompt de redacción SHALL llevar el valor real de las columnas `sensible-valor`. Las columnas `sensible-texto` MUST seguir suprimidas. El perfil de deploy del servicio compartido SHALL prender la opción.
 
 #### Scenario: Redacción sin enmascarar con el servicio compartido
 
-- **GIVEN** `Asistente:RedaccionSinEnmascarar` en `true`, el proveedor `ollama` y ningún directorio de cassettes
+- **GIVEN** `Asistente:RedaccionSinEnmascarar` en `true` y el proveedor `ollama`
 - **WHEN** arranca la aplicación
 - **THEN** la redacción no enmascara los valores `sensible-valor` y el arranque lo registra
-
-#### Scenario: Con cassettes se sigue enmascarando
-
-- **GIVEN** la opción en `true`, el proveedor `ollama` y un directorio de cassettes
-- **WHEN** arranca la aplicación
-- **THEN** la redacción enmascara y el arranque advierte que la opción no rige
 
 ### Requirement: Despliegue con el servicio compartido
 

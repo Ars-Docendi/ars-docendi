@@ -256,9 +256,7 @@ public sealed class GeneradorDeSql(
         }
 
         // SÓLO SI HAY MENCIONES NUEVAS: con un turno sin ellas —el caso mayoritario, y el único que
-        // existía antes de D11— este método devuelve BYTE A BYTE el mismo texto que devolvía antes,
-        // así que ningún cassette grabado se invalida (PrefijoDeLosCassettesTests sigue en pie sin
-        // regrabar nada).
+        // existía antes de D11— este método devuelve BYTE A BYTE el mismo texto que devolvía antes.
         if (menciones is { Count: > 0 })
         {
             mensaje.Append(

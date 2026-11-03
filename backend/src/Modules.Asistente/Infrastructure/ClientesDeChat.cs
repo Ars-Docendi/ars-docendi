@@ -105,8 +105,7 @@ internal static class ClientesDeChat
                         },
                     },
                     // The user turn travels HERE and the ChatMessage list is empty, so
-                    // the content keeps the plain-string shape ProveedorAnthropic sends
-                    // (the cassette key reads `messages`).
+                    // the content keeps the plain-string shape ProveedorAnthropic sends.
                     Messages = [new() { Role = Role.User, Content = solicitud.Mensaje }],
                     // Minimo sends no field at all: models that do not deliberate
                     // reject output_config with a 400.

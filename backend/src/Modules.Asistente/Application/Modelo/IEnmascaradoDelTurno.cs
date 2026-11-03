@@ -6,6 +6,6 @@ namespace Modules.Asistente.Application;
 /// </summary>
 public interface IEnmascaradoDelTurno
 {
-    /// <summary>True only for own hardware, with the option on and no cassette directory.</summary>
+    /// <summary>True only for own hardware with the option on.</summary>
     Task<bool> RedaccionSinEnmascararAsync(CancellationToken ct);
 }

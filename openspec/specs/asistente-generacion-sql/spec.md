@@ -145,17 +145,11 @@ A not-answerable generation object MAY carry a `termino`: the word or short phra
 - **WHEN** it is interpreted
 - **THEN** the generation carries no term and the object is still interpreted as not answerable
 
-### Requirement: The fixed generation instructions describe the reason and the term
+### Requirement: The fixed generation instructions list the reasons and the term
 
-The fixed generation instructions SHALL describe the four reasons and the term, including that the term must be copied literally from the question and must be `null` when there is none. Changing these instructions changes the fixed prefix, so it SHALL ship together with a re-recorded cassette corpus sealed with the new prefix.
+The fixed generation instructions SHALL describe the four reasons and the term, including that the term must be copied literally from the question and must be `null` when there is none.
 
 #### Scenario: The instructions list the closed set
 
 - **WHEN** the fixed generation instructions are inspected
 - **THEN** they name exactly the four reasons and the `termino` key
-
-#### Scenario: No cassette is sealed with a stale prefix
-
-- **GIVEN** the versioned cassette corpus after the instructions change
-- **WHEN** the prefix guard runs
-- **THEN** every cassette declares a current prefix fingerprint

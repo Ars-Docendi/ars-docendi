@@ -14,7 +14,7 @@ The glossary SHALL be rendered only when `GlosarioEnElPrefijo` is `true`, and th
 
 - **GIVEN** `GlosarioEnElPrefijo` is not set
 - **WHEN** the fixed part of the generation prompt is built for the basic role and for the personal-data role
-- **THEN** each prefix is identical to the one built before this change, and the cassettes recorded with it are still served
+- **THEN** each prefix is identical to the one built before this change
 
 #### Scenario: The option is documented with its real default
 

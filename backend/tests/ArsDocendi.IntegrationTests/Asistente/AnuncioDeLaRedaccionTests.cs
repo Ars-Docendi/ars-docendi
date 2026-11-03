@@ -34,7 +34,7 @@ public sealed class AnuncioDeLaRedaccionTests
     [Theory]
     [InlineData("local")]
     [InlineData("ollama")]
-    public async Task Own_hardware_provider_without_cassettes_states_that_values_are_not_masked(
+    public async Task Own_hardware_provider_states_that_values_are_not_masked(
         string provider)
     {
         var registro = await ArrancarAsync(new OpcionesAsistente
@@ -49,17 +49,13 @@ public sealed class AnuncioDeLaRedaccionTests
         Assert.Empty(registro.DeNivel(LogLevel.Warning));
     }
 
-    [Theory]
-    [InlineData("anthropic", "")]
-    [InlineData("local", "cassettes")]
-    public async Task Requested_but_not_in_effect_warns_and_keeps_masking(
-        string provider, string cassetteDirectory)
+    [Fact]
+    public async Task Requested_but_not_in_effect_warns_and_keeps_masking()
     {
         var registro = await ArrancarAsync(new OpcionesAsistente
         {
             RedaccionSinEnmascarar = true,
-            Proveedor = provider,
-            DirectorioDeCassettes = cassetteDirectory,
+            Proveedor = "anthropic",
         });
 
         Assert.Contains(
@@ -71,18 +67,5 @@ public sealed class AnuncioDeLaRedaccionTests
         Assert.DoesNotContain(
             registro.DeNivel(LogLevel.Information),
             linea => linea.Contains("WITHOUT masking", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task The_log_never_carries_the_cassette_directory()
-    {
-        var registro = await ArrancarAsync(new OpcionesAsistente
-        {
-            RedaccionSinEnmascarar = true,
-            Proveedor = "local",
-            DirectorioDeCassettes = "/srv/secret-directory",
-        });
-
-        Assert.DoesNotContain("secret-directory", registro.Todo(), StringComparison.Ordinal);
     }
 }

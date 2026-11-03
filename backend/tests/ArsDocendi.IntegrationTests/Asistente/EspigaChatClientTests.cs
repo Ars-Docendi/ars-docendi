@@ -36,7 +36,7 @@ public sealed class EspigaChatClientTests
         public JsonElement Cuerpo(int i = 0) => JsonDocument.Parse(Pedidos[i].Cuerpo).RootElement;
     }
 
-    /// <summary>Stands in for GrabadorDeCassettes: records that it saw the request.</summary>
+    /// <summary>Stands in for a transport handler: records that it saw the request.</summary>
     private sealed class Testigo : DelegatingHandler
     {
         public int Vistos { get; private set; }

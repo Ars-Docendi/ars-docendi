@@ -154,25 +154,21 @@ public sealed class ValidacionDeOpcionesTests
     // ------------------------------------ redaction without masking: in effect
 
     [Theory]
-    [InlineData(true, "local", "", true)]
-    [InlineData(false, "local", "", false)]
-    [InlineData(true, "anthropic", "", false)]
-    [InlineData(true, "simulado", "", false)]
-    [InlineData(true, "local", "cassettes", false)]
-    [InlineData(true, "local", "   ", true)]
-    [InlineData(true, "Local", "", false)]
-    [InlineData(true, "ollama", "", true)]
-    [InlineData(false, "ollama", "", false)]
-    [InlineData(true, "ollama", "cassettes", false)]
-    [InlineData(true, "Ollama", "", false)]
-    public void Unmasked_redaction_is_in_effect_only_with_an_own_hardware_provider_and_no_cassettes(
-        bool requested, string provider, string cassetteDirectory, bool expected)
+    [InlineData(true, "local", true)]
+    [InlineData(false, "local", false)]
+    [InlineData(true, "anthropic", false)]
+    [InlineData(true, "simulado", false)]
+    [InlineData(true, "Local", false)]
+    [InlineData(true, "ollama", true)]
+    [InlineData(false, "ollama", false)]
+    [InlineData(true, "Ollama", false)]
+    public void Unmasked_redaction_is_in_effect_only_with_an_own_hardware_provider(
+        bool requested, string provider, bool expected)
     {
         var options = new OpcionesAsistente
         {
             RedaccionSinEnmascarar = requested,
             Proveedor = provider,
-            DirectorioDeCassettes = cassetteDirectory,
         };
 
         Assert.Equal(expected, options.RedaccionSinEnmascararVigente);
@@ -187,19 +183,15 @@ public sealed class ValidacionDeOpcionesTests
         Assert.False(options.RedaccionSinEnmascararVigente);
     }
 
-    [Theory]
-    [InlineData("anthropic", "")]
-    [InlineData("local", "cassettes")]
-    public void Requesting_unmasked_redaction_where_it_is_not_in_effect_does_not_fail_validation(
-        string provider, string cassetteDirectory)
+    [Fact]
+    public void Requesting_unmasked_redaction_where_it_is_not_in_effect_does_not_fail_validation()
     {
         // Mask and warn, never fail startup: a leftover flag must not block rolling
         // the provider back.
         var result = Validar(o =>
         {
             o.RedaccionSinEnmascarar = true;
-            o.Proveedor = provider;
-            o.DirectorioDeCassettes = cassetteDirectory;
+            o.Proveedor = "anthropic";
             o.UrlDelProveedorLocal = "http://localhost:8080";
             o.ClaveDelProveedor = "clave";
         });

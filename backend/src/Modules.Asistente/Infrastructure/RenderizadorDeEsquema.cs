@@ -9,7 +9,7 @@ internal static class RenderizadorDeEsquema
     /// <param name="compacto">
     /// La forma compacta (asistente-optimizaciones-modelo-local, D2): mismo
     /// contenido en menos texto. <c>false</c> —el default— produce BYTE A BYTE
-    /// el prefijo de siempre, que es el que sellan los cassettes.
+    /// el prefijo de siempre.
     /// </param>
     /// <param name="bloqueDeGlosario">
     /// El bloque «GLOSARIO INSTITUCIONAL» (asistente-glosario-institucional, D6),

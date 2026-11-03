@@ -22,7 +22,7 @@ public sealed class PrefijoDeEsquemaPuroTests
     {
         // EL DEFAULT NO PUEDE DERIVAR. La lista de siempre se escribe acá, a mano:
         // derivarla de la constante haría que editar la segunda lista cambiara el
-        // prefijo de todos los proveedores y rompiera los cassettes sin que nada falle.
+        // prefijo de todos los proveedores sin que nada falle.
         (string, string, string)[] deSiempre =
         [
             ("identity", "carreras", "code"),

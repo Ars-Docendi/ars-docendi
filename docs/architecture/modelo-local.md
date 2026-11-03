@@ -10,7 +10,7 @@ Las decisiones están en los changes [`asistente-proveedor-local`](../../openspe
 
 ## 1. Lo que el código le pide a la GPU
 
-Medido sobre los 109 cassettes grabados contra Claude (`backend/tests/ArsDocendi.IntegrationTests/Cassettes`):
+Medido sobre las 109 respuestas que se grabaron contra Claude (un corpus que ya no se versiona: Anthropic dejó de ser proveedor de producción):
 
 | Llamada           | Cuándo                                   | Prefijo estable                                                                 | Entrada total | Salida (mediana / máx.)        |
 | ----------------- | ---------------------------------------- | ------------------------------------------------------------------------------- | ------------- | ------------------------------ |
@@ -171,7 +171,7 @@ Los techos de tokens importan más en local que en la nube. El servidor reserva 
 | Prefijo estable primero, como `system`    | `ProveedorLocal.Cuerpo`                                                 | Aprovecha la caché automática de prefijo                                                                                                         |
 | Tokens de caché informados                | `cached_tokens` / `timings.cache_n` → `tokens_de_cache`                 | El hit rate se ve en el registro operativo                                                                                                       |
 | Thinking apagado salvo esfuerzo alto      | Adaptador + flag del servidor                                           | Salidas 5–20× más cortas                                                                                                                         |
-| Decodificación restringida                | `EsquemaDeSalidaJson` de la generación → `response_format: json_schema` | Sin JSON roto: un objeto ilegible era una abstención. Anthropic lo ignora y los cassettes siguen valiendo                                        |
+| Decodificación restringida                | `EsquemaDeSalidaJson` de la generación → `response_format: json_schema` | Sin JSON roto: un objeto ilegible era una abstención. Anthropic lo ignora                                                                        |
 | Compuerta de concurrencia con prioridad   | `CompuertaDelModelo`, `ProveedorConCompuerta`                           | La GPU nunca recibe más de `max-num-seqs`. La espera en cola no cuenta para el timeout ni para el breaker. Los turnos empezados terminan primero |
 | Saturación distinta de caída              | `ProveedorSaturado`, `TextoProveedorSaturado`                           | «Probá en unos segundos» en lugar de «más tarde», sin abrir el breaker                                                                           |
 | La reescritura que falla no tira el turno | `CapaConversacional`                                                    | Antes era una excepción no prevista                                                                                                              |
@@ -181,7 +181,7 @@ Los techos de tokens importan más en local que en la nube. El servidor reserva 
 
 ### Aplicado en `asistente-optimizaciones-modelo-local`
 
-Todo opt-in: con los defaults el prompt de Claude y los cassettes no cambian. Los perfiles de `infra/compose/` y la guía de la §8 las prenden; las opciones están en el [README del módulo](../../backend/src/Modules.Asistente/README.md#optimizaciones-para-un-modelo-propio).
+Todo opt-in: con los defaults el prompt no cambia. Los perfiles de `infra/compose/` y la guía de la §8 las prenden; las opciones están en el [README del módulo](../../backend/src/Modules.Asistente/README.md#optimizaciones-para-un-modelo-propio).
 
 | Técnica                                      | Opción                              | Efecto esperado                                                                                                                    |
 | -------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -197,7 +197,7 @@ Todo opt-in: con los defaults el prompt de Claude y los cassettes no cambian. Lo
 
 ### Aplicado en `asistente-redaccion-sin-enmascarado-local`
 
-Opt-in (`RedaccionSinEnmascarar`, default `false`): con proveedor `local` (o `ollama`, desde `asistente-proveedor-ollama`) y sin directorio de cassettes, el prompt de redacción lleva el valor real de las columnas `sensible-valor` en vez del marcador. Con cualquier otro proveedor, o con cassettes, se sigue enmascarando y el arranque advierte. `sensible-texto` se suprime siempre. La exposición —los valores entran en la caché KV y en el camino de las solicitudes del servidor— exige hardware del Departamento y, con llama-server, `--cache-ram 0`; está en el [README del módulo](../../backend/src/Modules.Asistente/README.md#la-frontera-de-salida).
+Opt-in (`RedaccionSinEnmascarar`, default `false`): con proveedor `local` (o `ollama`, desde `asistente-proveedor-ollama`), el prompt de redacción lleva el valor real de las columnas `sensible-valor` en vez del marcador. Con cualquier otro proveedor se sigue enmascarando y el arranque advierte. `sensible-texto` se suprime siempre. La exposición —los valores entran en la caché KV y en el camino de las solicitudes del servidor— exige hardware del Departamento y, con llama-server, `--cache-ram 0`; está en el [README del módulo](../../backend/src/Modules.Asistente/README.md#la-frontera-de-salida).
 
 Medido el 2026-10-03 contra Qwen3-8B (llama-server, RTX 3070) con el fixture sintético, 3 preguntas × 2 variantes × 3 repeticiones:
 
@@ -245,7 +245,7 @@ El razonamiento convive con la salida restringida (`response_format: json_schema
 
 Opt-in (`GlosarioEnElPrefijo`, default `false`): agrega al prefijo el glosario institucional (24 términos del Departamento con el valor exacto que les corresponde en el esquema, `Recursos/glosario.json`) y las dedicaciones como catálogo cerrado, «Categoría 1» a «Categoría 6» con su código. Va después del esquema y antes de los ejemplos. Cada columna y cada valor del glosario se verifican contra la base migrada.
 
-**Consecuencia para los cassettes.** Con la opción apagada el prefijo es el de siempre, byte a byte: los cassettes siguen valiendo y no se regrabó nada. Prendida, el prefijo difiere de todos los cassettes y el replay falla sin tocar la red. La regrabación paga con Claude y la evaluación del lado de Claude quedan diferidas y acopladas a ARS-161 (una sola regrabación para las dos).
+Con la opción apagada el prefijo es el de siempre, byte a byte.
 
 Medido el 2026-10-03 con el evaluador contra Qwen3-8B Q4_K_M en una RTX 3070 (llama-server build 11371, un slot de 16.384 tokens), perfil optimizado (el bloque RTX 3070 de `.env.example`). La corrida es determinista: tres corridas idénticas no cambiaron ningún ítem. Los reportes están en `eval-local/ARS-164/control/` y `eval-local/ARS-164/glosario/` (sin versionar).
 
@@ -309,7 +309,7 @@ Diferencias con el diseño de la §2:
    docker compose -p llm -f infra/compose/compose.llm.yml up -d
    ```
    Verificar `GET /health` y una completación de prueba.
-2. **Correr el evaluador** con `Asistente__Proveedor=local` y `Asistente__DirectorioDeCassettes` vacío, ya que los cassettes asumen el formato de Anthropic. Comparar contra la línea de base de Claude: **la métrica es la diferencia, no el valor absoluto**.
+2. **Correr el evaluador** con `Asistente__Proveedor=local`. Comparar contra la línea de base de Claude: **la métrica es la diferencia, no el valor absoluto**.
 3. **Prueba de carga** con prompts reales a concurrencia 1, 4, 8 y 12. Medir:
    - p50 y p95 del turno;
    - `vllm:time_to_first_token_seconds`;

@@ -36,7 +36,7 @@ public sealed class OptimizacionesModeloLocalPurasTests
     [Fact]
     public void Sin_la_opcion_el_esquema_es_byte_a_byte_el_de_siempre()
     {
-        // D1: el prefijo de Claude está sellado en los cassettes.
+        // D1: la forma compacta es opt-in; sin la opción, ningún proveedor ve otro prefijo.
         Assert.Equal(
             RenderizadorDeEsquema.Renderizar(Columnas, Referencias, []),
             RenderizadorDeEsquema.Renderizar(Columnas, Referencias, [], compacto: false));
@@ -333,7 +333,7 @@ public sealed class OptimizacionesModeloLocalPurasTests
     [Fact]
     public async Task Con_la_opcion_apagada_la_solicitud_de_la_segunda_generacion_es_identica_a_la_de_siempre()
     {
-        // D4: la clave de los cassettes incluye el esfuerzo, así que un cambio acá los invalidaría.
+        // D4: con la opción apagada, la segunda generación no cambia lo que se le pide al modelo.
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion("SELECT 1"));
         var generador = Generador(proveedor, new OpcionesAsistente
         {

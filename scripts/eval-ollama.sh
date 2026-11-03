@@ -64,12 +64,12 @@ limpiar() {
 }
 trap limpiar EXIT
 
-# Sólo el modelo y el servicio: los roles, las contraseñas de lectura y los
-# cassettes son del ambiente de referencia y no sirven contra la base descartable.
+# Sólo el modelo y el servicio: los roles y las contraseñas de lectura
+# son del ambiente de referencia y no sirven contra la base descartable.
 # PlanCompilado lo decide cada pasada.
 docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$CONTENEDOR_REFERENCIA" |
   grep -E '^(Asistente|Inferencia)__' |
-  grep -vE '^Asistente__(RolSoloLectura|RolSoloLecturaPii|PasswordSoloLectura|PasswordSoloLecturaPii|DirectorioDeCassettes|RegrabarCassettes|PlanCompilado)=' \
+  grep -vE '^Asistente__(RolSoloLectura|RolSoloLecturaPii|PasswordSoloLectura|PasswordSoloLecturaPii|PlanCompilado)=' \
   > "$trabajo/modelo.env"
 chmod 600 "$trabajo/modelo.env"
 

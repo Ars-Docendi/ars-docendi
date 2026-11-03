@@ -219,12 +219,11 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     // ------------------- redaction without masking (asistente-redaccion-sin-enmascarado-local)
 
     private static OpcionesAsistente SinEnmascarar(
-        string provider = "local", string cassetteDirectory = "", bool templates = false) =>
+        string provider = "local", bool templates = false) =>
         new()
         {
             RedaccionSinEnmascarar = true,
             Proveedor = provider,
-            DirectorioDeCassettes = cassetteDirectory,
             RedaccionConPlantillas = templates,
         };
 
@@ -293,20 +292,6 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
             new EnmascaradoFijo(sinEnmascarar: true));
 
         Assert.Contains(DocumentoSembrado, proveedor.Recibidas[^1].Mensaje, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task Unmasked_option_with_a_cassette_directory_keeps_the_document_out_of_the_prompt()
-    {
-
-        var (_, proveedor) = await PreguntarAsync(
-            Secretaria,
-            "¿Cuál es el documento de los docentes?",
-            SqlDeDocumentos,
-            SinEnmascarar(cassetteDirectory: "cassettes"));
-
-        Assert.DoesNotContain(
-            DocumentoSembrado, proveedor.Recibidas[^1].Mensaje, StringComparison.Ordinal);
     }
 
     [Fact]

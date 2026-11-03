@@ -119,8 +119,7 @@ revalida cada referencia del pedido con el mismo puerto **antes del candado**.
 El id de la entidad **nunca llega al modelo**. `MarcadoresDeReferencias.Asignar`
 numera un `$refN` por mención, continuando donde quedó el segmento;
 `GeneradorDeSql.ArmarMensaje` describe la entidad por nombre en un bloque
-«Menciones» que va DESPUÉS del prefijo cacheado (no lo toca —
-`PrefijoDeLosCassettesTests` sigue en pie sin regrabar nada); `ValidadorDeSql`
+«Menciones» que va DESPUÉS del prefijo cacheado (no lo toca); `ValidadorDeSql`
 tokeniza `$refN` como su propia clase y rechaza un marcador no declarado o uno
 declarado y sin usar; `ReescritorDeMarcadores`/`EjecutorDeConsulta` reescriben
 cada `$refN` a `@refN` y lo ligan como parámetro `uuid`. Los bindings se
@@ -157,10 +156,8 @@ generacion.Motivo ?? NoCubierto      ← MotivosDeRechazo.Interpretar (conjunto 
 NoCubierto }`; un valor fuera del conjunto, ausente, o una generación
 ininteligible/cortada por el techo de tokens resuelven `NoCubierto`. La primera
 variante de `no_cubierto` sin término es, byte a byte,
-`PoliticaDeAbstencion.TextoNoContestable`: un cassette viejo (sin `motivo`) o una
-generación cortada replay exactamente el texto de siempre — el prefijo del prompt
-no cambia en esta unidad (unidad A del ticket; la unidad B, que agrega `motivo` y
-`termino` a `InstruccionesDeGeneracion`, espera un corpus re-grabado).
+`PoliticaDeAbstencion.TextoNoContestable`: una respuesta sin `motivo` o una
+generación cortada resuelven exactamente el texto de siempre.
 
 `HiloConversacional.RechazosPrevios()` cuenta turnos `NoContestable` de **toda**
 la conversación, no del segmento vigente; `CapaConversacional` lo pasa a
@@ -190,10 +187,9 @@ El marcador es un contador por orden de aparición, no un hash del valor: un has
 un documento se invierte por fuerza bruta en segundos.
 
 **Excepción, opt-in: `Asistente__RedaccionSinEnmascarar`.** Con la opción en `true`,
-proveedor en hardware propio (`local`, o `ollama`: la GPU del Departamento) y sin
-`Asistente__DirectorioDeCassettes`, el prompt de redacción
-lleva el valor real de las columnas `sensible-valor` en vez del marcador. Si falta
-cualquiera de las tres condiciones se sigue enmascarando, el proceso arranca igual y
+y proveedor en hardware propio (`local`, o `ollama`: la GPU del Departamento), el
+prompt de redacción lleva el valor real de las columnas `sensible-valor` en vez del
+marcador. Si falta cualquiera de las dos condiciones se sigue enmascarando, el proceso arranca igual y
 el arranque registra una advertencia; el arranque también registra una línea que
 dice cuál de los dos modos corre. Las columnas `sensible-texto` se suprimen siempre,
 y quién puede leer datos personales no cambia: lo decide el rol de PostgreSQL.
@@ -760,60 +756,6 @@ antes de que esta fuente exista, así que la línea que el `.env.example` trae p
 la sección de deploy no tiene efecto acá — y no podría tenerlo, porque el lector
 se apaga justamente fuera de Development.
 
-### Los cassettes del proveedor
-
-Graban el cuerpo **crudo** de la respuesta del proveedor y lo vuelven a servir
-desde disco, con el mismo criterio que cualquier suite de fixtures VCR: si el
-cassette existe y la variable de re-grabación no está, se lee del disco; si no
-está, se llama a la API real y se graba.
-
-| Variable                           | Default | Qué decide                                                            |
-| ---------------------------------- | ------- | --------------------------------------------------------------------- |
-| `Asistente__DirectorioDeCassettes` | vacío   | Dónde viven los cassettes. **Vacío apaga el mecanismo entero**        |
-| `Asistente__RegrabarCassettes`     | vacío   | Cualquier valor no vacío permite salir a la red a grabar lo que falte |
-
-**Con el directorio vacío el handler ni siquiera se registra**, así que el
-pipeline del cliente HTTP queda idéntico al de antes de que el mecanismo
-existiera: producción no paga nada y no hay nada que se pueda misconfigurar. La
-única forma de encenderlo es escribir una ruta.
-
-**Con una ruta puesta y sin la variable de re-grabación, una llamada sin cassette
-falla y NO sale a la red.** Es lo que hace imposible que el CI gaste plata por
-este camino (RNF-15, RNF-16): el handler lanza sin invocar hacia adentro, y el
-error nombra la clave que faltó y el directorio donde se la buscó.
-
-**Con el cassette presente no se re-graba**, aunque la variable esté puesta.
-Re-grabar es una operación deliberada sobre las claves que faltan, no un modo en
-que cada corrida vuelva a pagar por respuestas que ya están en disco.
-
-Cada cassette lleva un sello con el modelo, la fecha, el hash del prefijo y el
-hash del fixture contra el que se grabó. Uno cuyo sello no corresponda al prefijo
-o al fixture vigentes **se rechaza en vez de servirse**: la respuesta que guarda
-la dio el modelo sobre otro esquema o sobre otros datos.
-
-> **Un cassette prueba el parseo, no la calidad.** Congela una respuesta, no la
-> competencia del modelo: lo que estos tests cubren es que
-> `GeneradorDeSql.Interpretar`, el redactor y el reescritor sepan leer lo que un
-> modelo real devolvió. Si la traducción es buena o mala lo mide el evaluador, y
-> nada de esto lo reemplaza.
-
-Los cassettes versionados viven en
-`backend/tests/ArsDocendi.IntegrationTests/Cassettes/`, con el nombre de su clave.
-Los tests de parseo **iteran el directorio**: agregar uno suma un caso sin tocar
-ningún archivo de test, y un directorio vacío falla en vez de pasar en verde con
-cero cobertura. Se clasifican por el hash del prefijo del sello, que las tres
-llamadas del pipeline tienen distinto.
-
-Los que hay hoy se grabaron contra el transporte que impersona la API, para que el
-mecanismo tenga con qué probarse. **Los cassettes de salida real del modelo llegan
-con la primera corrida financiada del evaluador, que bloquea ARS-67 y que este
-trabajo no incluye**: lo que se entrega acá es el mecanismo, probado punta a punta
-sin clave. Ver [`backend/eval/README.md`](../../eval/README.md).
-
-Lo que la fixture congelada **no** detecta —un cambio de formato de cable del
-proveedor, que dejaría los tests en verde mientras la API real devuelve otra cosa—
-está registrado como **TD-017**.
-
 ### Levantar el asistente entero en local
 
 El asistente es el único módulo que necesita **dos roles de PostgreSQL extra**, y
@@ -992,8 +934,7 @@ consulta.
 ### Optimizaciones para un modelo propio
 
 Ocho opciones del change `asistente-optimizaciones-modelo-local`. **Todas arrancan
-apagadas**: con los defaults el prompt de Claude no cambia en un byte y los cassettes
-siguen valiendo. Cada una es una hipótesis para un modelo chico que el evaluador
+apagadas**: con los defaults el prompt no cambia en un byte. Cada una es una hipótesis para un modelo chico que el evaluador
 tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la RTX 3070
 ([modelo-local.md §8](../../../docs/architecture/modelo-local.md)) las prenden.
 
@@ -1008,7 +949,7 @@ tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la 
 | `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS                                                                       |
 | `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                                                                                |
 | `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                                                                               |
-| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` u `ollama` y sin cassettes                                                        |
+| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` u `ollama`                                                                        |
 | `RazonamientoEnSegundaGeneracion`   | `false` | La segunda generación del turno (reintento por vacío o reparación) se pide con esfuerzo alto, o sea con razonamiento si el servidor lo permite. Con `--reasoning-budget 0` no tiene efecto |
 | `MaximoDeTokensDeSegundaGeneracion` | 0       | Techo de tokens de esa segunda generación, que razona antes de escribir la consulta. Cero usa `MaximoDeTokensDeGeneracion`; sin la opción anterior no rige                                 |
 
@@ -1109,9 +1050,7 @@ desde la designación cuenta años desde el `vigente_desde` más antiguo de la p
 o no); la declarada, desde la experiencia más antigua cargada en el portal. Las dos se
 calculan contra la fecha de referencia del turno, nunca contra el reloj.
 
-Con `MuestrasDelPlan = 3` el turno gasta como mucho tres llamadas y ninguna de redacción. Con
-cassettes del proveedor Anthropic las muestras coinciden por construcción —la clave de cassette
-no incluye la temperatura—, así que el acuerdo solo se mide con el modelo local. La evaluación
+Con `MuestrasDelPlan = 3` el turno gasta como mucho tres llamadas y ninguna de redacción. La evaluación
 está en [`backend/eval/README.md`](../../eval/README.md#las-preguntas-compuestas-del-plan-compilado).
 
 #### Medición en la RTX 3070
