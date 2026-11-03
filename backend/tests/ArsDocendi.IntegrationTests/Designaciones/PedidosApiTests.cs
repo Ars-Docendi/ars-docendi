@@ -152,7 +152,9 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         await using var conexion = await AbrirConexionAsync();
+        // Fixture fuera de orden: el historial del circuito es de sólo inserción.
         await using var comando = new NpgsqlCommand("""
+            SET session_replication_role = replica;
             UPDATE designaciones.pedido_historial
                SET created_at = CASE id
                    WHEN 'd7000000-0000-4000-8000-000000000004' THEN TIMESTAMPTZ '2026-06-14 12:00:00+00'
@@ -251,7 +253,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 
         var enviada = await servicio.AplicarAccionAsync(baja.Id, new AccionPedido.Enviar(), ct);
 
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviada.Estado);
+        Assert.Equal("en_proceso", enviada.Estado);
         Assert.Null(enviada.CargoSolicitado);
         Assert.Null(enviada.DedicacionSolicitada);
         Assert.Null(enviada.Horas);
@@ -418,7 +420,8 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             dos.AplicarAccionIdempotenteAsync(
                 pedidoId, new AccionPedido.Enviar(), clave, "enviar", string.Empty, ct));
 
-        Assert.All(respuestas, r => Assert.Equal(EstadosPedido.EnRevisionCoordinador, r.Estado));
+        // El Jefe no tiene designaciones.ver_seguimiento: ve el pedido "en proceso".
+        Assert.All(respuestas, r => Assert.Equal("en_proceso", r.Estado));
         await using var verificacion = PostgresFixture.CrearDesignaciones(Cadena);
         Assert.Equal(1, await verificacion.PedidoHistorial.CountAsync(
             h => h.PedidoId == pedidoId && h.Accion == "enviar", ct));
@@ -449,6 +452,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
+            SellosPrueba.Sellador(db),
             NullLogger<ServicioPedidos>.Instance,
             new ServicioPersonas(new RepositorioDocentes(identityDb)),
             almacenamiento);

@@ -34,7 +34,7 @@
 -- Idempotente: los dos INSERT llevan ON CONFLICT DO NOTHING.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000029', 'asistente.administrar', 'Administrar el uso del asistente', 'Administrar presupuestos de uso del asistente (por rol y por usuario), el tope organizacional de gasto, el modo mantenimiento y el panel de uso. No habilita leer el historial de conversaciones de otro usuario ni ver la consulta SQL generada.')
+    ('b2000000-0000-4000-8000-000000000036', 'asistente.administrar', 'Administrar el uso del asistente', 'Administrar presupuestos de uso del asistente (por rol y por usuario), el tope organizacional de gasto, el modo mantenimiento y el panel de uso. No habilita leer el historial de conversaciones de otro usuario ni ver la consulta SQL generada.')
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO identity.rol_permisos (rol_id, permiso_id)

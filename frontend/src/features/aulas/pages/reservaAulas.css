@@ -1,0 +1,62 @@
+.adoc-aulas-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.adoc-aulas-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.adoc-aulas-section-header h2 {
+  margin: 0;
+  font-size: var(--text-heading-sm-size, 1.125rem);
+  color: var(--color-text-primary);
+}
+.adoc-aulas-table {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+}
+.adoc-aulas-table table {
+  min-width: 960px;
+}
+.adoc-aulas-row--accionable {
+  cursor: pointer;
+}
+.adoc-aulas-row--accionable:hover {
+  background: var(--color-bg-canvas);
+}
+.adoc-aulas-table .adoc-fila-enlace {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-link);
+}
+.adoc-aulas-table .adoc-fila-enlace:hover {
+  text-decoration: underline;
+}
+.adoc-aulas-alerta-reintento {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* Debajo de 560 px (como el Portal): menos padding, encabezados de sección que se acomodan y la
+   tabla ancha desplaza dentro de su propio contenedor. */
+@media (max-width: 559.98px) {
+  .adoc-aulas-section {
+    margin-top: var(--space-4);
+  }
+  .adoc-aulas-section-header {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+  }
+  .adoc-aulas-section-header .adoc-btn {
+    min-height: 44px;
+  }
+  .adoc-aulas-table {
+    max-width: 100%;
+  }
+}

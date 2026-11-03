@@ -57,7 +57,7 @@ El runtime obtiene personas, usuarios, docentes, roles, permisos, materias, carg
 
 La autenticación de desarrollo puede guardar únicamente el identificador del usuario y el código de rol elegidos. El backend vuelve a resolver la cuenta, sus permisos y su ámbito en cada solicitud.
 
-El estado efímero de formularios, modales, filtros y navegación también permanece en el cliente.
+El estado efímero de formularios y modales permanece en el cliente. Los filtros, el orden y las pestañas de una pantalla viven en el query de la URL (ver [frontend-conventions.md](./frontend-conventions.md)).
 
 ### Constantes admitidas
 

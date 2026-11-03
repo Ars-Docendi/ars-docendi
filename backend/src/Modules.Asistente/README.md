@@ -1230,7 +1230,7 @@ con retención propia (`RetencionDeAuditoriaDeAdministracionDias`, default 365).
 El panel de uso (`GET /api/asistente/administracion/uso`) agrega
 `registro_operativo` — nunca `registro_analitico` — por usuario, por rol y
 organizacional, con nombres resueltos vía `IConsultasIdentity`, nunca
-`usuarios.ver`.
+`personas.ver`.
 
 ## Conexiones
 

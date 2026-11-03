@@ -1,9 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render as renderBase, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import type { PedidoDesignacion } from "../types";
 import { TablaMisPedidos } from "./TablaMisPedidos";
 import { FILTROS_INICIALES } from "./filtrosMisPedidos";
+
+/** Las filas llevan enlaces del router: toda renderización necesita uno. */
+function render(ui: React.ReactElement) {
+  return renderBase(ui, { wrapper: MemoryRouter });
+}
 
 function pedido(): PedidoDesignacion {
   return {

@@ -28,6 +28,9 @@ function conUsuario(permissions: string[]) {
       role: "r",
       roleCode: "r",
       permissions,
+      asignacion: null,
+      asignaciones: [],
+      requiereElegirRol: false,
     },
     isLoading: false,
     error: null,
@@ -67,13 +70,15 @@ describe("La ruta, sin el permiso (tasks.md 13.1)", () => {
     );
   });
 
-  it("con el permiso de soporte pero sin usuarios.ver tampoco resuelve: no habría a quién elegir", async () => {
+  it("con el permiso de soporte pero sin personas.ver tampoco resuelve: no habría a quién elegir", async () => {
     conUsuario(["asistente.leer_historial_ajeno"]);
     const buscar = vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([]);
 
     montarConRouter("/asistente/soporte-historial");
 
-    expect(await screen.findByText("Inicio")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "No tenés acceso a esta página" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Historial del asistente (soporte)")).not.toBeInTheDocument();
     expect(buscar).not.toHaveBeenCalled();
   });
@@ -81,7 +86,7 @@ describe("La ruta, sin el permiso (tasks.md 13.1)", () => {
 
 describe("La ruta, con el permiso (tasks.md 13.1)", () => {
   it("la pantalla se monta", async () => {
-    conUsuario(["asistente.leer_historial_ajeno", "usuarios.ver"]);
+    conUsuario(["asistente.leer_historial_ajeno", "personas.ver"]);
     vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([]);
 
     montarConRouter("/asistente/soporte-historial");

@@ -6,8 +6,7 @@
 // ============================================================
 import type { ReactNode } from "react";
 
-/* Topbar + chrome */
-/* Los usa el asistente: el buscador del rail de conversaciones y su ayuda. */
+/* Los usa el asistente: el buscador del rail de conversaciones. */
 export const searchIcon: ReactNode = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
     <circle cx="8" cy="8" r="5" />
@@ -15,17 +14,10 @@ export const searchIcon: ReactNode = (
   </svg>
 );
 
-export const helpIcon: ReactNode = (
+/* Botón "Menú" (☰): abre el panel en pantallas angostas y pliega la barra lateral en escritorio. */
+export const menuIcon: ReactNode = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <circle cx="9" cy="9" r="7" />
-    <path d="M7 7a2 2 0 014 0c0 1-2 1.5-2 3M9 13v.5" />
-  </svg>
-);
-
-export const collapseIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <path d="M11 4L6 9l5 5" />
-    <rect x="2" y="3" width="14" height="12" />
+    <path d="M3 5h12M3 9h12M3 13h12" />
   </svg>
 );
 
@@ -58,6 +50,14 @@ export const railExpandirIcon: ReactNode = (
     <rect x="2.5" y="3" width="13" height="12" rx="1.5" />
     <path d="M7 3v12" />
     <path d="M9.5 7l2 2-2 2" />
+  </svg>
+);
+
+/* Signo de pregunta del acceso al Centro de ayuda (pie de la sidebar). */
+export const helpIcon: ReactNode = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <circle cx="9" cy="9" r="7" />
+    <path d="M6.9 7.2a2.2 2.2 0 014.3.6c0 1.4-2.2 1.7-2.2 3.1M9 13v.1" />
   </svg>
 );
 

@@ -1,16 +1,20 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
+using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Asistente.Contracts;
+using Modules.Designaciones.Repositories;
+using Modules.Designaciones.Services;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -353,7 +357,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
     {
         // sistema-seccion-unificada, design.md D5, «Humanized identity events»
         // (tarea 2.9): NO se inserta el change_log a mano — se pasa por
-        // ServicioUsuarios, el mismo camino que usa producción, para probar el
+        // ServicioAdministracionPersonas, el mismo camino que usa producción, para probar el
         // caso real de revocación (soft-delete vía UPDATE de deleted_at, no un
         // DELETE físico).
         var ct = TestContext.Current.CancellationToken;
@@ -363,16 +367,20 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         var sufijo = Guid.NewGuid().ToString("N")[..10];
 
         await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var servicioUsuarios = new ServicioUsuarios(db, new RepositorioUsuarios(db));
-        var datos = new GuardarUsuarioDto(
-            "Julieta", "Acosta", $"DOC{sufijo}", $"LEG{sufijo}", null,
+        await using var modulo = PostgresFixture.CrearDesignaciones(Cadena);
+        var servicio = new ServicioAdministracionPersonas(
+            new RepositorioDocentes(db),
+            new ServicioAdministracionDesignaciones(new RepositorioDesignaciones(modulo)),
+            new UnidadDeTrabajoAdministracion());
+        var datos = new GuardarPersonaDto(
+            "Julieta", "Acosta", $"{Random.Shared.NextInt64(10_000_000, 99_999_999)}", $"LEG{sufijo}", null,
             new DateOnly(1990, 1, 1), null, $"{sufijo}@prueba.invalid",
-            [new GuardarAsignacionRolDto(rolSecretaria)]);
+            [new GuardarAsignacionRolDto(rolSecretaria)], []);
 
-        var creado = await servicioUsuarios.CrearAsync(datos, ct);
+        var creado = await servicio.GuardarAsync(null, datos, ct);
         var idAsignacionSecretaria = creado.Membresias.Single(m => m.RolId == rolSecretaria).Id;
 
-        await servicioUsuarios.EditarAsync(creado.Id, datos with
+        await servicio.GuardarAsync(creado.PersonaId, datos with
         {
             Version = creado.Version,
             Membresias = [new GuardarAsignacionRolDto(rolAdministrativo)],

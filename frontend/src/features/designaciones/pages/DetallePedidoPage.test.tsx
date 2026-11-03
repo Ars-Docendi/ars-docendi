@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { DetallePedidoPage } from "./DetallePedidoPage";
@@ -48,7 +49,13 @@ vi.mock("../hooks/useAccionesPedido", () => {
     useDevolverPedido: mutacion,
     usePriorizarPedido: mutacion,
     useDespriorizarPedido: mutacion,
-    useEliminarPedido: mutacion,
+    // Confirma de inmediato: el test sólo mira a dónde navega la página después de eliminar.
+    useEliminarPedido: () => ({
+      mutate: (_id: string, opciones?: { onSuccess?: () => void }) => opciones?.onSuccess?.(),
+      isPending: false,
+      isError: false,
+      error: null,
+    }),
   };
 });
 
@@ -77,7 +84,10 @@ function renderDetalle(origen?: string) {
   render(
     <MemoryRouter
       initialEntries={[
-        { pathname: "/designaciones/pedidos/p1", state: origen ? { origen } : undefined },
+        {
+          pathname: "/designaciones/pedidos/p1",
+          state: origen ? { volverA: `/designaciones/${origen}` } : undefined,
+        },
       ]}
     >
       <Routes>
@@ -112,5 +122,88 @@ describe("DetallePedidoPage — encabezado", () => {
     expect(alerta).toHaveTextContent("Seleccioná un cargo activo.");
     expect(alerta).toHaveTextContent("Horas");
     expect(alerta).toHaveTextContent("Las horas de materia deben ser mayores a cero.");
+  });
+});
+
+describe("DetallePedidoPage — Volver", () => {
+  beforeEach(() => {
+    estado.permisos = ["designaciones.gestionar"];
+    estado.pedido = PEDIDO;
+    estado.errorAceptar = null;
+  });
+
+  it("vuelve a la pantalla de origen aunque se haya llegado desde la edición", async () => {
+    // Historial real del loop: Mis pedidos → edición → (Cancelar) detalle.
+    render(
+      <MemoryRouter
+        initialEntries={[
+          "/designaciones/mis-pedidos",
+          "/designaciones/pedidos/p1/editar",
+          {
+            pathname: "/designaciones/pedidos/p1",
+            state: { volverA: "/designaciones/mis-pedidos" },
+          },
+        ]}
+        initialIndex={2}
+      >
+        <Routes>
+          <Route path="/designaciones/mis-pedidos" element={<p>Pantalla Mis pedidos</p>} />
+          <Route path="/designaciones/pedidos/:id/editar" element={<p>Pantalla de edición</p>} />
+          <Route path="/designaciones/pedidos/:id" element={<DetallePedidoPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByRole("link", { name: "Volver a Mis pedidos" }));
+
+    expect(screen.getByText("Pantalla Mis pedidos")).toBeInTheDocument();
+    expect(screen.queryByText("Pantalla de edición")).not.toBeInTheDocument();
+  });
+});
+
+describe("DetallePedidoPage — eliminar", () => {
+  it("vuelve a Revisión, no a Mis pedidos, si el detalle se abrió desde Revisión", async () => {
+    estado.permisos = ["designaciones.revisar", "designaciones.gestionar"];
+    estado.pedido = { ...PEDIDO, estado: "borrador", accionesPermitidas: ["eliminar"] };
+    render(
+      <MemoryRouter
+        initialEntries={[
+          { pathname: "/designaciones/pedidos/p1", state: { volverA: "/designaciones/revision" } },
+        ]}
+      >
+        <Routes>
+          <Route path="/designaciones/revision" element={<p>Pantalla Revisión</p>} />
+          <Route path="/designaciones/mis-pedidos" element={<p>Pantalla Mis pedidos</p>} />
+          <Route path="/designaciones/pedidos/:id" element={<DetallePedidoPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Eliminar" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Eliminar" }),
+    );
+
+    expect(screen.getByText("Pantalla Revisión")).toBeInTheDocument();
+  });
+});
+
+describe("DetallePedidoPage — seguimiento", () => {
+  it("sin seguimiento muestra el motivo de la devolución pero no las etapas ni el historial", () => {
+    estado.permisos = ["designaciones.ver", "designaciones.gestionar"];
+    estado.pedido = { ...PEDIDO, motivoDevolucion: "Falta el CV" };
+    renderDetalle();
+
+    expect(screen.getByText(/Te devolvieron este pedido/)).toBeInTheDocument();
+    expect(screen.getByText(/Falta el CV/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Historial del pedido" })).not.toBeInTheDocument();
+  });
+
+  it("con seguimiento muestra el historial", () => {
+    estado.permisos = ["designaciones.ver", "designaciones.ver_seguimiento"];
+    estado.pedido = PEDIDO;
+    renderDetalle();
+
+    expect(screen.getByRole("region", { name: "Historial del pedido" })).toBeInTheDocument();
   });
 });

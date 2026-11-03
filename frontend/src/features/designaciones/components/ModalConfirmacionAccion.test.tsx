@@ -28,7 +28,7 @@ const PEDIDO: PedidoDesignacion = {
 const ETIQUETA_CONFIRMAR: Record<AccionRevision, string> = {
   aceptar: "Aprobar y enviar",
   rechazar: "Rechazar novedad",
-  devolver: "Devolver a Borrador",
+  devolver: "Devolver",
   priorizar: "Guardar prioridad",
   despriorizar: "Quitar prioridad",
 };
@@ -78,6 +78,18 @@ describe("ModalConfirmacionAccion", () => {
     expect(confirmar).toBeEnabled();
     await user.click(confirmar);
     expect(onConfirmar).toHaveBeenCalledWith("No cumple los requisitos.");
+  });
+
+  it("devolver dice a quién vuelve el pedido y no promete un Borrador", () => {
+    renderModal("devolver");
+    const dialog = screen.getByRole("dialog");
+
+    expect(
+      within(dialog).getByText(
+        "El pedido vuelve al Jefe de Cátedra para que lo corrija y lo reenvíe. Se notifica al destinatario (in-app).",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Borrador/)).not.toBeInTheDocument();
   });
 
   it("devolver también exige justificativo para confirmar [BR-005]", () => {

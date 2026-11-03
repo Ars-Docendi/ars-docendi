@@ -15,9 +15,9 @@ public sealed class ArquitecturaIdentityTests
             .ToArray();
         var infracciones = new List<string>();
 
-        // Los cinco módulos internos, Asistente incluido. Si el glob dejara de
+        // Los seis módulos internos, Asistente y Notificaciones incluidos. Si el glob dejara de
         // alcanzar alguno, el test pasaría sin haberlo mirado.
-        Assert.Equal(5, proyectos.Length);
+        Assert.Equal(6, proyectos.Length);
         Assert.Contains(proyectos, ruta => ruta.EndsWith("Modules.Asistente.csproj", StringComparison.Ordinal));
 
         foreach (var proyecto in proyectos)
@@ -42,5 +42,45 @@ public sealed class ArquitecturaIdentityTests
             infracciones.Count == 0,
             "La comunicación cross-module sólo puede usar Contracts. " +
             $"Referencias detectadas: {string.Join(", ", infracciones)}");
+    }
+
+    [Fact]
+    public void Notificaciones_es_una_hoja_del_grafo_y_sus_emisores_solo_ven_sus_Contracts()
+    {
+        var raiz = BuscarRaizRepositorio();
+        string[] Referencias(string proyecto) =>
+            XDocument.Load(Path.Combine(raiz, "backend", "src", proyecto, proyecto + ".csproj"))
+                .Descendants("ProjectReference")
+                .Select(nodo => Path.GetFileNameWithoutExtension(nodo.Attribute("Include")!.Value.Replace('\\', '/')))
+                .ToArray();
+
+        // Contracts hold only records and one interface: no project reference at all.
+        Assert.Empty(Referencias("Modules.Notificaciones.Contracts"));
+        // The module depends on infrastructure and on its own Contracts; no business module.
+        Assert.Equal(
+            ["ArsDocendi.Migraciones", "ArsDocendi.Shared", "Modules.Notificaciones.Contracts"],
+            Referencias("Modules.Notificaciones").Order().ToArray());
+        // Emitters reach the module through its Contracts.
+        foreach (var emisor in new[] { "Modules.Aulas", "Modules.Designaciones", "Modules.Tareas" })
+        {
+            Assert.Contains("Modules.Notificaciones.Contracts", Referencias(emisor));
+        }
+    }
+
+    private static string BuscarRaizRepositorio()
+    {
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null)
+        {
+            if (Directory.Exists(Path.Combine(directorio.FullName, "backend", "src"))
+                && File.Exists(Path.Combine(directorio.FullName, "AGENTS.md")))
+            {
+                return directorio.FullName;
+            }
+
+            directorio = directorio.Parent;
+        }
+
+        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
     }
 }

@@ -49,10 +49,10 @@ describe("El ítem «Sistema» (any-of sistema.estado.ver | asistente.administra
   });
 });
 
-describe("El ítem «Historial del asistente» (asistente.leer_historial_ajeno y usuarios.ver)", () => {
+describe("El ítem «Historial del asistente» (asistente.leer_historial_ajeno y personas.ver)", () => {
   const etiqueta = "Historial del asistente";
 
-  it.each([[["asistente.leer_historial_ajeno"]], [["usuarios.ver"]]])(
+  it.each([[["asistente.leer_historial_ajeno"]], [["personas.ver"]]])(
     "no aparece con sólo %j",
     (permisos) => {
       const items = filtrarNavegacion(permisos).flatMap((g) => g.items);
@@ -62,7 +62,7 @@ describe("El ítem «Historial del asistente» (asistente.leer_historial_ajeno y
   );
 
   it("aparece con los dos", () => {
-    const items = filtrarNavegacion(["asistente.leer_historial_ajeno", "usuarios.ver"]).flatMap(
+    const items = filtrarNavegacion(["asistente.leer_historial_ajeno", "personas.ver"]).flatMap(
       (g) => g.items,
     );
 

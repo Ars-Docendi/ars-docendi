@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Modules.Asistente\Modules.Asistente.csproj" />
     <ProjectReference Include="..\Modules.Asistente.Contracts\Modules.Asistente.Contracts.csproj" />
     <ProjectReference Include="..\ArsDocendi.Migraciones\ArsDocendi.Migraciones.csproj" />
+    <ProjectReference Include="..\Modules.Notificaciones\Modules.Notificaciones.csproj" />
   </ItemGroup>
 
 </Project>

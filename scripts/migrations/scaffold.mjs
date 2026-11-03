@@ -6,7 +6,7 @@ principal(() => {
   const { opciones, posiciones, raiz } = argumentos(process.argv.slice(2), ["--root"]);
   if (opciones["--help"]) {
     console.log(
-      "node scripts/migrations/scaffold.mjs <Identity|Storage|Designaciones|Portal|Aulas|Tareas> <NombrePascalCase> [--dry-run] [--root directorio]",
+      "node scripts/migrations/scaffold.mjs <Identity|Storage|Designaciones|Portal|Aulas|Tareas|Notificaciones> <NombrePascalCase> [--dry-run] [--root directorio]",
     );
     return;
   }

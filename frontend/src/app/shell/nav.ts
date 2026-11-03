@@ -6,8 +6,7 @@ export interface NavItem {
   label: string;
   /**
    * Un permiso único, o una lista: con una lista alcanza con CUALQUIERA de
-   * los permisos indicados (any-of), como en `RequirePermission` (design D9,
-   * sistema-seccion-unificada). El ítem «Sistema» es el primer caso real.
+   * los permisos indicados (any-of), como en `RequirePermission`.
    */
   permiso: string | readonly string[];
   /**
@@ -31,7 +30,14 @@ export const NAVEGACION: NavGroup[] = [
   {
     label: "Trabajo",
     items: [
-      { to: "/aulas", icon: "aulas", label: "Reserva de aulas", permiso: "aulas.ver" },
+      {
+        to: "/aulas",
+        icon: "aulas",
+        label: "Reserva de aulas",
+        // Los mismos permisos que exige la ruta /aulas: con sólo aulas.ver la pantalla
+        // redirige, así que la entrada no se muestra.
+        permiso: ["aulas.solicitar", "aulas.aprobar"],
+      },
       { to: "/tareas", icon: "tareas", label: "Tareas", permiso: "tareas.ver" },
       {
         to: "/tareas/proyectos",
@@ -80,8 +86,12 @@ export const NAVEGACION: NavGroup[] = [
   {
     label: "Configuración",
     items: [
-      { to: "/usuarios", icon: "usuarios", label: "Usuarios", permiso: "usuarios.ver" },
-      { to: "/docentes", icon: "docentes", label: "Docentes", permiso: "docentes.ver" },
+      {
+        to: "/personas",
+        icon: "usuarios",
+        label: "Personas",
+        permiso: ["personas.ver", "personas.ver_ambito"],
+      },
       { to: "/roles", icon: "roles", label: "Roles", permiso: "roles.ver" },
       {
         to: "/asistente/soporte-historial",
@@ -91,11 +101,11 @@ export const NAVEGACION: NavGroup[] = [
         // sin el permiso, este ítem no aparece, y sin el ítem no hay cómo llegar a la
         // ruta desde la navegación —la ruta en sí también la protege
         // `RequirePermission` (ver features/asistente/routes.tsx), así que escribir la
-        // URL a mano tampoco alcanza. `usuarios.ver` también hace falta: el
+        // URL a mano tampoco alcanza. `personas.ver` también hace falta: el
         // selector de sujeto lee el listado de usuarios, que el backend protege
         // con ese permiso.
         permiso: "asistente.leer_historial_ajeno",
-        ademas: ["usuarios.ver"],
+        ademas: ["personas.ver"],
       },
       // «Uso del asistente» ya no es un ítem propio: sistema-seccion-unificada
       // (ARS-154) lo absorbe en la pestaña Asistente del ítem «Sistema» de

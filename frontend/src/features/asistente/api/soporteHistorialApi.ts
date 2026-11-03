@@ -45,7 +45,15 @@ export interface PersonaParaSoporte {
 /** Busca personas para elegir A QUIÉN leerle el historial. */
 export async function buscarPersonasParaSoporte(): Promise<PersonaParaSoporte[]> {
   const { data } = await apiClient.get<
-    { id: string; nombre: string; apellido: string; documento: string }[]
-  >("/api/administracion/usuarios");
-  return data.map(({ id, nombre, apellido, documento }) => ({ id, nombre, apellido, documento }));
+    {
+      usuarioId: string | null;
+      nombre: string;
+      apellido: string;
+      documento: string;
+    }[]
+  >("/api/administracion/personas");
+  // Sólo quien tiene cuenta tiene historial que leer; `id` es el de la cuenta, no el de la persona.
+  return data.flatMap(({ usuarioId, nombre, apellido, documento }) =>
+    usuarioId ? [{ id: usuarioId, nombre, apellido, documento }] : [],
+  );
 }

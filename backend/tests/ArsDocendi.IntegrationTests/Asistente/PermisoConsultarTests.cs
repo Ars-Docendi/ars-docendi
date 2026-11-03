@@ -1,7 +1,6 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
-using ArsDocendi.Shared.Identity.Desarrollo;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
@@ -119,6 +118,8 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
             builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
             builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
             builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
+            // En Production el sellado de pedidos exige su clave.
+            builder.UseSetting("Integridad:ClavesSellado:1", Convert.ToBase64String(new byte[32]));
         });
 
         var proveedor = host.Services.GetRequiredService<IAuthorizationPolicyProvider>();
@@ -155,12 +156,19 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
 
     private async Task<IReadOnlyList<string>> PermisosDelJefeAsync(CancellationToken ct)
     {
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var identidad = await new ServicioIdentidadesDesarrollo(db)
-            .ValidarAsync(Jefe, "jefe_catedra", ct);
+        var permisos = await LeerColumnaAsync(
+            """
+            SELECT DISTINCT p.code
+              FROM identity.user_roles ur
+              JOIN identity.roles r ON r.id = ur.role_id AND r.is_active
+              JOIN identity.rol_permisos rp ON rp.rol_id = r.id
+              JOIN identity.permisos p ON p.id = rp.permiso_id
+             WHERE ur.user_id = @usuario AND r.code = 'jefe_catedra' AND ur.deleted_at IS NULL
+             ORDER BY p.code
+            """, ("usuario", Jefe));
 
-        Assert.NotNull(identidad);
-        return identidad.Permisos;
+        Assert.NotEmpty(permisos);
+        return permisos;
     }
 
     private Task EjecutarMigracionAsync() => EjecutarAsync(

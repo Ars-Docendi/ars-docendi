@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Button, Input, Table, Tabs } from "@ars-docendi/ui";
+import { Button, Input, Table } from "@ars-docendi/ui";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
+import { useFiltrosURL, useOrdenURL, usePestanaURL } from "../../../shared/navegacion/estadoURL";
+import { PanelPestana, Pestanas } from "../../../shared/ui/Pestanas";
 import type { ActorContexto, PedidoDesignacion, PeriodoDesignacion } from "../types";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import {
@@ -50,6 +52,8 @@ const ALTO_TABLA = "calc(100vh - 452px)";
 const ANCHO_DOCENTE = 180;
 const ANCHO_CHIP_PRIORITARIO = 88;
 
+const IDS_PESTANIAS = PESTANIAS.map((pestania) => pestania.id);
+
 /** Columnas ordenables y su rótulo. "Área" queda fuera a propósito. */
 const COLUMNAS: { id: ColumnaOrdenable; etiqueta: string }[] = [
   { id: "docente", etiqueta: "Docente" },
@@ -59,6 +63,8 @@ const COLUMNAS: { id: ColumnaOrdenable; etiqueta: string }[] = [
   { id: "ultima", etiqueta: "Últ. actualización" },
   { id: "estado", etiqueta: "Estado" },
 ];
+
+const IDS_COLUMNAS = COLUMNAS.map((columna) => columna.id);
 
 /**
  * Tabla de revisión: una sola tabla (`Table` del design system, igual que
@@ -78,12 +84,19 @@ export function TablaRevision({
   exportando = false,
   errorExportacion,
 }: TablaRevisionProps) {
-  const [pestania, setPestania] = useState<IdPestania>(() => pestaniaInicial(actor));
-  const [orden, setOrden] = useState<OrdenTabla | null>(null);
-  const [filtrosColumnasLocales, setFiltrosColumnasLocales] = useState<FiltrosColumnasTablero>(
+  // Pestaña, orden y filtros de columna viven en el query: Atrás y recargar los restauran. Cambiar
+  // de pestaña agrega una entrada al historial; el orden y los filtros la reemplazan.
+  const [pestania, setPestania] = usePestanaURL(IDS_PESTANIAS, pestaniaInicial(actor));
+  const [orden, setOrden] = useOrdenURL<ColumnaOrdenable>(IDS_COLUMNAS);
+  const [filtrosColumnasURL, setFiltrosColumnasURL] = useFiltrosURL(
     FILTROS_COLUMNAS_INICIALES,
+    "c",
   );
-  const filtrosColumnasActuales = filtrosColumnas ?? filtrosColumnasLocales;
+  const filtrosColumnasActuales = filtrosColumnas ?? filtrosColumnasURL;
+  function guardarFiltrosColumnas(nuevos: FiltrosColumnasTablero) {
+    if (!filtrosColumnas) setFiltrosColumnasURL(nuevos);
+    onFiltrosColumnasChange?.(nuevos);
+  }
   const opciones = opcionesColumnasTablero(pedidos);
   const filtrosColumnasAplicados = areaEsFiltrable(pestania)
     ? filtrosColumnasActuales
@@ -107,7 +120,8 @@ export function TablaRevision({
   return (
     <div className="adoc-revision">
       <div className="adoc-revision-tabs-row">
-        <Tabs
+        <Pestanas
+          prefijo="revision"
           items={items}
           value={pestania}
           onChange={(id) => setPestania(id as IdPestania)}
@@ -143,75 +157,71 @@ export function TablaRevision({
         </p>
       )}
 
-      <Table>
-        <Table.Root maxHeight={ALTO_TABLA}>
-          <Table.Head>
-            <Table.Row>
-              {COLUMNAS.map(({ id, etiqueta }) => (
-                <EncabezadoRevision
-                  key={id}
-                  id={id}
-                  etiqueta={etiqueta}
-                  orden={orden}
-                  onOrden={(columna) => setOrden((previo) => siguienteOrden(previo, columna))}
-                  filtros={filtrosColumnasActuales}
-                  opciones={opciones}
-                  onFiltrosChange={(cambios) => {
-                    const nuevos = { ...filtrosColumnasActuales, ...cambios };
-                    if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
-                    onFiltrosColumnasChange?.(nuevos);
-                  }}
-                />
-              ))}
-              {mostrarArea && (
-                <Table.HeaderCell>
-                  <span>
-                    Área
-                    <FiltroEncabezado
-                      etiqueta="Área"
-                      activo={filtrosColumnasActuales.area.length > 0}
-                      onLimpiar={() => {
-                        const nuevos = { ...filtrosColumnasActuales, area: [] };
-                        if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
-                        onFiltrosColumnasChange?.(nuevos);
-                      }}
-                    >
-                      <Opciones
-                        opciones={opciones.areas}
-                        valores={filtrosColumnasActuales.area}
-                        onToggle={(valor) => {
-                          const valores = alternar(filtrosColumnasActuales.area, valor);
-                          const nuevos = { ...filtrosColumnasActuales, area: valores };
-                          if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
-                          onFiltrosColumnasChange?.(nuevos);
-                        }}
-                      />
-                    </FiltroEncabezado>
-                  </span>
-                </Table.HeaderCell>
-              )}
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {visibles.length === 0 ? (
+      <PanelPestana prefijo="revision" id={pestania}>
+        <Table>
+          <Table.Root maxHeight={ALTO_TABLA}>
+            <Table.Head>
               <Table.Row>
-                <Table.Cell colSpan={columnasVisibles} className="empty">
-                  Sin pedidos que cumplan los filtros.
-                </Table.Cell>
+                {COLUMNAS.map(({ id, etiqueta }) => (
+                  <EncabezadoRevision
+                    key={id}
+                    id={id}
+                    etiqueta={etiqueta}
+                    orden={orden}
+                    onOrden={(columna) => setOrden(siguienteOrden(orden, columna))}
+                    filtros={filtrosColumnasActuales}
+                    opciones={opciones}
+                    onFiltrosChange={(cambios) =>
+                      guardarFiltrosColumnas({ ...filtrosColumnasActuales, ...cambios })
+                    }
+                  />
+                ))}
+                {mostrarArea && (
+                  <Table.HeaderCell>
+                    <span>
+                      Área
+                      <FiltroEncabezado
+                        etiqueta="Área"
+                        activo={filtrosColumnasActuales.area.length > 0}
+                        onLimpiar={() =>
+                          guardarFiltrosColumnas({ ...filtrosColumnasActuales, area: [] })
+                        }
+                      >
+                        <Opciones
+                          opciones={opciones.areas}
+                          valores={filtrosColumnasActuales.area}
+                          onToggle={(valor) => {
+                            const valores = alternar(filtrosColumnasActuales.area, valor);
+                            guardarFiltrosColumnas({ ...filtrosColumnasActuales, area: valores });
+                          }}
+                        />
+                      </FiltroEncabezado>
+                    </span>
+                  </Table.HeaderCell>
+                )}
               </Table.Row>
-            ) : (
-              visibles.map((pedido) => (
-                <FilaPedido
-                  key={pedido.id}
-                  pedido={pedido}
-                  mostrarArea={mostrarArea}
-                  onVer={onSeleccionar}
-                />
-              ))
-            )}
-          </Table.Body>
-        </Table.Root>
-      </Table>
+            </Table.Head>
+            <Table.Body>
+              {visibles.length === 0 ? (
+                <Table.Row>
+                  <Table.Cell colSpan={columnasVisibles} className="empty">
+                    Sin pedidos que cumplan los filtros.
+                  </Table.Cell>
+                </Table.Row>
+              ) : (
+                visibles.map((pedido) => (
+                  <FilaPedido
+                    key={pedido.id}
+                    pedido={pedido}
+                    mostrarArea={mostrarArea}
+                    onVer={onSeleccionar}
+                  />
+                ))
+              )}
+            </Table.Body>
+          </Table.Root>
+        </Table>
+      </PanelPestana>
     </div>
   );
 }
@@ -233,13 +243,18 @@ function FilaPedido({
       <Table.Cell>
         <span className="adoc-tabla-docente">
           <span className="adoc-tabla-nombre">
-            <TextoRecortado
-              texto={pedido.docente.nombre}
-              // Con el chip, el nombre cede su lugar: la columna no se ensancha.
-              anchoMinimo={
-                pedido.prioritario ? ANCHO_DOCENTE - ANCHO_CHIP_PRIORITARIO : ANCHO_DOCENTE
-              }
-            />
+            <EnlaceFila
+              ruta={`/designaciones/pedidos/${pedido.id}`}
+              etiqueta={`Ver el pedido de ${pedido.docente.nombre}`}
+            >
+              <TextoRecortado
+                texto={pedido.docente.nombre}
+                // Con el chip, el nombre cede su lugar: la columna no se ensancha.
+                anchoMinimo={
+                  pedido.prioritario ? ANCHO_DOCENTE - ANCHO_CHIP_PRIORITARIO : ANCHO_DOCENTE
+                }
+              />
+            </EnlaceFila>
           </span>
           {pedido.prioritario && <span className="adoc-chip-prioritario">Prioritario</span>}
         </span>

@@ -11,11 +11,12 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
 - `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial` y los catálogos `estados_proyecto`, `estados_tarea`, `prioridades` y `tipos_tarea`); DDL versionado en `database/tareas/`. Estados, prioridades y tipos se referencian por IDs numéricos; los números visibles de proyectos/tareas usan secuencias. Las cinco tablas de negocio tienen triggers `audit.attach`; sus snapshots nuevos usan la allowlist por tabla de `audit.safe_snapshot` y excluyen título, descripción, solución, texto y detalle libres.
+- `NotificacionesDbContext` → schema `notificaciones` (`notificaciones`); DDL versionado en `database/notificaciones/`. **Sin** `audit.attach`: la única mutación posterior al alta es el instante de lectura (una fila de auditoría por clic), el evento de origen ya queda auditado en el módulo emisor y los textos copian nombres.
 - `AlmacenamientoDbContext` → schema `storage`
 
 ### Dueño de `identity` y `audit`
 
-No son de ningún módulo: viven en **`ArsDocendi.Shared`**, porque son infraestructura transversal de la que dependen los 4 módulos. Es la única I/O admitida en ese proyecto — ver [AGENTS.md](../../AGENTS.md).
+No son de ningún módulo: viven en **`ArsDocendi.Shared`**, porque son infraestructura transversal de la que dependen los módulos de negocio. Es la única I/O admitida en ese proyecto — ver [AGENTS.md](../../AGENTS.md).
 
 Consecuencia a vigilar: todos los módulos alcanzan `identity` sin pasar por Contracts. Leen para autorizar, vía `IConsultasIdentity`; escribir `personas`, `roles`, `permisos` o `rol_permisos` es exclusivo de la superficie de administración. Ver [dependency-graph.md](dependency-graph.md#frontera-de-lectura-sobre-identity).
 
@@ -169,6 +170,8 @@ designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` s
 | `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                            | No  |
 | `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
 | `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
+| `pedido_sellos`    | Cadena de integridad por período: un sello firmado por evento fuera de borrador. Sólo inserción (ver abajo)                     | No  |
+| `periodo_anclas`   | Cabezas de la cadena publicadas en un lote exportado o registradas por el sellado retroactivo. Sólo inserción                   | No  |
 
 Pedido y Designación usan `xmin` como token EF; no requieren agregar una columna
 ordinaria. Administración y circuito comparten exclusión transaccional por persona,
@@ -184,6 +187,38 @@ de hasta cuatro eventos reales por pedido (sin comentarios), detalle completo co
 orden `(created_at,id)`. Relectura administrativa por persona y resolución de
 personas/actores por lote evitan materialización global innecesaria.
 Ver [evidencia Designaciones 3.6–3.8](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/designaciones-3.6-3.8.md).
+
+### Aulas (`schema: aulas`)
+
+Primera tabla real del schema, sin catálogo propio: `materia_id` referencia `identity.materias`
+(acotada por el backend a las materias del docente solicitante), `comision` y `aula_asignada` son texto
+libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
+`docs/architecture/domains/aulas.md`).
+
+| Tabla                 | Descripción                                                                                                                                                                                           | PII |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
+
+`solicitudes_reserva` suma, desde la migración `20261102030524_MotivoCancelacionYRolSolicitanteAulas`:
+
+- `motivo_cancelacion TEXT NULL`: motivo con que un Administrativo cancela una reserva ya aprobada
+  (`aprobada` → `cancelada`). El CHECK `solicitudes_reserva_motivo_cancelacion_si_cancelada` sólo lo
+  admite con `estado = 'cancelada'` y no en blanco. Es `NULL` cuando el docente cancela su propia
+  solicitud pendiente. Al cancelar una reserva el aula se libera (`aula_asignada` pasa a `NULL`, como
+  exige `solicitudes_reserva_aula_si_aprobada`).
+- `rol_solicitante TEXT NULL`: rol activo de la sesión que creó la solicitud. Lo usan las notificaciones
+  internas para elegir el destino del enlace. `NULL` en las filas anteriores a la migración (sin backfill);
+  sin CHECK contra el catálogo de roles porque los roles son datos y pueden renombrarse.
+
+### Notificaciones (`schema: notificaciones`)
+
+Una fila por usuario destinatario (fan-out al momento del evento): varios Jefes de Cátedra de una materia reciben cada uno la suya, con su propio estado de lectura. Las filas no se borran.
+
+| Tabla            | Descripción                                                                                                                                                                                                                                                                                                           | PII                                        |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `notificaciones` | `id`, `destinatario_usuario_id` (FK `identity.users`), `rol_destino` (NULL = cualquier perfil), `tipo_evento`, `tipo_entidad` (`SOLICITUD_AULA`, `PEDIDO_DESIGNACION`, `TAREA`), `entidad_id` (sin FK: apunta a tres módulos), `titulo`, `mensaje` y `contexto jsonb` (snapshots inmutables), `leida_en`, `creada_en` | Sí, indirecta: los textos nombran personas |
+
+Índice `(destinatario_usuario_id, leida_en, creada_en DESC)`: sirve la cuenta de no leídas y las dos listas. CHECK: `tipo_entidad` cerrado, textos no vacíos, `contexto` objeto JSON. `rol_destino` es texto libre (los roles son datos), igual que `aulas.solicitudes_reserva.rol_solicitante`.
 
 ### Portal (`schema: portal`)
 
@@ -284,6 +319,30 @@ pública.
 4. **El log está pensado para purgarse** (índice BRIN sobre `changed_at`). El historial de un trámite no se purga.
 
 Igual hace `audit.attach`: que alguien edite el historial a mano tiene que dejar rastro.
+
+### Cadena de sellos del circuito
+
+Trazabilidad no es integridad: quien tenga credenciales de la base puede reescribir el
+historial y el log. Por eso cada evento fuera de borrador queda sellado en
+`pedido_sellos` en la misma transacción [BR-designaciones-019]:
+
+- **Una cadena por período.** `secuencia` 1..n sin huecos; `hash_anterior` es el `hash` del
+  sello previo (el primero usa `sha256(periodo_id)`). El trigger `encadenar_sello` toma
+  `bloquear_cadena_periodo` (advisory lock) y rechaza un sello que no encadene con la cabeza.
+- **Hash y firma los calcula la aplicación.** `hash_estado` es el SHA-256 del estado canónico
+  del pedido tras el evento; `hash` cubre el evento y `hash_estado`; `firma` es HMAC-SHA256
+  con una clave por `version_clave` que vive en los secretos del host, nunca en la base. Un
+  sello insertado por SQL directo no puede firmarse.
+- **Sólo inserción.** `pedido_sellos` y `periodo_anclas` rechazan UPDATE/DELETE;
+  `pedido_historial` rechaza cambiar un evento fuera de borrador y DELETE salvo el de un pedido en
+  borrador; `pedidos` rechaza borrar un pedido fuera de borrador.
+- **Ancla externa.** El lote exportado imprime la cabeza y la registra en `periodo_anclas`:
+  aunque alguien tenga base y clave, no reproduce un ancla ya circulada.
+
+La verificación (`VerificadorIntegridadPedidos`) recalcula la cadena y la expone en
+`GET /api/designaciones/periodos/{id}/integridad`, en el diagnóstico operativo y como
+condición de la exportación del lote. Las protecciones de la base son defensa en
+profundidad: un superusuario puede deshabilitarlas, pero no reproducir firmas ni anclas.
 
 ## Trazabilidad de cambios
 
@@ -606,6 +665,9 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 | `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
 | `designaciones.designaciones`    | `identity.materias` | FK `ON DELETE RESTRICT` (`20261013170855_IntegridadMateriaDesignaciones.sql`)                                    |
 | `designaciones.designaciones`    | `identity.carreras` | Ídem que pedidos                                                                                                 |
+| `aulas.solicitudes_reserva`      | `identity.personas` | Una solicitud sin docente resoluble es un registro roto — mismo criterio que `designaciones.pedidos`             |
+| `aulas.solicitudes_reserva`      | `identity.materias` | La materia se acota a las asignadas al docente — mismo criterio que `designaciones.pedidos.materia_id`           |
+| `notificaciones.notificaciones`  | `identity.users`    | Un aviso sin destinatario resoluble es una fila rota — mismo criterio que las demás FK hacia `identity`          |
 | `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
 
 Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.

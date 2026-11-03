@@ -1,6 +1,6 @@
 namespace ArsDocendi.Migraciones;
 
-public enum ModoMigracion { Ninguno, Migrar, Estado, Script, ValidarRecursos, DiagnosticarIntegridad }
+public enum ModoMigracion { Ninguno, Migrar, Estado, Script, ValidarRecursos, DiagnosticarIntegridad, SellarHistorialExistente }
 
 public sealed record SolicitudMigracion(ModoMigracion Modo, string? Directorio = null)
 {
@@ -13,6 +13,7 @@ public sealed record SolicitudMigracion(ModoMigracion Modo, string? Directorio =
             ["--script-migraciones"] = ModoMigracion.Script,
             ["--validar-recursos"] = ModoMigracion.ValidarRecursos,
             ["--diagnosticar-integridad"] = ModoMigracion.DiagnosticarIntegridad,
+            ["--sellar-historial-existente"] = ModoMigracion.SellarHistorialExistente,
         };
         var modos = args.Where(opciones.ContainsKey).ToArray();
         if (modos.Length == 0) return new(ModoMigracion.Ninguno);

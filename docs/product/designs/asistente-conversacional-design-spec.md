@@ -342,7 +342,7 @@ renombrar además devuelven el foco al contenedor del cajón (con `tabIndex={-1}
 perderlo en `<body>`, porque la fila o el formulario que tenía el foco se desmonta con la acción.
 
 **Pantalla de soporte, en su propia ruta.** `/asistente/soporte-historial` (permiso
-`asistente.leer_historial_ajeno`, sembrado a NINGÚN rol, y además `usuarios.ver`, que exige el
+`asistente.leer_historial_ajeno`, sembrado a NINGÚN rol, y además `personas.ver`, que exige el
 listado de personas del selector) reutiliza `RequirePermission` —mismo mecanismo que ya protege
 `/designaciones/periodos`—, así que sin los dos permisos no hay ítem de navegación y la ruta ni
 resuelve. La pantalla: un buscador de personas (reusa el endpoint real de
@@ -408,7 +408,7 @@ no hay ítem de navegación y la ruta ni resuelve. Tres bloques:
 - **Presupuestos**: un control por rol de sistema (cupo diario, `0` = sin tope) y un campo con el id
   del actor puntual para fijar su override, más el tope organizacional mensual. **NO reusa el
   buscador de personas de la pantalla de soporte de historial** — a diferencia de la lectura de
-  soporte, ese buscador exige `usuarios.ver` (`GET /api/administracion/usuarios`), y design.md D12
+  soporte, ese buscador exige `personas.ver` (`GET /api/administracion/personas`), y design.md D12
   de esta misma change existe justamente para que un administrador con SÓLO `asistente.administrar`
   no necesite ningún otro permiso; sumarle el buscador reintroduciría la dependencia que D12 evita,
   ahora en la mitad de escritura del panel en lugar de la de lectura. Guardar un valor que BAJA un

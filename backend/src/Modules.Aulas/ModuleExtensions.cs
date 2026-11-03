@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Aulas.Infrastructure;
+using Modules.Aulas.Repositories;
+using Modules.Aulas.Services;
 
 namespace Modules.Aulas;
 
@@ -17,6 +19,9 @@ public static class ModuleExtensions
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorAulas>();
+
+        services.AddScoped<RepositorioSolicitudesAula>();
+        services.AddScoped<IServicioSolicitudesAula, ServicioSolicitudesAula>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

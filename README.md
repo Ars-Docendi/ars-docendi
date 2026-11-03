@@ -8,9 +8,9 @@ Sistema web para el Departamento de Ingeniería de la UNLaM. Para las reglas de 
 
 Monolito modular en monorepo:
 
-- **backend/**: ASP.NET Core 10 Web API. Un Host compone 4 módulos de negocio (Designaciones, Aulas, Portal, Tareas) y la infraestructura transversal (`Shared`, `Migraciones`, `Storage`, `Inferencia`). Comunicación entre módulos sólo vía proyectos `*.Contracts`.
+- **backend/**: ASP.NET Core 10 Web API. Un Host compone 5 módulos de negocio (Designaciones, Aulas, Portal, Tareas, Notificaciones) y la infraestructura transversal (`Shared`, `Migraciones`, `Storage`, `Inferencia`). Comunicación entre módulos sólo vía proyectos `*.Contracts`.
 - **frontend/**: Vite + React 19 + TypeScript. Una app única con `src/features/` aisladas entre sí.
-- **Base de datos**: PostgreSQL único, un schema por contexto (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`).
+- **Base de datos**: PostgreSQL único, un schema por contexto (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`, `notificaciones`).
 
 Detalle en [docs/architecture/](docs/architecture/).
 
@@ -77,6 +77,10 @@ cd ..
 # Primera inicialización local: ejecuta ambos datasets en una transacción,
 # registra la marca completa y no vuelve a sembrar sobre ediciones existentes.
 bash infra/scripts/seed-local.sh
+# Sella el historial sembrado; sin esto la exportación del lote responde 409. Una sola
+# vez, inmediatamente después de sembrar una base nueva; nunca para reparar hallazgos
+# de integridad (sellaría también los cambios hechos fuera de la aplicación).
+dotnet run --project backend/src/ArsDocendi.Host -- --sellar-historial-existente
 ```
 
 Los dos datasets van siempre juntos: `sintetico.sql` (fixtures de prueba) y `sga.sql`
@@ -155,6 +159,14 @@ pnpm --filter frontend build
 Más comandos en [ONBOARDING.md → Flujos comunes](ONBOARDING.md#4-flujos-comunes).
 
 `frontend/src/test/contratos/` guarda respuestas reales de la API que el frontend usa en sus tests. Si un cambio intencional altera la forma de una respuesta, el test de backend falla; regeneralo con `ACTUALIZAR_CONTRATOS=1 dotnet test backend/ArsDocendi.slnx` y adaptá el mapper del frontend.
+
+## Centro de ayuda
+
+La app incluye un Centro de ayuda en `/ayuda` (ítem al pie del menú lateral). Es contenido estático del frontend, sin backend, filtrado por los permisos de la sesión.
+
+- Los artículos viven en `frontend/src/features/ayuda/contenido/<modulo>/<articulo>.ts` y se registran en `contenido/index.ts`.
+- Las capturas van en `frontend/public/ayuda/<modulo>/`, en WebP calidad 85 y hasta 150 KB, tomadas solo con datos sintéticos (nunca `sga.sql` ni PII real).
+- Al cambiar una pantalla o un permiso, actualizá en el mismo diff el artículo que lo documenta. El test de integridad (`contenido/integridad.test.ts`) valida permisos, enlaces, capturas y pesos.
 
 ## Estructura
 

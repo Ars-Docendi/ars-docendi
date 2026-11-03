@@ -34,6 +34,9 @@ const usuario: CurrentUserState = {
     role: "Administrador de Sistemas",
     roleCode: "sys_admin",
     permissions: [],
+    asignacion: null,
+    asignaciones: [],
+    requiereElegirRol: false,
   },
   isLoading: false,
   error: null,
@@ -111,12 +114,16 @@ describe("/sistema — cualquiera de los tres permisos alcanza", () => {
     },
   );
 
-  it("sin ninguno de los tres, redirige a /", async () => {
+  it("sin ninguno de los tres, explica la falta de acceso sin redirigir", async () => {
     conPermisos([]);
 
     montar("/sistema");
 
-    expect(await screen.findByText("Inicio")).toBeInTheDocument();
+    // Sin redirect silencioso: la URL queda y la página explica por qué no se puede abrir.
+    expect(
+      await screen.findByRole("heading", { name: "No tenés acceso a esta página" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Inicio")).not.toBeInTheDocument();
   });
 });
 

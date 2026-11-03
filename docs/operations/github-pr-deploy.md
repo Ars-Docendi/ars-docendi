@@ -146,7 +146,7 @@ servicio y volumen no-prod compartidos.
    antes de rotar credenciales o migrar, respalda si hay pendientes en una base
    existente y sólo inicializa fixtures con autorización/marca completa.
 7. Publica `https://pr-<N>.<DOMINIO>` y comenta éxito sólo después de verificar
-   SHA, cuatro pings, identidad DB read-only y cero pendientes. Un smoke fallido
+   SHA, cinco pings, identidad DB read-only y cero pendientes. Un smoke fallido
    deja el backend detenido, sin comentario exitoso.
 
 Los PRs que solo modifican documentación no disparan este workflow debido al

@@ -73,6 +73,14 @@ internal sealed class ConsultasIdentityFalsa : IConsultasIdentity
     public Task<IReadOnlyList<Usuario>> ListarUsuariosAsync(CancellationToken ct) =>
         throw new NotImplementedException();
 
+    public Task<IReadOnlyList<Guid>> ObtenerUsuarioIdsConRolAsync(
+        string codigoRol, Guid? materiaId, Guid? carreraId, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<IReadOnlyDictionary<Guid, Guid>> ObtenerUsuarioIdsDePersonasAsync(
+        IReadOnlyCollection<Guid> personaIds, CancellationToken ct) =>
+        throw new NotImplementedException();
+
     // El nombre legible no se siembra: el código hace de nombre.
     public Task<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>> ObtenerRolesDeSistemaAsync(
         IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct) =>

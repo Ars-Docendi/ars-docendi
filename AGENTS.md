@@ -4,7 +4,7 @@ Esta es la fuente de instrucciones para cualquier asistente o herramienta de des
 
 ## Contexto
 
-Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cuatro contextos de dominio (Designaciones, Aulas, Portal y Tareas) más los servicios transversales Identity, Storage e Inferencia (ver [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md)).
+Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cinco contextos de dominio (Designaciones, Aulas, Portal, Tareas y Notificaciones) más los servicios transversales Identity, Storage e Inferencia (ver [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md)).
 
 Leé antes de cambiar:
 
@@ -24,7 +24,7 @@ Leé antes de cambiar:
 6. Cambios de API, schema o dependencias actualizan la documentación correspondiente en el mismo diff.
 7. No crear UI ficticia, botones muertos, abstracciones especulativas ni dependencias innecesarias.
 8. Las reglas normativas usan `BR-<modulo>-NNN`, fuente y mapping a tests.
-9. Los cambios de UX actualizan su design spec cuando existe.
+9. Los cambios de UX actualizan su design spec cuando existe; los cambios de UX o de permisos actualizan también el artículo del Centro de ayuda que los documenta.
 10. Identificadores, comentarios y documentación propios se escriben en español; los símbolos de frameworks conservan sus nombres.
 11. Un módulo puede consultar schemas ajenos sin pasar por `Contracts` únicamente si la frontera la sostiene el motor de base de datos y es **falsable**: rol de PostgreSQL sin GRANT de mutación, GRANT enumerados columna por columna contra un manifiesto versionado, policies RLS que conjunten el permiso de dominio, y tests que fallen si cualquiera de esas condiciones se degrada. Hoy aplica a `Modules.Asistente` y sólo a él. Ratificado el 2026-09-08.
 

@@ -8,7 +8,9 @@ using Microsoft.Extensions.Options;
 using Modules.Asistente;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
+using Modules.Aulas.Infrastructure;
 using Modules.Designaciones.Infrastructure;
+using Modules.Notificaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
 using Modules.Tareas.Infrastructure;
 using Npgsql;
@@ -190,6 +192,11 @@ public sealed class PostgresFixture : IAsyncLifetime
             }
         }
 
+        await using (var aulas = CrearAulas(cadena))
+        {
+            await aulas.Database.MigrateAsync();
+        }
+
         await using (var portal = CrearPortal(cadena))
         {
             if (migracionDesignaciones is null)
@@ -214,6 +221,11 @@ public sealed class PostgresFixture : IAsyncLifetime
         await using (var tareas = CrearTareas(cadena))
         {
             await tareas.Database.MigrateAsync();
+        }
+
+        await using (var notificaciones = CrearNotificaciones(cadena))
+        {
+            await notificaciones.Database.MigrateAsync();
         }
     }
 
@@ -359,6 +371,24 @@ public sealed class PostgresFixture : IAsyncLifetime
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
             .Options;
         return new PortalDbContext(opciones);
+    }
+
+    public static NotificacionesDbContext CrearNotificaciones(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<NotificacionesDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", NotificacionesDbContext.Schema))
+            .Options;
+        return new NotificacionesDbContext(opciones);
+    }
+
+    public static AulasDbContext CrearAulas(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<AulasDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AulasDbContext.Schema))
+            .Options;
+        return new AulasDbContext(opciones);
     }
 
     public static AlmacenamientoDbContext CrearAlmacenamiento(string cadena)
@@ -610,5 +640,23 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
         var conexion = new NpgsqlConnection(cadena);
         await conexion.OpenAsync();
         return conexion;
+    }
+
+    /// <summary>
+    /// Asignación vigente de un rol en una materia: la sesión opera con una sola, así
+    /// que quien tiene el rol en varias materias elige con cuál probar.
+    /// </summary>
+    protected async Task<Guid> AsignacionEnMateriaAsync(Guid usuario, string rol, Guid materia)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand("""
+            SELECT ur.id FROM identity.user_roles ur JOIN identity.roles r ON r.id = ur.role_id
+            WHERE ur.user_id = @usuario AND ur.materia_id = @materia AND r.code = @rol
+              AND ur.deleted_at IS NULL
+            """, conexion);
+        comando.Parameters.AddWithValue("usuario", usuario);
+        comando.Parameters.AddWithValue("materia", materia);
+        comando.Parameters.AddWithValue("rol", rol);
+        return (Guid)(await comando.ExecuteScalarAsync())!;
     }
 }

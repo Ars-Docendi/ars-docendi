@@ -1,0 +1,117 @@
+/* Maquetación compartida de formularios: 16 px entre campos, 24 px entre secciones; las filas
+   colapsan a una columna por debajo de 560 px. */
+.adoc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.adoc-form-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.adoc-form-seccion-titulo {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: var(--weight-semibold, 600);
+  color: var(--color-text-primary);
+}
+.adoc-form-fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 560px) {
+  .adoc-form-fila.cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .adoc-form-fila.cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .adoc-form-fila.cols-2-1 {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 559.98px) {
+  /* Los dos horarios comparten fila; la fecha ocupa la fila de arriba. */
+  .adoc-form-fila.horario-compartido {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .adoc-form-fila.horario-compartido > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+.adoc-campo-corto .adoc-input {
+  max-width: 200px;
+}
+
+/* Fecha enmascarada (dd/mm/aaaa) con botón de calendario; el input date nativo, oculto, sólo hace de selector. */
+.adoc-fecha {
+  position: relative;
+  display: block;
+}
+.adoc-fecha .adoc-input {
+  padding-right: 44px;
+}
+.adoc-fecha-btn {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.adoc-fecha-btn:hover {
+  background: var(--neutral-200);
+  color: var(--color-text-primary);
+}
+.adoc-fecha-btn:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 0;
+}
+.adoc-fecha-btn:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  background: transparent;
+}
+.adoc-fecha-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.adoc-fecha-nativo {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+@media (max-width: 559.98px) {
+  .adoc-fecha-btn {
+    width: 44px;
+    height: 44px;
+    right: 0;
+  }
+  .adoc-fecha .adoc-input {
+    padding-right: 48px;
+  }
+}

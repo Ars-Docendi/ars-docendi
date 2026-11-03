@@ -17,6 +17,9 @@ const usuarioBase: CurrentUserState = {
     role: "Administrador de Sistemas",
     roleCode: "sys_admin",
     permissions: [],
+    asignacion: null,
+    asignaciones: [],
+    requiereElegirRol: false,
   },
   isLoading: false,
   error: null,
@@ -55,8 +58,10 @@ describe("RequirePermission — permiso único o any-of", () => {
     expect(await screen.findByText("Contenido protegido")).toBeInTheDocument();
   });
 
-  it("un arreglo redirige a / sin ninguno de los permisos", async () => {
+  it("un arreglo explica la falta de acceso sin ninguno de los permisos", async () => {
     renderConPermisos([], ["sistema.estado.ver", "asistente.administrar", "auditoria.ver"]);
-    expect(await screen.findByText("Inicio")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "No tenés acceso a esta página" }),
+    ).toBeInTheDocument();
   });
 });

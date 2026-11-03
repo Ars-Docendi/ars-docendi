@@ -36,8 +36,9 @@ El comportamiento vigente está en las specs; este documento no lo repite:
 
 ## Dependencias
 
-- **Hacia adentro**: lectura de identity vía `IConsultasIdentity`.
+- **Hacia adentro**: lectura de identity vía `IConsultasIdentity` y `Modules.Notificaciones.Contracts` (`INotificador`).
 - **Hacia afuera**: ninguna.
+- **Avisos**: después del commit, `ServicioTareas` avisa al nuevo responsable al crear o reasignar y, con cada cambio de estado o comentario, al responsable y al creador (menos al actor). Sin perfil de destino: se ven bajo cualquier rol. Ver [notificaciones.md](./notificaciones.md).
 - **Externas**: ninguna.
 
 ## Decisiones registradas

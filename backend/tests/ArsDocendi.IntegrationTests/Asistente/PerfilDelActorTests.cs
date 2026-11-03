@@ -194,10 +194,9 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Decanato_no_puede_administrar_usuarios()
+    public async Task Decanato_conserva_personas_ver_para_los_datos_personales()
     {
-        // LA MITAD QUE EL CAMBIO NO DEBE MOVER. `usuarios.ver` es de lectura; las escrituras van
-        // por `usuarios.administrar`.
+        // `personas.ver` es el permiso que abre la conexión con datos personales del asistente.
         await SembrarAsync();
 
         var permisos = new List<string>();
@@ -220,8 +219,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
             }
         }
 
-        Assert.Contains("usuarios.ver", permisos);
-        Assert.DoesNotContain("usuarios.administrar", permisos);
+        Assert.Contains("personas.ver", permisos);
     }
 
     /// <summary>Le agrega al actor otra asignación, de un rol distinto.</summary>

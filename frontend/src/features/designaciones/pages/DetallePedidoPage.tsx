@@ -1,10 +1,19 @@
 import { useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Button, AuditLog, Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Button, AuditLog, InlineAlert } from "@ars-docendi/ui";
+import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
+import {
+  migaDeVolver,
+  propagarVolver,
+  type DestinoVolver,
+} from "../../../shared/navegacion/volver";
+import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoPedidoBadge } from "../components/EstadoPedidoBadge";
-import { IconoArrowLeft, IconoSquarePen, IconoX } from "../components/lucide";
+import { IconoSquarePen, IconoX } from "../components/lucide";
 import { CadenaRevision } from "../components/CadenaRevision";
 import { ResumenPedido } from "../components/ResumenPedido";
 import { PanelAccionesRevision } from "../components/PanelAccionesRevision";
@@ -27,10 +36,7 @@ import {
   useRechazarPedido,
 } from "../hooks/useAccionesPedido";
 import type { ActorContexto, Novedad, PedidoDesignacion } from "../types";
-import { resolverOrigen } from "./origenDetalle";
 import "./detalle.css";
-
-const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
 /** Título legible de la novedad para el header del detalle. */
 const TITULO_NOVEDAD: Record<Novedad, string> = {
@@ -45,7 +51,7 @@ export function DetallePedidoPage() {
   const navegar = useNavigate();
   const actor = useActorContexto();
   const { user } = useCurrentUser();
-  const origen = resolverOrigen(useLocation().state, user?.permissions ?? []);
+  const origen = useDestinoVolver("pedido");
   const { data: pedido, isLoading, isError } = usePedido(id);
 
   const aceptar = useAceptarPedido();
@@ -64,11 +70,11 @@ export function DetallePedidoPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
+        conVolver
         items={[
           { label: "Inicio", href: "/" },
-          { label: origen.etiqueta, href: origen.ruta },
+          migaDeVolver(origen),
           { label: "Detalle del pedido" },
         ]}
       />
@@ -81,8 +87,7 @@ export function DetallePedidoPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se encontró el pedido">
-          No pudimos cargar el pedido solicitado.{" "}
-          <a href={origen.ruta}>Volver a {origen.etiqueta}</a>.
+          No pudimos cargar el pedido solicitado. <Link to={origen.ruta}>{origen.texto}</Link>.
         </InlineAlert>
       )}
 
@@ -106,6 +111,7 @@ export function DetallePedidoPage() {
         <DetalleCargado
           pedido={pedido}
           actor={actor}
+          conSeguimiento={user?.permissions.includes("designaciones.ver_seguimiento") ?? false}
           enviando={enviando}
           onAceptar={(comentario) => aceptar.mutate({ id: pedido.id, comentario })}
           onRechazar={(comentario) => rechazar.mutate({ id: pedido.id, comentario })}
@@ -113,10 +119,17 @@ export function DetallePedidoPage() {
           onPriorizar={(comentario) => priorizar.mutate({ id: pedido.id, comentario })}
           onDespriorizar={(comentario) => despriorizar.mutate({ id: pedido.id, comentario })}
           onEliminar={() =>
-            eliminar.mutate(pedido.id, { onSuccess: () => navegar(RUTA_MIS_PEDIDOS) })
+            // Al origen real (Revisión o Mis pedidos), reemplazando el detalle que ya no existe.
+            eliminar.mutate(pedido.id, {
+              onSuccess: () => navegar(origen.ruta, { replace: true }),
+            })
           }
           eliminando={eliminar.isPending}
           errorEliminar={eliminar.isError ? eliminar.error.message : undefined}
+          volver={origen}
+          onEditar={() =>
+            navegar(`/designaciones/pedidos/${pedido.id}/editar`, { state: propagarVolver(origen) })
+          }
         />
       )}
     </>
@@ -126,6 +139,8 @@ export function DetallePedidoPage() {
 interface DetalleCargadoProps {
   pedido: PedidoDesignacion;
   actor: ActorContexto;
+  /** Sin designaciones.ver_seguimiento no se muestran la cadena de etapas ni el historial. */
+  conSeguimiento: boolean;
   enviando: boolean;
   onAceptar: (comentario?: string) => void;
   onRechazar: (comentario: string) => void;
@@ -135,11 +150,14 @@ interface DetalleCargadoProps {
   onEliminar: () => void;
   eliminando: boolean;
   errorEliminar?: string;
+  volver: DestinoVolver;
+  onEditar: () => void;
 }
 
 function DetalleCargado({
   pedido,
   actor,
+  conSeguimiento,
   enviando,
   onAceptar,
   onRechazar,
@@ -149,6 +167,8 @@ function DetalleCargado({
   onEliminar,
   eliminando,
   errorEliminar,
+  volver,
+  onEditar,
 }: DetalleCargadoProps) {
   const acciones = pedido.accionesPermitidas ?? [];
   const esRevisor = acciones.some((accion) =>
@@ -159,12 +179,13 @@ function DetalleCargado({
   const puedeEliminar = acciones.includes("eliminar");
   const etapas = derivarCadena(pedido, actor);
   const periodoNombre = pedido.periodoNombre;
-  const navegar = useNavigate();
 
   // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.
   const [accionPendiente, setAccionPendiente] = useState<AccionRevision | null>(null);
   const [comentario, setComentario] = useState("");
   const [mostrarEliminar, setMostrarEliminar] = useState(false);
+  // El justificativo escrito en el panel se pierde al salir: se avisa.
+  useGuardiaDeCambios(comentario.trim() !== "");
 
   function ejecutar(accion: AccionRevision, texto: string) {
     switch (accion) {
@@ -201,19 +222,9 @@ function DetalleCargado({
         meta={periodoNombre}
         actions={
           <div className="adoc-det-headactions">
-            <Button
-              variant="secondary"
-              leadingIcon={<IconoArrowLeft />}
-              onClick={() => navegar(-1)}
-            >
-              Volver
-            </Button>
+            <EnlaceVolver id="pedido-volver" destino={volver} />
             {puedeEditar && (
-              <Button
-                variant="secondary"
-                leadingIcon={<IconoSquarePen />}
-                onClick={() => navegar(`/designaciones/pedidos/${pedido.id}/editar`)}
-              >
+              <Button variant="secondary" leadingIcon={<IconoSquarePen />} onClick={onEditar}>
                 Editar
               </Button>
             )}
@@ -232,19 +243,26 @@ function DetalleCargado({
       />
 
       <div className="adoc-det">
-        <CadenaRevision etapas={etapas} />
+        {conSeguimiento && <CadenaRevision etapas={etapas} />}
+        {pedido.estado === "devuelto" && pedido.motivoDevolucion && !conSeguimiento && (
+          <InlineAlert severity="warning" title="Te devolvieron este pedido">
+            «{pedido.motivoDevolucion}» Corregilo y reenvialo.
+          </InlineAlert>
+        )}
 
         <div className="adoc-det-cols">
           <div className="adoc-det-main">
             <ResumenPedido pedido={pedido} periodoNombre={periodoNombre} />
 
-            <section className="adoc-det-hist" aria-label="Historial del pedido">
-              <header className="adoc-hist-head">
-                <h2 className="adoc-hist-title">Historial del pedido</h2>
-                <span className="adoc-hist-note">Auditoría · Usuario · Fecha</span>
-              </header>
-              <AuditLog entries={historialAAuditEntries(pedido.historial)} />
-            </section>
+            {conSeguimiento && (
+              <section className="adoc-det-hist" aria-label="Historial del pedido">
+                <header className="adoc-hist-head">
+                  <h2 className="adoc-hist-title">Historial del pedido</h2>
+                  <span className="adoc-hist-note">Auditoría · Usuario · Fecha</span>
+                </header>
+                <AuditLog entries={historialAAuditEntries(pedido.historial)} />
+              </section>
+            )}
           </div>
 
           <aside className="adoc-det-rail">

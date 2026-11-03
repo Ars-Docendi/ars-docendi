@@ -55,8 +55,8 @@ The system SHALL compute an estimated cost per user, per role, and org-wide by m
 
 The dashboard SHALL resolve each `actor_id` to a human-readable display name using the module's existing identity-read seam, without requiring the administrator to also hold any permission other than `asistente.administrar`.
 
-#### Scenario: Dashboard works for an admin who lacks usuarios.ver
+#### Scenario: Dashboard works for an admin who lacks personas.ver
 
-- **GIVEN** an administrator who holds `asistente.administrar` but not `usuarios.ver`
+- **GIVEN** an administrator who holds `asistente.administrar` but not `personas.ver`
 - **WHEN** the administrator opens the per-user usage view
-- **THEN** every row shows the corresponding user's display name, and the request succeeds without needing `usuarios.ver`
+- **THEN** every row shows the corresponding user's display name, and the request succeeds without needing `personas.ver`

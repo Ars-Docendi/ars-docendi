@@ -1,20 +1,8 @@
-export interface AmbitoDesarrollo {
-  id: string;
-  codigo: string;
-  nombre: string;
-}
-
-export interface RolDesarrollo {
-  codigo: string;
-  nombre: string;
-  permisos: string[];
-  materias: AmbitoDesarrollo[];
-  carreras: AmbitoDesarrollo[];
-}
-
+/** Identidad sembrada para ingresar en desarrollo; el rol se elige después. */
 export interface IdentidadDesarrollo {
   usuarioId: string;
   nombreParaMostrar: string;
   upn: string;
-  roles: RolDesarrollo[];
+  /** Nombres de sus roles vigentes, sólo para reconocerla en el selector. */
+  roles: string[];
 }

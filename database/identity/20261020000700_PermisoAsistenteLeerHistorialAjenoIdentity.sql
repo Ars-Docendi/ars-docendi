@@ -18,7 +18,7 @@
 -- Idempotente: ON CONFLICT DO NOTHING.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000028', 'asistente.leer_historial_ajeno', 'Leer el historial ajeno del asistente', 'Leer, con razón obligatoria y auditoría permanente, el historial de conversaciones de otro usuario con el asistente: preguntas, SQL, resultado y momentos. No habilita ver filas de resultado ni volver a ejecutar la consulta de otra persona.')
+    ('b2000000-0000-4000-8000-000000000035', 'asistente.leer_historial_ajeno', 'Leer el historial ajeno del asistente', 'Leer, con razón obligatoria y auditoría permanente, el historial de conversaciones de otro usuario con el asistente: preguntas, SQL, resultado y momentos. No habilita ver filas de resultado ni volver a ejecutar la consulta de otra persona.')
 ON CONFLICT (code) DO NOTHING;
 
 -- Guarda de sys_admin, igual que en 011 y 014: la decisión es explícita y es

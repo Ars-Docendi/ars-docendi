@@ -13,8 +13,8 @@ en cada assembly y no se leen del filesystem en runtime.
 | 3     | Designaciones  | `20261005000200_BaselineDesignaciones`  | `designaciones.__EFMigrationsHistory` |
 | 4     | Portal         | `20261005000300_BaselinePortal`         | `portal.__EFMigrationsHistory`        |
 
-Aulas sigue integrado sin tablas ni baseline artificial. Tareas incorpora sus
-migraciones SQL en `tareas.__EFMigrationsHistory` y se ejecuta después de Identity,
+Aulas y Tareas no tienen baseline artificial: incorporan sus migraciones SQL en
+`aulas.__EFMigrationsHistory` y `tareas.__EFMigrationsHistory`. Tareas se ejecuta después de Identity,
 Storage, Designaciones, Aulas y Portal; sus timestamps se ordenan dentro de su
 propio contexto, no globalmente. Antes del corte,
 Designaciones/Portal/Aulas/Tareas usaban el historial compartido de `public`;

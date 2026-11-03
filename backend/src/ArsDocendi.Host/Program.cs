@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Modules.Asistente;
 using Modules.Asistente.Application;
 using Modules.Aulas;
+using Modules.Notificaciones;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
@@ -56,9 +57,9 @@ if (origenesPermitidos.Length > 0)
         politica.WithOrigins(origenesPermitidos).AllowAnyHeader().AllowAnyMethod()));
 }
 builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
-builder.Services.AddScoped<ServicioDocentes>();
-builder.Services.AddScoped<ServicioUsuariosAdministracion>();
 builder.Services.AddScoped<ResolutorAlcanceDocentes>();
+builder.Services.AddScoped<ServicioAdministracionPersonas>();
+builder.Services.AddScoped<AlcancePersonas>();
 builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>();
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();
@@ -92,6 +93,7 @@ builder.Services
     .AddAulasModule(builder.Configuration)
     .AddPortalModule(builder.Configuration)
     .AddTareasModule(builder.Configuration)
+    .AddNotificacionesModule(builder.Configuration)
     .AddAsistenteModule(builder.Configuration);
 
 // VA DESPUÉS DE AddAsistenteModule, y el orden es el mecanismo: el módulo del
@@ -120,6 +122,13 @@ if (archivoDeEntorno is not null)
 if (solicitud.Modo != ModoMigracion.Ninguno)
 {
     using var scope = app.Services.CreateScope();
+    // Escribe sellos con la clave del host: no es una migración y Migraciones no conoce módulos.
+    if (solicitud.Modo == ModoMigracion.SellarHistorialExistente)
+    {
+        var sellados = await Modules.Designaciones.ModuleExtensions.SellarHistorialExistenteAsync(scope.ServiceProvider, CancellationToken.None);
+        Console.Out.WriteLine($"Eventos sellados retroactivamente: {sellados}");
+        return;
+    }
     Environment.ExitCode = await RunnerMigraciones.EjecutarAsync(solicitud,
         scope.ServiceProvider.GetServices<IMigradorModulo>().ToArray(),
         builder.Configuration.GetConnectionString("ArsDocendi") ?? string.Empty,

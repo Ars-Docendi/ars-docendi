@@ -164,6 +164,8 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         alta.HorasInvestigacion = 3;
         alta.HorasExternas = 2;
         await db.SaveChangesAsync(ct);
+        // El ajuste del fixture se sella como si hubiera llegado por el circuito.
+        await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct);
         db.ChangeTracker.Clear();
 
         await CrearServicio(Secretaria, identityDb, db).AplicarAccionAsync(
@@ -231,6 +233,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
+            SellosPrueba.Sellador(db),
             NullLogger<ServicioPedidos>.Instance);
         return new ServicioPedidosApi(
             core, pedidos, resolutor, identity,

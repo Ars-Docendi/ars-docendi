@@ -42,37 +42,34 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         var (personaMixta, personaAjena) = await AgregarDocentesConAmbitoMixtoAsync(ct);
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
+        // El ámbito es el de la asignación elegida: la jefatura de la primera materia.
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
+        cliente.DefaultRequestHeaders.Add(
+            AutenticacionDesarrolloHandler.HeaderAsignacion,
+            (await AsignacionEnMateriaAsync(Jefe, "jefe_catedra", MateriasDelJefe[0])).ToString());
 
-        var docentes = await cliente.GetFromJsonAsync<DocenteAdministracionDto[]>(
-            "/api/administracion/docentes", ct);
-        var catalogos = await cliente.GetFromJsonAsync<CatalogosDocentesDto>(
-            "/api/administracion/docentes/catalogos", ct);
+        var docentes = await cliente.GetFromJsonAsync<PersonaAdministracionDto[]>(
+            "/api/administracion/personas", ct);
         using var detalleFueraDeAmbito = await cliente.GetAsync(
-            "/api/administracion/docentes/d0000000-0000-4000-8000-000000000010", ct);
+            "/api/administracion/personas/d0000000-0000-4000-8000-000000000010", ct);
         using var detalleMixto = await cliente.GetAsync(
-            $"/api/administracion/docentes/{personaMixta}", ct);
+            $"/api/administracion/personas/{personaMixta}", ct);
         using var detalleAjeno = await cliente.GetAsync(
-            $"/api/administracion/docentes/{personaAjena}", ct);
+            $"/api/administracion/personas/{personaAjena}", ct);
         using var alta = await cliente.PostAsJsonAsync(
-            "/api/administracion/docentes", new { }, ct);
+            "/api/administracion/personas", new { }, ct);
 
         Assert.NotNull(docentes);
         Assert.NotEmpty(docentes);
         Assert.All(docentes, docente =>
-            Assert.Contains(docente.Asignaciones, asignacion => MateriasDelJefe.Contains(asignacion.MateriaId)));
+            Assert.Contains(docente.Asignaciones, asignacion => asignacion.MateriaId == MateriasDelJefe[0]));
         var mixta = Assert.Single(docentes, docente => docente.PersonaId == personaMixta);
         Assert.DoesNotContain(mixta.Asignaciones, asignacion => asignacion.MateriaId == MateriaAjena);
         Assert.Contains(mixta.Membresias, membresia => membresia.MateriaId == MateriasDelJefe[0]);
         Assert.DoesNotContain(mixta.Membresias, membresia => membresia.MateriaId == MateriaAjena);
         Assert.DoesNotContain(docentes, docente => docente.PersonaId == personaAjena);
-        Assert.NotNull(catalogos);
-        Assert.Equal(MateriasDelJefe.Length, catalogos.Materias.Count);
-        Assert.All(catalogos.Materias, materia => Assert.Contains(materia.Id, MateriasDelJefe));
-        Assert.Empty(catalogos.PersonasElegibles);
         Assert.Equal(HttpStatusCode.OK, detalleMixto.StatusCode);
-        var detalle = await detalleMixto.Content.ReadFromJsonAsync<DocenteAdministracionDto>(ct);
+        var detalle = await detalleMixto.Content.ReadFromJsonAsync<PersonaAdministracionDto>(ct);
         Assert.NotNull(detalle);
         Assert.DoesNotContain(detalle.Asignaciones, asignacion => asignacion.MateriaId == MateriaAjena);
         Assert.DoesNotContain(detalle.Membresias, membresia => membresia.MateriaId == MateriaAjena);
@@ -89,7 +86,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
         using var solicitud = new HttpRequestMessage(
-            HttpMethod.Get, "/api/administracion/docentes");
+            HttpMethod.Get, "/api/administracion/personas");
         solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Docente.ToString());
         solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "docente");
 
@@ -118,6 +115,46 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
     }
 
+    [Theory]
+    [InlineData(false, HttpStatusCode.Forbidden)]
+    [InlineData(true, HttpStatusCode.Created)]
+    public async Task Alta_de_rol_con_permisos_exige_gestionar_membresia(
+        bool conMembresia,
+        HttpStatusCode esperado)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        Guid permiso;
+        await using (var conexion = await AbrirConexionAsync())
+        await using (var comando = new NpgsqlCommand("""
+            INSERT INTO identity.roles (id, code, name, scope, is_active)
+            VALUES (@rol, 'gestor_roles', 'Gestor de roles', 'global', TRUE);
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT @rol, id FROM identity.permisos
+            WHERE code = 'roles.administrar' OR (@membresia AND code = 'roles.gestionar_membresia');
+            INSERT INTO identity.user_roles (user_id, role_id)
+            VALUES (@usuario, @rol);
+            SELECT id FROM identity.permisos WHERE code = 'designaciones.ver';
+            """, conexion))
+        {
+            comando.Parameters.AddWithValue("rol", Guid.NewGuid());
+            comando.Parameters.AddWithValue("membresia", conMembresia);
+            comando.Parameters.AddWithValue("usuario", Jefe);
+            permiso = (Guid)(await comando.ExecuteScalarAsync(ct))!;
+        }
+        using var host = CrearHost("Development", true);
+        using var cliente = host.CreateClient();
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "gestor_roles");
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            "/api/administracion/roles",
+            new CrearRolDto("Rol con permisos iniciales", null, "global", [permiso]),
+            ct);
+
+        Assert.Equal(esperado, respuesta.StatusCode);
+    }
+
     [Fact]
     public async Task Catalogo_y_handler_aceptan_rol_personalizado_con_permisos_y_omiten_inactivo()
     {
@@ -132,7 +169,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
                    (@inactivo, 'inactivo_custom', 'Inactivo personalizado', 'global', FALSE);
             INSERT INTO identity.rol_permisos (rol_id, permiso_id)
             SELECT @activo, id FROM identity.permisos
-            WHERE code IN ('designaciones.ver', 'docentes.ver', 'designaciones.revisar');
+            WHERE code IN ('designaciones.ver', 'personas.ver', 'designaciones.revisar');
             INSERT INTO identity.user_roles (user_id, role_id)
             VALUES (@usuario, @activo);
             """, conexion))
@@ -148,13 +185,12 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
             "/api/desarrollo/identidades", ct);
         var jefe = Assert.Single(identidades!, identidad => identidad.UsuarioId == Jefe);
-        var custom = Assert.Single(jefe.Roles, rol => rol.Codigo == "revisor_custom");
-        Assert.Contains("docentes.ver", custom.Permisos);
-        Assert.DoesNotContain(jefe.Roles, rol => rol.Codigo == "inactivo_custom");
+        Assert.Contains("Revisor personalizado", jefe.Roles);
+        Assert.DoesNotContain("Inactivo personalizado", jefe.Roles);
 
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "revisor_custom");
-        using var docentes = await cliente.GetAsync("/api/administracion/docentes", ct);
+        using var docentes = await cliente.GetAsync("/api/administracion/personas", ct);
         Assert.Equal(HttpStatusCode.OK, docentes.StatusCode);
     }
 
@@ -232,6 +268,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(ambiente);
+            builder.UseSetting("Integridad:ClavesSellado:1", Convert.ToBase64String(Enumerable.Repeat((byte)7, 32).ToArray()));
             builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
             builder.UseSetting(
                 $"{AutenticacionDesarrolloOptions.Seccion}:Enabled",

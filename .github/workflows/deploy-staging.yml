@@ -2,6 +2,7 @@
 name: deploy-staging
 
 on:
+  workflow_dispatch:
   push:
     branches: [develop]
     # Los cambios exclusivamente documentales no construyen ni despliegan.

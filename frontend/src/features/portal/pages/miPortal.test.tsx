@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render as testingRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -68,8 +69,10 @@ const perfiles = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../api/portalApi", async () => {
-  const real = await vi.importActual<typeof import("../api/portalApi")>("../api/portalApi");
+vi.mock("../../../shared/perfil/api/portalApi", async () => {
+  const real = await vi.importActual<typeof import("../../../shared/perfil/api/portalApi")>(
+    "../../../shared/perfil/api/portalApi",
+  );
   return {
     ...real,
     obtenerPerfil: async () => {
@@ -99,7 +102,9 @@ function render(ui: React.ReactElement) {
   vi.spyOn(cliente, "invalidateQueries").mockResolvedValue();
   return testingRender(ui, {
     wrapper: ({ children }) => (
-      <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
+      </MemoryRouter>
     ),
   });
 }

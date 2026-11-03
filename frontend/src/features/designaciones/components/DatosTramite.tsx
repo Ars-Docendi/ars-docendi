@@ -1,3 +1,4 @@
+import { useResaltado } from "../../../shared/ui/resaltado";
 import type { ReactNode } from "react";
 import type { EstadoPedido, PedidoDesignacion } from "../types";
 import { formatearFecha, posicionEtapa } from "./detalleAdapters";
@@ -12,6 +13,8 @@ const ETAPA_LEGIBLE: Record<EstadoPedido, string> = {
   en_lote: "En lote",
   rechazado: "Rechazado",
   cancelado: "Cancelado",
+  en_proceso: "En proceso",
+  aprobado: "Aprobado",
 };
 
 const ICONO_BANDERA = (
@@ -38,6 +41,7 @@ function MetaRow({ etiqueta, children }: { etiqueta: string; children: ReactNode
  * omiten en lugar de inventarse (invariante #7).
  */
 export function DatosTramite({ pedido }: { pedido: PedidoDesignacion }) {
+  const resaltado = useResaltado(pedido.id);
   const ultimoEnvio = [...pedido.historial]
     .reverse()
     .find((evento) => evento.accion === "reenviar" || evento.accion === "enviar");
@@ -45,7 +49,10 @@ export function DatosTramite({ pedido }: { pedido: PedidoDesignacion }) {
   const posicion = posicionEtapa(pedido.estado);
 
   return (
-    <section className="adoc-card adoc-meta">
+    <section
+      className={`adoc-card adoc-meta${resaltado ? " adoc-resaltado" : ""}`}
+      data-entidad-id={pedido.id}
+    >
       <header className="adoc-meta-head">
         <h2 className="adoc-meta-title">Datos del trámite</h2>
       </header>
@@ -69,6 +76,9 @@ export function DatosTramite({ pedido }: { pedido: PedidoDesignacion }) {
           <MetaRow etiqueta={ultimoEnvio.accion === "reenviar" ? "Reenviado" : "Enviado"}>
             {formatearFecha(ultimoEnvio.fecha)}
           </MetaRow>
+        )}
+        {!ultimoEnvio && pedido.enviadoEn && (
+          <MetaRow etiqueta="Enviado">{formatearFecha(pedido.enviadoEn)}</MetaRow>
         )}
         {creacion && <MetaRow etiqueta="Creado">{formatearFecha(creacion.fecha)}</MetaRow>}
       </div>

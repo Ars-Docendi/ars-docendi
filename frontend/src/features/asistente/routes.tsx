@@ -15,7 +15,7 @@ export const routes: RouteObject = {
       element: <RequirePermission permission="asistente.leer_historial_ajeno" />,
       children: [
         {
-          element: <RequirePermission permission="usuarios.ver" />,
+          element: <RequirePermission permission="personas.ver" />,
           children: [{ path: "soporte-historial", element: <SoporteHistorialPage /> }],
         },
       ],

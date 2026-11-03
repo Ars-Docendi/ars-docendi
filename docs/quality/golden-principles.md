@@ -28,6 +28,8 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 - Un solo `axios` instance, compartido en `frontend/src/shared/api/`. **Nunca** crear axios ad-hoc en una feature.
 - Data fetching: **React Query** siempre. Nunca `useEffect` + fetch manual para datos del servidor.
 
+- **Navegación**: filtros, orden y pestañas van en la URL; "Volver" es un `EnlaceVolver` validado, nunca `navigate(-1)` ni `<a href>` interno; los modales usan `shared/ui/Modal`, no el de la librería. Ver [frontend-conventions.md](../architecture/frontend-conventions.md).
+
 ## Boundaries de datos
 
 - **Parsear en el borde** — validar DTOs en el límite HTTP/módulo; no propagar shapes sin validar.

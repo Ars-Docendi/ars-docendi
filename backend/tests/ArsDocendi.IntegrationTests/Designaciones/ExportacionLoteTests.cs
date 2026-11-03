@@ -22,7 +22,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     public async Task Rol_departamental_descarga_la_planilla_institucional(string usuario, string rol)
     {
         var ct = TestContext.Current.CancellationToken;
-        await SembrarAsync(ct);
+        await EjecutarSeedAsync(ct);
         using var cliente = CrearHost().CreateClient();
         Autenticar(cliente, Guid.Parse(usuario), rol);
 
@@ -63,7 +63,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     public async Task API_rechaza_sin_autenticacion_y_roles_fuera_del_lote()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SembrarAsync(ct);
+        await EjecutarSeedAsync(ct);
         using var host = CrearHost();
         using var sinAutenticar = host.CreateClient();
         Assert.Equal(
@@ -81,14 +81,14 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     public async Task API_rechaza_período_inexistente_o_que_dejó_de_estar_activo()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SembrarAsync(ct);
-        await EjecutarAsync("UPDATE designaciones.periodos SET activo = FALSE WHERE id = @id", ("id", Periodo));
+        await EjecutarSeedAsync(ct);
+        await EjecutarAsync("UPDATE designaciones.periodos SET activo = FALSE WHERE id = @id", ct, new NpgsqlParameter("id", Periodo));
 
         using var cliente = CrearHost().CreateClient();
         Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
         Assert.Equal(
             HttpStatusCode.Conflict,
-            (await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx")).StatusCode);
+            (await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct)).StatusCode);
         Assert.Equal(
             HttpStatusCode.NotFound,
             (await cliente.GetAsync(
@@ -99,8 +99,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     public async Task Alta_y_baja_se_separan_y_no_mutan_el_estado()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SembrarAsync(ct);
-        await EjecutarAsync("""
+        await EjecutarSeedAsync(ct, """
             UPDATE designaciones.pedidos SET estado = 'en_lote'
              WHERE id = 'd5000000-0000-4000-8000-000000000004';
             UPDATE designaciones.pedidos SET estado = 'en_lote'
@@ -110,7 +109,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
              WHERE id = 'd6000000-0000-4000-8000-000000000010';
             """);
         var estadoAntes = await EscalarAsync<string>(
-            "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'");
+            "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'", ct);
 
         using var cliente = CrearHost().CreateClient();
         Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
@@ -132,22 +131,22 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Giménez, Laura");
         Assert.Contains("Ayudante de Segunda / Categoría 5", Valores(FilasDeDatos(propuesta, 5), "E"));
         Assert.Equal(estadoAntes, await EscalarAsync<string>(
-            "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'"));
+            "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'", ct));
         Assert.Equal(1L, await EscalarAsync<long>(
-            "SELECT count(*) FROM designaciones.designaciones WHERE id = 'd6000000-0000-4000-8000-000000000010' AND vigente_hasta = DATE '2026-07-31'"));
+            "SELECT count(*) FROM designaciones.designaciones WHERE id = 'd6000000-0000-4000-8000-000000000010' AND vigente_hasta = DATE '2026-07-31'", ct));
     }
 
     [Fact]
     public async Task XLSX_conserva_textos_literales_CUIL_y_celdas_sin_fuente()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SembrarAsync(ct);
+        await EjecutarSeedAsync(ct);
         await EjecutarAsync("""
             UPDATE identity.materias SET name = '=Materia de prueba'
              WHERE id = '70000000-0000-4000-8000-000000000102';
             UPDATE identity.personas SET cuil = '0014', legajo = '0014'
              WHERE id = 'd0000000-0000-4000-8000-000000000014';
-            """);
+            """, ct);
 
         using var cliente = CrearHost().CreateClient();
         Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
@@ -173,12 +172,12 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     public async Task Sin_período_anterior_no_reutiliza_el_encabezado_del_modelo()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SembrarAsync(ct);
-        await EjecutarAsync("DELETE FROM designaciones.periodos WHERE id <> @id", ("id", Periodo));
+        await EjecutarSeedAsync(ct);
+        await EjecutarAsync("DELETE FROM designaciones.periodos WHERE id <> @id", ct, new NpgsqlParameter("id", Periodo));
 
         using var cliente = CrearHost().CreateClient();
         Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
-        using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx");
+        using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
         var propuesta = LeerXml(zip, "xl/worksheets/sheet1.xml");
@@ -201,8 +200,30 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
     }
 
+    /// <param name="ajustes">SQL del fixture: corre antes de sellar, porque después sería una alteración detectada.</param>
+    private async Task EjecutarSeedAsync(CancellationToken ct, string? ajustes = null)
+    {
+        await SembrarAsync(ct);
+        if (ajustes is not null) await EjecutarAsync(ajustes, ct);
+        // Como en un despliegue: tras sembrar, el historial se sella antes de exportar.
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct);
+    }
 
+    private async Task EjecutarAsync(string sql, CancellationToken ct, params NpgsqlParameter[] parametros)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
+        comando.Parameters.AddRange(parametros);
+        await comando.ExecuteNonQueryAsync(ct);
+    }
 
+    private async Task<T> EscalarAsync<T>(string sql, CancellationToken ct)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion);
+        return (T)(await comando.ExecuteScalarAsync(ct))!;
+    }
 
     private static XDocument LeerXml(ZipArchive zip, string nombre)
     {
@@ -233,4 +254,14 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         string.Join("\n", zip.Entries.Where(e => e.FullName.EndsWith(".xml", StringComparison.Ordinal))
             .Select(e => { using var s = e.Open(); using var reader = new StreamReader(s); return reader.ReadToEnd(); }));
 
+    private static string BuscarRaizRepositorio()
+    {
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null)
+        {
+            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
+            directorio = directorio.Parent;
+        }
+        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
+    }
 }

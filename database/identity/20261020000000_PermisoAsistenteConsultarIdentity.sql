@@ -37,7 +37,7 @@
 -- no llegó a `develop`, y salta a ...030, el primero libre en todas.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000030', 'asistente.consultar', 'Consultar el asistente', 'Hacer preguntas en lenguaje natural al asistente conversacional. El asistente responde solo con datos que el usuario ya puede ver.')
+    ('b2000000-0000-4000-8000-000000000034', 'asistente.consultar', 'Consultar el asistente', 'Hacer preguntas en lenguaje natural al asistente conversacional. El asistente responde solo con datos que el usuario ya puede ver.')
 ON CONFLICT (code) DO NOTHING;
 
 -- Guarda: si mañana aparece un rol de sistema que esta migración no contempla,

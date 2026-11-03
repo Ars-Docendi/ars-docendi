@@ -67,6 +67,14 @@
       "estado": "activo"
     },
     {
+      "nombre": "Modules.Notificaciones",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Notificaciones.Contracts",
+      "estado": "activo"
+    },
+    {
       "nombre": "ArsDocendi.Migraciones",
       "estado": "activo"
     }
@@ -267,6 +275,48 @@
       "destino": "ArsDocendi.Migraciones",
       "via": "project-reference",
       "motivo": "MigradorEfSql: adaptador común de migraciones EF + SQL versionado para el contexto Tareas."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Notificaciones",
+      "via": "project-reference",
+      "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
+    },
+    {
+      "origen": "Modules.Aulas",
+      "destino": "Modules.Notificaciones.Contracts",
+      "via": "project-reference",
+      "motivo": "INotificador: avisos al docente y a quien resuelve, después del commit."
+    },
+    {
+      "origen": "Modules.Designaciones",
+      "destino": "Modules.Notificaciones.Contracts",
+      "via": "project-reference",
+      "motivo": "INotificador: avisos al aceptar, rechazar o devolver un pedido, después del commit."
+    },
+    {
+      "origen": "Modules.Notificaciones",
+      "destino": "ArsDocendi.Migraciones",
+      "via": "project-reference",
+      "motivo": "Migrador del schema notificaciones."
+    },
+    {
+      "origen": "Modules.Notificaciones",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Resolución de destinatarios con IConsultasIdentity (sólo lectura)."
+    },
+    {
+      "origen": "Modules.Notificaciones",
+      "destino": "Modules.Notificaciones.Contracts",
+      "via": "project-reference",
+      "motivo": "Propio contract público (INotificador)."
+    },
+    {
+      "origen": "Modules.Tareas",
+      "destino": "Modules.Notificaciones.Contracts",
+      "via": "project-reference",
+      "motivo": "INotificador: avisos de asignación, estado y comentarios, después del commit."
     }
   ]
 }

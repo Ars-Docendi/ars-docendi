@@ -35,15 +35,9 @@ public sealed class ServicioIngreso(
 
         if (!usuario.Activo) return Rechazar(MotivoRechazoIngreso.Inactivo, cuenta);
 
-        var identidad = await sesion.ObtenerAsync(usuario.Id, ct);
+        // Con varias asignaciones el ingreso se acepta sin elegir: la persona elige después.
+        var identidad = await sesion.ObtenerAsync(usuario.Id, null, ct);
         if (identidad is null) return Rechazar(MotivoRechazoIngreso.SinRol, cuenta);
-
-        if (identidad.CantidadRoles > 1)
-        {
-            logger.LogWarning(
-                "El usuario {UsuarioId} tiene {CantidadRoles} roles vigentes; la sesión usa {RolCodigo}",
-                identidad.UsuarioId, identidad.CantidadRoles, identidad.RolCodigo);
-        }
 
         return ResultadoIngreso.Aceptar(usuario.Id);
     }

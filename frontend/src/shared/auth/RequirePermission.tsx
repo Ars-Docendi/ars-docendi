@@ -1,18 +1,18 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+
+import { PaginaSinAcceso } from "../navegacion/PaginasDeEstado";
 import { useCurrentUser } from "./useCurrentUser";
 
 /**
- * `permission` acepta un único permiso o una lista: con una lista, alcanza con
- * mantener CUALQUIERA de los permisos indicados (any-of). Ampliado para
- * `/sistema` (design D9, sistema-seccion-unificada), que se guarda con las
- * tres — `sistema.estado.ver`, `asistente.administrar`, `auditoria.ver` —; los
- * call sites de un solo string existentes no cambian.
+ * `permission` acepta un único permiso o una lista: con uno de los permisos alcanza (any-of).
+ * Sin ninguno la URL no cambia: se explica en la página que el perfil activo no puede abrirla
+ * (un redirect silencioso no dice por qué no se llegó).
  */
 export function RequirePermission({ permission }: { permission: string | readonly string[] }) {
   const { user, isLoading } = useCurrentUser();
   if (isLoading) return null;
   const requeridos = Array.isArray(permission) ? permission : [permission];
-  const tieneAlguno = requeridos.some((p) => user?.permissions.includes(p));
-  if (!user || !tieneAlguno) return <Navigate to="/" replace />;
+  if (!user || !requeridos.some((p) => user.permissions.includes(p)))
+    return <PaginaSinAcceso rol={user?.role} />;
   return <Outlet />;
 }

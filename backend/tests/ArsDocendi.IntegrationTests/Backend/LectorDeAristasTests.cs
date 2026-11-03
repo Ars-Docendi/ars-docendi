@@ -18,7 +18,7 @@ public sealed class LectorDeAristasTests
         // El cliente de inferencia vive en Modules.Asistente. El número está escrito
         // a propósito: si mañana el glob deja de alcanzar una carpeta, esto se pone
         // en rojo en vez de mirar de menos.
-        Assert.Equal(16, grafo.Proyectos.Count);
+        Assert.Equal(18, grafo.Proyectos.Count);
         Assert.Contains("ArsDocendi.Evaluacion.Nucleo", grafo.Proyectos);
         Assert.Contains("Modules.Asistente.Contracts", grafo.Proyectos);
     }

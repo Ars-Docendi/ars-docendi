@@ -3,8 +3,6 @@ namespace ArsDocendi.Shared.Auth;
 public static class Permisos
 {
     public const string Claim = "permiso";
-    public const string UsuariosVer = "usuarios.ver";
-    public const string UsuariosAdministrar = "usuarios.administrar";
     public const string RolesVer = "roles.ver";
     public const string RolesAdministrar = "roles.administrar";
     public const string RolesGestionarMembresia = "roles.gestionar_membresia";
@@ -17,10 +15,18 @@ public static class Permisos
     public const string DesignacionesAprobarSecretaria = "designaciones.aprobar_secretaria";
     public const string DesignacionesAprobarDecanato = "designaciones.aprobar_decanato";
     public const string DesignacionesRevisar = "designaciones.revisar";
-    public const string DocentesVer = "docentes.ver";
+    public const string DesignacionesVerSeguimiento = "designaciones.ver_seguimiento";
+    public const string AulasVer = "aulas.ver";
+    public const string AulasSolicitar = "aulas.solicitar";
+    public const string AulasGestionar = "aulas.gestionar";
+    public const string AulasAprobar = "aulas.aprobar";
     public const string TareasVer = "tareas.ver";
     public const string TareasGestionar = "tareas.gestionar";
     public const string ProyectosGestionar = "proyectos.gestionar";
+    public const string PersonasVer = "personas.ver";
+    public const string PersonasVerAmbito = "personas.ver_ambito";
+    public const string PersonasAdministrar = "personas.administrar";
+    public const string PortalAdministrar = "portal.administrar";
 
     /// <summary>
     /// Admisión al asistente conversacional. Se administra desde la membresía de
@@ -80,8 +86,10 @@ public static class Permisos
 
     public static readonly string[] Todos =
     [
-        UsuariosVer,
-        UsuariosAdministrar,
+        PersonasVer,
+        PersonasVerAmbito,
+        PersonasAdministrar,
+        PortalAdministrar,
         RolesVer,
         RolesAdministrar,
         RolesGestionarMembresia,
@@ -94,12 +102,16 @@ public static class Permisos
         DesignacionesAprobarSecretaria,
         DesignacionesAprobarDecanato,
         DesignacionesRevisar,
-        DocentesVer,
         AsistenteConsultar,
         AsistenteVerConsulta,
         AsistenteLeerHistorialAjeno,
         AsistenteAdministrar,
         AsistenteRevisarCalidad,
+        DesignacionesVerSeguimiento,
+        AulasVer,
+        AulasSolicitar,
+        AulasGestionar,
+        AulasAprobar,
         TareasVer,
         TareasGestionar,
         ProyectosGestionar,

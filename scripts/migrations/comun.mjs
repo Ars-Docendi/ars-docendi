@@ -46,6 +46,13 @@ export const contextos = {
     directorio: "backend/src/Modules.Tareas/Infrastructure/Migrations",
     schemas: ["tareas"],
   },
+  Notificaciones: {
+    schema: "notificaciones",
+    db: "NotificacionesDbContext",
+    espacio: "Modules.Notificaciones.Infrastructure.Migrations",
+    directorio: "backend/src/Modules.Notificaciones/Infrastructure/Migrations",
+    schemas: ["notificaciones"],
+  },
 };
 export const manifiestoRuta = "database/migraciones-protegidas.json";
 export function argumentos(args, opcionesConValor = []) {

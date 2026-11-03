@@ -316,7 +316,7 @@ Tres conexiones que nunca se cruzan:
 sin el permiso **no puede leer la columna**, no «no se la mostramos».
 
 **La condición para la conexión con PII exige alcance global además del permiso**, y no es
-redundancia. `Politicas.DocentesVer` la pasa quien tenga `usuarios.ver` **o** quien esté en el rol
+redundancia. `Politicas.DocentesVer` la pasa quien tenga `personas.ver` **o** quien esté en el rol
 `jefe_catedra`, pero los tres endpoints de docentes **acotan los datos por separado**, en el
 controller. La política es la puerta; el acotamiento es otra cosa que se aplica después. Un
 asistente que mirara solo la política heredaría la puerta y no el acotamiento, y como

@@ -46,6 +46,16 @@
       "motivo": "El sistema de tareas y proyectos: títulos, descripciones, soluciones, comentarios en texto libre e historial con actor y rol. Ninguna pregunta del catálogo lo necesita y el texto libre no admite enmascarado por columna. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
     },
     {
+      "nombre": "aulas",
+      "estado": "denegado",
+      "motivo": "Las solicitudes de reserva de aulas: quién pidió qué aula y por qué, con motivos de cancelación en texto libre que no admite enmascarado por columna. Ninguna pregunta del catálogo lo necesita. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+    },
+    {
+      "nombre": "notificaciones",
+      "estado": "denegado",
+      "motivo": "Los avisos in-app de cada usuario: texto armado por los módulos emisores, con nombres y referencias a entidades ajenas, dirigido a una persona concreta. Ninguna pregunta del catálogo lo necesita y leerlo permitiría reconstruir qué le avisaron a quién. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+    },
+    {
       "nombre": "public",
       "estado": "denegado",
       "motivo": "No es un schema de dominio: tiene el historial de migraciones de EF y las dos tablas de metadatos del seed sintético (seed_metadata, seed_identities). Nada de eso responde una pregunta de nadie, y seed_identities enumera qué usuarios son sembrados, que es información sobre el sistema y no sobre el Departamento."
@@ -648,6 +658,22 @@
       "tabla": "__EFMigrationsHistory",
       "estado": "denegada-explicita",
       "motivo": "Historial de migraciones propio del schema desde el baseline consolidado. Tabla de control del motor de migraciones. Es fontanería del framework, no dato de dominio: ninguna pregunta del alcance la necesita, y exponerla filtra el estado interno del versionado del esquema. La detectó el test de manifiesto en su primera corrida, que es exactamente el caso que la dirección 3 existe para atrapar.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "pedido_sellos",
+      "estado": "denegada-explicita",
+      "motivo": "Cadena de sellos de integridad del historial de pedidos: material criptográfico de control del circuito, no dato de dominio. Ninguna pregunta del alcance la necesita y exponerla entrega la estructura de la verificación de integridad.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "periodo_anclas",
+      "estado": "denegada-explicita",
+      "motivo": "Anclas de la cadena de sellos por período: infraestructura del control de integridad, no dato de dominio. Ninguna pregunta del alcance la necesita.",
       "columnas_concedidas": {},
       "columnas_denegadas": []
     }

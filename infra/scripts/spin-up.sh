@@ -37,10 +37,13 @@
 #                                     ingreso con Microsoft (default apagado; en prod obligatorio)
 #   ADMIN_INICIAL_UPN ADMIN_INICIAL_NOMBRE ADMIN_INICIAL_APELLIDO ADMIN_INICIAL_DOCUMENTO
 #                                     sólo prod: administrador inicial que crea --migrate
+#   SELLADO_CLAVE SELLADO_CLAVE_2     claves HMAC base64 de la cadena de sellos, versiones 1 y 2
+#   SELLADO_VERSION_VIGENTE           versión con la que se sella (default 1; su clave es obligatoria en prod)
 #   Estas variables llegan a Compose por el entorno del proceso, no por el .env efímero.
 #   Las contraseñas del asistente y ASISTENTE_CLAVE también: el .env efímero sólo
 #   lleva nombres de rol y el proveedor ya resuelto.
-#   CLI fijo de la imagen: --estado-migraciones / --script-migraciones - / --migrate.
+#   CLI fijo de la imagen: --estado-migraciones / --script-migraciones - / --migrate /
+#   --sellar-historial-existente (sólo mientras el seed lo marque pendiente).
 
 source "$(dirname "$0")/_comun.sh"
 
@@ -239,6 +242,16 @@ fi
 "$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
 if [[ "$ambiente" != prod ]]; then
   SEED_BASE_CREATED="$base_nueva" "$scripts_dir/seed.sh" "$ambiente"
+  # Sólo mientras el seed lo marque pendiente: sellar en cada deploy legitimaría cambios
+  # hechos por SQL. Un sellado fallido conserva la marca y se reintenta en el próximo deploy.
+  consultar_base() { psql_en_docker -e "PGDATABASE=$base" "$IMAGEN_PSQL" psql -X -qtA -v ON_ERROR_STOP=1 -c "$1"; }
+  # Una consulta fallida no puede leerse como "pendiente": abortar antes de sellar.
+  sellado_pendiente="$(consultar_base "SELECT count(*) FROM public.seed_metadata WHERE clave = 'sellado_inicial'")" ||
+    fatal 'msg="no se pudo consultar el sellado inicial pendiente"'
+  if [[ "$sellado_pendiente" != 0 ]]; then
+    compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --sellar-historial-existente
+    consultar_base "DELETE FROM public.seed_metadata WHERE clave = 'sellado_inicial'" >/dev/null
+  fi
 fi
 critica=true
 compose up -d

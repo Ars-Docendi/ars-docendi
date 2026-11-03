@@ -35,6 +35,7 @@ flowchart TD
     PortalContracts["Modules.Portal.Contracts"]
     TareasContracts["Modules.Tareas.Contracts"]
     AsistenteContracts["Modules.Asistente.Contracts"]
+    NotificacionesContracts["Modules.Notificaciones.Contracts"]
   end
   subgraph modules [Modules internos]
     Storage["ArsDocendi.Storage"]
@@ -43,6 +44,7 @@ flowchart TD
     Portal["Modules.Portal"]
     Tareas["Modules.Tareas"]
     Asistente["Modules.Asistente"]
+    Notificaciones["Modules.Notificaciones"]
   end
   subgraph evaluacion [Evaluación]
     EvaluacionNucleo["ArsDocendi.Evaluacion.Nucleo"]
@@ -56,13 +58,16 @@ flowchart TD
   Aulas --> Migraciones
   Portal --> Migraciones
   Tareas --> Migraciones
+  Notificaciones --> Migraciones
   Host --> Designaciones
   Host --> Storage
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
   Host --> Asistente
+  Host --> Notificaciones
   Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
+  Host -->|"administración de Mi Portal de otras personas"| PortalContracts
   Host -->|"auditoría de administración + estado de mantenimiento"| AsistenteContracts
 
   Designaciones --> Shared
@@ -72,6 +77,7 @@ flowchart TD
   Tareas --> Shared
   Asistente --> Shared
   Asistente --> AsistenteContracts
+  Notificaciones --> Shared
 
   Designaciones --> DesignacionesContracts
   Storage --> StorageContracts
@@ -80,6 +86,10 @@ flowchart TD
   Portal --> PortalContracts
   Portal --> StorageContracts
   Tareas --> TareasContracts
+  Notificaciones --> NotificacionesContracts
+  Aulas -->|"avisos in-app"| NotificacionesContracts
+  Designaciones -->|"avisos in-app"| NotificacionesContracts
+  Tareas -->|"avisos in-app"| NotificacionesContracts
 
   EvaluacionNucleo -->|"excepción al invariante #1 (ARS-63)"| Asistente
 
@@ -119,7 +129,7 @@ Dependencias de paquete del Host para el ingreso con Microsoft (tampoco son edge
 
 ## Frontera de lectura sobre `identity`
 
-Los 4 módulos referencian `ArsDocendi.Shared`, y eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
+Los módulos de negocio referencian `ArsDocendi.Shared`, y eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
 
 La disciplina, corolario del invariante #4 enmendado:
 
@@ -166,7 +176,13 @@ internas de Portal.
 
 ## Orquestación administrativa de docentes
 
-`ArsDocendi.Host.Administracion.ServicioDocentes` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa la arista Host → Contracts ya registrada y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
+`ArsDocendi.Host.Administracion.ServicioAdministracionPersonas` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa el edge Host → Contracts ya permitido y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
+
+## Notificaciones: una hoja del grafo
+
+`Modules.Notificaciones.Contracts` no referencia ningún proyecto y `Modules.Notificaciones` sólo referencia `Shared`, `Migraciones` y sus propios Contracts. Aulas, Designaciones y Tareas dependen de esos Contracts (`INotificador` y sus records); nunca de la implementación. Como Notificaciones no depende de ninguno de los tres, no hay ciclo posible: la flecha va siempre de quien emite hacia Notificaciones.
+
+El emisor dice _a quién_ (un usuario, una persona o un rol en un ámbito) y _qué_ (un texto inmutable que él mismo construye); Notificaciones resuelve los usuarios con `IConsultasIdentity`, sin acceder a las tablas de los emisores. `ArquitecturaIdentityTests` verifica esta forma.
 
 **Arista cross-module proyectada** (a confirmar en la spec respectiva, sin fila en el manifiesto hasta que el `.csproj` la referencie): `Modules.Asistente` → `Modules.Designaciones.Contracts`, que llega con el carril determinista de API (ARS-46).
 

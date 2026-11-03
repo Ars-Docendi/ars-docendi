@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { TopBar } from "./TopBar";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
@@ -15,25 +15,86 @@ const usuario: CurrentUser = {
   role: "Docente",
   roleCode: "docente",
   permissions: [],
+  asignacion: null,
+  asignaciones: [],
+  requiereElegirRol: false,
 };
 
-function renderTopBar() {
+function renderTopBar(user: CurrentUser = usuario, ruta = "/") {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={cliente}>
-      <MemoryRouter>
-        <TopBar collapsed={false} onToggleCollapse={() => {}} user={usuario} />
+      <MemoryRouter initialEntries={[ruta]}>
+        <TopBar user={user} />
+        <Routes>
+          <Route path="/aulas" element={<p>Pantalla de aulas</p>} />
+          <Route path="/portal" element={<p>Pantalla del portal</p>} />
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
+/** jsdom no evalúa media queries: simula un viewport angosto. */
+function simularPantallaAngosta() {
+  vi.stubGlobal(
+    "matchMedia",
+    (consulta: string) =>
+      ({
+        matches: consulta === "(max-width: 767px)",
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList,
+  );
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("TopBar", () => {
-  it("mantiene el menú de usuario con Cerrar sesión", async () => {
+  it("en pantallas angostas navega desde el panel y lo cierra", async () => {
+    simularPantallaAngosta();
+    renderTopBar({ ...usuario, permissions: ["portal.ver", "aulas.ver"] }, "/aulas");
+
+    await userEvent.click(screen.getByRole("button", { name: "Abrir menú de navegación" }));
+    const panel = screen.getByRole("dialog", { name: "Menú" });
+    expect(within(panel).getByRole("link", { name: "Centro de ayuda" })).toHaveAttribute(
+      "href",
+      "/ayuda",
+    );
+    await userEvent.click(within(panel).getByRole("button", { name: /Menú de usuario/ }));
+    expect(within(panel).getByRole("menuitem", { name: "Cerrar sesión" })).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole("link", { name: "Mi portal" }));
+
+    expect(screen.getByText("Pantalla del portal")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Menú" })).not.toBeInTheDocument();
+  });
+
+  it("el panel atrapa el foco, Esc lo cierra y el foco vuelve al botón Menú", async () => {
+    simularPantallaAngosta();
+    renderTopBar({ ...usuario, permissions: ["portal.ver"] });
+    const abrir = screen.getByRole("button", { name: "Abrir menú de navegación" });
+
+    await userEvent.click(abrir);
+    const panel = screen.getByRole("dialog", { name: "Menú" });
+    await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+    for (let i = 0; i < 8; i++) {
+      await userEvent.tab();
+      expect(panel.contains(document.activeElement)).toBe(true);
+    }
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Menú" })).not.toBeInTheDocument();
+    await waitFor(() => expect(abrir).toHaveFocus());
+  });
+
+  it("la marca muestra el isotipo y lleva a Mi portal", () => {
     renderTopBar();
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir menú de usuario" }));
-
-    expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
+    const marca = screen.getByRole("link", { name: "Ars Docendi, ir a Mi portal" });
+    expect(marca).toHaveAttribute("href", "/portal");
+    expect(marca.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByText("AD")).not.toBeInTheDocument();
   });
 });

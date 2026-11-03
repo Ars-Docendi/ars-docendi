@@ -197,7 +197,8 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // Subió de 128 a 130 con asistente-metricas-de-calidad: dos en
         // CalidadController (`GET /api/asistente/administracion/calidad`, los agregados,
         // y `GET …/calidad/problemas`, la lista anónima y auditada).
-        Assert.Equal(130, operaciones.Length);
+        // Y a 161 al integrar Notificaciones, Aulas y la administración de personas (develop).
+        Assert.Equal(161, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

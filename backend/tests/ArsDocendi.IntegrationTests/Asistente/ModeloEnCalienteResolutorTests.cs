@@ -377,6 +377,7 @@ public sealed class ModeloEnCalienteResolutorTests(PostgresFixture postgres)
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Production");
+                builder.UseSetting("Integridad:ClavesSellado:1", Convert.ToBase64String(new byte[32]));
                 builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
                 builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
                 builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");

@@ -9,7 +9,7 @@ namespace Modules.Asistente.Infrastructure;
 internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDelActor
 {
     /// <summary>Permiso que habilita la conexión con datos personales.</summary>
-    private const string PermisoDeDatosPersonales = "usuarios.ver";
+    private const string PermisoDeDatosPersonales = "personas.ver";
 
     /// <summary>Permiso que habilita ver la consulta generada.</summary>
     private const string PermisoDeVerLaConsulta = "asistente.ver_consulta";

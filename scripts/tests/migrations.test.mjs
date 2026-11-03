@@ -478,12 +478,18 @@ test("inventario rechaza directorio usado como recurso SQL", async (t) => {
 
 test("scaffold de todos los contextos tiene identidades distintas e inventario válido", async (t) => {
   const raiz = temporal(t);
-  const planes = ["Identity", "Storage", "Designaciones", "Portal", "Aulas", "Tareas"].map(
-    (contexto) => JSON.parse(ejecutar(cli, raiz, [contexto, "AgregarIndice"])),
-  );
-  assert.equal(new Set(planes.map((plan) => plan.id)).size, 6);
+  const planes = [
+    "Identity",
+    "Storage",
+    "Designaciones",
+    "Portal",
+    "Aulas",
+    "Tareas",
+    "Notificaciones",
+  ].map((contexto) => JSON.parse(ejecutar(cli, raiz, [contexto, "AgregarIndice"])));
+  assert.equal(new Set(planes.map((plan) => plan.id)).size, 7);
   const { inventariar } = await import("../migrations/inventario.mjs");
-  assert.equal(inventariar(raiz).migraciones.length, 6);
+  assert.equal(inventariar(raiz).migraciones.length, 7);
 });
 
 test("scaffold rechaza symlinks sin escribir fuera del workspace", (t) => {
