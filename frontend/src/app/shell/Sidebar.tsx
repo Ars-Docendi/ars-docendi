@@ -12,10 +12,12 @@ interface SidebarProps {
   user: CurrentUser;
   /** Campana de notificaciones: va entre el Centro de ayuda y la tarjeta de usuario. */
   campana?: ReactNode;
+  /** Lanzador del asistente: va arriba de la ayuda, en el pie. */
+  lanzador?: ReactNode;
 }
 
 /** Barra lateral de escritorio: menú y marca arriba, ayuda y usuario abajo. */
-export function Sidebar({ collapsed, onToggleCollapse, user, campana }: SidebarProps) {
+export function Sidebar({ collapsed, onToggleCollapse, user, campana, lanzador }: SidebarProps) {
   return (
     <aside className="adoc-sidebar">
       <div className="adoc-sidebar-head">
@@ -38,6 +40,7 @@ export function Sidebar({ collapsed, onToggleCollapse, user, campana }: SidebarP
       </nav>
 
       <div className="adoc-sidebar-foot">
+        {lanzador}
         <EnlaceAyuda collapsed={collapsed} />
         {campana}
         <MenuUsuario user={user} collapsed={collapsed} />

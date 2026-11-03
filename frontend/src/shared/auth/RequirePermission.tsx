@@ -4,10 +4,11 @@ import { PaginaSinAcceso } from "../navegacion/PaginasDeEstado";
 import { useCurrentUser } from "./useCurrentUser";
 
 /**
- * Con uno de los permisos alcanza. Sin ninguno la URL no cambia: se explica en la página que el
- * perfil activo no puede abrirla (un redirect silencioso no dice por qué no se llegó).
+ * `permission` acepta un único permiso o una lista: con uno de los permisos alcanza (any-of).
+ * Sin ninguno la URL no cambia: se explica en la página que el perfil activo no puede abrirla
+ * (un redirect silencioso no dice por qué no se llegó).
  */
-export function RequirePermission({ permission }: { permission: string | string[] }) {
+export function RequirePermission({ permission }: { permission: string | readonly string[] }) {
   const { user, isLoading } = useCurrentUser();
   if (isLoading) return null;
   const requeridos = Array.isArray(permission) ? permission : [permission];

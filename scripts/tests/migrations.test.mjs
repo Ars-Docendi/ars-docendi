@@ -309,6 +309,26 @@ test("Git protege adiciones publicadas aunque no se actualice el manifiesto glob
   falla(validador, raiz, ["--base-ref", publicada], /protegido modificado/);
 });
 
+for (const contexto of ["Identity", "Designaciones"]) {
+  test(`Git rechaza intercalar migraciones en el historial publicado de ${contexto}`, (t) => {
+    const { raiz } = crear(t, contexto);
+    ejecutar(generador, raiz);
+    const base = congelar(raiz);
+    const adicion = JSON.parse(
+      ejecutar(cli, raiz, [contexto, "MigracionIntercalada", "--dry-run"]),
+    );
+    for (const archivo of adicion.archivos) {
+      escribir(
+        raiz,
+        archivo.ruta.replace(adicion.id.slice(0, 14), "20200101000000"),
+        archivo.contenido.replaceAll(adicion.id.slice(0, 14), "20200101000000"),
+      );
+    }
+    // Una base que ya aplicó el commit confiable debe seguir siendo un prefijo.
+    falla(validador, raiz, ["--base-ref", base], /posterior.*historial publicado/);
+  });
+}
+
 test("generador reemplaza el manifiesto sin seguir un symlink insertado antes de escribir", (t) => {
   const { raiz } = crear(t);
   ejecutar(generador, raiz);

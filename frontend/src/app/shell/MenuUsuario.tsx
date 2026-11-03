@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, InlineAlert, RoleMenu } from "@ars-docendi/ui";
 
-import { desuscribirDelServidor } from "../../features/notificaciones/push/dispositivoPush";
+import { desuscribirDelServidor } from "../../features/notificaciones";
 import { mensajeProblema } from "../../shared/api/problemDetails";
 import { useCerrarSesion } from "../../shared/auth/auth";
 import { etiquetaAmbito, useElegirRol } from "../../shared/auth/rolActivo";

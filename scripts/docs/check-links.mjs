@@ -4,7 +4,9 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-const archivos = execFileSync("git", ["ls-files", "*.md"], { encoding: "utf8" })
+const archivos = execFileSync("git", ["-c", "core.quotepath=off", "ls-files", "*.md"], {
+  encoding: "utf8",
+})
   .split("\n")
   .filter((f) => f && !f.startsWith("openspec/changes/archive/"));
 

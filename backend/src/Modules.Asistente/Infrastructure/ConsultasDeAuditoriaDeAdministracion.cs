@@ -1,0 +1,207 @@
+using System.Text.Json;
+using ArsDocendi.Shared.Persistencia;
+using Modules.Asistente.Contracts;
+using Npgsql;
+
+namespace Modules.Asistente.Infrastructure;
+
+/// <summary>
+/// <see cref="IConsultasDeAuditoriaDeAdministracion"/> sobre
+/// <c>asistente.auditoria_administracion</c> (sistema-seccion-unificada, design.md D1, ARS-157).
+/// </summary>
+internal sealed class ConsultasDeAuditoriaDeAdministracion(CadenaDuena cadena)
+    : IConsultasDeAuditoriaDeAdministracion
+{
+    /// <summary>Cupo de filas por consulta (design.md D1/D3).</summary>
+    private const int Cupo = 2000;
+
+    public async Task<LoteDeAuditoriaDeAdministracion> ListarAsync(
+        DateTimeOffset? desde, DateTimeOffset? hasta, CancellationToken ct)
+    {
+        await using var conexion = new NpgsqlConnection(cadena.Valor);
+        await conexion.OpenAsync(ct);
+
+        // El rango es INCLUSIVO en las dos puntas (design.md tarea 1.2): >= y <=,
+        // no un lado abierto.
+        await using var comando = new NpgsqlCommand(
+            """
+            SELECT id, actor_id, ocurrido_en, accion, antes, despues
+              FROM asistente.auditoria_administracion
+             WHERE (@desde::timestamptz IS NULL OR ocurrido_en >= @desde)
+               AND (@hasta::timestamptz IS NULL OR ocurrido_en <= @hasta)
+             ORDER BY ocurrido_en DESC, id DESC
+             LIMIT @limite
+            """, conexion);
+        comando.Parameters.AddWithValue("desde", (object?)desde ?? DBNull.Value);
+        comando.Parameters.AddWithValue("hasta", (object?)hasta ?? DBNull.Value);
+        // Se pide uno de más para distinguir "hay exactamente el cupo" de "hay
+        // más que el cupo" sin un COUNT(*) aparte.
+        comando.Parameters.AddWithValue("limite", Cupo + 1);
+
+        var eventos = new List<EventoDeAdministracion>();
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+        while (await lector.ReadAsync(ct))
+        {
+            eventos.Add(Mapear(
+                lector.GetInt64(0),
+                lector.GetGuid(1),
+                lector.GetFieldValue<DateTimeOffset>(2),
+                lector.GetString(3),
+                lector.IsDBNull(4) ? null : lector.GetString(4),
+                lector.IsDBNull(5) ? null : lector.GetString(5)));
+        }
+
+        var truncado = eventos.Count > Cupo;
+        if (truncado)
+        {
+            eventos.RemoveRange(Cupo, eventos.Count - Cupo);
+        }
+
+        return new LoteDeAuditoriaDeAdministracion(eventos, truncado);
+    }
+
+    /// <summary>
+    /// Normaliza el JSON de cada acción a los campos de design.md D1/D5. Un
+    /// código de acción que este método no reconoce mapea a sí mismo sin
+    /// campos — el Host lo redacta como «Cambio» genérico (design.md D5).
+    /// </summary>
+    private static EventoDeAdministracion Mapear(
+        long id, Guid actorId, DateTimeOffset ocurridoEn, string tipo, string? antes, string? despues)
+    {
+        using var docAntes = Parsear(antes);
+        using var docDespues = Parsear(despues);
+
+        return tipo switch
+        {
+            "presupuesto.rol" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "rol") ?? Texto(docAntes, "rol"),
+                UsuarioAfectado: null,
+                Campos: [CampoDe("cupo", docAntes, docDespues)]),
+
+            "presupuesto.usuario" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: null,
+                UsuarioAfectado: LeerGuid(docDespues, "actorId") ?? LeerGuid(docAntes, "actorId"),
+                Campos: [CampoDe("cupo", docAntes, docDespues)]),
+
+            "presupuesto.usuario.restablecer" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: null,
+                UsuarioAfectado: LeerGuid(docDespues, "actorId") ?? LeerGuid(docAntes, "actorId"),
+                Campos: [CampoDe("cupo", docAntes, docDespues)]),
+
+            // asistente-acceso-granular: acceso operativo por rol y revocación por usuario.
+            "acceso.rol" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "rol") ?? Texto(docAntes, "rol"),
+                UsuarioAfectado: null,
+                Campos: [CampoDe("acceso_habilitado", docAntes, docDespues, "habilitado")]),
+
+            "acceso.usuario" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: null,
+                UsuarioAfectado: LeerGuid(docDespues, "actorId") ?? LeerGuid(docAntes, "actorId"),
+                Campos: [CampoDe("acceso_revocado", docAntes, docDespues, "revocado")]),
+
+            "tope_organizacional" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: null,
+                UsuarioAfectado: null,
+                Campos: [CampoDe("tope_mensual_usd", docAntes, docDespues, "topeMensualUsd")]),
+
+            "mantenimiento.activar" or "mantenimiento.desactivar" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: null,
+                UsuarioAfectado: null,
+                Campos:
+                [
+                    CampoDe("activo", docAntes, docDespues, "Activo"),
+                    CampoDe("razon", docAntes, docDespues, "Razon"),
+                ]),
+
+            // asistente-modelo-en-caliente: the JSON holds company, model, origin and the
+            // key HINT only; it never holds key text (see ConfinamientoDeClaves tests).
+            "modelo.seleccionar" or "modelo.restablecer" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "empresa") ?? Texto(docAntes, "empresa"),
+                UsuarioAfectado: null,
+                Campos:
+                [
+                    CampoDe("empresa", docAntes, docDespues),
+                    CampoDe("modelo", docAntes, docDespues),
+                    CampoDe("origen", docAntes, docDespues),
+                    CampoDe("pista", docAntes, docDespues),
+                ]),
+
+            "credencial.crear" or "credencial.reemplazar" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "empresa") ?? Texto(docAntes, "empresa"),
+                UsuarioAfectado: null,
+                Campos:
+                [
+                    CampoDe("empresa", docAntes, docDespues),
+                    CampoDe("pista", docAntes, docDespues),
+                ]),
+
+            // asistente-modelo-en-caliente: a price version. Company, model, the three amounts per
+            // million tokens and the start date; prices are not secrets.
+            "precio.cargar" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "empresa") is { } empresa && Texto(docDespues, "modelo") is { } modelo
+                    ? $"{empresa}/{modelo}"
+                    : null,
+                UsuarioAfectado: null,
+                Campos:
+                [
+                    CampoDe("empresa", docAntes, docDespues),
+                    CampoDe("modelo", docAntes, docDespues),
+                    CampoDe("entrada_por_millon", docAntes, docDespues, "entradaPorMillon"),
+                    CampoDe("salida_por_millon", docAntes, docDespues, "salidaPorMillon"),
+                    CampoDe("cache_por_millon", docAntes, docDespues, "cachePorMillon"),
+                    CampoDe("vigente_desde", docAntes, docDespues, "vigenteDesde"),
+                ]),
+
+            _ => new EventoDeAdministracion(id, actorId, ocurridoEn, tipo, null, null, []),
+        };
+    }
+
+    private static CampoDeAdministracion CampoDe(
+        string campoNormalizado, JsonDocument? antes, JsonDocument? despues, string? claveEnJson = null)
+    {
+        var clave = claveEnJson ?? campoNormalizado;
+        return new CampoDeAdministracion(campoNormalizado, ValorCrudo(antes, clave), ValorCrudo(despues, clave));
+    }
+
+    /// <summary>
+    /// El valor de una propiedad, como texto, sea cual sea su tipo JSON. Nulo
+    /// si el documento no existe, la propiedad falta o vale JSON null.
+    /// </summary>
+    private static string? ValorCrudo(JsonDocument? documento, string propiedad)
+    {
+        if (documento is null || !documento.RootElement.TryGetProperty(propiedad, out var valor))
+        {
+            return null;
+        }
+
+        return valor.ValueKind switch
+        {
+            JsonValueKind.Null => null,
+            JsonValueKind.String => valor.GetString(),
+            _ => valor.GetRawText(),
+        };
+    }
+
+    private static string? Texto(JsonDocument? documento, string propiedad) =>
+        documento is not null
+        && documento.RootElement.TryGetProperty(propiedad, out var valor)
+        && valor.ValueKind == JsonValueKind.String
+            ? valor.GetString()
+            : null;
+
+    private static Guid? LeerGuid(JsonDocument? documento, string propiedad) =>
+        Texto(documento, propiedad) is { } texto && Guid.TryParse(texto, out var guid) ? guid : null;
+
+    private static JsonDocument? Parsear(string? json) =>
+        string.IsNullOrWhiteSpace(json) ? null : JsonDocument.Parse(json);
+}

@@ -11,7 +11,7 @@ internal static class PoliticaValoresAuditoria
         ["identity.roles"] = ["code", "scope", "es_sistema", "is_active", "created_at"],
         ["identity.permisos"] = ["code", "created_at"],
         ["identity.rol_permisos"] = ["rol_id", "permiso_id", "created_at"],
-        ["identity.user_roles"] = ["revocado_at", "created_at"],
+        ["identity.user_roles"] = ["deleted_at", "created_at"],
         ["identity.materias"] = ["codigo", "activo", "created_at"],
         ["identity.carreras"] = ["codigo", "activo", "created_at"],
         ["identity.planes"] = ["activo", "created_at"],

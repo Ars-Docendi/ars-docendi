@@ -1,0 +1,129 @@
+using ArsDocendi.IntegrationTests.Infraestructura;
+using ArsDocendi.Shared.Auth;
+using ArsDocendi.Shared.Identity;
+using ArsDocendi.Shared.Persistencia;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+
+namespace ArsDocendi.IntegrationTests.Asistente;
+
+/// <summary>Verifica el permiso de admisión al asistente y su siembra.</summary>
+public sealed class PermisoConsultarTests(PostgresFixture postgres)
+    : ClasePostgresAislada(postgres, "asistente_permiso")
+{
+    private const string Recurso = "identity/20261103000000_PermisoAsistenteConsultarIdentity.sql";
+
+    private static readonly string[] RolesConAcceso =
+    [
+        "jefe_catedra", "coordinador_carrera", "secretaria",
+        "decanato", "administrativo", "sys_admin",
+    ];
+
+    private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+
+    [Fact]
+    public async Task Los_seis_roles_no_docente_lo_tienen_y_docente_no()
+    {
+        var conAcceso = await LeerRolesConElPermisoAsync();
+
+        // sys_admin va explícito y no por herencia: su matriz se sembró con un
+        // ARRAY(SELECT code FROM identity.permisos) evaluado cuando corrió aquella
+        // migración, así que un permiso nuevo no le llega solo.
+        Assert.Equal(RolesConAcceso.Order(), conAcceso.Order());
+        Assert.DoesNotContain("docente", conAcceso);
+    }
+
+    [Fact]
+    public async Task Un_rol_de_sistema_nuevo_sin_decision_rompe_la_migracion()
+    {
+        // La guarda es lo que hace que «los siete» signifique algo. Sin ella, un rol
+        // de sistema agregado más adelante quedaría sin acceso y sin que nadie lo
+        // haya decidido — el mismo modo de falla silencioso que la trampa de sys_admin.
+        await EjecutarAsync(
+            """
+            INSERT INTO identity.roles (id, code, name, scope, es_sistema)
+            VALUES (gen_random_uuid(), 'rol_nuevo_de_sistema', 'Rol nuevo', 'global', TRUE)
+            """);
+
+        var error = await Assert.ThrowsAsync<PostgresException>(EjecutarMigracionAsync);
+
+        Assert.Contains("rol_nuevo_de_sistema", error.MessageText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Conceder_y_revocar_cambia_la_autorizacion_sin_redesplegar()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+
+        Assert.Contains(Permisos.AsistenteConsultar, await PermisosDelJefeAsync(ct));
+
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos
+             WHERE rol_id = (SELECT id FROM identity.roles WHERE code = 'jefe_catedra')
+               AND permiso_id = (SELECT id FROM identity.permisos WHERE code = @code)
+            """, ("code", Permisos.AsistenteConsultar));
+
+        // Mismo proceso, sin reiniciar nada: la autorización sale de la base en cada
+        // request, no de una lista compilada.
+        Assert.DoesNotContain(Permisos.AsistenteConsultar, await PermisosDelJefeAsync(ct));
+
+        await EjecutarMigracionAsync();
+
+        Assert.Contains(Permisos.AsistenteConsultar, await PermisosDelJefeAsync(ct));
+    }
+
+    // ------------------------------------------------------------------------------ apoyo
+
+    private async Task<IReadOnlyList<string>> PermisosDelJefeAsync(CancellationToken ct)
+    {
+        var permisos = await LeerColumnaAsync(
+            """
+            SELECT DISTINCT p.code
+              FROM identity.user_roles ur
+              JOIN identity.roles r ON r.id = ur.role_id AND r.is_active
+              JOIN identity.rol_permisos rp ON rp.rol_id = r.id
+              JOIN identity.permisos p ON p.id = rp.permiso_id
+             WHERE ur.user_id = @usuario AND r.code = 'jefe_catedra' AND ur.deleted_at IS NULL
+             ORDER BY p.code
+            """, ("usuario", Jefe));
+
+        Assert.NotEmpty(permisos);
+        return permisos;
+    }
+
+    private Task EjecutarMigracionAsync() => EjecutarAsync(
+        RecursosSql.Leer(typeof(IdentityDbContext).Assembly, Recurso));
+
+    private async Task<IReadOnlyList<string>> LeerRolesConElPermisoAsync() =>
+        await LeerColumnaAsync(
+            """
+            SELECT r.code
+              FROM identity.rol_permisos rp
+              JOIN identity.roles r ON r.id = rp.rol_id
+              JOIN identity.permisos p ON p.id = rp.permiso_id
+             WHERE p.code = @code
+             ORDER BY r.code
+            """, ("code", Permisos.AsistenteConsultar));
+
+    private async Task<IReadOnlyList<string>> LeerColumnaAsync(
+        string sql, params (string Nombre, object Valor)[] parametros)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = Preparar(conexion, sql, parametros);
+        await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+
+        var valores = new List<string>();
+        while (await lector.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            valores.Add(lector.GetString(0));
+        }
+
+        return valores;
+    }
+
+}

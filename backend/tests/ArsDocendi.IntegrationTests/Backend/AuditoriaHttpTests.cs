@@ -98,7 +98,7 @@ public sealed class AuditoriaHttpTests(PostgresFixture postgres) : ClasePostgres
         var demora = new Demora();
         await using var db = new IdentityDbContext(new DbContextOptionsBuilder<IdentityDbContext>()
             .UseNpgsql(Cadena).AddInterceptors(demora).Options);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new RepositorioAuditoria(db).ListarAsync(new ConsultaAuditoriaDto(), Ct));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new RepositorioAuditoria(db).ListarAsync(new ConsultaAuditoriaDto(), 0, 50, Ct));
         Assert.IsType<NpgsqlException>(error.InnerException);
         Assert.IsType<TimeoutException>(error.GetBaseException());
         Assert.Equal(5, demora.Timeout);
