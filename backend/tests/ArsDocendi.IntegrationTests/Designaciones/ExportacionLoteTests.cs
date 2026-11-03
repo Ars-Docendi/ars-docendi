@@ -203,9 +203,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     /// <param name="ajustes">SQL del fixture: corre antes de sellar, porque después sería una alteración detectada.</param>
     private async Task EjecutarSeedAsync(CancellationToken ct, string? ajustes = null)
     {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await EjecutarAsync(sql, ct);
+        await SembrarAsync(ct);
         if (ajustes is not null) await EjecutarAsync(ajustes, ct);
         // Como en un despliegue: tras sembrar, el historial se sella antes de exportar.
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);

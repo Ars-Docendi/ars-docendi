@@ -25,6 +25,7 @@ function ejecutar(ambiente, opciones = {}) {
     "purge-storage.sh",
     "provision-storage.sh",
     "provision-db.sh",
+    "verificar-roles-asistente.sh",
     "seed.sh",
     "backup-storage.sh",
     "backup-volume.sh",
@@ -41,6 +42,10 @@ function ejecutar(ambiente, opciones = {}) {
     `#!/bin/bash
 set -eu
 printf 'docker %s\\n' "$*" >> "$TEST_LOG"
+args=("$@")
+for ((i = 0; i < \${#args[@]}; i++)); do
+  [[ "\${args[i]}" != --env-file ]] || cp -- "\${args[i + 1]}" "$TEST_ENV"
+done
 if [[ "$*" == *--estado-migraciones* ]]; then
   count="$PENDING"
   [[ ! -f "$TEST_APPLIED" ]] || count=0
@@ -81,6 +86,17 @@ fi
       PGPASSWORD: "synthetic",
       APP_DB_USER: `app_${ambiente.replaceAll("-", "_")}`,
       APP_DB_PASSWORD: "synthetic",
+      ASISTENTE_RO_PASSWORD: "synthetic",
+      ASISTENTE_RO_PII_PASSWORD: "synthetic",
+      ...(opciones.proveedor ? { ASISTENTE_PROVEEDOR: opciones.proveedor } : {}),
+      ...(opciones.clave ? { ASISTENTE_CLAVE: opciones.clave } : {}),
+      ...(opciones.inferencia
+        ? {
+            INFERENCIA_URL: "https://ia.example.net",
+            INFERENCIA_USUARIO: "preview",
+            INFERENCIA_CONTRASENA: "synthetic",
+          }
+        : {}),
       SEAWEEDFS_ROOT_ACCESS_KEY: "synthetic",
       SEAWEEDFS_ROOT_SECRET_KEY: "synthetic",
       SEAWEEDFS_APP_ACCESS_KEY: "synthetic",
@@ -96,6 +112,7 @@ fi
       TEST_OBSERVED: join(dir, "observed.json"),
       BAD_PREVIEW: String(opciones.badPreview ?? false),
       TEST_LOG: join(dir, "log"),
+      TEST_ENV: join(dir, "captura.env"),
       TEST_APPLIED: join(dir, "applied"),
       PENDING: String(opciones.pending ?? 1),
       NEW_DB: String(opciones.newDb ?? false),
@@ -104,8 +121,12 @@ fi
     },
   });
   const log = readFileSync(join(dir, "log"), "utf8");
+  let env = "";
+  try {
+    env = readFileSync(join(dir, "captura.env"), "utf8");
+  } catch {}
   rmSync(dir, { recursive: true, force: true });
-  return { ...result, log };
+  return { ...result, log, env };
 }
 for (const ambiente of ["prod", "staging", "pr-123"]) {
   test(`${ambiente}: conserva datos y hace backup antes de migrar`, () => {
@@ -151,3 +172,44 @@ for (const fail of ["backup-storage.sh", "migrate", "smoke.sh"]) {
     if (fail === "migrate") assert.doesNotMatch(r.log, /up -d/);
   });
 }
+
+test("roles del asistente: humo antes y después de migrar, sin secretos en el .env", () => {
+  const r = ejecutar("staging");
+  assert.equal(r.status, 0, r.stderr);
+  const antes = r.log.indexOf("verificar-roles-asistente.sh");
+  const despues = r.log.lastIndexOf("verificar-roles-asistente.sh");
+  assert.ok(antes >= 0 && antes < r.log.indexOf("--migrate"));
+  assert.ok(despues > r.log.indexOf("--migrate"));
+  assert.match(r.env, /^ASISTENTE_ROL_BASICO=asistente_ro_staging$/m);
+  assert.match(r.env, /^ASISTENTE_ROL_PII=asistente_ro_pii_staging$/m);
+  assert.match(r.env, /^ASISTENTE_PROVEEDOR=simulado$/m);
+  assert.doesNotMatch(r.env, /PASSWORD|ASISTENTE_CLAVE/);
+});
+test("proveedor real sin clave se degrada a simulado", () => {
+  const r = ejecutar("staging", { proveedor: "anthropic" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.env, /^ASISTENTE_PROVEEDOR=simulado$/m);
+});
+test("proveedor local con clave suma el perfil del modelo propio a todo compose", () => {
+  const r = ejecutar("staging", { proveedor: "local", clave: "synthetic" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.env, /^ASISTENTE_PROVEEDOR=local$/m);
+  const llamadas = r.log.split("\n").filter((l) => l.startsWith("docker compose"));
+  assert.ok(llamadas.length > 0);
+  assert.ok(llamadas.every((l) => l.includes("compose.asistente-local.yml")));
+});
+test("proveedor ollama con servicio de inferencia suma su perfil sin pedir clave", () => {
+  const r = ejecutar("staging", { proveedor: "ollama", inferencia: true });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.env, /^ASISTENTE_PROVEEDOR=ollama$/m);
+  const llamadas = r.log.split("\n").filter((l) => l.startsWith("docker compose"));
+  assert.ok(llamadas.length > 0);
+  assert.ok(llamadas.every((l) => l.includes("compose.asistente-ollama.yml")));
+  assert.ok(llamadas.every((l) => !l.includes("compose.asistente-local.yml")));
+});
+test("proveedor ollama sin servicio de inferencia se degrada a simulado", () => {
+  const r = ejecutar("staging", { proveedor: "ollama" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.env, /^ASISTENTE_PROVEEDOR=simulado$/m);
+  assert.doesNotMatch(r.log, /compose\.asistente-ollama\.yml/);
+});

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Link, RouterProvider, createMemoryRouter, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { notificacion, pagina } from "../features/notificaciones/pruebas";
+import { notificacion, pagina } from "../features/notificaciones";
 import { reiniciarGuardias, useGuardiaDeCambios } from "../shared/navegacion/guardias";
 import { useResaltado } from "../shared/ui/resaltado";
 import AppLayout from "./AppLayout";

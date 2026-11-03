@@ -153,7 +153,9 @@ public sealed class DiagnosticoIntegridadTests(PostgresFixture postgres)
         var salida = proceso.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
         var error = proceso.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         using var plazo = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        plazo.CancelAfter(TimeSpan.FromSeconds(30));
+        // Incluye el arranque en frío del Host y sus modelos EF en runners
+        // compartidos; no mide la latencia de una operación del sistema.
+        plazo.CancelAfter(TimeSpan.FromMinutes(2));
         try { await proceso.WaitForExitAsync(plazo.Token); }
         finally { if (!proceso.HasExited) proceso.Kill(entireProcessTree: true); }
         return (proceso.ExitCode, await salida, await error);

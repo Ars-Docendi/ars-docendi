@@ -11,9 +11,17 @@ import { usePantallaAngosta } from "./usePantallaAngosta";
 /**
  * Barra superior fina, sólo en pantallas angostas (ahí no hay barra lateral
  * fija): botón "Menú" que abre el panel de navegación, la marca y, a la derecha,
- * la campana de notificaciones (`campana`).
+ * el lanzador del asistente (`lanzador`) y la campana de notificaciones (`campana`).
  */
-export function TopBar({ user, campana }: { user: CurrentUser; campana?: ReactNode }) {
+export function TopBar({
+  user,
+  campana,
+  lanzador,
+}: {
+  user: CurrentUser;
+  campana?: ReactNode;
+  lanzador?: ReactNode;
+}) {
   // Si la ventana se agranda con el panel abierto, el panel se cierra solo:
   // ahí ya está la barra lateral.
   const angosta = usePantallaAngosta();
@@ -51,6 +59,7 @@ export function TopBar({ user, campana }: { user: CurrentUser; campana?: ReactNo
       <div className="adoc-brand">
         <MarcaArsDocendi />
       </div>
+      {lanzador}
       {campana}
     </header>
   );

@@ -38,7 +38,7 @@ Modificar un módulo existente. Énfasis en análisis de **impacto sobre Contrac
    - ¿El cambio es **aditivo** (nuevo método/DTO/property) o **breaking** (rename, remove, type change)?
    - Si breaking: necesitas spec — escalar creando un change con `/opsx:propose` e implementarlo con `/add-feature`.
    - Si aditivo: documentar pero puede seguir adelante.
-3. **Actualizar `dependency-graph.md`** si aparecen edges nuevos.
+3. **Agregar la fila a `backend/manifiesto-de-aristas.json`** si aparecen aristas nuevas. Sin la fila el test se pone en rojo; si la arista excede un invariante, además lleva `invariante` y `ticket`.
 
 ### 3. Implementación
 
@@ -59,7 +59,7 @@ Actualizar en el mismo PR:
 - `docs/architecture/domains/<x>.md` — si cambia bounded context, dependencies, o API pública.
 - `docs/architecture/api-contracts.md` — si cambia endpoints.
 - `docs/architecture/data-model.md` — si cambia schema.
-- `docs/architecture/dependency-graph.md` — si cambian edges cross-module.
+- `backend/manifiesto-de-aristas.json` — si cambian aristas cross-module (es el registro; `dependency-graph.md` solo lleva la prosa).
 - `docs/business-rules/<x>.md` — si afecta BR-\*.
 
 ### 6. PR

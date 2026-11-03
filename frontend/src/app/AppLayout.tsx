@@ -1,14 +1,15 @@
 import { useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import { LanzadorAsistente } from "../features/asistente";
 import {
   CampanaSidebar,
   CampanaTopBar,
-} from "../features/notificaciones/components/CampanaNotificaciones";
-import { PanelNotificaciones } from "../features/notificaciones/components/PanelNotificaciones";
-import { useCantidadNoLeidas } from "../features/notificaciones/hooks/useNotificaciones";
-import { rutaDeEntidad } from "../features/notificaciones/presentacion";
-import type { Notificacion } from "../features/notificaciones/types";
+  PanelNotificaciones,
+  rutaDeEntidad,
+  useCantidadNoLeidas,
+  type Notificacion,
+} from "../features/notificaciones";
 import { useCurrentUser, type CurrentUser } from "../shared/auth/useCurrentUser";
 import { GestorDeNavegacion } from "../shared/navegacion/GestorDeNavegacion";
 import { ID_CONTENIDO } from "../shared/navegacion/pagina";
@@ -143,15 +144,22 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
     />
   );
 
+  const lanzador = <LanzadorAsistente />;
+
   return (
     <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
       <EnlaceSaltar />
-      <TopBar user={user} campana={angosta ? campana : undefined} />
+      <TopBar
+        user={user}
+        campana={angosta ? campana : undefined}
+        lanzador={angosta ? lanzador : undefined}
+      />
       <Sidebar
         collapsed={colapsado}
         onToggleCollapse={alternarColapsada}
         user={user}
         campana={angosta ? undefined : campana}
+        lanzador={angosta ? undefined : <LanzadorAsistente colapsado={colapsado} />}
       />
       <main className="adoc-main" id={ID_CONTENIDO} tabIndex={-1}>
         <Outlet />

@@ -45,6 +45,29 @@ VM Proxmox:     cloudflared → Traefik → staging + pr-N
                Redes, bases y objetos estrictamente locales a cada host.
 ```
 
+### Modelo propio del asistente (opcional)
+
+Con `ASISTENTE_PROVEEDOR=local`, el backend habla con un servidor OpenAI-compatible
+**compartido por los ambientes**, igual que PostgreSQL: su propio Compose project
+(`infra/compose/compose.llm.yml`, contenedor `arsdocendi-llm`) en la red
+`arsdocendi-datos`, **sin puerto publicado** y con `--api-key`. El host necesita la GPU
+(RTX 5070, 12 GB), driver NVIDIA ≥ 580 y `nvidia-container-toolkit`. `spin-up.sh` suma
+`compose.asistente-local.yml` al ambiente para apuntarlo ahí con el perfil de valores
+del change `asistente-proveedor-local`.
+
+La compuerta de concurrencia es por proceso: con varios ambientes contra la misma
+GPU, el límite real es la suma de sus `ASISTENTE_MAX_LLAMADAS_CONCURRENTES`, y tiene
+que igualar el `--max-num-seqs` del servidor. Dimensionamiento, modelo y piloto en
+[modelo-local.md](modelo-local.md). El perfil también prende las optimizaciones de
+`asistente-optimizaciones-modelo-local` (esquema compacto, reparación, plantillas,
+caché de consultas, streaming de la redacción, etc.); para medir una con el
+evaluador se la apaga ahí.
+
+`infra/compose/compose.llm-3070.yml` **no es infraestructura de ambientes**: es un
+`llama-server` suelto, publicado sólo en `127.0.0.1:8000`, para probar el asistente
+desde una PC de desarrollo con una RTX 3070 y el backend en `dotnet run`. La guía está
+en [modelo-local.md §8](modelo-local.md#8-probar-en-una-rtx-3070).
+
 ## Enrutamiento (Traefik por labels)
 
 Traefik descubre contenedores por el Docker provider leyendo labels. Dar de alta
@@ -196,6 +219,40 @@ Compose project, base y storage únicamente en la VM.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de
   las credenciales de deploy de la aplicación.
+- **Clave maestra del asistente** (`asistente-modelo-en-caliente`): `Asistente__ClaveMaestra`
+  (32 bytes en base64) cifra con AES-GCM las claves de API por empresa que un
+  administrador guarda desde la pantalla; `Asistente__ClaveMaestraAnterior`
+  (opcional) sólo existe durante una rotación: lo cifrado con ella se recifra con la
+  vigente al leerlo. Generar una: `openssl rand -base64 32`. Es un secreto de
+  Environment, nunca de repositorio ni de imagen. Sin ella el módulo arranca, el ping
+  responde y los modelos locales siguen funcionando; sólo guardar o leer una clave de
+  API falla (503). **Perderla deja irrecuperables las claves guardadas**: se vuelven a
+  cargar desde la pantalla. `compose.base.yml` la reenvía desde `ASISTENTE_CLAVE_MAESTRA` (y
+  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`), vacías por default, igual que `Inferencia__*`
+  desde `INFERENCIA_*`; ambas están documentadas en [`.env.example`](../../.env.example).
+  **Rotación**: (1) generar la nueva con `openssl rand -base64 32`; (2) en el Environment,
+  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR` = la vigente y `ASISTENTE_CLAVE_MAESTRA` = la nueva, y
+  redesplegar; (3) cada clave guardada se recifra con la nueva **la primera vez que se la
+  lee** (un turno, «Probar conexión» o un reemplazo), no antes: una empresa que nadie usó
+  sigue cifrada con la vieja; (4) comprobar que ninguna fila conserva el `kid` viejo
+  (`SELECT empresa, split_part(clave_cifrada, ':', 2) AS kid FROM asistente.credencial_de_proveedor`,
+  con la conexión dueña; el `kid` es un prefijo del valor, nunca la clave) y, si alguna lo
+  conserva, volver a probar esa empresa o reemplazar su clave desde la pantalla; (5) recién
+  entonces vaciar `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`. Quitar la anterior antes del paso 4
+  deja ilegible lo que siga con el `kid` viejo: ese modelo degrada hasta reingresar la clave.
+- **Servidores locales del asistente** (`asistente-modelo-en-caliente`): la pantalla sólo
+  ofrece los que el ambiente ya configura, por identificador y nunca por URL. `ollama` (el
+  servicio de inferencia compartido) aparece si `Inferencia__Url` está definida, y sus
+  credenciales salen de `Inferencia__Usuario`/`Contrasena` y, fuera de producción, del
+  Service Token de Cloudflare (`Inferencia__AccessClientId`/`AccessClientSecret`); `local`
+  (servidor propio llama.cpp/vLLM) aparece si `Asistente__UrlDelProveedorLocal` está
+  definida, con `Asistente__ClaveDelProveedor` como bearer opcional. Ninguna de esas
+  credenciales se carga ni se muestra en la pantalla; sumar un servidor es configuración de
+  despliegue. El servicio compartido se opera según
+  [ollama-compartido.md](../operations/ollama-compartido.md) y el dimensionamiento del
+  servidor propio está en [modelo-local.md](modelo-local.md). Con una selección guardada,
+  `Asistente__Proveedor`, `Asistente__Modelo` y `Asistente__ModeloDeRedaccion` quedan como
+  respaldo: se usan de nuevo al volver a la configuración del servidor.
 - Lista documentada en [`.env.example`](../../.env.example) (raíz) y el runbook.
 
 ## Estrategia de backup

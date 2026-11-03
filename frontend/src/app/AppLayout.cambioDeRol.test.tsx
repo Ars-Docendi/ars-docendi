@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { pagina } from "../features/notificaciones/pruebas";
+import { pagina } from "../features/notificaciones";
 import { reiniciarGuardias, useGuardiaDeCambios } from "../shared/navegacion/guardias";
 import type { AsignacionApi, SesionApi } from "../shared/auth/sesionMicrosoft";
 import AppLayout from "./AppLayout";

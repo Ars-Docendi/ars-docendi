@@ -79,6 +79,8 @@ jobs:
       SEAWEEDFS_ROOT_SECRET_KEY: ${{ secrets.SEAWEEDFS_ROOT_SECRET_KEY }}
       APP_DB_USER: app_prod
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PROD }}
+      ASISTENTE_RO_PASSWORD: ${{ secrets.ASISTENTE_RO_PASSWORD_PROD }}
+      ASISTENTE_RO_PII_PASSWORD: ${{ secrets.ASISTENTE_RO_PII_PASSWORD_PROD }}
       # Ruta local por la red Docker `traefik`; prod nunca recibe Service Token.
       INFERENCIA_URL: http://traefik:11435
       INFERENCIA_USUARIO: prod

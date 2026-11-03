@@ -34,12 +34,12 @@ public sealed class AuditoriaPrecisaTests(PostgresFixture postgres)
               '{"rol_id":"rol-legado","permiso_id":"permiso-uno"}');
             """);
         await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var servicio = new ServicioAuditoria(new RepositorioAuditoria(db));
-        var preciso = await servicio.ListarAsync(new ConsultaAuditoriaDto(Schema: "identity", Tabla: "rol_permisos",
+        var servicio = ServicioAuditoriaDePrueba.Crear(new RepositorioAuditoria(db));
+        var preciso = await servicio.ListarAsync(new ConsultaAuditoriaDto(Modulo: "identity", Tabla: "rol_permisos",
             RowPk: "{\"permiso_id\":\"permiso-uno\",\"rol_id\":\"rol-legado\"}"), Ct);
         Assert.Equal(1, preciso.Total);
         Assert.Single(preciso.Elementos);
-        var grupo = await servicio.ListarAsync(new ConsultaAuditoriaDto(Schema: "identity", Tabla: "rol_permisos", RowPk: "rol-legado"), Ct);
+        var grupo = await servicio.ListarAsync(new ConsultaAuditoriaDto(Modulo: "identity", Tabla: "rol_permisos", RowPk: "rol-legado"), Ct);
         Assert.Equal(3, grupo.Total);
         Assert.Equal(2, grupo.Elementos.Count(x => x.Resumen.Contains("Agrupación histórica", StringComparison.Ordinal)));
     }
@@ -61,8 +61,8 @@ public sealed class AuditoriaPrecisaTests(PostgresFixture postgres)
         Assert.Equal(2L, await Escalar<long>("SELECT count(DISTINCT row_pk) FROM audit.change_log WHERE table_name='docente_habilidades'"));
         Assert.True(await Escalar<bool>("SELECT bool_and(row_pk_format='composite-v1' AND row_key ?& ARRAY['perfil_id','habilidad_id','tipo']) FROM audit.change_log WHERE table_name='docente_habilidades'"));
         await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var pagina = await new RepositorioAuditoria(db).ListarAsync(new ConsultaAuditoriaDto(Schema: "portal", Tabla: "docente_habilidades",
-            RowPk: "{\"tipo\":\"interes\",\"perfil_id\":\"22222222-2222-4222-8222-222222222222\",\"habilidad_id\":\"33333333-3333-4333-8333-333333333333\"}"), Ct);
+        var pagina = await new RepositorioAuditoria(db).ListarAsync(new ConsultaAuditoriaDto(Modulo: "portal", Tabla: "docente_habilidades",
+            RowPk: "{\"tipo\":\"interes\",\"perfil_id\":\"22222222-2222-4222-8222-222222222222\",\"habilidad_id\":\"33333333-3333-4333-8333-333333333333\"}"), 0, 50, Ct);
         Assert.Equal(1, pagina.Total);
         Assert.True(await Escalar<bool>("""
             SELECT created_at IS NOT NULL AND updated_at=created_at AND deleted_at IS NULL AND key_format='precise'
@@ -119,7 +119,7 @@ public sealed class AuditoriaPrecisaTests(PostgresFixture postgres)
             """));
         await using var db = PostgresFixture.CrearIdentity(Cadena);
         var pagina = await new RepositorioAuditoria(db).ListarAsync(new ConsultaAuditoriaDto(
-            Schema: "identity", Tabla: "personas", RowPk: "44444444-4444-4444-8444-444444444444"), Ct);
+            Modulo: "identity", Tabla: "personas", RowPk: "44444444-4444-4444-8444-444444444444"), 0, 50, Ct);
         Assert.Equal(3, pagina.Total);
         Assert.Equal(new[] { "UPDATE", "UPDATE", "INSERT" }, pagina.Registros.Select(x => x.Registro.Accion));
         Assert.True(pagina.Registros[0].Registro.Id > pagina.Registros[1].Registro.Id);
@@ -169,7 +169,7 @@ public sealed class AuditoriaPrecisaTests(PostgresFixture postgres)
         var clave = await Escalar<string>("SELECT row_pk FROM audit.change_log WHERE table_name='rol_permisos' ORDER BY id DESC LIMIT 1");
         await using var db = PostgresFixture.CrearIdentity(Cadena);
         var pagina = await new RepositorioAuditoria(db).ListarAsync(new ConsultaAuditoriaDto(
-            Schema: "identity", Tabla: "rol_permisos", RowPk: clave), Ct);
+            Modulo: "identity", Tabla: "rol_permisos", RowPk: clave), 0, 50, Ct);
         Assert.Equal(1, pagina.Total);
         Assert.Single(pagina.Registros);
     }

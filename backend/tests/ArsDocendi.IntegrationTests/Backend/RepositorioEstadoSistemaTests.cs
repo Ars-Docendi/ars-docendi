@@ -2,6 +2,8 @@ using System.Text.Json;
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Shared.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Modules.Asistente.Contracts;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
@@ -24,7 +26,10 @@ public sealed class RepositorioEstadoSistemaTests
             .UseNpgsql("Host=127.0.0.1;Port=1;Database=unavailable;Username=test;Password=test;Timeout=1")
             .Options;
         await using var db = new IdentityDbContext(opciones);
-        var servicio = new ServicioEstadoSistema(new RepositorioEstadoSistema(db));
+        var servicio = new ServicioEstadoSistema(
+            new RepositorioEstadoSistema(db),
+            new ConsultaDeMantenimientoInactiva(),
+            NullLogger<ServicioEstadoSistema>.Instance);
 
         var estado = await servicio.ObtenerEstadoAsync(TestContext.Current.CancellationToken);
         var json = JsonSerializer.Serialize(estado);
@@ -33,5 +38,11 @@ public sealed class RepositorioEstadoSistemaTests
         Assert.True(estado.DuracionMs >= 0);
         Assert.DoesNotContain("127.0.0.1", json, StringComparison.Ordinal);
         Assert.DoesNotContain("Connection refused", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class ConsultaDeMantenimientoInactiva : IConsultaDeMantenimiento
+    {
+        public Task<EstadoDeMantenimientoPublico> ConsultarAsync(CancellationToken ct) =>
+            Task.FromResult(new EstadoDeMantenimientoPublico(false));
     }
 }

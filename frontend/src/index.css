@@ -59,7 +59,7 @@ a {
    visible real. `overscroll-behavior` evita que el scroll del cuerpo del
    diálogo arrastre la página de atrás.
 
-   Registrado como TD-010: corresponde subirlo a ui-lib.
+   Registrado como TD-032: corresponde subirlo a ui-lib.
    ============================================================ */
 @supports (height: 100dvh) {
   .adoc-modal-stage,
