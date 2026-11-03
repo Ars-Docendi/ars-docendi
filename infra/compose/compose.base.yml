@@ -69,6 +69,11 @@ services:
       # Claves HMAC de la cadena de sellos: sólo del entorno del proceso. La vigente es
       # obligatoria en Production; vacías en staging/PR usan la clave de desarrollo.
       # shortcut: dos versiones; una tercera rotación agrega su línea aquí y en el workflow.
+      # Web Push (notificaciones al celular): claves VAPID. Vacías = push apagado. El Subject debe
+      # ser un mailto:/https: real (Apple rechaza dominios reservados como .local). Ver docs/operations/web-push.md.
+      Notificaciones__WebPush__PublicKey: ${WEBPUSH_PUBLIC_KEY:-}
+      Notificaciones__WebPush__PrivateKey: ${WEBPUSH_PRIVATE_KEY:-}
+      Notificaciones__WebPush__Subject: ${WEBPUSH_SUBJECT:-}
       Integridad__VersionVigente: ${SELLADO_VERSION_VIGENTE:-1}
       Integridad__ClavesSellado__1: ${SELLADO_CLAVE:-}
       Integridad__ClavesSellado__2: ${SELLADO_CLAVE_2:-}

@@ -75,6 +75,10 @@ jobs:
       INFERENCIA_CONTRASENA: ${{ secrets.INFERENCIA_CONTRASENA_PREVIEW }}
       INFERENCIA_ACCESS_CLIENT_ID: ${{ secrets.INFERENCIA_ACCESS_CLIENT_ID }}
       INFERENCIA_ACCESS_CLIENT_SECRET: ${{ secrets.INFERENCIA_ACCESS_CLIENT_SECRET }}
+      # Web Push (notificaciones al celular): sin las claves el push queda apagado.
+      WEBPUSH_PUBLIC_KEY: ${{ vars.WEBPUSH_PUBLIC_KEY }}
+      WEBPUSH_PRIVATE_KEY: ${{ secrets.WEBPUSH_PRIVATE_KEY }}
+      WEBPUSH_SUBJECT: ${{ vars.WEBPUSH_SUBJECT }}
       ASPNETCORE_ENVIRONMENT: Staging
       DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
       GH_TOKEN: ${{ github.token }}
