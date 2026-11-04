@@ -670,6 +670,15 @@ nada. Todo control tocable mide al menos 44 px.
   borde derecho mientras quedan columnas; la tabla nunca ensancha la pantalla. Los encabezados
   ordenables y los íconos de la barra de acciones miden 44 px. En la tabla ampliada el título va
   en su propia línea y «Copiar tabla», «Exportar a CSV» y «Contraer» se acomodan debajo.
+- **Ancho de las columnas**: cada encabezado lleva en su borde derecho un tirador «Ajustar ancho
+  de «columna»» (28 px de ancho, a caballo del borde; en la última columna, 20 px por dentro), con
+  una barra de 3 × 22 px en el tono de borde fuerte que pasa al acento con hover o foco. Arrastrarlo
+  cambia el ancho de esa columna; con el foco, ← y → lo cambian de a 16 px; un doble toque (o
+  doble clic) le devuelve el ancho que tenía. Ninguna columna baja de 64 px. Hasta que se usa un
+  tirador la tabla se ve igual; después las columnas conservan su ancho y los valores largos pasan
+  a otra línea dentro de la celda. Usar el tirador nunca ordena. La primera columna sigue fija y la
+  pantalla no se desplaza de costado. La tabla en línea y la ampliada comparten los anchos mientras
+  la respuesta está en pantalla; no se guardan. Desde 560 px no hay tiradores.
 - **Menciones**: el popover ocupa el ancho del campo; cada opción mide 44 px y lleva la carrera y
   el código debajo del nombre, para que el nombre no quede recortado. Se oculta la pista de
   teclado «Enter elige · Esc cierra».
@@ -688,7 +697,7 @@ nada. Todo control tocable mide al menos 44 px.
   «Cupo diario» con los mismos controles que la fila de escritorio (mismo guardado, mismos
   anuncios). Las tarjetas paginan de a 20. El selector de métrica ocupa el ancho.
 - **Calidad**: «Por modelo» y la vista «Ver como tabla» del gráfico son regiones desplazables con
-  la primera columna fija. «Respuestas con problemas» muestra una tarjeta por respuesta (la
+  la primera columna fija y el mismo ajuste de ancho de columnas que la tabla de resultado. «Respuestas con problemas» muestra una tarjeta por respuesta (la
   pregunta, día y modelo, el detalle y el tipo de problema) y conserva la paginación del
   servidor, con botones de 44 px.
 - **Modelo**: los formularios ya se apilaban en una columna; no cambian.

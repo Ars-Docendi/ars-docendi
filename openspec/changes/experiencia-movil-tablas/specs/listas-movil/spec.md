@@ -18,6 +18,36 @@ Every list table SHALL render its scroll container as a focusable region with an
 - **WHEN** the user tabs to a control in an off-screen cell
 - **THEN** the region scrolls so the control is fully visible
 
+### Requirement: Adjustable column widths on phones
+
+Below 560 px, every table rendered in the shared table region SHALL offer, at the right edge of each header cell, a button labelled "Ajustar ancho de «<column>»" that changes that column's width: dragging it changes the width by the distance dragged, ArrowRight and ArrowLeft change it by 16 px, and a double tap or double click restores the width the column had before it was first adjusted. A column MUST NOT become narrower than 64 px. Until a handle is used the table SHALL look exactly as before; once widths are set, the columns MUST keep them and long values SHALL wrap inside their cell. Using a handle MUST NOT activate the header's own controls, such as sorting. The first column stays pinned and the page MUST NOT scroll sideways. Widths last while the table is shown; the inline result table and its expanded view share them. From 560 px no handle is shown.
+
+#### Scenario: Widen a column by dragging
+
+- **GIVEN** a seven-column assistant result on a 390 px phone
+- **WHEN** the user drags the handle of «Código» 80 px to the right
+- **THEN** that column is 80 px wider and the other columns keep their width
+- **AND** the table is not sorted and the page does not scroll sideways
+
+#### Scenario: Keyboard and restore
+
+- **GIVEN** a result table on a phone
+- **WHEN** the user focuses the handle of a column and presses ArrowRight twice
+- **THEN** the column is 32 px wider
+- **AND** a double tap on the same handle restores its previous width
+
+#### Scenario: The expanded view keeps the widths
+
+- **GIVEN** a result table whose column the user widened on a phone
+- **WHEN** the user opens «Ampliar tabla»
+- **THEN** the expanded table shows the same column widths
+
+#### Scenario: No handles from 560 px
+
+- **GIVEN** a 768 px viewport
+- **WHEN** the Calidad tables or an assistant result render
+- **THEN** no header cell shows a width handle
+
 ### Requirement: Card list below 560 px
 
 Below 560 px, Personas, Roles, Mis pedidos, Revisión, Períodos, Reserva de aulas (Mis solicitudes and Todas las solicitudes), Tareas and Proyectos SHALL render their rows as a `<ul>` of cards instead of the table (the Sistema section, which replaced Registros de auditoría and Dashboard del sistema, follows its own requirement below). The card list MUST be a separate render path, not table elements restyled with `display: block`. Each card SHALL show: the existing row link as its title, stretched over the whole card; a monospace meta line; a secondary line; and the module's real status badges. The card list MUST show the same rows, in the same order, as the table for the same filters and sort. Opening a card SHALL navigate to the same destination as opening the row (Períodos opens its edit modal).

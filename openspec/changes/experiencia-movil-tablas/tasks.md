@@ -57,3 +57,10 @@
 - [x] 7.6 Support history: one person per row in a bounded scroll list and the reason form stacked. Push preferences checked at 390 px (no change needed).
 - [x] 7.7 Update the design specs (`administracion-sistema`, `asistente-conversacional`) and the help articles `administracion/consultar-la-auditoria` and `administracion/leer-el-dashboard-del-sistema`.
 - [x] 7.8 Verify at 390 × 844 in the running app (no horizontal page scroll on every touched screen) and run the checks of section 6.
+
+## 8. Adjustable column widths (prototype feedback)
+
+- [x] 8.1 `useColumnasAjustables` in `ContenedorTabla`: a handle per header cell on phones (drag, ArrowLeft/ArrowRight by 16 px, double tap or double click restores, 64 px minimum), widths measured on first use, fixed layout with wrapping once set; result tables share widths between the inline and expanded views (D12).
+- [x] 8.2 Phone tests: the keyboard changes the width and a double click restores it; dragging does not sort and the expanded view keeps the width.
+- [x] 8.3 Update the `asistente-conversacional` design spec. No Centro de ayuda article covers the assistant or the Calidad tables (the assistant is excluded from the help registry), so no article changes.
+- [x] 8.4 Verify at 390 × 844 with touch emulation: drag, double tap without sorting, pinned first column, no horizontal page scroll; no handles at 768 and 1280 px. Run the checks of section 6.

@@ -22,6 +22,7 @@ The earlier `portal-docente-responsive` and `navegacion-consistente` changes mad
 - **Detail pages (F)**: primary actions in a sticky bottom bar with safe-area inset.
 - **Centro de ayuda (G)**: no sidebar on phones, search on top of the content, an "En esta página" collapsible index on articles, no horizontal overflow.
 - **Sistema and assistant (I)**: after develop replaced Auditoría and Dashboard with the tabbed Sistema section and added the assistant chatbot and its administration tabs, those screens get the same treatment: swipeable Sistema tabs, audit filters through the shared sheet with the detail under its row, a full-screen chat that keeps the input above the keyboard, the conversation rail as a drawer, result tables in the scroll region, and usage and quality lists as cards.
+- **Adjustable column widths (J)**: on phones, every table in the shared scroll region gets a handle per header cell to widen or narrow its column (drag, arrow keys, double tap to restore), after product-owner feedback that a result table was unreadable on a phone.
 - **Global (H)**: `--ui-zoom: 1` below 768 px, drawer highlight margin, remaining `100vh` to `dvh`, 16 px inputs on phones.
 
 No data, filter state or route changes: the existing URL state hooks drive both renderings.
@@ -30,7 +31,7 @@ No data, filter state or route changes: the existing URL state hooks drive both 
 
 ### New Capabilities
 
-- `listas-movil`: table base for narrow viewports, card list, tabs, pagination and sticky detail actions.
+- `listas-movil`: table base for narrow viewports, adjustable column widths, card list, tabs, pagination and sticky detail actions.
 - `filtros-movil`: filter sheet, chips, native sort select and search field on phones.
 - `escala-y-viewport-movil`: UI zoom, viewport units, input font size and drawer highlight.
 - `ayuda-movil`: Centro de ayuda layout and navigation on phones.
