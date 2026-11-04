@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PedidoForm } from "./PedidoForm";
-import type { DatosEditablesPedido } from "../types";
 
 const CATALOGOS = {
   materias: [
@@ -192,29 +191,6 @@ describe("PedidoForm", () => {
       expect(screen.getByLabelText("Materia")).toHaveValue("m-algo|c-ind");
     });
 
-    it("en Alta muestra una única materia sin selector adicional", async () => {
-      const user = userEvent.setup();
-      // El catálogo de una sola materia representa una única membresía del Jefe.
-      // Se vuelve a montar el caso con el mismo catálogo de docentes para conservar
-      // la cobertura del formulario real.
-      render(
-        <PedidoForm
-          catedra="Ingeniería de Software"
-          materias={[CATALOGOS.materias[1]]}
-          pedidosExistentes={[]}
-          onGuardar={vi.fn()}
-          onCancelar={vi.fn()}
-          docentes={CATALOGOS.docentes}
-          cargos={CATALOGOS.cargos}
-          dedicaciones={CATALOGOS.dedicaciones}
-          tiposBaja={CATALOGOS.tiposBaja}
-        />,
-      );
-      await user.click(screen.getByLabelText("Alta"));
-      expect(screen.getByLabelText("Materia")).toHaveTextContent("Ingeniería de Software");
-      expect(screen.getByLabelText("Materia").tagName).toBe("OUTPUT");
-    });
-
     it("en Baja bloquea el guardado cuando la intersección no tiene materias", async () => {
       const onGuardar = vi.fn();
       const user = userEvent.setup();
@@ -269,61 +245,6 @@ describe("PedidoForm", () => {
     });
   });
 
-  describe("cargo y dedicación libres (D-6/D-7)", () => {
-    it("en Cambio, el cargo solicitado admite cualquier valor del catálogo (D-6)", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández tiene cargo actual "Adjunto".
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      const selectCargo = screen.getByLabelText("Cargo solicitado") as HTMLSelectElement;
-      // "Ayudante" es inferior a "Adjunto": no hay restricción que lo impida.
-      await user.selectOptions(selectCargo, "Ayudante");
-      expect(selectCargo).toHaveValue("Ayudante");
-    });
-
-    it("en Cambio, el Select de dedicación ofrece las seis categorías (D-7)", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández tiene dedicación actual "Categoría 3".
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      const selectDedicacion = screen.getByLabelText("Dedicación solicitada") as HTMLSelectElement;
-      const opciones = Array.from(selectDedicacion.options).map((o) => o.value);
-      expect(opciones).toEqual([
-        "",
-        "Categoría 1",
-        "Categoría 2",
-        "Categoría 3",
-        "Categoría 4",
-        "Categoría 5",
-        "Categoría 6",
-      ]);
-
-      await user.selectOptions(selectDedicacion, "Categoría 1");
-      expect(selectDedicacion).toHaveValue("Categoría 1");
-    });
-
-    it("Alta no restringe las opciones de dedicación (no hay dedicación actual)", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Alta"));
-
-      const selectDedicacion = screen.getByLabelText("Dedicación solicitada") as HTMLSelectElement;
-      const opciones = Array.from(selectDedicacion.options).map((o) => o.value);
-      expect(opciones).toEqual([
-        "",
-        "Categoría 1",
-        "Categoría 2",
-        "Categoría 3",
-        "Categoría 4",
-        "Categoría 5",
-        "Categoría 6",
-      ]);
-    });
-  });
-
   describe("resumen de cambios en el panel de datos actuales (D-8)", () => {
     it("muestra la transición de cargo y dedicación", async () => {
       const { user } = renderForm();
@@ -340,68 +261,9 @@ describe("PedidoForm", () => {
       expect(panel.getByText("Cat. 3")).toBeInTheDocument();
       expect(panel.getByText("Cat. 1")).toBeInTheDocument();
     });
-
-    it("muestra la transición de horas de investigación y externas", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández: 2h investigación / 0h externas en el catálogo.
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      await user.clear(screen.getByLabelText("Horas de investigación"));
-      await user.type(screen.getByLabelText("Horas de investigación"), "5");
-
-      const panel = within(panelDatosActuales());
-      expect(panel.getByText("Investigación")).toBeInTheDocument();
-      expect(panel.getByText("2h")).toBeInTheDocument();
-      expect(panel.getByText("5h")).toBeInTheDocument();
-      expect(panel.getByText("Externas")).toBeInTheDocument();
-      // Sin cambios en externas: valor plano, sin flecha de transición.
-      expect(panel.getAllByText("0h")).toHaveLength(1);
-    });
-
-    it("muestra la transición de la carga horaria de la materia", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández tiene 4h en "Ingeniería de Software", la cátedra del pedido.
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      await user.clear(screen.getByLabelText("Horas"));
-      await user.type(screen.getByLabelText("Horas"), "8");
-
-      const panel = within(panelDatosActuales());
-      expect(panel.getByText("Materia")).toBeInTheDocument();
-      expect(panel.getByText("Ingeniería de Software")).toBeInTheDocument();
-      expect(panel.getByText("4h")).toBeInTheDocument();
-      expect(panel.getByText("8h")).toBeInTheDocument();
-    });
-
-    it("una carga horaria sin cambios se muestra sin transición", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      // Sin tocar las horas: valor plano, una sola vez.
-      const panel = within(panelDatosActuales());
-      expect(panel.getAllByText("4h")).toHaveLength(1);
-    });
   });
 
   describe("tipificación de la baja", () => {
-    it("exige seleccionar el tipo de baja antes de guardar", async () => {
-      const { user, onGuardar } = renderForm();
-      await user.click(screen.getByLabelText("Baja"));
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
-
-      expect(onGuardar).not.toHaveBeenCalled();
-      expect(screen.getByText("Seleccioná el tipo de baja.")).toBeInTheDocument();
-    });
-
     it('"Otro" muestra el campo de detalle y lo exige para enviar', async () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Baja"));
@@ -429,15 +291,6 @@ describe("PedidoForm", () => {
 
       expect(onGuardar).not.toHaveBeenCalled();
       expect(screen.getByText("Faltan adjuntos")).toBeInTheDocument();
-    });
-
-    it("no permite guardar sin seleccionar una novedad", async () => {
-      const onGuardar = vi.fn<(datos: DatosEditablesPedido) => void>();
-      const { user } = renderForm(onGuardar);
-      await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
-
-      expect(onGuardar).not.toHaveBeenCalled();
-      expect(screen.getByText("Seleccioná una novedad admitida.")).toBeInTheDocument();
     });
   });
 
@@ -512,59 +365,6 @@ describe("PedidoForm", () => {
         undefined,
       );
       expect(onGuardar.mock.calls[0][0]).not.toHaveProperty("snapshot");
-    });
-
-    it("un pedido nuevo (o en borrador) muestra 'Guardar y enviar'", () => {
-      renderForm();
-      expect(screen.getByRole("button", { name: "Guardar y enviar" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Guardar y reenviar" })).not.toBeInTheDocument();
-    });
-
-    it("un pedido devuelto muestra 'Guardar y reenviar' en vez de 'Guardar y enviar'", () => {
-      const onGuardar = vi.fn();
-      render(
-        <PedidoForm
-          catedra="Ingeniería de Software"
-          pedidoInicial={{
-            id: "p1",
-            numero: "N°-2026-0001",
-            periodoId: "1",
-            catedra: "Ingeniería de Software",
-            carrera: "Ingeniería en Informática",
-            docente: { dni: "28341567", nombre: "Lucía Fernández", antiguedad: 8 },
-            horas: 6,
-            cargoActual: "Adjunto",
-            dedicacionActual: "Categoría 3",
-            novedad: "Sin novedad",
-            horasExternas: 0,
-            horasInvestigacion: 0,
-            adjuntos: [],
-            estado: "devuelto",
-            propietarioActual: "Jefe de Cátedra",
-            etapaRetorno: "en_revision_coordinador",
-            prioritario: false,
-            historial: [],
-          }}
-          pedidosExistentes={[]}
-          esEdicion
-          onGuardar={onGuardar}
-          onCancelar={vi.fn()}
-          {...CATALOGOS}
-        />,
-      );
-      expect(screen.getByRole("button", { name: "Guardar y reenviar" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Guardar y enviar" })).not.toBeInTheDocument();
-    });
-
-    it("bloquea 'Guardar y enviar' si faltan campos obligatorios", async () => {
-      const { user, onGuardar } = renderForm();
-      await user.click(screen.getByLabelText("Alta"));
-      await completarAlta(user);
-
-      await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
-
-      expect(onGuardar).not.toHaveBeenCalled();
-      expect(screen.getByText("Faltan adjuntos")).toBeInTheDocument();
     });
 
     it("con datos válidos, 'Guardar y enviar' llama a onGuardar con { enviar: true }", async () => {

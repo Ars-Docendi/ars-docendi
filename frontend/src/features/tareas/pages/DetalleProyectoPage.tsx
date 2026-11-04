@@ -1,28 +1,30 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
+import { Link, useParams } from "react-router-dom";
+import { Button, InlineAlert } from "@ars-docendi/ui";
+import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
+import { migaDeVolver } from "../../../shared/navegacion/volver";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { TablaTareas } from "../components/TablaTareas";
 import { EstadoProyectoBadge } from "../components/EstadoProyectoBadge";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
 import { ModalProyecto } from "../components/ModalProyecto";
-import { IconoArrowLeft, IconoPlus } from "../components/lucide";
+import { IconoPlus } from "../components/lucide";
 import { formatearFecha } from "../components/detalleAdapters";
 import { usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
 import { useEstadosProyecto, useProyecto } from "../hooks/useProyectos";
 import { useCrearTarea } from "../hooks/useAccionesTarea";
 import { useCambiarEstadoProyecto, useEditarProyecto } from "../hooks/useAccionesProyecto";
-import type { Tarea } from "../types";
 import "./tareas.css";
 import "../components/cuadroProyecto.css";
 
-const RUTA_TAREAS = "/tareas";
-const RUTA_PROYECTOS = "/tareas/proyectos";
-
 export function DetalleProyectoPage() {
   const { id } = useParams();
-  const navegar = useNavigate();
+  const volver = useDestinoVolver("proyecto");
   const { data: proyecto, isLoading, isError } = useProyecto(id);
   const { data: tareas = [] } = useListadoTareas();
   const { data: estados = [] } = useEstadosProyecto();
@@ -34,18 +36,63 @@ export function DetalleProyectoPage() {
   const [versionEditar, setVersionEditar] = useState(0);
 
   const { puedeGestionarProyectos: puedeCambiar, puedeCrearTarea } = usePermisosTareas();
-  const tareasDelProyecto = proyecto
-    ? tareas.filter((t: Tarea) => t.proyectoId === proyecto.id)
-    : [];
+  const telefono = usePantallaTelefono();
+  const tareasDelProyecto = proyecto ? tareas.filter((t) => t.proyectoId === proyecto.id) : [];
+
+  const acciones = proyecto ? (
+    <>
+      {puedeCrearTarea && proyecto.admiteTareas && (
+        <Button
+          variant="primary"
+          leadingIcon={<IconoPlus />}
+          onClick={() => setModalTareaAbierto(true)}
+        >
+          Nueva Tarea
+        </Button>
+      )}
+      {puedeCambiar && (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setVersionEditar(proyecto.version);
+            setModalEditarAbierto(true);
+          }}
+        >
+          Editar
+        </Button>
+      )}
+      {puedeCambiar &&
+        estados
+          .filter((estado) => estado.codigo !== proyecto.estado)
+          .filter((estado) => !(proyecto.estado === "cancelado" && estado.codigo === "finalizado"))
+          .map((estado) => (
+            <Button
+              key={estado.codigo}
+              variant={estado.admiteTareas ? "secondary" : "destructive"}
+              loading={cambiarEstado.isPending}
+              onClick={() =>
+                cambiarEstado.mutate({
+                  id: proyecto.id,
+                  version: proyecto.version,
+                  estadoDestino: estado.codigo,
+                })
+              }
+            >
+              {estado.verbo}
+            </Button>
+          ))}
+    </>
+  ) : null;
+  const hayAcciones =
+    Boolean(proyecto) && ((puedeCrearTarea && proyecto?.admiteTareas) || puedeCambiar);
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
+      <Migas
+        conVolver
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Tareas", href: RUTA_TAREAS },
-          { label: "Proyectos", href: RUTA_PROYECTOS },
+          migaDeVolver(volver),
           { label: "Detalle del proyecto" },
         ]}
       />
@@ -58,7 +105,7 @@ export function DetalleProyectoPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se encontró el proyecto">
-          No pudimos cargar el proyecto solicitado. <a href={RUTA_PROYECTOS}>Volver a Proyectos</a>.
+          No pudimos cargar el proyecto solicitado. <Link to={volver.ruta}>{volver.texto}</Link>.
         </InlineAlert>
       )}
 
@@ -69,56 +116,8 @@ export function DetalleProyectoPage() {
             meta={`Responsable ${proyecto.responsable.nombre} · ${proyecto.responsable.rol}`}
             actions={
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Button
-                  variant="secondary"
-                  leadingIcon={<IconoArrowLeft />}
-                  onClick={() => navegar(RUTA_PROYECTOS)}
-                >
-                  Volver
-                </Button>
-                {puedeCrearTarea && proyecto.admiteTareas && (
-                  <Button
-                    variant="primary"
-                    leadingIcon={<IconoPlus />}
-                    onClick={() => setModalTareaAbierto(true)}
-                  >
-                    Nueva Tarea
-                  </Button>
-                )}
-                {puedeCambiar && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setVersionEditar(proyecto.version);
-                      setModalEditarAbierto(true);
-                    }}
-                  >
-                    Editar
-                  </Button>
-                )}
-                {puedeCambiar &&
-                  estados
-                    .filter((estado) => estado.codigo !== proyecto.estado)
-                    .filter(
-                      (estado) =>
-                        !(proyecto.estado === "cancelado" && estado.codigo === "finalizado"),
-                    )
-                    .map((estado) => (
-                      <Button
-                        key={estado.codigo}
-                        variant={estado.admiteTareas ? "secondary" : "destructive"}
-                        loading={cambiarEstado.isPending}
-                        onClick={() =>
-                          cambiarEstado.mutate({
-                            id: proyecto.id,
-                            version: proyecto.version,
-                            estadoDestino: estado.codigo,
-                          })
-                        }
-                      >
-                        {estado.verbo}
-                      </Button>
-                    ))}
+                <EnlaceVolver id="proyecto-volver" destino={volver} />
+                {!telefono && acciones}
                 <EstadoProyectoBadge estado={proyecto.estado} nombre={proyecto.estadoNombre} />
               </div>
             }
@@ -165,15 +164,14 @@ export function DetalleProyectoPage() {
                   Este proyecto todavía no tiene tareas asociadas.
                 </p>
               ) : (
-                <TablaTareas
-                  tareas={tareasDelProyecto}
-                  onSeleccionar={(tarea) => navegar(`/tareas/${tarea.id}`)}
-                />
+                <TablaTareas tareas={tareasDelProyecto} prefijoURL="t" />
               )}
             </section>
           </div>
         </>
       )}
+
+      {telefono && hayAcciones && <BarraAccionesFija>{acciones}</BarraAccionesFija>}
 
       {proyecto && (
         <ModalNuevaTarea

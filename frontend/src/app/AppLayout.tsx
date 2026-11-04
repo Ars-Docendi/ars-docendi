@@ -1,19 +1,82 @@
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { useRef, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
-import { useCurrentUser } from "../shared/auth/useCurrentUser";
+import { LanzadorAsistente } from "../features/asistente";
+import {
+  CampanaSidebar,
+  CampanaTopBar,
+  PanelNotificaciones,
+  rutaDeEntidad,
+  useCantidadNoLeidas,
+  type Notificacion,
+  useAbrirDesdePush,
+  useSincronizarPush,
+} from "../features/notificaciones";
+import { useCurrentUser, type CurrentUser } from "../shared/auth/useCurrentUser";
+import { GestorDeNavegacion } from "../shared/navegacion/GestorDeNavegacion";
+import { ID_CONTENIDO } from "../shared/navegacion/pagina";
+import { EnlaceSaltar, SeguimientoDePagina } from "../shared/navegacion/paginaActual";
+import { RestauradorDeScroll } from "../shared/navegacion/restauracionDeScroll";
+import { resaltar } from "../shared/ui/resaltado";
+import { Toaster } from "../shared/ui/Toaster";
+import { ModalCambiarRol } from "./shell/MenuUsuario";
 import { Sidebar } from "./shell/Sidebar";
 import { TopBar } from "./shell/TopBar";
+import { usePantallaAngosta } from "./shell/usePantallaAngosta";
 import "./shell/shell.css";
 
+/** Preferencia de barra lateral colapsada, por navegador. */
+const CLAVE_COLAPSADA = "ars-docendi:barra-lateral-colapsada";
+
+function leerColapsada(): boolean {
+  try {
+    return localStorage.getItem(CLAVE_COLAPSADA) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function guardarColapsada(colapsada: boolean) {
+  try {
+    localStorage.setItem(CLAVE_COLAPSADA, String(colapsada));
+  } catch {
+    // Sin almacenamiento (modo privado, bloqueado): la preferencia dura la sesión.
+  }
+}
+
 /**
- * App shell (design 04a): top bar + role-aware sidebar + scrolling main.
+ * App shell (design 04a): barra lateral por permisos + main con scroll; la barra
+ * superior fina sólo aparece en pantallas angostas.
  * Wraps every authenticated route; the active page renders into <Outlet>.
  *
  */
 export default function AppLayout() {
   const usuarioActual = useCurrentUser();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(leerColapsada);
+  const { pathname } = useLocation();
+  // Bajo /ayuda la sidebar arranca contraída a íconos para dar lugar a la de
+  // documentación, pero el botón "Menú" la puede desplegar mientras se está ahí.
+  // Al salir vuelve la preferencia guardada, y cada entrada a /ayuda arranca
+  // contraída de nuevo (ajuste de estado en render, sin efectos).
+  const enAyuda = pathname === "/ayuda" || pathname.startsWith("/ayuda/");
+  const [desplegadaEnAyuda, setDesplegadaEnAyuda] = useState(false);
+  const [enAyudaPrevio, setEnAyudaPrevio] = useState(enAyuda);
+  if (enAyuda !== enAyudaPrevio) {
+    setEnAyudaPrevio(enAyuda);
+    setDesplegadaEnAyuda(false);
+  }
+  const colapsado = enAyuda ? !desplegadaEnAyuda : collapsed;
+
+  function alternarColapsada() {
+    if (enAyuda) {
+      // Sólo para esta visita a /ayuda: no toca la preferencia guardada.
+      setDesplegadaEnAyuda((previa) => !previa);
+      return;
+    }
+    const nueva = !collapsed;
+    setCollapsed(nueva);
+    guardarColapsada(nueva);
+  }
 
   if (usuarioActual.isLoading) return <main role="status">Cargando sesión…</main>;
   if (usuarioActual.error || !usuarioActual.user) {
@@ -26,15 +89,104 @@ export default function AppLayout() {
       </main>
     );
   }
-  const user = usuarioActual.user;
+  return (
+    <ShellAutenticado
+      user={usuarioActual.user}
+      colapsado={colapsado}
+      alternarColapsada={alternarColapsada}
+    />
+  );
+}
+
+/** Ancho de la barra lateral (px) según su estado: el panel de notificaciones se abre a su lado. */
+const ANCHO_BARRA = { expandida: 200, colapsada: 64 };
+
+interface ShellAutenticadoProps {
+  user: CurrentUser;
+  colapsado: boolean;
+  alternarColapsada: () => void;
+}
+
+/** Shell de una sesión válida: barras, contenido, campana y panel de notificaciones. */
+function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutenticadoProps) {
+  const navigate = useNavigate();
+  const angosta = usePantallaAngosta();
+  const [notifAbierta, setNotifAbierta] = useState(false);
+  const campanaRef = useRef<HTMLButtonElement>(null);
+  // Las notificaciones se ven por perfil: el rol activo es parte de toda clave.
+  const rol = user.roleCode;
+  const { data: cantidad } = useCantidadNoLeidas(rol);
+  // Un dispositivo es de quien tiene la sesión: se re-registra al cargar y al cambiar de usuario.
+  useSincronizarPush(user.id);
+  useAbrirDesdePush();
+
+  const alternarNotificaciones = () => setNotifAbierta((abierta) => !abierta);
+  // El panel se cierra cuando la página realmente cambia (lo hace él mismo al ver `rutaActual`),
+  // no al hacer clic: si el guardia de cambios sin guardar frena la navegación, el panel sigue
+  // abierto debajo del diálogo.
+  const { pathname } = useLocation();
+  function irANotificacion(notificacion: Notificacion) {
+    const destino = rutaDeEntidad(notificacion.tipoEntidad, notificacion.entidadId);
+    // A la misma página el pathname no cambia y el panel no se cerraría solo.
+    if (destino === pathname) setNotifAbierta(false);
+    navigate(destino);
+    resaltar(notificacion.entidadId);
+  }
+  const campana = angosta ? (
+    <CampanaTopBar
+      ref={campanaRef}
+      cantidad={cantidad}
+      abierta={notifAbierta}
+      onClick={alternarNotificaciones}
+    />
+  ) : (
+    <CampanaSidebar
+      ref={campanaRef}
+      cantidad={cantidad}
+      abierta={notifAbierta}
+      colapsada={colapsado}
+      onClick={alternarNotificaciones}
+    />
+  );
+
+  const lanzador = <LanzadorAsistente />;
 
   return (
-    <div className={`adoc-ui adoc-app${collapsed ? " collapsed" : ""}`}>
-      <TopBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} user={user} />
-      <Sidebar collapsed={collapsed} permissions={user.permissions} />
-      <main className="adoc-main">
+    <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
+      <EnlaceSaltar />
+      <TopBar
+        user={user}
+        campana={angosta ? campana : undefined}
+        lanzador={angosta ? lanzador : undefined}
+      />
+      <Sidebar
+        collapsed={colapsado}
+        onToggleCollapse={alternarColapsada}
+        user={user}
+        campana={angosta ? undefined : campana}
+        lanzador={angosta ? undefined : <LanzadorAsistente colapsado={colapsado} />}
+      />
+      <main className="adoc-main" id={ID_CONTENIDO} tabIndex={-1}>
         <Outlet />
       </main>
+      <RestauradorDeScroll />
+      <SeguimientoDePagina />
+      <GestorDeNavegacion />
+      <PanelNotificaciones
+        abierto={notifAbierta}
+        onCerrar={() => setNotifAbierta(false)}
+        triggerRef={campanaRef}
+        desplazamiento={angosta ? 0 : colapsado ? ANCHO_BARRA.colapsada : ANCHO_BARRA.expandida}
+        rol={rol}
+        permisos={user.permissions}
+        rutaActual={pathname}
+        onNavegar={irANotificacion}
+      />
+      {/* Con varias asignaciones, al ingresar se ofrece elegir; ya opera con la de por defecto. */}
+      {user.requiereElegirRol && user.asignaciones.length > 1 && (
+        <ModalCambiarRol user={user} alIngresar onCerrar={() => undefined} />
+      )}
+      <Toaster />
     </div>
   );
 }

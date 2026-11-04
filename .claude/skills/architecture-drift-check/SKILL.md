@@ -1,6 +1,6 @@
 ---
 name: architecture-drift-check
-description: Pass read-only que compara docs/architecture/dependency-graph.md + module-anatomy.md contra el código real. Detecta módulos no documentados, ciclos, referencias cruzadas inválidas, edges no registrados.
+description: Pass read-only que compara backend/manifiesto-de-aristas.json + docs/architecture/module-anatomy.md contra el código real. Detecta módulos no documentados, ciclos, referencias cruzadas inválidas, aristas no registradas.
 argument-hint: [<modulo opcional>]
 ---
 
@@ -16,55 +16,53 @@ argument-hint: [<modulo opcional>]
 
 ### 1. Módulos no documentados
 
-- Listar todos los `backend/src/Modules.*/` directorios.
+- Listar todos los `backend/src/Modules.*/` directorios (sin `.Contracts`).
 - Cruzar contra `docs/architecture/domains/` archivos.
 - Cada módulo sin doc correspondiente → **drift**.
 
 ### 2. Ciclos en dependencias
 
-Inspeccionar todos los `.csproj` y extraer ProjectReferences:
+**Ya lo verifica un test.** `AciclicidadDelGrafoTests` construye el grafo desde los `ProjectReference` de todo `backend/src` —no sólo los `Modules.*`— y detecta ciclos con DFS, enumerando los proyectos que forman cada uno.
 
 ```bash
-grep -rE "ProjectReference" backend/src/Modules.*/*.csproj
+~/.dotnet/dotnet test backend/ArsDocendi.slnx --filter "FullyQualifiedName~AciclicidadDelGrafoTests"
 ```
 
-Construir grafo + detectar ciclos con DFS.
+En rojo, el mensaje ya nombra el ciclo: no hace falta reconstruirlo a mano. No rehacer el `grep`: un barrido artesanal sobre `backend/src/Modules.*/*.csproj` se saltea los proyectos que no son módulos, que es exactamente donde apareció la desviación que motivó el manifiesto.
 
 ### 3. Referencias cruzadas inválidas
 
 Cualquier referencia desde `Modules.<X>/*.csproj` a `Modules.<Y>/*.csproj` (no a `Modules.<Y>.Contracts/`) → **violación** del principio cross-module-via-Contracts.
 
 ```bash
-grep -E "Include=\".*Modules\.[A-Z][a-zA-Z]+/\"" backend/src/Modules.*/*.csproj | grep -v ".Contracts"
+grep -nE 'ProjectReference Include="[^"]*Modules\.[A-Za-z]+\.csproj"' backend/src/Modules.*/*.csproj
 ```
 
-### 4. Imports de Internal/ cross-module
+### 4. Guías que contradicen el código
+
+Las skills `dotnet-modules-guide`, `react-features-guide` y `create-module` se inyectan en el contexto de los agentes. Verificar que cada archivo, carpeta, atributo o comando que nombran exista y se use en el código (por ejemplo `ModuleExtensions.cs`, `[Authorize(Policy = ...)]`, `app/router.tsx`). Una contradicción → **drift** `high`.
+
+### 5. Aristas no registradas
+
+**Ya lo verifica un test.** El registro es `backend/manifiesto-de-aristas.json`, no una tabla markdown: `ManifiestoDeAristasTests` lo cruza contra los `ProjectReference` reales en tres direcciones —arista en el código sin fila, fila sin arista en el código, y proyecto de `backend/src` sin clasificar— y una excepción a un invariante sin `ticket` o sin motivo también sale en rojo.
 
 ```bash
-grep -rE "using ArsDocendi.Modules.[A-Z][a-zA-Z]+\.Internal" backend/src/ --include="*.cs" | grep -v "Modules.<MismoModulo>"
+~/.dotnet/dotnet test backend/ArsDocendi.slnx --filter "FullyQualifiedName~ManifiestoDeAristasTests"
 ```
 
-Cualquier match desde un módulo distinto → **violación**.
-
-### 5. Edges no registrados
-
-Listar todos los `ProjectReference` cross-module en el código.
-
-Cruzar contra el "Edge registry" de `docs/architecture/dependency-graph.md`.
-
-Cada edge en código no listado en docs → **drift**.
+`docs/architecture/dependency-graph.md` ya **no** tiene tabla de aristas: si alguien la reintroduce, eso mismo es drift. El diagrama Mermaid del documento es un dibujo de orientación declarado no normativo (TD-018) — desincronizado es deuda anotada, no un blocker.
 
 ### 6. Endpoints sin documentar
 
 Listar todos los `[Http*]` attrs en controllers.
 
-Cruzar contra la sección "Endpoints por módulo" de `docs/architecture/api-contracts.md`.
+Cruzar contra `docs/architecture/api-contracts*.md`.
 
 Endpoints no documentados → **drift** (low/medium).
 
 ## Output
 
-Reporte en `artifacts/arch-drift-YYYY-MM-DD.md` con:
+Reporte en `.artifacts/arch-drift-YYYY-MM-DD.md` con:
 
 - Drifts encontrados con severidad.
 - Path + línea.
@@ -73,7 +71,7 @@ Reporte en `artifacts/arch-drift-YYYY-MM-DD.md` con:
 ## Hard rules
 
 - **Read-only**.
-- Drifts críticos (ciclos, referencias inválidas, leak de Internal): `blocker` — el equipo debe arreglar ANTES del próximo merge.
+- Drifts críticos (ciclos, referencias inválidas): `blocker` — el equipo debe arreglar ANTES del próximo merge.
 - Drifts documentales: pueden ser `medium`, arreglar en próxima PR de docs.
 
 ## Arguments

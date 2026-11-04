@@ -1,64 +1,88 @@
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   crearRol,
   editarRol,
-  eliminarRol,
+  cambiarEstadoRol,
   listarPermisos,
   listarRoles,
-  obtenerPermisosRol,
   reemplazarPermisos,
 } from "../api/rolesApi";
 import { identidadesDesarrolloKeys } from "../../../shared/auth/dev/useIdentidadesDesarrollo";
 import { sesionKeys } from "../../../shared/auth/sesionMicrosoft";
-import type { DatosRolEditables, DatosRolNuevo, RolMock } from "../models";
+import type { DatosRolEditables, RolMock } from "../models";
 
 export const rolesKeys = {
   all: ["administracion", "roles"] as const,
   permisos: ["administracion", "permisos"] as const,
-  permisosRol: (id: string) => ["administracion", "roles", id, "permisos"] as const,
 };
-export function useRoles() {
+
+function useInvalidarRoles() {
   const cliente = useQueryClient();
-  const invalidar = async () => {
-    await Promise.all([
+  return () =>
+    Promise.all([
       cliente.invalidateQueries({ queryKey: rolesKeys.all }),
       cliente.invalidateQueries({ queryKey: identidadesDesarrolloKeys.all }),
       cliente.invalidateQueries({ queryKey: sesionKeys.actual }),
+      cliente.invalidateQueries({ queryKey: sesionKeys.desarrollo }),
     ]);
-  };
+}
+
+export function useRoles() {
+  const invalidar = useInvalidarRoles();
   return {
     consulta: useQuery({ queryKey: rolesKeys.all, queryFn: listarRoles }),
-    crear: useMutation({
-      mutationFn: ({ datos, rolBaseId }: { datos: DatosRolNuevo; rolBaseId: string | null }) =>
-        crearRol(datos, rolBaseId),
-      onSuccess: invalidar,
-    }),
-    editar: useMutation({
-      mutationFn: ({ rol, datos }: { rol: RolMock; datos: DatosRolEditables }) =>
-        editarRol(rol, datos),
-      onSuccess: invalidar,
-    }),
-    eliminar: useMutation({
-      mutationFn: eliminarRol,
-      onSuccess: invalidar,
+    cambiarEstado: useMutation({
+      mutationFn: ({ rol, activar }: { rol: RolMock; activar: boolean }) =>
+        cambiarEstadoRol(rol, activar),
+      // También tras un conflicto, para que el reintento use la versión vigente.
+      onSettled: invalidar,
     }),
   };
 }
-export function useMembresiaRol(rol: RolMock | null) {
-  const cliente = useQueryClient();
-  const catalogo = useQuery({ queryKey: rolesKeys.permisos, queryFn: listarPermisos });
-  const asignados = useQuery({
-    queryKey: rolesKeys.permisosRol(rol?.id ?? ""),
-    queryFn: () => obtenerPermisosRol(rol!.id),
-    enabled: rol !== null,
-  });
-  const guardar = useMutation({
-    mutationFn: (ids: string[]) => reemplazarPermisos(rol!, ids),
-    onSuccess: async () => {
-      await cliente.invalidateQueries({ queryKey: rolesKeys.permisosRol(rol?.id ?? "") });
-      await cliente.invalidateQueries({ queryKey: rolesKeys.all });
-      await cliente.invalidateQueries({ queryKey: identidadesDesarrolloKeys.all });
+
+export function useCatalogoPermisos() {
+  return useQuery({ queryKey: rolesKeys.permisos, queryFn: listarPermisos });
+}
+
+interface DatosGuardarRol {
+  datos: DatosRolEditables;
+  permisoIds: string[];
+}
+
+const mismosIds = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((id) => b.includes(id));
+
+/**
+ * Alta: un único POST con los permisos iniciales. Edición: datos sólo si cambiaron y
+ * después permisos sólo si cambiaron, con la versión que devolvió el paso anterior.
+ */
+export function useGuardarRol(rol: RolMock | null) {
+  const invalidar = useInvalidarRoles();
+  // Si los datos se guardaron y los permisos fallaron, el reintento parte del rol devuelto.
+  const guardado = useRef(rol);
+  return useMutation({
+    mutationFn: async ({ datos, permisoIds }: DatosGuardarRol) => {
+      if (!rol) return crearRol(datos, permisoIds);
+      let actual = guardado.current ?? rol;
+      if (
+        datos.nombre !== actual.nombre ||
+        datos.descripcion !== actual.descripcion ||
+        datos.scope !== actual.scope
+      ) {
+        actual = await editarRol(actual, datos);
+        guardado.current = actual;
+      }
+      if (
+        !mismosIds(
+          permisoIds,
+          rol.permisos.map((p) => p.id),
+        )
+      ) {
+        await reemplazarPermisos(actual, permisoIds);
+      }
+      return actual;
     },
+    onSuccess: invalidar,
   });
-  return { catalogo, asignados, guardar };
 }

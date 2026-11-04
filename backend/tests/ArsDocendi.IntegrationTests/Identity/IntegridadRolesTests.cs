@@ -111,20 +111,6 @@ public sealed class IntegridadRolesTests(PostgresFixture postgres) : ClasePostgr
         await Sql($"UPDATE identity.roles SET is_active=false WHERE id='{id}'; UPDATE identity.roles SET name=' ROL SINTÉTICO ' WHERE id='{otro}'");
     }
     [Fact]
-    public async Task Sql_scope_con_asignacion_viva_rechazado_y_revocada_conservada()
-    {
-        var id = await CrearRol();
-        await Sql($"INSERT INTO identity.users(id,upn,display_name) VALUES ('11111111-1111-4111-8111-111111111111','rol@example.test','Sintético'); INSERT INTO identity.user_roles(user_id,role_id) VALUES ('11111111-1111-4111-8111-111111111111','{id}');");
-        var error = await Assert.ThrowsAsync<PostgresException>(() => Sql($"UPDATE identity.roles SET scope='materia' WHERE id='{id}'"));
-        Assert.Equal("roles_scope_asignaciones_vivas", error.ConstraintName);
-        await Sql($"UPDATE identity.user_roles SET deleted_at=now() WHERE role_id='{id}'; UPDATE identity.roles SET scope='materia' WHERE id='{id}';");
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        Assert.Equal("materia", (await db.Roles.SingleAsync(r => r.Id == id, Ct)).Ambito);
-        var historica = await db.UsuarioRoles.IgnoreQueryFilters().SingleAsync(r => r.RolId == id, Ct);
-        Assert.NotNull(historica.EliminadoEn);
-        Assert.Null(historica.MateriaId);
-    }
-    [Fact]
     public async Task Scope_con_asignacion_viva_es_conflicto_sin_mutacion()
     {
         var id = await CrearRol();

@@ -1,0 +1,116 @@
+{
+  "id": "e77e22bd-01a8-40c9-802b-0cef8b5570e0",
+  "numero": "2026-0001",
+  "periodo": {
+    "id": "d4000000-0000-4000-8000-000000000001",
+    "nombre": "Segundo cuatrimestre 2026",
+    "cargaDesde": "2026-06-01",
+    "cargaHasta": "2026-07-31",
+    "impactoDesde": "2026-08-01",
+    "impactoHasta": "2026-12-31",
+    "activo": true,
+    "version": 834
+  },
+  "persona": {
+    "id": "d0000000-0000-4000-8000-000000000002",
+    "nombre": "Gustavo",
+    "apellido": "Ruiz",
+    "documento": "22156789",
+    "legajo": "0115"
+  },
+  "materia": {
+    "materiaId": "70000000-0000-4000-8000-000000000101",
+    "codigo": "03500",
+    "nombre": "Ingeniería de Software",
+    "carreraId": "c0000000-0000-4000-8000-000000000201",
+    "carreraNombre": "Ingeniería en Informática"
+  },
+  "novedad": "Alta",
+  "estado": "en_revision_coordinador",
+  "prioritario": false,
+  "cargoSolicitado": {
+    "id": "c3000000-0000-4000-8000-000000000001",
+    "codigo": "titular",
+    "nombre": "Profesor Titular"
+  },
+  "dedicacionSolicitada": "Categoría 1",
+  "horas": 18,
+  "horasInvestigacion": 0,
+  "horasExternas": 0,
+  "justificacion": "Solicitud de alta",
+  "tipoBaja": null,
+  "tipoBajaDetalle": null,
+  "etapaRetorno": null,
+  "propietarioActual": null,
+  "snapshot": {
+    "cargo": "Profesor Titular",
+    "dedicacion": "Categoría 1",
+    "horas": 20,
+    "materia": "Ingeniería de Software",
+    "horasInvestigacion": 4,
+    "horasExternas": 2
+  },
+  "version": 840,
+  "adjuntos": [
+    {
+      "id": "5d7960cb-3acc-4793-98b0-8baaa38b4292",
+      "tipo": "dni_frente",
+      "nombre": "dni-frente.pdf",
+      "archivoId": null,
+      "estadoArchivo": "legacy"
+    },
+    {
+      "id": "5e9e94bf-366c-4abd-85c7-3fb8a20ad3cc",
+      "tipo": "cv",
+      "nombre": "cv.pdf",
+      "archivoId": null,
+      "estadoArchivo": "legacy"
+    },
+    {
+      "id": "6d70af3e-be4b-4170-bf9d-0fac1989670c",
+      "tipo": "dni_dorso",
+      "nombre": "dni-dorso.pdf",
+      "archivoId": null,
+      "estadoArchivo": "legacy"
+    }
+  ],
+  "historial": [
+    {
+      "id": "c90468a5-b7c1-4d57-adaa-2e9ff4be88aa",
+      "accion": "crear",
+      "rolId": "a1000000-0000-4000-8000-000000000002",
+      "rolCodigo": "jefe_catedra",
+      "actorId": "a0000000-0000-4000-8000-000000000002",
+      "actorNombre": "Gustavo Ruiz",
+      "etapa": "borrador",
+      "comentario": null,
+      "creadoEn": "2026-10-30T15:31:13.265347+00:00"
+    },
+    {
+      "id": "5e818b96-8a2f-476f-8856-8d571eda6393",
+      "accion": "editar",
+      "rolId": "a1000000-0000-4000-8000-000000000002",
+      "rolCodigo": "jefe_catedra",
+      "actorId": "a0000000-0000-4000-8000-000000000002",
+      "actorNombre": "Gustavo Ruiz",
+      "etapa": "borrador",
+      "comentario": null,
+      "creadoEn": "2026-10-30T15:31:13.379541+00:00"
+    },
+    {
+      "id": "d4e93909-0322-4dee-9092-98255505080e",
+      "accion": "enviar",
+      "rolId": "a1000000-0000-4000-8000-000000000002",
+      "rolCodigo": "jefe_catedra",
+      "actorId": "a0000000-0000-4000-8000-000000000002",
+      "actorNombre": "Gustavo Ruiz",
+      "etapa": "en_revision_coordinador",
+      "comentario": null,
+      "creadoEn": "2026-10-30T15:31:13.474377+00:00"
+    }
+  ],
+  "accionesPermitidas": ["priorizar", "despriorizar"],
+  "dedicacionSolicitadaId": "d6000000-0000-4000-8000-000000000001",
+  "motivoDevolucion": null,
+  "enviadoEn": "2026-10-30T15:31:13.474377+00:00"
+}

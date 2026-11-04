@@ -1,6 +1,8 @@
 import { Button, Input, Table } from "@ars-docendi/ui";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import type { ReactNode } from "react";
 import type { PedidoDesignacion } from "../types";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
@@ -19,7 +21,7 @@ import {
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 310px)";
+const ALTO_TABLA = "calc(100dvh - 310px)";
 
 /** Ancho mínimo de las columnas de texto variable: usan el espacio que haya y recortan con "…" solo si no alcanza. */
 const ANCHO_DOCENTE = 160;
@@ -89,7 +91,7 @@ export function TablaMisPedidos({
 
   return (
     <Table className="adoc-mp-table">
-      <Table.Root aria-label="Mis pedidos de designación" maxHeight={ALTO_TABLA}>
+      <ContenedorTabla etiqueta="Mis pedidos de designación" maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
             <Encabezado
@@ -212,7 +214,12 @@ export function TablaMisPedidos({
                 aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
               >
                 <Table.Cell className="adoc-mp-doc">
-                  <TextoRecortado texto={pedido.docente.nombre} anchoMinimo={ANCHO_DOCENTE} />
+                  <EnlaceFila
+                    ruta={`/designaciones/pedidos/${pedido.id}`}
+                    etiqueta={`Ver el pedido de ${pedido.docente.nombre}`}
+                  >
+                    <TextoRecortado texto={pedido.docente.nombre} anchoMinimo={ANCHO_DOCENTE} />
+                  </EnlaceFila>
                 </Table.Cell>
                 <Table.Cell className="adoc-mp-leg">{pedido.docente.legajo ?? "—"}</Table.Cell>
                 <Table.Cell className="adoc-mp-cat">
@@ -244,7 +251,7 @@ export function TablaMisPedidos({
             ))
           )}
         </Table.Body>
-      </Table.Root>
+      </ContenedorTabla>
     </Table>
   );
 }

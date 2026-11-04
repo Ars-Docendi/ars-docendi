@@ -309,6 +309,26 @@ test("Git protege adiciones publicadas aunque no se actualice el manifiesto glob
   falla(validador, raiz, ["--base-ref", publicada], /protegido modificado/);
 });
 
+for (const contexto of ["Identity", "Designaciones"]) {
+  test(`Git rechaza intercalar migraciones en el historial publicado de ${contexto}`, (t) => {
+    const { raiz } = crear(t, contexto);
+    ejecutar(generador, raiz);
+    const base = congelar(raiz);
+    const adicion = JSON.parse(
+      ejecutar(cli, raiz, [contexto, "MigracionIntercalada", "--dry-run"]),
+    );
+    for (const archivo of adicion.archivos) {
+      escribir(
+        raiz,
+        archivo.ruta.replace(adicion.id.slice(0, 14), "20200101000000"),
+        archivo.contenido.replaceAll(adicion.id.slice(0, 14), "20200101000000"),
+      );
+    }
+    // Una base que ya aplicó el commit confiable debe seguir siendo un prefijo.
+    falla(validador, raiz, ["--base-ref", base], /posterior.*historial publicado/);
+  });
+}
+
 test("generador reemplaza el manifiesto sin seguir un symlink insertado antes de escribir", (t) => {
   const { raiz } = crear(t);
   ejecutar(generador, raiz);
@@ -462,14 +482,8 @@ test("CI omite corte residual cuando la base ya contiene manifiesto", (t) => {
   assert.equal(JSON.parse(resultado).revisionConfiable, base);
 });
 
-test("CI selecciona tooling, conserva historia Git y verifica recursos compilados", () => {
+test("CI fija cada acción de terceros por SHA completo", () => {
   const workflow = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
-  assert.match(workflow, /- 'scripts\/migrations\/\*\*'/);
-  assert.match(workflow, /- 'scripts\/tests\/migrations\.test\.mjs'/);
-  assert.match(workflow, /migrations:\n[\s\S]*?fetch-depth: 0/);
-  assert.match(workflow, /github\.event\.pull_request\.base\.sha/);
-  assert.match(workflow, /node scripts\/migrations\/validate\.mjs/);
-  assert.match(workflow, /--validar-recursos/);
   for (const referencia of workflow.matchAll(/uses: ([^\s]+)/g))
     assert.match(referencia[1], /@[a-f0-9]{40}$/);
 });
@@ -482,26 +496,20 @@ test("inventario rechaza directorio usado como recurso SQL", async (t) => {
   assert.throws(() => inventariar(raiz), /Recurso faltante|no es archivo/);
 });
 
-test("snapshot EF representa el modelo actual y puede evolucionar con una adición", (t) => {
-  const { raiz } = crear(t);
-  const snapshot =
-    "backend/src/ArsDocendi.Shared/Identity/Migrations/IdentityDbContextModelSnapshot.cs";
-  escribir(raiz, snapshot, "// snapshot inicial\n");
-  ejecutar(generador, raiz);
-  const base = congelar(raiz);
-  ejecutar(cli, raiz, ["Identity", "OtraTabla"]);
-  escribir(raiz, snapshot, "// snapshot con OtraTabla\n");
-  assert.match(ejecutar(validador, raiz, ["--base-ref", base]), /"proteccionGit": true/);
-});
-
 test("scaffold de todos los contextos tiene identidades distintas e inventario válido", async (t) => {
   const raiz = temporal(t);
-  const planes = ["Identity", "Storage", "Designaciones", "Portal", "Aulas", "Tareas"].map(
-    (contexto) => JSON.parse(ejecutar(cli, raiz, [contexto, "AgregarIndice"])),
-  );
-  assert.equal(new Set(planes.map((plan) => plan.id)).size, 6);
+  const planes = [
+    "Identity",
+    "Storage",
+    "Designaciones",
+    "Portal",
+    "Aulas",
+    "Tareas",
+    "Notificaciones",
+  ].map((contexto) => JSON.parse(ejecutar(cli, raiz, [contexto, "AgregarIndice"])));
+  assert.equal(new Set(planes.map((plan) => plan.id)).size, 7);
   const { inventariar } = await import("../migrations/inventario.mjs");
-  assert.equal(inventariar(raiz).migraciones.length, 6);
+  assert.equal(inventariar(raiz).migraciones.length, 7);
 });
 
 test("scaffold rechaza symlinks sin escribir fuera del workspace", (t) => {

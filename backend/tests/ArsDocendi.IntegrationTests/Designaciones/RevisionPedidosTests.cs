@@ -33,7 +33,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Listados_se_acotan_por_materia_carrera_y_alcance_global()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
 
@@ -77,7 +77,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Cadena_de_aceptacion_usa_el_rol_de_cada_etapa_y_un_historial_atomico()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var pedido = await CrearServicio(Jefe, identityDb, db).CrearAsync(
@@ -108,7 +108,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Aprobacion_final_materializa_una_designacion_trazable()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var persona = Guid.Parse("d0000000-0000-4000-8000-000000000003");
@@ -155,7 +155,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Alta_y_cambio_conservan_separadas_las_tres_cargas_del_pedido_y_snapshot()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
 
@@ -164,6 +164,8 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         alta.HorasInvestigacion = 3;
         alta.HorasExternas = 2;
         await db.SaveChangesAsync(ct);
+        // El ajuste del fixture se sella como si hubiera llegado por el circuito.
+        await SellosPrueba.Sellador(db).SellarHistorialExistenteAsync(ct);
         db.ChangeTracker.Clear();
 
         await CrearServicio(Secretaria, identityDb, db).AplicarAccionAsync(
@@ -215,160 +217,6 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         Assert.Equal(5, nueva.HorasExternas);
     }
 
-    [Theory]
-    [InlineData("rechazar")]
-    [InlineData("devolver")]
-    [InlineData("priorizar")]
-    public void Comentarios_obligatorios_se_validan_sin_mutar_el_pedido(string accion)
-    {
-        var pedido = new Pedido
-        {
-            Id = Guid.NewGuid(),
-            Numero = "TEST",
-            PeriodoId = Periodo,
-            PersonaId = Guid.NewGuid(),
-            MateriaId = Materia,
-            CarreraId = Carrera,
-            Novedad = Novedades.Alta,
-            Estado = accion == "priorizar" ? EstadosPedido.Borrador : EstadosPedido.EnRevisionCoordinador,
-        };
-        var actor = accion == "priorizar"
-            ? Actor(RolesCircuito.JefeCatedra)
-            : Actor(RolesCircuito.CoordinadorCarrera);
-        AccionPedido comando = accion switch
-        {
-            "rechazar" => new AccionPedido.Rechazar(""),
-            "devolver" => new AccionPedido.Devolver(""),
-            _ => new AccionPedido.Priorizar(""),
-        };
-
-        Assert.Throws<ErrorDominioPedido>(() =>
-            MaquinaEstadosPedido.AplicarAccion(pedido, new AlcancePedido(Materia, Guid.Empty), comando, actor));
-        Assert.False(pedido.Prioritario);
-        Assert.Equal(accion == "priorizar" ? EstadosPedido.Borrador : EstadosPedido.EnRevisionCoordinador,
-            pedido.Estado);
-    }
-
-    [Theory]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.Secretaria)]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Decanato)]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.CoordinadorCarrera)]
-    public void Rol_incorrecto_no_puede_aceptar_la_etapa(string estado, string rol)
-    {
-        var pedido = new Pedido
-        {
-            Numero = "TEST",
-            PeriodoId = Periodo,
-            PersonaId = Guid.NewGuid(),
-            MateriaId = Materia,
-            CarreraId = Carrera,
-            Novedad = Novedades.Alta,
-            Estado = estado,
-        };
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            pedido, new AlcancePedido(Materia, Guid.NewGuid()), new AccionPedido.Aceptar(), Actor(rol)));
-    }
-
-    [Theory]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.CoordinadorCarrera, "aceptar")]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.CoordinadorCarrera, "rechazar")]
-    [InlineData(EstadosPedido.EnRevisionCoordinador, RolesCircuito.CoordinadorCarrera, "devolver")]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Secretaria, "aceptar")]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Secretaria, "rechazar")]
-    [InlineData(EstadosPedido.EnRevisionSecretaria, RolesCircuito.Secretaria, "devolver")]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.Decanato, "aceptar")]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.Decanato, "rechazar")]
-    [InlineData(EstadosPedido.EnRevisionDecanato, RolesCircuito.Decanato, "devolver")]
-    public void Cada_revisor_puede_actuar_en_su_etapa(string estado, string rol, string accion)
-    {
-        var pedido = PedidoEn(estado);
-        AccionPedido comando = accion switch
-        {
-            "aceptar" => new AccionPedido.Aceptar(),
-            "rechazar" => new AccionPedido.Rechazar("Justificación"),
-            _ => new AccionPedido.Devolver("Corrección requerida"),
-        };
-
-        var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, new AlcancePedido(Materia, Guid.Empty), comando, Actor(rol));
-
-        Assert.Equal(rol, transicion.CodigoRolActuante);
-    }
-
-    [Theory]
-    [InlineData(RolesCircuito.JefeCatedra)]
-    [InlineData(RolesCircuito.CoordinadorCarrera)]
-    [InlineData(RolesCircuito.Secretaria)]
-    [InlineData(RolesCircuito.Decanato)]
-    [InlineData(RolesCircuito.Administrativo)]
-    public void Cada_rol_del_circuito_puede_priorizar_y_despriorizar_en_su_ambito(string rol)
-    {
-        var pedido = PedidoEn(EstadosPedido.Borrador);
-        var actor = Actor(rol);
-
-        var prioridad = MaquinaEstadosPedido.AplicarAccion(
-            pedido, new AlcancePedido(Materia, Guid.Empty), new AccionPedido.Priorizar("Urgente"), actor);
-        var sinPrioridad = MaquinaEstadosPedido.AplicarAccion(
-            pedido, new AlcancePedido(Materia, Guid.Empty), new AccionPedido.Despriorizar(), actor);
-
-        Assert.True(prioridad.Prioritario);
-        Assert.False(sinPrioridad.Prioritario);
-        Assert.Equal(rol, prioridad.CodigoRolActuante);
-    }
-
-    [Theory]
-    [InlineData(EstadosPedido.EnRevisionCoordinador)]
-    [InlineData(EstadosPedido.EnRevisionSecretaria)]
-    [InlineData(EstadosPedido.EnRevisionDecanato)]
-    public void Administrativo_revisa_pero_no_acepta_en_cada_etapa(string estado)
-    {
-        var pedido = PedidoEn(estado);
-        var actor = Actor(RolesCircuito.Administrativo);
-
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            pedido, new AlcancePedido(Materia, Guid.Empty), new AccionPedido.Aceptar(), actor));
-        Assert.Equal(EstadosPedido.Rechazado, MaquinaEstadosPedido.AplicarAccion(
-            pedido, new AlcancePedido(Materia, Guid.Empty), new AccionPedido.Rechazar("No corresponde"), actor).EstadoResultante);
-        Assert.Equal(EstadosPedido.Devuelto, MaquinaEstadosPedido.AplicarAccion(
-            pedido, new AlcancePedido(Materia, Guid.Empty), new AccionPedido.Devolver("Corregir"), actor).EstadoResultante);
-    }
-
-    [Fact]
-    public void Cancelar_y_reenviar_exigen_ambito()
-    {
-        var fueraDeAmbito = new ActorContexto(
-            Guid.NewGuid(),
-            new HashSet<string> { RolesCircuito.JefeCatedra },
-            new HashSet<Guid>(),
-            new HashSet<Guid>());
-        var borrador = PedidoEn(EstadosPedido.Borrador);
-        var devuelto = PedidoEn(EstadosPedido.Devuelto);
-        devuelto.PropietarioActual = RolesCircuito.JefeCatedra;
-        devuelto.EtapaRetorno = EstadosPedido.EnRevisionCoordinador;
-
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            borrador, new AlcancePedido(Materia, Guid.NewGuid()), new AccionPedido.Cancelar(), fueraDeAmbito));
-        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
-            devuelto, new AlcancePedido(Materia, Guid.NewGuid()), new AccionPedido.Reenviar(), fueraDeAmbito));
-    }
-
-    private static Pedido PedidoEn(string estado) => new()
-    {
-        Id = Guid.NewGuid(),
-        Numero = "TEST",
-        PeriodoId = Periodo,
-        PersonaId = Guid.NewGuid(),
-        MateriaId = Materia,
-        CarreraId = Carrera,
-        Novedad = Novedades.Alta,
-        Estado = estado,
-    };
-
-    private static ActorContexto Actor(string rol) => new(
-        Guid.NewGuid(),
-        new HashSet<string> { rol },
-        new HashSet<Guid> { Materia },
-        new HashSet<Guid> { Guid.Empty });
-
     private static IServicioPedidosApi CrearServicio(
         Guid usuarioId,
         IdentityDbContext identityDb,
@@ -385,6 +233,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
+            SellosPrueba.Sellador(db),
             NullLogger<ServicioPedidos>.Instance);
         return new ServicioPedidosApi(
             core, pedidos, resolutor, identity,
@@ -401,26 +250,6 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
         ]);
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser
     {

@@ -77,6 +77,61 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
                 .ThenByDescending(p => p.CreadoEn)
                 .ToListAsync(ct);
 
+    // La carrera viaja en el propio pedido (materia_id + carrera_id elegidos juntos
+    // al cargarlo), así que no hace falta cruzar a identity.
+    //
+    // El `= ANY` con un arreglo parametrizado, y no un IN armado a mano: los números
+    // llegan de afuera del módulo —de lo que el asistente vio en un resultado— y
+    // concatenarlos sería interpolar entrada ajena en SQL.
+    public async Task<IReadOnlyList<PedidoUbicado>> UbicarPorNumerosAsync(
+        IReadOnlyCollection<string> numeros, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(numeros);
+
+        if (numeros.Count == 0)
+        {
+            return [];
+        }
+
+        var buscados = numeros.ToArray();
+
+        return await db.Database
+            .SqlQuery<PedidoUbicado>($"""
+                SELECT p.id          AS "Id",
+                       p.numero      AS "Numero",
+                       p.materia_id  AS "MateriaId",
+                       p.carrera_id  AS "CarreraId"
+                  FROM designaciones.pedidos p
+                 WHERE p.numero = ANY({buscados})
+                """)
+            .ToListAsync(ct);
+    }
+
+    // La ficha del trámite: una proyección y no el agregado. No hace falta el
+    // historial entero ni los adjuntos, sólo la fecha del último movimiento, que se
+    // calcula en la base. Sin colecciones cargadas, y sin seguimiento de cambios.
+    public Task<DatosDeFicha?> ObtenerFichaAsync(Guid pedidoId, CancellationToken ct) =>
+        db.Pedidos
+          .AsNoTracking()
+          .Where(p => p.Id == pedidoId)
+          .Select(p => new DatosDeFicha
+          {
+              Id = p.Id,
+              Numero = p.Numero,
+              Novedad = p.Novedad,
+              Estado = p.Estado,
+              MateriaId = p.MateriaId,
+              CarreraId = p.CarreraId,
+              Periodo = p.Periodo == null ? string.Empty : p.Periodo.Nombre,
+              Cargo = p.CargoSolicitado == null ? null : p.CargoSolicitado.Nombre,
+              Dedicacion = p.DedicacionSolicitadaCatalogo != null
+                  ? p.DedicacionSolicitadaCatalogo.Nombre
+                  : p.DedicacionSolicitada,
+              UltimoMovimiento = p.Historial.Max(h => (DateTimeOffset?)h.CreadoEn),
+              CreadoEn = p.CreadoEn,
+          })
+          .FirstOrDefaultAsync(ct);
+
     public async Task<string> SiguienteNumeroAsync(CancellationToken ct)
     {
         var numeros = await db.Database
@@ -125,4 +180,53 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
         ex.InnerException is PostgresException pg
         && pg.SqlState == PostgresErrorCodes.UniqueViolation
         && pg.ConstraintName == IndiceUnPedidoPorDocentePeriodo;
+}
+
+/// <summary>
+/// Un pedido reducido a lo que hace falta para decidir si el actor lo alcanza.
+/// </summary>
+/// <remarks>
+/// Clase con propiedades asignables y no <c>record</c>: la materializa EF Core
+/// desde SQL crudo sobre un tipo no mapeado, y ese camino exige constructor sin
+/// parámetros y propiedades escribibles.
+/// </remarks>
+internal sealed class PedidoUbicado
+{
+    public Guid Id { get; set; }
+
+    public string Numero { get; set; } = string.Empty;
+
+    public Guid MateriaId { get; set; }
+
+    public Guid CarreraId { get; set; }
+}
+
+/// <summary>
+/// Lo que la ficha de un trámite necesita leer, antes de resolver la materia y
+/// filtrar por ámbito.
+/// </summary>
+internal sealed class DatosDeFicha
+{
+    public Guid Id { get; set; }
+
+    public string Numero { get; set; } = string.Empty;
+
+    public string Novedad { get; set; } = string.Empty;
+
+    public string Estado { get; set; } = string.Empty;
+
+    public Guid MateriaId { get; set; }
+
+    public Guid CarreraId { get; set; }
+
+    public string Periodo { get; set; } = string.Empty;
+
+    public string? Cargo { get; set; }
+
+    public string? Dedicacion { get; set; }
+
+    /// <summary>Fecha del último evento del historial; nula si todavía no tiene ninguno.</summary>
+    public DateTimeOffset? UltimoMovimiento { get; set; }
+
+    public DateTimeOffset CreadoEn { get; set; }
 }

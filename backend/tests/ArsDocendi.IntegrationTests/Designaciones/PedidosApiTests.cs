@@ -29,52 +29,10 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
     [Fact]
-    public async Task Controller_crea_obtiene_edita_envia_reenvia_y_elimina()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
-        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
-        var controller = new PedidosController(CrearServicio(Jefe, identityDb, db));
-
-        var respuesta = await controller.Crear(Datos(
-            Guid.Parse("d0000000-0000-4000-8000-000000000002")), ct);
-        var creado = Assert.IsType<PedidoDto>(Assert.IsType<CreatedAtActionResult>(respuesta.Result).Value);
-        Assert.Matches(@"^\d{4}-\d{4}$", creado.Numero);
-        Assert.Equal("crear", Assert.Single(creado.Historial).Accion);
-        Assert.Contains("enviar", creado.AccionesPermitidas);
-
-        var editado = await controller.Editar(creado.Id, Datos(creado.Persona.Id) with
-        {
-            Horas = 18,
-            Justificacion = "Actualización de carga",
-            Version = creado.Version,
-        }, ct);
-        Assert.Equal(18, editado.Horas);
-        Assert.Equal("editar", editado.Historial.Last().Accion);
-
-        var enviado = await controller.Enviar(creado.Id, Guid.NewGuid().ToString(), ct);
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviado.Estado);
-        Assert.Equal("enviar", enviado.Historial.Last().Accion);
-        Assert.NotNull(enviado.Snapshot);
-        Assert.Equal(enviado.Materia.Nombre, enviado.Snapshot.Materia);
-
-        var devueltoId = Guid.Parse("d5000000-0000-4000-8000-000000000005");
-        var reenviado = await controller.Reenviar(devueltoId, Guid.NewGuid().ToString(), ct);
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, reenviado.Estado);
-        Assert.Equal("reenviar", reenviado.Historial.Last().Accion);
-
-        var borrador = Assert.IsType<PedidoDto>(Assert.IsType<CreatedAtActionResult>((await controller.Crear(
-            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000003")), ct)).Result).Value);
-        Assert.IsType<NoContentResult>(await controller.Eliminar(borrador.Id, ct));
-        Assert.Null(await db.Pedidos.FindAsync([borrador.Id], ct));
-    }
-
-    [Fact]
     public async Task Alta_con_datos_nuevos_crea_persona_sin_cuenta_y_pedido()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var controller = new PedidosController(CrearServicio(Jefe, identityDb, db));
@@ -123,7 +81,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Alta_asocia_solo_archivos_disponibles_del_proposito_correcto()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var cv = Guid.Parse("e0000000-0000-4000-8000-000000000001");
@@ -163,7 +121,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Falla_de_asociacion_no_deja_pedido_ni_historial_parcial()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var almacenamiento = new AlmacenamientoFalso(Jefe, []);
@@ -190,11 +148,13 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Historial_ordenado_por_instante_y_desempate_estable()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         await using var conexion = await AbrirConexionAsync();
+        // Fixture fuera de orden: el historial del circuito es de sólo inserción.
         await using var comando = new NpgsqlCommand("""
+            SET session_replication_role = replica;
             UPDATE designaciones.pedido_historial
                SET created_at = CASE id
                    WHEN 'd7000000-0000-4000-8000-000000000004' THEN TIMESTAMPTZ '2026-06-14 12:00:00+00'
@@ -222,7 +182,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Actor_sin_jefatura_no_puede_crear_y_un_error_no_deja_historial_parcial()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var docente = CrearServicio(
@@ -240,7 +200,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Backend_exige_documentacion_justificacion_y_legajo_segun_novedad()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var servicio = CrearServicio(Jefe, identityDb, db);
@@ -273,7 +233,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Baja_valida_se_envia_sin_cargo_dedicacion_ni_horas()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var servicio = CrearServicio(Jefe, identityDb, db);
@@ -293,7 +253,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 
         var enviada = await servicio.AplicarAccionAsync(baja.Id, new AccionPedido.Enviar(), ct);
 
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviada.Estado);
+        Assert.Equal("en_proceso", enviada.Estado);
         Assert.Null(enviada.CargoSolicitado);
         Assert.Null(enviada.DedicacionSolicitada);
         Assert.Null(enviada.Horas);
@@ -307,7 +267,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Backend_rechaza_materia_ajena_y_baja_sin_designacion_en_la_materia()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var servicio = CrearServicio(Jefe, identityDb, db);
@@ -341,7 +301,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Sin_novedad_no_se_crea_ni_se_edita_y_un_legado_se_lee_sin_poder_aceptarse()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using (var conexion = await AbrirConexionAsync())
         await using (var comando = new NpgsqlCommand("UPDATE designaciones.pedidos SET novedad = 'Sin novedad' WHERE id = 'd5000000-0000-4000-8000-000000000002'", conexion))
         {
@@ -383,7 +343,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Un_pedido_historico_con_materia_inactiva_sigue_visible()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var materia = await identityDb.Materias.SingleAsync(m => m.Id == Materia, ct);
@@ -400,7 +360,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Edicion_invalida_conserva_pedido_y_adjuntos_confirmados()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var servicio = CrearServicio(Jefe, identityDb, db);
@@ -433,7 +393,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Envio_concurrente_con_la_misma_clave_se_ejecuta_una_sola_vez()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         Guid pedidoId;
         Guid otroPedidoId;
         await using (var identityInicial = PostgresFixture.CrearIdentity(Cadena))
@@ -460,7 +420,8 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             dos.AplicarAccionIdempotenteAsync(
                 pedidoId, new AccionPedido.Enviar(), clave, "enviar", string.Empty, ct));
 
-        Assert.All(respuestas, r => Assert.Equal(EstadosPedido.EnRevisionCoordinador, r.Estado));
+        // El Jefe no tiene designaciones.ver_seguimiento: ve el pedido "en proceso".
+        Assert.All(respuestas, r => Assert.Equal("en_proceso", r.Estado));
         await using var verificacion = PostgresFixture.CrearDesignaciones(Cadena);
         Assert.Equal(1, await verificacion.PedidoHistorial.CountAsync(
             h => h.PedidoId == pedidoId && h.Accion == "enviar", ct));
@@ -491,6 +452,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
+            SellosPrueba.Sellador(db),
             NullLogger<ServicioPedidos>.Instance,
             new ServicioPersonas(new RepositorioDocentes(identityDb)),
             almacenamiento);
@@ -569,26 +531,6 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
         ]);
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser
     {

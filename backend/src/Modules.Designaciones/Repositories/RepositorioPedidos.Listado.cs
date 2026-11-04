@@ -31,4 +31,18 @@ internal sealed partial class RepositorioPedidos
                 ActorId = h.ActorId, Etapa = h.Etapa, CreadoEn = h.CreadoEn,
             }).ToListAsync(ct);
     }
+
+    /// <summary>Comentario de la última devolución de cada pedido, con desempate por ID.</summary>
+    public async Task<IReadOnlyDictionary<Guid, string?>> ObtenerUltimosMotivosDevolucionAsync(
+        IReadOnlyCollection<Guid> pedidoIds, CancellationToken ct)
+    {
+        if (pedidoIds.Count == 0) return new Dictionary<Guid, string?>();
+        return await db.PedidoHistorial.AsNoTracking()
+            .Where(h => pedidoIds.Contains(h.PedidoId)
+                && h.Id == db.PedidoHistorial
+                    .Where(x => x.PedidoId == h.PedidoId && x.Accion == AccionesHistorial.Devolver)
+                    .OrderByDescending(x => x.CreadoEn).ThenByDescending(x => x.Id)
+                    .Select(x => (Guid?)x.Id).FirstOrDefault())
+            .ToDictionaryAsync(h => h.PedidoId, h => h.Comentario, ct);
+    }
 }

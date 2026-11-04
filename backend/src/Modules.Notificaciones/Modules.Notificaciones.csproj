@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="WebPush" Version="1.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
+    <ProjectReference Include="..\Modules.Notificaciones.Contracts\Modules.Notificaciones.Contracts.csproj" />
+    <ProjectReference Include="..\ArsDocendi.Migraciones\ArsDocendi.Migraciones.csproj" />
+  </ItemGroup>
+
+  <!--
+    DDL del schema `notificaciones`, autorado en SQL versionado bajo database/ y
+    embebido acá como recurso. Las migraciones EF lo ejecutan con
+    AplicarRecursosSql; ver openspec/changes/notificaciones-in-app/design.md.
+  -->
+  <ItemGroup>
+    <SqlNotificaciones Include="$(MSBuildThisFileDirectory)..\..\..\database\notificaciones\*.sql" />
+    <EmbeddedResource Include="@(SqlNotificaciones)" Link="Sql\notificaciones\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Ver la nota equivalente en ArsDocendi.Shared.csproj: un glob vacío compilaba
+       en silencio y el fallo aparecía recién al migrar. -->
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlNotificaciones)' == ''"
+           Text="No se encontró ningún .sql en database/notificaciones/. El DDL se embebe como recurso de este assembly, así que sin esos archivos las migraciones fallan en runtime. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+  </Target>
+
+</Project>

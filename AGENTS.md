@@ -1,10 +1,10 @@
 # Guía del repositorio
 
-Esta es la fuente de instrucciones para cualquier asistente o herramienta de desarrollo. Los adaptadores específicos deben enlazar este archivo, no copiarlo.
+Esta es la fuente de instrucciones para cualquier asistente o herramienta de desarrollo. Los adaptadores específicos deben enlazar este archivo, no copiarlo. Única excepción: el glue generado de OpenSpec (`.claude/skills/openspec-*`, `.claude/commands/opsx/`, `.agents/skills/openspec-*`) se versiona tal como lo emite `openspec update` y no se edita a mano ([CONTRIBUTING → Glue OpenSpec](CONTRIBUTING.md#glue-openspec-política-d7)).
 
 ## Contexto
 
-Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cuatro contextos: Designaciones, Aulas, Portal y Tareas.
+Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cinco contextos de dominio (Designaciones, Aulas, Portal, Tareas y Notificaciones) más los servicios transversales Identity, Storage e Inferencia (ver [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md)).
 
 Leé antes de cambiar:
 
@@ -24,8 +24,17 @@ Leé antes de cambiar:
 6. Cambios de API, schema o dependencias actualizan la documentación correspondiente en el mismo diff.
 7. No crear UI ficticia, botones muertos, abstracciones especulativas ni dependencias innecesarias.
 8. Las reglas normativas usan `BR-<modulo>-NNN`, fuente y mapping a tests.
-9. Los cambios de UX actualizan su design spec cuando existe.
+9. Los cambios de UX actualizan su design spec cuando existe; los cambios de UX o de permisos actualizan también el artículo del Centro de ayuda que los documenta.
 10. Identificadores, comentarios y documentación propios se escriben en español; los símbolos de frameworks conservan sus nombres.
+11. Un módulo puede consultar schemas ajenos sin pasar por `Contracts` únicamente si la frontera la sostiene el motor de base de datos y es **falsable**: rol de PostgreSQL sin GRANT de mutación, GRANT enumerados columna por columna contra un manifiesto versionado, policies RLS que conjunten el permiso de dominio, y tests que fallen si cualquiera de esas condiciones se degrada. Hoy aplica a `Modules.Asistente` y sólo a él. Ratificado el 2026-09-08.
+
+Es la excepción a la regla 1, y existe porque el Asistente no puede cumplirla: pasar por `Contracts` significaría que el modelo generara llamadas a métodos en vez de SQL, que es otro sistema. Se enmienda explícitamente en vez de reinterpretar la regla 1, porque una regla reinterpretada deja de restringir a nadie.
+
+**La regla no es este párrafo: es este párrafo más lo que lo verifica** — `ManifiestoPrivilegiosTests`, `PrivilegiosLecturaTests`, `RlsAlcanceTests` y `ArquitecturaAsistenteTests`. Un GRANT que nadie re-verifica se degrada en silencio y el sistema sigue funcionando; sólo deja de estar contenido. Si alguno de esos tests deja de fallar ante una degradación, el invariante deja de valer aunque el texto siga acá.
+
+Nota sobre la regla 4: el Asistente **no** lee identidad por `IConsultasIdentity` sino por SQL directo con un rol de solo lectura, y es exactamente lo que esta regla autoriza.
+
+12. Un test nuevo debe proteger una regla de negocio, una garantía de seguridad o de datos, o un flujo de usuario que ningún otro test cubra ya. No se agregan tests que cuentan, verifican forma, prueban el framework, son cosméticos o miden rendimiento. Criterios completos en [docs/quality/golden-principles.md → Tests](docs/quality/golden-principles.md#tests).
 
 ## Flujo de trabajo
 
@@ -35,32 +44,31 @@ Leé antes de cambiar:
 - Las autorizaciones y reglas de negocio se validan en backend aunque el frontend las anticipe.
 - No expongas PII, credenciales ni datos de ámbitos ajenos en errores o logs.
 - Usá migraciones/SQL versionado para datos y constraints; no edites una base manualmente como solución.
-- El entorno de desarrollo local se siembra, la primera vez (base vacía), con `infra/scripts/seed-data/sintetico.sql` (fixtures) y `infra/scripts/seed-data/sga.sql` (carreras, materias y docentes reales del SGA) juntos — ver [README.md](README.md#3-migraciones-y-seed). No se reaplica sobre una base ya sembrada (pisaría ediciones hechas desde la app); resetear al dataset original es una decisión explícita de quien desarrolla. `sga.sql` tiene PII real y por eso **nunca** corre fuera de dev local; staging/PR usan `infra/scripts/seed.sh`, que solo acepta datasets sin datos reales y se ejecuta durante la inicialización. Producción nunca recibe fixtures.
+- Seed: `sga.sql` (no versionado) tiene PII real y **nunca** corre fuera de dev local; no se reaplica sobre una base ya sembrada, y producción nunca recibe fixtures. El procedimiento está en [README.md](README.md#3-migraciones-y-seed).
 
 ## Migraciones y cambios de base de datos
 
 - El mecanismo es **EF Core + SQL versionado embebido**, no sincronización automática del schema. Editar un SQL histórico no hace que vuelva a ejecutarse.
 - **Nunca editar, eliminar ni ampliar SQL o wrappers de una migración ya publicada o aplicada en un ambiente compartido.** Para cambiar tablas, constraints, índices, funciones o datos versionados, crear una nueva migración incremental. No regenerar el baseline ni modificar el manifiesto para ocultar cambios históricos.
-- Generar SQL y wrapper juntos desde la raíz con `node scripts/migrations/scaffold.mjs <Contexto> <NombrePascalCase>`; usar `--dry-run` para revisar antes de escribir. Completar el SQL y conservar la asociación y el orden en `[RecursosMigracionSql(...)]`. No crear un SQL aislado esperando que el runner lo descubra automáticamente.
+- Generar SQL y wrapper juntos con `node scripts/migrations/scaffold.mjs <Contexto> <NombrePascalCase>`. No crear un SQL aislado esperando que el runner lo descubra automáticamente.
 - Revisar dependencias entre schemas y mantener coherentes entidades, mapeos y snapshot EF cuando corresponda. Los snapshots pueden evolucionar; no son operaciones históricas inmutables. No usar `dotnet ef migrations add` para generar un DDL paralelo al SQL autorizado.
-- Verificar con `node --test scripts/tests/migrations.test.mjs`, `node scripts/migrations/validate.mjs`, build del backend y `dotnet run --project backend/src/ArsDocendi.Host --no-build -- --validar-recursos`. Para protección contra Git confiable, seguir el procedimiento de `database/README.md`; la validación sin `--base-ref` no sustituye el control de CI. Ejecutar también las pruebas de integración pertinentes en bases desechables.
+- Verificar con los comandos de [database/README.md → Autoría posterior](database/README.md#autoría-posterior) y las pruebas de integración pertinentes en bases desechables.
 - Staging/PR conservan datos y adjuntos entre despliegues. No introducir drop, purge, reseed ni restores automáticos como solución a una migración fallida. El seed es de inicialización; los resets y la recuperación son operaciones explícitas separadas. Nunca ejecutar fixtures en prod ni copiar SGA/PII real a staging/PR.
 - El baseline consolidado requiere instancias nuevas. Ante historial alpha, IDs desconocidos/discontinuos o schema gestionado sin historial reconocido, abortar sin stamp ni conversión/reset automático. No aplicar migraciones a bases compartidas para probar un cambio.
 
 ## Verificación
 
-```bash
-dotnet test backend/ArsDocendi.slnx
-pnpm --filter frontend test:run
-pnpm --filter frontend lint
-pnpm --filter frontend build
-pnpm format:check
-pnpm exec openspec validate --all --strict
-```
+Esta es la lista única de checks; los skills y playbooks la enlazan. CI (`.github/workflows/ci.yml`) corre los mismos. Ejecutá los que correspondan al cambio:
 
-Ejecutá el subconjunto proporcional al cambio y dejá constancia de cualquier check que el entorno no permita completar.
+| Tocaste                       | Comando                                                                                                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend                       | `dotnet test backend/ArsDocendi.slnx`                                                                                                                                                                                     |
+| SQL, migraciones o manifiesto | `node --test scripts/tests/migrations.test.mjs`, `node scripts/migrations/validate.mjs` y, tras `dotnet build -c Release`, `dotnet run --project backend/src/ArsDocendi.Host --no-build -c Release -- --validar-recursos` |
+| Frontend                      | `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`                                                                                                                          |
+| `infra/`                      | `node --test infra/tests/*.test.mjs`                                                                                                                                                                                      |
+| Docs, specs o cualquier `.md` | `pnpm format:check`, `node scripts/docs/check-links.mjs`, `pnpm exec openspec validate --all`                                                                                                                             |
 
-<!-- CODEGRAPH_START -->
+Dejá constancia de cualquier check que el entorno no permita completar.
 
 ## CodeGraph
 

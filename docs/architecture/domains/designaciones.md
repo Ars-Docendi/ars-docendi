@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprobación/rechazo por Coordinador de Carrera → revisión por Secretaría Académica → aprobación final por Decanato. Visualización de asignaciones existentes consultando la **API Guaraní**.
+Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprobación/rechazo por Coordinador de Carrera → revisión por Secretaría Académica → aprobación final por Decanato.
 
 ## Roles que interactúan
 
@@ -14,7 +14,7 @@ Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprob
 ## Bounded context
 
 - **Pertenece**: Designaciones, períodos lectivos, propuestas, aprobaciones, novedades sobre designaciones.
-- **No pertenece**: Datos personales del docente (viven en `identity.personas`), asignaciones académicas reales en Guaraní (se consultan, no se persisten acá).
+- **No pertenece**: Datos personales del docente (viven en `identity.personas`), asignaciones académicas reales (viven en Guaraní; no hay integración).
 
 ## Entidades principales
 
@@ -70,46 +70,35 @@ horas y datos actuales se toman de esa designación, nunca de la primera del doc
 
 ### Coordinación de administración y circuito
 
-Las dos rutas usan exclusión transaccional PostgreSQL por persona; el circuito toma
-además el par persona–materia. El guard por persona cubre reemplazos administrativos
-de varias materias y altas de vigencias inexistentes. Siempre se obtiene antes de
-leer el estado que se confirmará; no es un mutex del proceso. El snapshot se lee
-dentro de esa exclusión al enviar y permanece inmutable al reenviar/aprobar.
+Administración de docentes y circuito de pedidos escriben las mismas vigencias; el comportamiento exigido está en [persistencia-designaciones](../../../openspec/specs/persistencia-designaciones/spec.md#requirement-mutaciones-de-vigencias-sin-pérdida-concurrente). Decisiones de implementación no obvias:
 
-El orden compartido protege Identity primero (usuarios, personas), después el
-agregado de vigencias (persona, par). Evita una inversión cuando administración
-edita la cuenta del mismo actor que está enviando su propio pedido.
-Una lectura EF anterior al guard no se reutiliza: el circuito relee la vigencia;
-administración compara los `xmin` observados y devuelve conflicto si cambiaron.
-Las entidades modificadas fuera del guard tampoco se revalidan silenciosamente.
-La intención solicitada por un Cambio se aplica al estado recién leído, conservando
-en auditoría los valores y orígenes anteriores/nuevos. No hay retry ciego.
-
-Las nuevas referencias a persona/actor se validan con el protocolo de
-`ProteccionDestinosIdentity` en la transacción consumidora. En administración con
-`TransactionScope`, Npgsql no expone el `DbTransaction` local: se invoca la misma
-función SQL en su conexión enlistada. No se abre otra conexión ni se escribe Identity.
-El actor que dejó de estar activo produce `409 identity-destination-conflict` antes
-del evento; la historia de actores inactivos sigue siendo legible por lote.
+- La exclusión es transaccional en PostgreSQL (por persona y por par persona–materia), no un mutex del proceso, y se toma **antes** de leer el estado que se confirmará.
+- El orden es siempre Identity primero (usuarios, personas) y después vigencias. Evita una inversión cuando administración edita la cuenta del mismo actor que está enviando su propio pedido.
+- No hay retry ciego: una observación obsoleta devuelve conflicto.
 
 ### Listado y detalle
 
-La grilla mantiene todas las filas y las acciones autorizadas. No incluye adjuntos
-ni historia completa: agrega como máximo cuatro eventos reales (primero, creación,
-primer envío y último), deduplicados y ordenados por `(created_at,id)`, sin comentarios.
-Esto mantiene el actor de creación, inicio, última actualización, filtros y orden
-del cliente actual. El detalle carga historial completo y documentación autorizada.
-La respuesta posterior al reemplazo administrativo filtra `persona_id` en SQL,
-no materializa primero todas las designaciones. Ver la
-[evidencia reproducible 3.6–3.8](../../evidence/designaciones-3.6-3.8.md).
+La grilla trae todas las filas y acciones, con un resumen acotado de eventos y sin adjuntos; el detalle trae historial completo y documentación. Contrato en [api-contracts-designaciones.md](../api-contracts-designaciones.md#lectura-de-grilla-versus-detalle).
 
 ## API pública (contract)
 
-| Interfaz                       | Métodos                                             | Consumido por                      |
-| ------------------------------ | --------------------------------------------------- | ---------------------------------- |
-| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes | superficie administrativa del Host |
+| Interfaz                       | Métodos                                                            | Consumido por                                                 |
+| ------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes                | superficie administrativa del Host                            |
+| `IDesignacionesQueries`        | ubicar trámites por su número legible y obtener su ficha, acotados | adaptadores de vínculos y de fichas del asistente, en el Host |
 
 El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF, repositorios ni el `DesignacionesDbContext`. La administración de docentes puede coordinar persona, rol docente y designaciones sin adquirir una referencia al módulo interno.
+
+`IDesignacionesQueries.UbicarPedidosAsync` existe para que **otro módulo no tenga que adivinar quién puede abrir un trámite**. Aplica el mismo criterio que `GET /api/designaciones/pedidos/{id}` —`MaquinaEstadosPedido.AlcanzaAmbito`, la misma función, no una copia— y devuelve **menos** de lo que se le pide: descarta por forma lo que no puede ser un número de trámite antes de consultar la base, y omite lo que existe pero queda fuera del ámbito del actor, sin distinguir un caso del otro.
+
+`IDesignacionesQueries.FichaDePedidoAsync(Guid id, ct)` devuelve la **ficha** de un trámite (`FichaDePedidoDto`: número, novedad, materia, estado con su etiqueta, período, cargo y dedicación solicitados si los tiene, y fecha de la última actividad) o `null`. Existe para que el asistente muestre un único trámite en una ficha con el botón «Abrir pedido»:
+
+- **Mismo criterio que el detalle.** Filtra con `MaquinaEstadosPedido.AlcanzaAmbito`, igual que `GET /api/designaciones/pedidos/{id}` y `UbicarPedidosAsync`; un test compara los dos caminos para el mismo actor y los mismos trámites, porque una ficha cuyo botón termina en 403 es UI ficticia. La política `designaciones.ver` es de quien llama, como en el endpoint.
+- **`null` es lo mismo para «no existe» y «fuera de tu ámbito».** Distinguirlos sería un canal de inferencia sobre trámites ajenos. También es `null` si la materia ya no está en el catálogo de identity, porque el detalle tampoco puede mapear ese trámite.
+- **Sin ruta ni etiquetas de campo.** Dice qué es el trámite; cómo se ve y a dónde lleva lo decide la interfaz. La excepción es `EstadoEtiqueta`, el nombre del estado («En Coordinación», «Devuelto»…), porque el vocabulario del circuito es de este módulo y coincide con el de la pantalla de designaciones.
+- **Una proyección, no el agregado.** El repositorio lee el pedido con su período y cargo y calcula la fecha del último movimiento de `pedido_historial` en la base; no carga el historial ni los adjuntos. Sin movimientos, la última actividad es la fecha de creación. El nombre de la materia sale de `IConsultasIdentity`.
+
+Lo consume el asistente conversacional para ofrecer el vínculo al detalle desde una respuesta. Consume el contract **desde el Host** y no desde `Modules.Asistente`: la arista entre módulos es ARS-46 y todavía no está aprobada, así que el asistente declara un puerto (`IResolutorDeVinculos`, `IProveedorDeFichas`) y el composition root lo compone (`VinculosDeDesignaciones`, `FichasDeDesignaciones`).
 
 Para un Alta de pedido, Designaciones consume por DI la frontera pública
 `IAdministracionIdentity.CrearPersonaSinCuentaAsync`. La implementación vive en
@@ -132,20 +121,13 @@ El contrato completo está en [api-contracts-designaciones.md](../api-contracts-
 
 Ver [`docs/business-rules/designaciones.md`](../../business-rules/designaciones.md).
 
-BR-designaciones-001 es la única con implementación en la base: índice único parcial sobre `(periodo_id, persona_id)` excluyendo los estados terminales, más validación en el backend para el mensaje de error. La base es la autoridad — es lo único que sobrevive a dos requests concurrentes.
+BR-designaciones-001 es la única con implementación en la base: índice único parcial sobre `(periodo_id, persona_id)` excluyendo los estados `rechazado` y `cancelado`, más validación en el backend para el mensaje de error. La base es la autoridad — es lo único que sobrevive a dos requests concurrentes.
 
 ## Dependencias
 
 - **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta. La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
-- **Exportación**: el lote lee el período, el período anterior por `ImpactoDesde`, pedidos y designaciones vigentes dentro de una lectura `RepeatableRead`; completa persona y materias mediante `IConsultasIdentity` y el correo de altas mediante `Modules.Portal.Contracts.Queries.IPortalQueries`. La proyección genera `PROPUESTA COMPLETA`, `ALTAS` y `BAJAS` —incluida la Alta aún no materializada— sin modificar el estado de negocio.
-- **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`).
-- **Hacia afuera**: ninguna por ahora.
-- **Externas**: **API Guaraní** (lectura de asignaciones existentes — detalle de integración TBD).
-
-## Specs activas
-
-_(autogenerable a futuro)_
-
-## Decisiones registradas
-
-- **Solo lectura de Guaraní**: las asignaciones reales viven en Guaraní; Ars Docendi solo las consulta para mostrarlas en contexto. NO replicar esa data en nuestra DB.
+- **Exportación**: el lote es una proyección de sólo lectura ([exportacion-lote-designaciones](../../../openspec/specs/exportacion-lote-designaciones/spec.md)); el correo de las altas sale de `IPortalQueries`.
+- **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`), `ArsDocendi.Storage.Contracts` (adjuntos de pedidos) y `Modules.Notificaciones.Contracts` (`INotificador`).
+- **Avisos**: `ServicioPedidosApi` avisa **después del commit más externo** (la transición idempotente corre dentro de una transacción) y sólo para tres acciones: Aceptar a una etapa con revisor (Secretaría o Decanato; `en_lote` no avisa), Rechazar (a los Jefes de la materia) y Devolver (al rol propietario de la etapa de origen, en el ámbito del pedido). Enviar, Reenviar, Cancelar y las prioridades no avisan. Ver [notificaciones.md](./notificaciones.md).
+- **Hacia afuera**: el Host consume `IAdministracionDesignaciones` para la administración de docentes.
+- **Externas**: ninguna.

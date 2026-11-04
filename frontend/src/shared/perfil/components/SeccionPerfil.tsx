@@ -1,0 +1,67 @@
+import type { ReactNode } from "react";
+import { Button } from "@ars-docendi/ui";
+
+import { useModoPerfil } from "./ModoPerfil";
+
+import "./portal.css";
+
+interface SeccionPerfilProps {
+  titulo: string;
+  /**
+   * Una sección sin datos se muestra como una fila, no como una tarjeta hueca.
+   * Al tener contenido se expande: así la página crece con el perfil.
+   */
+  vacia?: boolean;
+  /** Acción del encabezado (Editar / + Agregar / Reemplazar). */
+  accion?: { etiqueta: string; onClick: () => void };
+  /** El cuerpo son filas a sangre: sin padding propio de la sección. */
+  filas?: boolean;
+  children?: ReactNode;
+}
+
+/**
+ * Contenedor de una sección del perfil. El bloque Perfil se renderiza sin
+ * `accion`: la ausencia de afordancia es lo que comunica que es de solo
+ * lectura, sin un texto que lo explique.
+ */
+export function SeccionPerfil({
+  titulo,
+  vacia = false,
+  accion,
+  filas = false,
+  children,
+}: SeccionPerfilProps) {
+  // En sólo lectura no hay acciones: su ausencia es lo que comunica que no se edita.
+  const { soloLectura } = useModoPerfil();
+  const accionVisible = soloLectura ? undefined : accion;
+  if (vacia) {
+    return (
+      <section className="portal-fila-vacia">
+        <h2 className="portal-seccion-titulo">{titulo}</h2>
+        {accionVisible && (
+          <Button variant="ghost" size="sm" onClick={accionVisible.onClick}>
+            {accionVisible.etiqueta}
+          </Button>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="portal-seccion">
+      <div className="portal-seccion-head">
+        <h2 className="portal-seccion-titulo">{titulo}</h2>
+        {accionVisible && (
+          <Button variant="ghost" size="sm" onClick={accionVisible.onClick}>
+            {accionVisible.etiqueta}
+          </Button>
+        )}
+      </div>
+      <div
+        className={filas ? "portal-seccion-body portal-seccion-body-filas" : "portal-seccion-body"}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}

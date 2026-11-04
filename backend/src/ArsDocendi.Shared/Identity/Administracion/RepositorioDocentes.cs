@@ -8,8 +8,12 @@ public interface IRepositorioDocentes
 {
     Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct);
     Task<Persona?> ObtenerPersonaAsync(Guid id, bool tracking, CancellationToken ct);
-    Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
-    Task<IReadOnlyList<Rol>> ListarRolesDocentesAsync(CancellationToken ct);
+    /// <summary>Roles activos (de sistema o creados por el operador), con tracking para asignarlos.</summary>
+    Task<IReadOnlyList<Rol>> ObtenerRolesActivosAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+    Task<IReadOnlyList<Rol>> ListarRolesActivosAsync(CancellationToken ct);
+    Task<IReadOnlyList<Carrera>> ObtenerCarrerasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+    Task<IReadOnlyList<Carrera>> ListarCarrerasAsync(CancellationToken ct);
+    Task<Persona?> BuscarPorDocumentoAsync(string documento, CancellationToken ct);
     Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
     Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct);
@@ -46,22 +50,25 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
         return consulta.SingleOrDefaultAsync(p => p.Id == id, ct);
     }
 
-    public async Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(
+    public async Task<IReadOnlyList<Rol>> ObtenerRolesActivosAsync(
         IReadOnlyCollection<Guid> ids,
         CancellationToken ct) =>
-        await db.Roles
-            .Where(r => ids.Contains(r.Id)
-                && r.EsSistema
-                && r.Activo
-                && (r.Codigo == "docente" || r.Codigo == "jefe_catedra"))
-            .ToListAsync(ct);
+        await db.Roles.Where(r => ids.Contains(r.Id) && r.Activo).ToListAsync(ct);
 
-    public async Task<IReadOnlyList<Rol>> ListarRolesDocentesAsync(CancellationToken ct) =>
-        await db.Roles
-            .Where(r => r.EsSistema && r.Activo
-                && (r.Codigo == "docente" || r.Codigo == "jefe_catedra"))
-            .OrderBy(r => r.Nombre)
-            .ToListAsync(ct);
+    public async Task<IReadOnlyList<Rol>> ListarRolesActivosAsync(CancellationToken ct) =>
+        await db.Roles.AsNoTracking().Where(r => r.Activo).OrderBy(r => r.Nombre).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Carrera>> ObtenerCarrerasAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken ct) =>
+        await db.Carreras.AsNoTracking().Where(c => ids.Contains(c.Id) && c.Activo).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Carrera>> ListarCarrerasAsync(CancellationToken ct) =>
+        await db.Carreras.AsNoTracking().Where(c => c.Activo).OrderBy(c => c.Nombre).ToListAsync(ct);
+
+    public Task<Persona?> BuscarPorDocumentoAsync(string documento, CancellationToken ct) =>
+        db.Personas.AsNoTracking().Include(p => p.Usuario)
+            .SingleOrDefaultAsync(p => p.Documento == documento, ct);
 
     public async Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(
         IReadOnlyCollection<Guid> ids,
@@ -85,7 +92,8 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
             .ToListAsync(ct);
 
     public Task<bool> ExisteUpnAsync(string upn, Guid? exceptoUsuarioId, CancellationToken ct) =>
-        db.Usuarios.AsNoTracking().AnyAsync(u => u.Upn == upn && u.Id != exceptoUsuarioId, ct);
+        db.Usuarios.AsNoTracking().AnyAsync(
+            u => u.Upn.Trim().ToLower() == upn.Trim().ToLower() && u.Id != exceptoUsuarioId, ct);
 
     public Task<bool> ExisteDocumentoAsync(
         string documento,

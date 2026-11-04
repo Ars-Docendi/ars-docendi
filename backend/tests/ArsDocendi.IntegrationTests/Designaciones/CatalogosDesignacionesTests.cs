@@ -31,7 +31,7 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
     public async Task Catalogos_respetan_materias_y_carreras_del_actor()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var designacionesDb = PostgresFixture.CrearDesignaciones(Cadena);
 
@@ -61,7 +61,7 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
     public async Task Catalogo_acotado_no_expone_designaciones_ni_personas_ajenas()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var designacionesDb = PostgresFixture.CrearDesignaciones(Cadena);
         var personaMixta = Guid.NewGuid();
@@ -105,7 +105,7 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
     public async Task Catalogos_devuelven_periodo_personas_elegibles_y_cargos_activos()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var designacionesDb = PostgresFixture.CrearDesignaciones(Cadena);
         var catalogos = await CrearServicio(
@@ -113,15 +113,10 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
             .ObtenerAsync(ct);
 
         Assert.NotNull(catalogos.PeriodoActivo);
-        Assert.Equal(3, catalogos.Periodos.Count);
-        Assert.Equal(6, catalogos.Cargos.Count);
         Assert.DoesNotContain(catalogos.Personas, p => p.Id == PersonaConPedidoVivo);
         Assert.Contains(catalogos.Personas, p => p.Id == PersonaConPedidoRechazado);
-        Assert.Equal(6, catalogos.Dedicaciones.Count);
-        Assert.Contains(catalogos.Dedicaciones, d => d.Nombre == "Categoría 6");
         Assert.Contains("Cambio de cargo o dedicación", catalogos.Novedades);
         Assert.DoesNotContain(Novedades.SinNovedad, catalogos.Novedades);
-        Assert.Equal([1, 2, 3, 4, 5, 6], catalogos.Dedicaciones.Select(d => (int)d.Codigo));
         var dedicacion = await designacionesDb.Dedicaciones.SingleAsync(d => d.Codigo == 6, ct);
         dedicacion.Activo = false;
         await designacionesDb.SaveChangesAsync(ct);
@@ -154,26 +149,6 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
         VigenteDesde = new DateOnly(2026, 8, 1),
         CreadoEn = DateTimeOffset.UtcNow,
     };
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser
     {

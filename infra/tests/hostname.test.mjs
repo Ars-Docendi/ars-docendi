@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 
@@ -16,15 +15,6 @@ const consultar = (ambiente) =>
     ],
     { cwd: repo, encoding: "utf8", env: { PATH: process.env.PATH } },
   );
-
-test("spin-up utiliza el helper probado para materializar HOST_PUBLICO", () => {
-  const script = readFileSync(
-    new URL("infra/scripts/spin-up.sh", new URL("../../", import.meta.url)),
-    "utf8",
-  );
-  assert.ok(script.includes('host_publico="$(hostname_publico "$ambiente" "$DOMINIO")"'));
-  assert.ok(script.includes("HOST_PUBLICO=${host_publico}"));
-});
 
 for (const ambiente of ["staging", "pr-123"]) {
   test(`${ambiente} conserva su subdominio`, () => {

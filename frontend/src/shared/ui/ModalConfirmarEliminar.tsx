@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Button, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Button, InlineAlert } from "@ars-docendi/ui";
+import { Modal } from "./Modal";
 
 interface ModalConfirmarEliminarProps {
   open: boolean;
@@ -28,6 +29,8 @@ export function ModalConfirmarEliminar({
   return (
     <Modal
       open={open}
+      tamano="confirmacion"
+      pendiente={eliminando}
       onOpenChange={onOpenChange}
       title={titulo}
       footer={

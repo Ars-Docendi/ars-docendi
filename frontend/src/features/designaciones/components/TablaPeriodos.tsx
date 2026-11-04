@@ -1,6 +1,7 @@
 import { Button, Input, Table } from "@ars-docendi/ui";
-import { useState } from "react";
 import type { ReactNode } from "react";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { PeriodoDesignacion } from "../types";
 import {
@@ -9,10 +10,11 @@ import {
   formatearMesAnio,
   FILTROS_PERIODOS_INICIALES,
   siguienteOrdenPeriodos,
+  COLUMNAS_ORDEN_PERIODOS,
+  type OrdenPeriodos,
   type ColumnaOrdenPeriodos,
   type FiltroEstadoPeriodo,
   type FiltrosPeriodos,
-  type OrdenPeriodos,
 } from "./filtrosPeriodos";
 import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
@@ -20,7 +22,7 @@ import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import "./tablaPeriodos.css";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 324px)";
+const ALTO_TABLA = "calc(100dvh - 324px)";
 
 /** Ancho mínimo del nombre: usa el espacio que haya y recorta con "…" si no alcanza. */
 const ANCHO_NOMBRE = 120;
@@ -31,14 +33,14 @@ interface TablaPeriodosProps {
   onEliminar: (periodo: PeriodoDesignacion) => void;
 }
 
-/** Tabla de períodos; los filtros y el orden son locales porque no hay paginación. */
+/** Tabla de períodos; filtros y orden viven en el query (no hay paginación en el servidor). */
 export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosProps) {
-  const [filtros, setFiltros] = useState<FiltrosPeriodos>(FILTROS_PERIODOS_INICIALES);
-  const [orden, setOrden] = useState<OrdenPeriodos | null>(null);
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_PERIODOS_INICIALES);
+  const [orden, setOrden] = useOrdenURL<ColumnaOrdenPeriodos>(COLUMNAS_ORDEN_PERIODOS);
   const visibles = aplicarFiltrosYOrdenPeriodos(periodos, filtros, orden);
 
   function cambiarFiltro<K extends keyof FiltrosPeriodos>(campo: K, valor: FiltrosPeriodos[K]) {
-    setFiltros((actual) => ({ ...actual, [campo]: valor }));
+    setFiltros({ ...filtros, [campo]: valor });
   }
 
   function alternarActivo(valor: FiltroEstadoPeriodo) {
@@ -55,7 +57,7 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
 
   return (
     <Table className="adoc-periodos-table">
-      <Table.Root maxHeight={ALTO_TABLA}>
+      <ContenedorTabla etiqueta="Períodos" maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
             <Encabezado
@@ -187,7 +189,7 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
             ))
           )}
         </Table.Body>
-      </Table.Root>
+      </ContenedorTabla>
     </Table>
   );
 }

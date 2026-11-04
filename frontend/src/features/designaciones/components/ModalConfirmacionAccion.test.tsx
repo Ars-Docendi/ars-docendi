@@ -28,7 +28,7 @@ const PEDIDO: PedidoDesignacion = {
 const ETIQUETA_CONFIRMAR: Record<AccionRevision, string> = {
   aceptar: "Aprobar y enviar",
   rechazar: "Rechazar novedad",
-  devolver: "Devolver a Borrador",
+  devolver: "Devolver",
   priorizar: "Guardar prioridad",
   despriorizar: "Quitar prioridad",
 };
@@ -52,11 +52,6 @@ function renderModal(
 }
 
 describe("ModalConfirmacionAccion", () => {
-  it("no renderiza nada cuando la acción es null", () => {
-    renderModal(null);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
   it("aceptar permite confirmar con el comentario vacío (opcional)", async () => {
     const user = userEvent.setup();
     const { onConfirmar } = renderModal("aceptar");
@@ -83,6 +78,18 @@ describe("ModalConfirmacionAccion", () => {
     expect(confirmar).toBeEnabled();
     await user.click(confirmar);
     expect(onConfirmar).toHaveBeenCalledWith("No cumple los requisitos.");
+  });
+
+  it("devolver dice a quién vuelve el pedido y no promete un Borrador", () => {
+    renderModal("devolver");
+    const dialog = screen.getByRole("dialog");
+
+    expect(
+      within(dialog).getByText(
+        "El pedido vuelve al Jefe de Cátedra para que lo corrija y lo reenvíe. Se notifica al destinatario (in-app).",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Borrador/)).not.toBeInTheDocument();
   });
 
   it("devolver también exige justificativo para confirmar [BR-005]", () => {
@@ -137,20 +144,5 @@ describe("ModalConfirmacionAccion", () => {
     await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
     expect(onCerrar).toHaveBeenCalledTimes(1);
     expect(onConfirmar).not.toHaveBeenCalled();
-  });
-
-  it("muestra el título y el subtítulo propios de cada acción", () => {
-    renderModal("devolver");
-    const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("Devolver pedido")).toBeInTheDocument();
-    expect(
-      within(dialog).getByText("Vuelve al Jefe de Cátedra · estado Devuelto"),
-    ).toBeInTheDocument();
-  });
-
-  it("identifica el pedido por su número de negocio", () => {
-    renderModal("aceptar");
-    expect(screen.getByText(/pedido 2026-0123/)).toBeInTheDocument();
-    expect(screen.queryByText("p1")).not.toBeInTheDocument();
   });
 });

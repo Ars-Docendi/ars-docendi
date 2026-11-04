@@ -6,8 +6,12 @@
 //   el singleton de pedidos antes de cada test.
 // ============================================================
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterEach, beforeEach } from "vitest";
+
+// Esperar las transiciones de React y las notificaciones de React Query también
+// cuando los workers comparten CPU. Una espera agotada sigue fallando el test.
+configure({ asyncUtilTimeout: 3_000 });
 
 beforeEach(() => {
   localStorage.clear();

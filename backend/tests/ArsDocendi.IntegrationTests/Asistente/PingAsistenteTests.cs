@@ -1,0 +1,75 @@
+using System.Net;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace ArsDocendi.IntegrationTests.Asistente;
+
+/// <summary>Verifica el smoke test del módulo del asistente (invariante #3).</summary>
+public sealed class PingAsistenteTests
+{
+    /// <summary>
+    /// Puerto 1: no hay servicio escuchando ahí. `Timeout=1` hace que un intento
+    /// de conexión falle rápido en vez de colgar el test.
+    /// </summary>
+    private const string CadenaInalcanzable =
+        "Host=127.0.0.1;Port=1;Database=no_existe;Username=nadie;Password=nada;Timeout=1";
+
+    [Fact]
+    public async Task Ping_responde_200_sin_credenciales_y_sin_base()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var host = CrearHostSinBase();
+        using var cliente = host.CreateClient();
+
+        using var respuesta = await cliente.GetAsync("/api/asistente/ping", ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<RespuestaPing>(ct);
+        Assert.NotNull(cuerpo);
+        Assert.Equal("asistente", cuerpo.Module);
+        Assert.Equal("ok", cuerpo.Status);
+    }
+
+    private static WebApplicationFactory<Program> CrearHostSinBase(
+        Action<IServiceCollection>? servicios = null) =>
+        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.UseSetting("Integridad:ClavesSellado:1", Convert.ToBase64String(new byte[32]));
+            // En Production el Host exige el ingreso con Microsoft configurado.
+            builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
+            builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+            builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
+            builder.UseSetting("ConnectionStrings:ArsDocendi", CadenaInalcanzable);
+            if (servicios is not null)
+            {
+                builder.ConfigureTestServices(servicios);
+            }
+        });
+
+    [Fact]
+    public async Task Ping_responde_aunque_haya_una_politica_global_que_exija_autenticacion()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var host = CrearHostSinBase(servicios =>
+            servicios.AddAuthorization(opciones =>
+                opciones.FallbackPolicy = new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .Build()));
+        using var cliente = host.CreateClient();
+
+        // Contraprueba: con esa política global, un ping SIN [AllowAnonymous] deja de responder 200.
+        using var sinAtributo = await cliente.GetAsync("/api/designaciones/ping", ct);
+        Assert.NotEqual(HttpStatusCode.OK, sinAtributo.StatusCode);
+
+        using var respuesta = await cliente.GetAsync("/api/asistente/ping", ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
+    private sealed record RespuestaPing(string Module, string Status);
+}

@@ -1,89 +1,66 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button, RoleBadge } from "@ars-docendi/ui";
+import { useState, type ReactNode } from "react";
 
-import { useCerrarSesion } from "../../shared/auth/auth";
+import { Drawer } from "../../shared/ui/Drawer";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
-// import { collapseIcon } from "./icons";
+import { menuIcon } from "./icons";
+import { EnlaceAyuda, ListaNavegacion } from "./ListaNavegacion";
+import { MarcaArsDocendi } from "./MarcaArsDocendi";
+import { MenuUsuario } from "./MenuUsuario";
+import { usePantallaAngosta } from "./usePantallaAngosta";
 
-interface TopBarProps {
-  collapsed: boolean;
-  onToggleCollapse: () => void;
+/**
+ * Barra superior fina, sólo en pantallas angostas (ahí no hay barra lateral
+ * fija): botón "Menú" que abre el panel de navegación, la marca y, a la derecha,
+ * el lanzador del asistente (`lanzador`) y la campana de notificaciones (`campana`).
+ */
+export function TopBar({
+  user,
+  campana,
+  lanzador,
+}: {
   user: CurrentUser;
-}
-
-export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
-  const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function closeOnOutsideClick(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
-
-  const cerrarSesion = useCerrarSesion();
-
-  async function handleLogout() {
-    try {
-      await cerrarSesion();
-    } finally {
-      navigate("/login", { replace: true });
-    }
-  }
+  campana?: ReactNode;
+  lanzador?: ReactNode;
+}) {
+  // Si la ventana se agranda con el panel abierto, el panel se cierra solo:
+  // ahí ya está la barra lateral.
+  const angosta = usePantallaAngosta();
+  const [navegacionAbierta, setNavegacionAbierta] = useState(false);
+  const panelVisible = angosta && navegacionAbierta;
+  const cerrar = () => setNavegacionAbierta(false);
 
   return (
     <header className="adoc-topbar">
+      <button
+        type="button"
+        className="adoc-menu-btn"
+        onClick={() => setNavegacionAbierta(true)}
+        aria-expanded={panelVisible}
+        aria-label="Abrir menú de navegación"
+      >
+        <span className="ico">{menuIcon}</span>
+      </button>
+      <Drawer
+        open={panelVisible}
+        onOpenChange={setNavegacionAbierta}
+        side="left"
+        title="Menú"
+        className="adoc-nav-drawer"
+      >
+        <nav aria-label="Navegación principal">
+          <ListaNavegacion permissions={user.permissions} onNavegar={cerrar} />
+          <div className="adoc-nav-drawer-pie">
+            <EnlaceAyuda onNavegar={cerrar} />
+            <MenuUsuario user={user} />
+          </div>
+        </nav>
+      </Drawer>
+
       <div className="adoc-brand">
-        <span className="mark">AD</span>
-        <span>Ars Docendi</span>
-        <span className="sub">Ingeniería · UNLaM</span>
-
-        {/* Collapse button, comentado hasta que se me ocurra un buen diseño.
-        <button
-          type="button"
-          className="adoc-collapse-btn"
-          onClick={onToggleCollapse}
-          aria-pressed={collapsed}
-          aria-label={collapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
-        >
-          <span className="ico">{collapseIcon}</span>
-        </button>
-        */}
+        <MarcaArsDocendi />
       </div>
-
-      <div className="adoc-topbar-right">
-        <div className="adoc-user-menu" ref={menuRef}>
-          <RoleBadge
-            name={user.name}
-            initials={user.initials}
-            role={user.role}
-            multi
-            onSwitchClick={() => setMenuOpen((open) => !open)}
-            switchLabel="Abrir menú de usuario"
-          />
-          {menuOpen && (
-            <div className="adoc-user-menu-pop" role="menu">
-              <div className="adoc-user-menu-foot">
-                <Button variant="ghost" size="sm" onClick={() => void handleLogout()}>
-                  Cerrar sesión
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      {lanzador}
+      {campana}
     </header>
   );
 }

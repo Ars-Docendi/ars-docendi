@@ -8,5 +8,16 @@ ingress:
   # Producción sólo en el dominio raíz; prod sigue siendo su identidad interna.
   - hostname: example.net
     service: http://traefik:80
+  # IA (Ollama) sólo para staging/pr-N; prod la consume localmente, no por aquí.
+  # Entrypoint privado `ollama` de Traefik, nunca `web`. cloudflared exige un
+  # JWT válido de Cloudflare Access aunque la aplicación Access se borre.
+  - hostname: ia.example.net
+    service: http://traefik:11435
+    originRequest:
+      access:
+        required: true
+        teamName: REEMPLAZAR_CON_TEAM_NAME
+        audTag:
+          - REEMPLAZAR_CON_AUD_APLICACION_IA
   # Staging y previews se sirven únicamente desde Proxmox.
   - service: http_status:404

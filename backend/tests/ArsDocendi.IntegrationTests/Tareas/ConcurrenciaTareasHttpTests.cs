@@ -1,3 +1,4 @@
+using ArsDocendi.IntegrationTests.Infraestructura;
 using System.Net;
 using System.Net.Http.Json;
 using Modules.Tareas.Application;
@@ -5,21 +6,8 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Tareas;
 
-public sealed partial class TareasHttpTests
+public sealed class ConcurrenciaTareasHttpTests(PostgresFixture postgres) : TareasHttpBase(postgres)
 {
-    private async Task EsperarBloqueadasAsync(int cantidad, CancellationToken ct)
-    {
-        await using var observador = await AbrirConexionAsync();
-        using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        limite.CancelAfter(TimeSpan.FromSeconds(30));
-        while (true)
-        {
-            await using var comando = new NpgsqlCommand("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock'", observador);
-            if (Convert.ToInt64(await comando.ExecuteScalarAsync(limite.Token)) >= cantidad) return;
-            await Task.Delay(20, limite.Token);
-        }
-    }
-
     [Fact]
     public async Task Relaciones_concurrentes_mismo_par_son_idempotentes()
     {

@@ -1,31 +1,40 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Button, InlineAlert } from "@ars-docendi/ui";
+import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
+import { Migas } from "../../../shared/navegacion/Migas";
+import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
+import { estadoVolver } from "../../../shared/navegacion/volver";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { ListaMisPedidosMovil } from "../components/ListaMisPedidosMovil";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { TablaMisPedidos } from "../components/TablaMisPedidos";
 import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 import { IconoPlus } from "../components/lucide";
 import {
   aplicarFiltrosYOrdenMisPedidos,
+  COLUMNAS_ORDEN_MIS_PEDIDOS,
   FILTROS_INICIALES,
-  type FiltrosMisPedidosState,
-  type OrdenMisPedidos,
+  type ColumnaOrdenMisPedidos,
 } from "../components/filtrosMisPedidos";
 import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
 import { useMisPedidos } from "../hooks/usePedidos";
 import { useEliminarPedido } from "../hooks/useAccionesPedido";
 import type { PedidoDesignacion } from "../types";
 import "./misPedidos.css";
-import { estadoOrigen } from "./origenDetalle";
 
 export function MisPedidosPage() {
   const navegar = useNavigate();
+  const location = useLocation();
+  const abrir = useAbrirDetalle();
   const { data: pedidos, isLoading, isError, refetch } = useMisPedidos();
   const catalogos = useCatalogosDesignaciones();
   const eliminar = useEliminarPedido();
+  const telefono = usePantallaTelefono();
 
-  const [filtros, setFiltros] = useState<FiltrosMisPedidosState>(FILTROS_INICIALES);
-  const [orden, setOrden] = useState<OrdenMisPedidos | null>(null);
+  // Filtros y orden en el query: Atrás y recargar los restauran.
+  const [filtros, setFiltros] = useFiltrosURL(FILTROS_INICIALES);
+  const [orden, setOrden] = useOrdenURL<ColumnaOrdenMisPedidos>(COLUMNAS_ORDEN_MIS_PEDIDOS);
   const [pedidoAEliminar, setPedidoAEliminar] = useState<PedidoDesignacion | undefined>();
 
   function handleConfirmarEliminar() {
@@ -47,10 +56,7 @@ export function MisPedidosPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
-        items={[{ label: "Inicio", href: "/" }, { label: "Mis pedidos" }]}
-      />
+      <Migas items={[{ label: "Inicio", href: "/" }, { label: "Mis pedidos" }]} />
       <PageHeader
         title="Mis pedidos"
         meta={
@@ -62,7 +68,9 @@ export function MisPedidosPage() {
           <Button
             variant="primary"
             leadingIcon={<IconoPlus />}
-            onClick={() => navegar("/designaciones/pedidos/nuevo")}
+            onClick={() =>
+              navegar("/designaciones/pedidos/nuevo", { state: estadoVolver(location) })
+            }
           >
             Nuevo pedido
           </Button>
@@ -92,19 +100,30 @@ export function MisPedidosPage() {
                 Ningún pedido coincide con la búsqueda o el filtro aplicado.
               </InlineAlert>
             )}
-            <TablaMisPedidos
-              pedidos={filtrados}
-              pedidosParaOpciones={pedidos}
-              filtros={filtros}
-              orden={orden}
-              onFiltrosChange={setFiltros}
-              onOrdenChange={setOrden}
-              onVerDetalle={(p) =>
-                navegar(`/designaciones/pedidos/${p.id}`, { state: estadoOrigen("mis-pedidos") })
-              }
-              onEditar={(p) => navegar(`/designaciones/pedidos/${p.id}/editar`)}
-              onEliminar={(p) => setPedidoAEliminar(p)}
-            />
+            {telefono ? (
+              <ListaMisPedidosMovil
+                todos={pedidos ?? []}
+                pedidos={filtrados}
+                filtros={filtros}
+                orden={orden}
+                onFiltrosChange={setFiltros}
+                onOrdenChange={setOrden}
+                onEditar={(p) => abrir(`/designaciones/pedidos/${p.id}/editar`)}
+                onEliminar={(p) => setPedidoAEliminar(p)}
+              />
+            ) : (
+              <TablaMisPedidos
+                pedidos={filtrados}
+                pedidosParaOpciones={pedidos}
+                filtros={filtros}
+                orden={orden}
+                onFiltrosChange={setFiltros}
+                onOrdenChange={setOrden}
+                onVerDetalle={(p) => abrir(`/designaciones/pedidos/${p.id}`)}
+                onEditar={(p) => abrir(`/designaciones/pedidos/${p.id}/editar`)}
+                onEliminar={(p) => setPedidoAEliminar(p)}
+              />
+            )}
           </>
         </div>
       )}

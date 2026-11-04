@@ -10,7 +10,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class DestinosPedidosTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Theory]
     [InlineData(false)]

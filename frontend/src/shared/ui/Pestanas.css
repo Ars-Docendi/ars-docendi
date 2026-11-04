@@ -1,0 +1,28 @@
+/* Phone strip: tabs scroll sideways (never wrap) with a shadow at each edge that has more. */
+@media (max-width: 559px) {
+  .adoc-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    /* "local" gradients cover the shadows at the ends; "scroll" ones stay at the edges. */
+    background:
+      linear-gradient(to right, var(--color-bg-canvas) 30%, transparent) left / 40px 100% no-repeat
+        local,
+      linear-gradient(to left, var(--color-bg-canvas) 30%, transparent) right / 40px 100% no-repeat
+        local,
+      radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 20%), transparent) left / 14px 100%
+        no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 20%), transparent) right / 14px 100%
+        no-repeat scroll;
+  }
+  .adoc-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .adoc-tabs button {
+    flex: 0 0 auto;
+    min-height: 44px;
+    white-space: nowrap;
+    scroll-snap-align: center;
+  }
+}

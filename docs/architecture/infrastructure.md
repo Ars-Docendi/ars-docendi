@@ -6,11 +6,10 @@ en la VM Proxmox secundaria**, en sus subdominios. No hay LB, Worker DNS,
 deploy dual ni failover; tampoco se comparten datos, objetos o sesiones.
 Una caída de Debian deja producción indisponible.
 
-> **Estado:** esta es la topología objetivo del cambio
-> `deploy-dual-con-failover-temporal` (nombre histórico, alcance revisado),
-> no una afirmación de corte operativo. El operador configura Cloudflare y
-> los runners de GitHub; el traslado de producción requiere decisión explícita
-> sobre los datos previos, ventana de mantenimiento y aceptación verificable.
+> **Estado:** topología objetivo, no una afirmación de corte operativo. El
+> operador configura Cloudflare y los runners de GitHub; el traslado de
+> producción requiere decisión explícita sobre los datos previos, ventana de
+> mantenimiento y aceptación verificable.
 
 > Artefactos versionados en [`infra/`](../../infra/) (compose, traefik, cloudflared,
 > scripts, Makefile) y [`.github/workflows/`](../../.github/workflows/).
@@ -46,6 +45,29 @@ VM Proxmox:     cloudflared → Traefik → staging + pr-N
                Redes, bases y objetos estrictamente locales a cada host.
 ```
 
+### Modelo propio del asistente (opcional)
+
+Con `ASISTENTE_PROVEEDOR=local`, el backend habla con un servidor OpenAI-compatible
+**compartido por los ambientes**, igual que PostgreSQL: su propio Compose project
+(`infra/compose/compose.llm.yml`, contenedor `arsdocendi-llm`) en la red
+`arsdocendi-datos`, **sin puerto publicado** y con `--api-key`. El host necesita la GPU
+(RTX 5070, 12 GB), driver NVIDIA ≥ 580 y `nvidia-container-toolkit`. `spin-up.sh` suma
+`compose.asistente-local.yml` al ambiente para apuntarlo ahí con el perfil de valores
+del change `asistente-proveedor-local`.
+
+La compuerta de concurrencia es por proceso: con varios ambientes contra la misma
+GPU, el límite real es la suma de sus `ASISTENTE_MAX_LLAMADAS_CONCURRENTES`, y tiene
+que igualar el `--max-num-seqs` del servidor. Dimensionamiento, modelo y piloto en
+[modelo-local.md](modelo-local.md). El perfil también prende las optimizaciones de
+`asistente-optimizaciones-modelo-local` (esquema compacto, reparación, plantillas,
+caché de consultas, streaming de la redacción, etc.); para medir una con el
+evaluador se la apaga ahí.
+
+`infra/compose/compose.llm-3070.yml` **no es infraestructura de ambientes**: es un
+`llama-server` suelto, publicado sólo en `127.0.0.1:8000`, para probar el asistente
+desde una PC de desarrollo con una RTX 3070 y el backend en `dotnet run`. La guía está
+en [modelo-local.md §8](modelo-local.md#8-probar-en-una-rtx-3070).
+
 ## Enrutamiento (Traefik por labels)
 
 Traefik descubre contenedores por el Docker provider leyendo labels. Dar de alta
@@ -68,7 +90,7 @@ Detalle en [infra/traefik/README.md](../../infra/traefik/README.md).
   túneles locales, o configura rutas equivalentes en el panel para túneles
   remotos. Un YAML local no configura automáticamente un túnel remoto.
 - **TLS lo termina Cloudflare**; cloudflared y Traefik hablan HTTP interno. Traefik confía los forwarded headers solo del upstream interno y no gestiona ACME.
-- Un smoke check `/api/designaciones/ping` comprueba API, **no** salud integral
+- Un smoke check (`infra/scripts/smoke.sh`, que consulta el ping de cada módulo) comprueba API, **no** salud integral
   de DB/S3 ni failover. Las alertas no cambian el destino del tráfico.
 - Detalle en [infra/cloudflared/README.md](../../infra/cloudflared/README.md).
 
@@ -107,7 +129,7 @@ no admite reset/seed/restore directo. El procedimiento detallado, contrato CLI
 y recuperación aislada están en
 [migrations-persistence.md](../operations/migrations-persistence.md).
 
-La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con el rol solicitado vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
+La autenticación por `X-Dev-User-Id`/`X-Dev-Asignacion-Id` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con la asignación elegida vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
 
 | Ambiente             | Frontend             | Backend                          | Resultado                                     |
 | -------------------- | -------------------- | -------------------------------- | --------------------------------------------- |
@@ -131,9 +153,9 @@ El ingreso real usa una registración de Microsoft Entra por ambiente, cada una 
 
 - **Configuración:** el workflow pasa `MICROSOFT_LOGIN_ENABLED`, `MICROSOFT_CLIENT_ID` y `MICROSOFT_CLIENT_SECRET` por el entorno del proceso; `compose.base.yml` los mapea a `AutenticacionMicrosoft__*`. El secret nunca se escribe en el `.env` efímero ni en la imagen. El frontend recibe el build arg `VITE_MICROSOFT_LOGIN_ENABLED`.
 - **Detrás del proxy:** el backend confía en `X-Forwarded-Proto`/`X-Forwarded-For` sólo desde la red interna de Docker (`172.16.0.0/12`, el mismo rango que confía Traefik). Así arma el redirect con `https://` y emite las cookies anti-falsificación con `Secure`.
-- **Claves de Data Protection:** cifran la cookie de sesión y los tokens anti-falsificación. Viven en el volumen `claves` del Compose project (`/claves`). En prod persisten entre deploys; staging y `pr-N` las pierden al reconstruirse, lo que sólo obliga a volver a ingresar.
+- **Claves de Data Protection:** cifran la cookie de sesión y los tokens anti-falsificación. Viven en el volumen `claves` del Compose project (`/claves`). Persisten entre deploys (el despliegue es incremental y no elimina volúmenes); un `pr-N` las pierde al desmontarse, lo que sólo obliga a volver a ingresar.
 - **Administrador inicial (sólo prod):** si `ADMIN_INICIAL_UPN`, `_NOMBRE`, `_APELLIDO` y `_DOCUMENTO` están cargados, el arranque `--migrate` crea esa persona, su usuario activo y el rol `sys_admin`, sólo si no existe un usuario con ese UPN. El resto se da de alta desde la pantalla de usuarios.
-- **Staging se reconstruye en cada deploy:** los usuarios dados de alta ahí con su mail real se pierden y hay que volver a crearlos con el selector como `sys_admin`.
+- **Staging conserva sus datos entre deploys:** los usuarios dados de alta ahí con su mail real persisten, igual que adjuntos y ediciones (ver "Dataset sintético y autenticación de desarrollo").
 - **Vencimiento de secrets:** cada registración admite dos secrets a la vez. Antes del vencimiento se crea el nuevo, se reemplaza en GitHub, se despliega y se borra el viejo. Registrar acá la fecha de vencimiento de cada uno.
 - **Opcional:** fijar `removeUnverifiedEmailClaim = true` en cada registración (`az rest --method PATCH --url https://graph.microsoft.com/v1.0/applications/<object-id> --body '{"authenticationBehaviors":{"removeUnverifiedEmailClaim":true}}'` desde Cloud Shell). Es redundante: el backend ya exige el claim `xms_edov` y es el default para apps multi-tenant nuevas.
 
@@ -183,7 +205,10 @@ Compose project, base y storage únicamente en la VM.
 - **Deploy/CI**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` y credenciales
   administrativas SeaweedFS provienen de GitHub repository secrets; las claves
   de app de `prod`, `staging` y `pr-preview` provienen de sus respectivos
-  Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Las
+  Environments, igual que las credenciales de inferencia (`INFERENCIA_*`; prod
+  sin Service Token de Cloudflare, ver
+  [github-pr-deploy.md](../operations/github-pr-deploy.md#fuentes-de-variables-y-secretos)).
+  `REGISTRO`/`DOMINIO` son GitHub repository variables. Las
   credenciales de Microsoft siguen ese patrón: `MICROSOFT_CLIENT_ID_STAGING`/`_PROD`
   son repository variables (no son secretos). `MICROSOFT_CLIENT_SECRET_STAGING` va
   en los Environments `staging` y `pr-preview` (los previews con la label
@@ -194,6 +219,40 @@ Compose project, base y storage únicamente en la VM.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de
   las credenciales de deploy de la aplicación.
+- **Clave maestra del asistente** (`asistente-modelo-en-caliente`): `Asistente__ClaveMaestra`
+  (32 bytes en base64) cifra con AES-GCM las claves de API por empresa que un
+  administrador guarda desde la pantalla; `Asistente__ClaveMaestraAnterior`
+  (opcional) sólo existe durante una rotación: lo cifrado con ella se recifra con la
+  vigente al leerlo. Generar una: `openssl rand -base64 32`. Es un secreto de
+  Environment, nunca de repositorio ni de imagen. Sin ella el módulo arranca, el ping
+  responde y los modelos locales siguen funcionando; sólo guardar o leer una clave de
+  API falla (503). **Perderla deja irrecuperables las claves guardadas**: se vuelven a
+  cargar desde la pantalla. `compose.base.yml` la reenvía desde `ASISTENTE_CLAVE_MAESTRA` (y
+  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`), vacías por default, igual que `Inferencia__*`
+  desde `INFERENCIA_*`; ambas están documentadas en [`.env.example`](../../.env.example).
+  **Rotación**: (1) generar la nueva con `openssl rand -base64 32`; (2) en el Environment,
+  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR` = la vigente y `ASISTENTE_CLAVE_MAESTRA` = la nueva, y
+  redesplegar; (3) cada clave guardada se recifra con la nueva **la primera vez que se la
+  lee** (un turno, «Probar conexión» o un reemplazo), no antes: una empresa que nadie usó
+  sigue cifrada con la vieja; (4) comprobar que ninguna fila conserva el `kid` viejo
+  (`SELECT empresa, split_part(clave_cifrada, ':', 2) AS kid FROM asistente.credencial_de_proveedor`,
+  con la conexión dueña; el `kid` es un prefijo del valor, nunca la clave) y, si alguna lo
+  conserva, volver a probar esa empresa o reemplazar su clave desde la pantalla; (5) recién
+  entonces vaciar `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`. Quitar la anterior antes del paso 4
+  deja ilegible lo que siga con el `kid` viejo: ese modelo degrada hasta reingresar la clave.
+- **Servidores locales del asistente** (`asistente-modelo-en-caliente`): la pantalla sólo
+  ofrece los que el ambiente ya configura, por identificador y nunca por URL. `ollama` (el
+  servicio de inferencia compartido) aparece si `Inferencia__Url` está definida, y sus
+  credenciales salen de `Inferencia__Usuario`/`Contrasena` y, fuera de producción, del
+  Service Token de Cloudflare (`Inferencia__AccessClientId`/`AccessClientSecret`); `local`
+  (servidor propio llama.cpp/vLLM) aparece si `Asistente__UrlDelProveedorLocal` está
+  definida, con `Asistente__ClaveDelProveedor` como bearer opcional. Ninguna de esas
+  credenciales se carga ni se muestra en la pantalla; sumar un servidor es configuración de
+  despliegue. El servicio compartido se opera según
+  [ollama-compartido.md](../operations/ollama-compartido.md) y el dimensionamiento del
+  servidor propio está en [modelo-local.md](modelo-local.md). Con una selección guardada,
+  `Asistente__Proveedor`, `Asistente__Modelo` y `Asistente__ModeloDeRedaccion` quedan como
+  respaldo: se usan de nuevo al volver a la configuración del servidor.
 - Lista documentada en [`.env.example`](../../.env.example) (raíz) y el runbook.
 
 ## Estrategia de backup

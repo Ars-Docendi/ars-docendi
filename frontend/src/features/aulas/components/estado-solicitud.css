@@ -1,0 +1,25 @@
+.adoc-estado-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
+}
+.adoc-estado-pill svg {
+  width: 14px;
+  height: 14px;
+}
+.adoc-estado-pill.neutro {
+  background: var(--color-bg-sunken);
+  color: var(--color-text-secondary);
+}
+.adoc-estado-pill.exito {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+.adoc-estado-pill.peligro {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}

@@ -37,16 +37,16 @@ Se diseña **"Mi Portal"** (`/portal`), la pantalla donde el docente mantiene su
 
 Una **sola página scrolleable, sin pestañas**. `Breadcrumbs` (Inicio › Mi portal) + `PageHeader` con título "Mi portal" (sin pretitle: la ubicación la da el breadcrumb, ver la convención de encabezados en `proyecto-docente-design-spec.md`), y debajo las ocho secciones en este orden:
 
-| #   | Sección                         | Modo           | Contenido                                                                        |
-| --- | ------------------------------- | -------------- | -------------------------------------------------------------------------------- |
-| 1   | **Perfil**                      | solo lectura   | Nombre y apellido, mail institucional (Azure AD); DNI, legajo, CUIL (Secretaría) |
-| 2   | **Contacto**                    | edición inline | Teléfono, mail                                                                   |
-| 3   | **CV**                          | archivo único  | PDF, reemplazable                                                                |
-| 4   | **Experiencia**                 | lista          | Puesto, organización, período (con "actual"), descripción                        |
-| 5   | **Educación**                   | lista          | Nivel, carrera o título, institución, período                                    |
-| 6   | **Certificaciones**             | lista          | Nombre, emisor, fecha, vencimiento opcional                                      |
-| 7   | **Proyectos**                   | lista          | Nombre, rol, años, descripción, PDF o DOI                                        |
-| 8   | **Habilidades** / **Intereses** | tags           | Dos listas separadas, mismo vocabulario                                          |
+| #   | Sección                         | Modo           | Contenido                                                                                |
+| --- | ------------------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| 1   | **Perfil**                      | solo lectura   | Nombre y apellido, mail institucional (cuenta Microsoft); DNI, legajo, CUIL (Secretaría) |
+| 2   | **Contacto**                    | edición inline | Teléfono, mail                                                                           |
+| 3   | **CV**                          | archivo único  | PDF, reemplazable                                                                        |
+| 4   | **Experiencia**                 | lista          | Puesto, organización, período (con "actual"), descripción                                |
+| 5   | **Educación**                   | lista          | Nivel, carrera o título, institución, período                                            |
+| 6   | **Certificaciones**             | lista          | Nombre, emisor, fecha, vencimiento opcional                                              |
+| 7   | **Proyectos**                   | lista          | Nombre, rol, años, descripción, PDF o DOI                                                |
+| 8   | **Habilidades** / **Intereses** | tags           | Dos listas separadas, mismo vocabulario                                                  |
 
 El orden va de lo más estable e identitario a lo más discrecional, con lo que más se edita (Contacto) y lo de mayor valor por esfuerzo (CV) arriba.
 
@@ -107,6 +107,16 @@ Mi portal
 - **Períodos de un ítem** (Experiencia, Educación, Proyectos): `MonthYearPicker` de la librería, con mes opcional + año. El mes y el año se eligen en cualquier orden; un mes sin año muestra "Completá el año." en el campo y no deja guardar el ítem.
 - **Tags**: selector compuesto a nivel feature (no existe en la librería), con `Select` del vocabulario, lista de tags con "×" y opción de sugerir un término nuevo.
 
+### Pantallas angostas
+
+El Portal se usa también desde el teléfono, para corregir un dato puntual. Es el mismo perfil, con las mismas secciones y en el mismo orden. Sólo cambian el shell y el aire. Funciona desde 360 px sin scroll horizontal.
+
+- **Shell sin barra superior (768 px o más)**: el contenido usa todo el alto. Arriba de la barra lateral van el botón "Menú" y la marca (isotipo + "Ars Docendi", lleva a Mi portal); la lista de navegación scrollea en el medio; al pie fijo van "Centro de ayuda" y la tarjeta de usuario. La tarjeta muestra avatar, nombre corto ("María Fernández") y rol, con un chevron que apunta hacia arriba; al tocarla abre hacia arriba el menú con "Cerrar sesión". Plegada a 64 px quedan el botón, el isotipo, los íconos, la ayuda y el avatar.
+- **Botón "Menú" (☰)**: está siempre a la izquierda de la marca. En escritorio colapsa la barra lateral a íconos y la vuelve a expandir, y la preferencia se recuerda en el navegador. El ícono es siempre ☰, y la barra anima su ancho al plegarse, salvo con "reducir movimiento". En pantallas angostas abre la navegación.
+- **Shell (menos de 768 px)**: la barra lateral fija desaparece y el contenido ocupa todo el ancho. La navegación se abre como `Drawer` a la izquierda desde el botón "Menú". Tiene los mismos ítems filtrados por permisos, con "Centro de ayuda" al final, y se cierra al elegir un destino. Arriba queda una barra fina de 48 px con sólo el botón y la marca; la tarjeta de usuario va al pie del panel, debajo de "Centro de ayuda".
+- **Portal (menos de 560 px)**: paddings de sección y fila más chicos, y el `Toast` de guardado ocupa el ancho disponible. En la fila de un archivo (CV, documento de proyecto), el tamaño baja debajo del nombre. El "×" para quitar un tag tiene un área de toque de al menos 24 × 24 px.
+- **Diálogos**: el `Modal` de la librería ya entra en el ancho del teléfono y la grilla de campos pasa sola a una columna. Su alto se calcula sobre lo visible (`100dvh`), así que con la barra del navegador o el teclado el cuerpo scrollea y "Guardar" queda a la vista.
+
 ## Estados a diseñar
 
 | Estado            | Descripción                                                             | Cuándo se muestra                         |
@@ -128,7 +138,7 @@ Mi portal
 - **El estado manda, no la visita.** Todo depende de si la sección tiene datos, nunca de si es el primer ingreso. No hay modo "primera vez" ni estado de onboarding que persistir, y el día que exista un dashboard el Portal se muda al menú sin cambios.
 - **Habilidades e intereses separados.** Ante una vacante son señales distintas: quién puede tomarla ya y quién la tomaría formándose. Una sola lista pierde la distinción.
 - **Un patrón de lista reutilizado** para Experiencia, Educación, Certificaciones y Proyectos, en vez de cuatro secciones a medida.
-- **El bloque Perfil nunca está vacío.** Viene precargado de Azure AD y Secretaría, así que lo primero que ve un docente nuevo es su nombre y su legajo correctos — mejor primera impresión que un formulario en blanco.
+- **El bloque Perfil nunca está vacío.** Viene precargado de la cuenta Microsoft y de Secretaría, así que lo primero que ve un docente nuevo es su nombre y su legajo correctos — mejor primera impresión que un formulario en blanco.
 
 ## Anti-patterns a evitar (específicos de esta feature)
 

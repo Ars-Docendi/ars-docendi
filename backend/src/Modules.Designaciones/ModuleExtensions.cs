@@ -3,10 +3,13 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Modules.Designaciones.Contracts.Administracion;
+using Modules.Designaciones.Contracts.Queries;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
 using Modules.Designaciones.Services;
+using Modules.Designaciones.Services.Integridad;
 
 namespace Modules.Designaciones;
 
@@ -15,7 +18,7 @@ public static class ModuleExtensions
     public static IServiceCollection AddDesignacionesModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<DesignacionesDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
@@ -34,6 +37,14 @@ public static class ModuleExtensions
         services.AddScoped<RepositorioPeriodos>();
         services.AddScoped<RepositorioCatalogosDesignaciones>();
         services.AddScoped<RepositorioIdempotencia>();
+        services.AddScoped<RepositorioSellos>();
+        services.AddOptions<IntegridadOptions>()
+            .Bind(configuration.GetSection(IntegridadOptions.Seccion))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<IntegridadOptions>, ValidacionIntegridadOptions>();
+        services.AddSingleton<ClavesSellado>();
+        services.AddScoped<SelladorPedidos>();
+        services.AddScoped<VerificadorIntegridadPedidos>();
         services.AddScoped<MaterializadorDesignaciones>();
         services.AddScoped<ResolutorActor>();
         services.AddScoped<ServicioPedidos>();
@@ -42,6 +53,7 @@ public static class ModuleExtensions
         services.AddScoped<ServicioPeriodos>();
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
+        services.AddScoped<IDesignacionesQueries, ServicioConsultasDesignaciones>();
         services.AddHostedService<LimpiezaComandosIdempotentes>();
 
         services.AddControllers()
@@ -49,4 +61,11 @@ public static class ModuleExtensions
 
         return services;
     }
+
+    /// <summary>
+    /// Modo <c>--sellar-historial-existente</c>: sella el historial previo a la cadena o
+    /// sembrado. Explícito e idempotente; nunca corre al migrar ni al arrancar.
+    /// </summary>
+    public static Task<int> SellarHistorialExistenteAsync(IServiceProvider servicios, CancellationToken ct) =>
+        servicios.GetRequiredService<SelladorPedidos>().SellarHistorialExistenteAsync(ct);
 }

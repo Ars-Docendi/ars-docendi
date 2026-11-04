@@ -35,6 +35,7 @@ public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres
     private const string RutaIngresoPruebas = "/__pruebas/ingresar";
     private const string HeaderIpPruebas = "X-Ip-Pruebas";
     private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
+    private static readonly Guid RolAdministrador = Guid.Parse("a1000000-0000-4000-8000-000000000007");
     private static readonly Guid JefeSembrado = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid RolDecanato = Guid.Parse("a1000000-0000-4000-8000-000000000005");
 
@@ -50,24 +51,6 @@ public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres
 
         Assert.Equal(HttpStatusCode.NotFound, sesion.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, login.StatusCode);
-    }
-
-    [Fact]
-    public async Task Con_ambos_accesos_los_headers_de_desarrollo_siguen_autenticando()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost(microsoft: true, desarrollo: true);
-        using var cliente = CrearCliente(host);
-
-        using var sinSesion = await cliente.GetAsync("/api/designaciones/catalogos", ct);
-        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, JefeSembrado.ToString());
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
-        using var conHeaders = await cliente.SendAsync(solicitud, ct);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, sinSesion.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, conHeaders.StatusCode);
     }
 
     [Fact]
@@ -89,6 +72,38 @@ public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres
         Assert.Equal("secretaria", sesion.RolCodigo);
         Assert.Equal("Secretaría Académica", sesion.RolNombre);
         Assert.NotEmpty(sesion.Permisos);
+        Assert.Equal(HttpStatusCode.OK, catalogos.StatusCode);
+    }
+
+    [Fact]
+    public async Task Con_varias_asignaciones_opera_con_la_de_por_defecto_elige_otra_y_no_acepta_una_ajena()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync([RolSecretaria, RolAdministrador], ct);
+        var ajeno = await CrearUsuarioAsync(RolSecretaria, ct);
+        Guid asignacionAjena;
+        await using (var db = PostgresFixture.CrearIdentity(Cadena))
+        {
+            asignacionAjena = await db.UsuarioRoles.Where(a => a.UsuarioId == ajeno).Select(a => a.Id).SingleAsync(ct);
+        }
+        using var host = CrearHost(microsoft: true, desarrollo: false);
+        using var cliente = CrearCliente(host);
+        await IngresarAsync(cliente, usuario, ct);
+
+        var sinElegir = await cliente.GetFromJsonAsync<SesionDto>("/api/auth/sesion", ct);
+        var token = await ObtenerTokenAsync(cliente, ct);
+        using var ajena = await ElegirAsignacionAsync(cliente, asignacionAjena, token, ct);
+        var secretaria = Assert.Single(sinElegir!.Asignaciones, a => a.RolCodigo == "secretaria");
+        using var propia = await ElegirAsignacionAsync(cliente, secretaria.Id, token, ct);
+        var elegida = await cliente.GetFromJsonAsync<SesionDto>("/api/auth/sesion", ct);
+        using var catalogos = await cliente.GetAsync("/api/designaciones/catalogos", ct);
+
+        Assert.True(sinElegir.RequiereElegirRol);
+        Assert.Equal("sys_admin", sinElegir.Asignacion.RolCodigo);
+        Assert.Equal(HttpStatusCode.Forbidden, ajena.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, propia.StatusCode);
+        Assert.Equal(secretaria.Id, elegida!.Asignacion.Id);
+        Assert.False(elegida.RequiereElegirRol);
         Assert.Equal(HttpStatusCode.OK, catalogos.StatusCode);
     }
 
@@ -448,7 +463,20 @@ public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres
         return await cliente.SendAsync(solicitud, ct);
     }
 
-    private async Task<Guid> CrearUsuarioAsync(Guid rol, CancellationToken ct)
+    private static async Task<HttpResponseMessage> ElegirAsignacionAsync(
+        HttpClient cliente, Guid asignacion, string token, CancellationToken ct)
+    {
+        using var solicitud = new HttpRequestMessage(HttpMethod.Post, "/api/auth/asignacion")
+        {
+            Content = JsonContent.Create(new ElegirAsignacionDto(asignacion)),
+        };
+        solicitud.Headers.Add(AntifalsificacionSesion.HeaderToken, token);
+        return await cliente.SendAsync(solicitud, ct);
+    }
+
+    private Task<Guid> CrearUsuarioAsync(Guid rol, CancellationToken ct) => CrearUsuarioAsync([rol], ct);
+
+    private async Task<Guid> CrearUsuarioAsync(Guid[] roles, CancellationToken ct)
     {
         await using var db = PostgresFixture.CrearIdentity(Cadena);
         var ahora = DateTimeOffset.UtcNow;
@@ -471,7 +499,7 @@ public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres
         };
         db.Personas.Add(persona);
         db.Usuarios.Add(usuario);
-        db.UsuarioRoles.Add(NuevaAsignacion(usuario.Id, rol));
+        foreach (var rol in roles) db.UsuarioRoles.Add(NuevaAsignacion(usuario.Id, rol));
 
         await db.SaveChangesAsync(ct);
         return usuario.Id;

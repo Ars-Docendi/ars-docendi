@@ -12,7 +12,7 @@ public sealed class ServicioCatalogosDesignaciones(
 {
     private static readonly string[] TiposBaja = ["Renuncia", "Jubilación", "Otro"];
 
-    public async Task<CatalogosDesignacionesDto> ObtenerAsync(CancellationToken ct)
+    public async Task<CatalogosDesignacionesDto> ObtenerAsync(CancellationToken ct, Guid? pedidoEditado = null)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
         var periodos = await repositorio.ListarPeriodosAsync(ct);
@@ -35,9 +35,11 @@ public sealed class ServicioCatalogosDesignaciones(
                     ? materias.Where(m => actor.CarrerasACargo.Contains(m.CarreraId)).ToArray()
                     : [];
 
+        // BR-001: quien ya tiene un pedido vivo no se ofrece para otro. Al editar, el propio
+        // pedido no cuenta, así su persona sigue precargada y elegible.
         var ocupadas = activo is null
             ? new HashSet<Guid>()
-            : await repositorio.ListarPersonasConPedidoVivoAsync(activo.Id, ct);
+            : await repositorio.ListarPersonasConPedidoVivoAsync(activo.Id, pedidoEditado, ct);
         var materiasCanonicasPorId = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
         var paresVisibles = visibles.Select(m => (m.MateriaId, m.CarreraId)).ToHashSet();
         var designaciones = (await repositorio.ListarDesignacionesVigentesAsync(ct))

@@ -4,18 +4,18 @@ Complementa [api-contracts.md](./api-contracts.md). Todas las rutas administrati
 
 ## Permisos
 
-| Recurso               | Lectura                                    | Escritura                   |
-| --------------------- | ------------------------------------------ | --------------------------- |
-| Usuarios              | `usuarios.ver`                             | `usuarios.administrar`      |
-| Docentes              | `docentes.ver` o JdC con ámbito de materia | `usuarios.administrar`      |
-| Roles                 | `roles.ver`                                | `roles.administrar`         |
-| Membresía de permisos | `roles.ver`                                | `roles.gestionar_membresia` |
-| Revisión de pedidos   | `designaciones.revisar`                    | —                           |
-| Estado del sistema    | `sistema.estado.ver`                       | —                           |
-| Auditoría             | `auditoria.ver`                            | —                           |
-| Catálogos             | permiso de lectura del recurso consumidor  | —                           |
+| Recurso               | Lectura                                   | Escritura                   |
+| --------------------- | ----------------------------------------- | --------------------------- |
+| Personas              | `personas.ver` o `personas.ver_ambito`    | `personas.administrar`      |
+| Mi Portal de otros    | lectura de la persona                     | `portal.administrar`        |
+| Roles                 | `roles.ver`                               | `roles.administrar`         |
+| Membresía de permisos | `roles.ver`                               | `roles.gestionar_membresia` |
+| Revisión de pedidos   | `designaciones.revisar`                   | —                           |
+| Estado del sistema    | `sistema.estado.ver`                      | —                           |
+| Auditoría             | `auditoria.ver`                           | —                           |
+| Catálogos             | permiso de lectura del recurso consumidor | —                           |
 
-Docentes usa `docentes.ver` para lectura global. La vista de Jefe de Cátedra es una excepción de lectura acotada: la API deriva el ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y no habilita la API de usuarios ni escrituras. `usuarios.ver` conserva acceso de lectura global por compatibilidad con la administración de identidad.
+`personas.ver` lee todas las personas. `personas.ver_ambito` (Jefe de Cátedra) lee sólo las personas con designación vigente en las materias donde es jefe; la API deriva ese ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y fuera de él responde 404. `portal.administrar` corrige el Mi Portal de otra persona dentro del mismo ámbito. Los permisos `usuarios.ver`, `usuarios.administrar` y `docentes.ver` se retiraron con las pantallas de Usuarios y Docentes.
 
 ## DTOs
 
@@ -27,117 +27,297 @@ AsignacionRolDto       = { id, rolId, codigo, nombre, ambito, materiaId?, carrer
                          Docente → `materiaId` + `carreraId` juntos (una materia compartida entre
                          carreras exige elegir una); Jefe de Cátedra → `materiaId` (canónica) solo;
                          Coordinador → `carreraId` solo.
-PerfilDocenteDto       = { esDocente, cantidadMaterias }
-UsuarioResumenDto      = { id, personaId, nombre, apellido, documento, legajo?, cuil?,
-                           fechaNacimiento?, telefono?, upn, activo, roles[], membresias[],
-                           perfilDocente }
-GuardarUsuarioDto      = { nombre, apellido, documento, legajo?, cuil?, fechaNacimiento?,
-                           telefono?, upn, membresias[{ rolId, materiaId?, carreraId? }], version? }
 DesignacionVigenteDto  = { id, materiaId, materiaCodigo, materiaNombre, carreraId,
                            cargo{id,codigo,nombre,abreviatura},
                            dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde }
-DocenteResumenDto      = { personaId, usuarioId?, datosPersona..., tieneCuenta, activo?,
-                           roles[], membresias[], designaciones[] }
-GuardarDocenteDto      = { personaId? | personaNueva, datosPersona..., membresias[],
-                           designaciones[], version? }
+PersonaAdministracionDto = { personaId, usuarioId?, nombre, apellido, documento, legajo?, cuil?,
+                           fechaNacimiento?, telefono?, upn?, tieneCuenta, activo, version?,
+                           roles[], membresias[], asignaciones[] }
 RolDto                 = { id, codigo, nombre, descripcion?, ambito, esSistema, activo, version, permisos[] }
-CrearRolDto            = { nombre, descripcion?, ambito, rolBaseId? }
+CrearRolDto            = { nombre, descripcion?, ambito, permisoIds? }   (permisoIds no vacío exige roles.gestionar_membresia)
 EditarRolDto           = { nombre, descripcion?, ambito, version }
-EliminarRolDto         = { version }
+CambiarEstadoRolDto    = { version }
 PermisoDto             = { id, codigo, nombre, descripcion }
-EstadoBaseDatosDto     = { estado: "disponible" | "no_disponible", comprobadoEn, duracionMs }
+EstadoSistemaDto       = { estado: "disponible" | "no_disponible", comprobadoEn, duracionMs,
+                           mantenimientoAsistente: "activo" | "inactivo" | "desconocido" }
+EstadoInferenciaDto    = { estado: "deshabilitado" | "disponible" | "no_disponible", comprobadoEn,
+                           duracionMs }
 CambioAuditoriaDto     = { campo, etiquetaCampo, valorAnterior?, valorNuevo?, oculto }
-EventoAuditoriaDto     = { id, schema, tabla, rowPk, accion, cambiadoEn, cambiadoPor?, requestId?,
-                           columnasCambiadas[], cambios: CambioAuditoriaDto[], actor, accionEtiqueta,
-                           modulo, objeto, resumen }
-PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total }
+EventoAuditoriaDto     = { id: string, origen: "cambios" | "asistente", schema, tabla, rowPk, accion,
+                           cambiadoEn, cambiadoPor?, requestId?, columnasCambiadas[],
+                           cambios: CambioAuditoriaDto[], actor, tipoActor: "persona" | "proceso" |
+                           "no_identificado", accionEtiqueta, modulo, objeto, resumen }
+PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total,
+                           parcial: boolean, fuentesNoDisponibles: string[] }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
-                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre }], personasElegibles[] }
+                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre, carreraCodigo }], personasElegibles[] }
                            `materias` son canónicas (jefe y, junto con `carreraId`, docente);
                            `materiasPlan` es el catálogo informativo materia–carrera (pares
                            deduplicados) que acota qué carreras ofrecer para una materia de
-                           Docente — ninguna FK de negocio depende de él.
+                           Docente — ninguna FK de negocio depende de él. Su `id` es el de la
+                           materia canónica (no el de la fila materia–plan) y `carreraCodigo`
+                           permite buscar por código de carrera. Mismo formato en
+                           `/api/administracion/personas/catalogos`.
 ```
 
 Los roles personalizados conservan su `codigo` al renombrarse y exigen nombre único entre roles
-activos. Un rol base debe estar activo y la copia de permisos ocurre sólo al crear el nuevo rol.
-La baja de un rol personalizado es lógica (`activo = false`): conserva el registro, permisos y
-asignaciones históricas, pero lo excluye de listados, asignaciones nuevas y roles base. Los roles de
+activos. Un rol nuevo nace con los permisos de `permisoIds` (ninguno si no se envía).
+Desactivar un rol personalizado es lógico (`activo = false`): conserva el registro, permisos y
+asignaciones, que dejan de aportar permisos mientras esté inactivo; el listado administrativo lo
+sigue mostrando con su estado. Reactivarlo exige que ningún rol activo use su nombre. Los roles de
 sistema mantienen inmutables código, nombre, descripción, ámbito, marca y estado; sus permisos sí
 pueden reemplazarse.
 
-## Rutas de usuarios
+## Rutas de personas
 
-| Método | Ruta                                           | Permiso                | Entrada / salida                                        |
-| ------ | ---------------------------------------------- | ---------------------- | ------------------------------------------------------- |
-| GET    | `/api/administracion/usuarios`                 | `usuarios.ver`         | `UsuarioResumenDto[]`                                   |
-| GET    | `/api/administracion/usuarios/{id}`            | `usuarios.ver`         | `UsuarioResumenDto`                                     |
-| POST   | `/api/administracion/usuarios`                 | `usuarios.administrar` | `GuardarUsuarioDto` → `201 UsuarioResumenDto`           |
-| PUT    | `/api/administracion/usuarios/{id}`            | `usuarios.administrar` | `GuardarUsuarioDto` con `version` → `UsuarioResumenDto` |
-| POST   | `/api/administracion/usuarios/{id}/activar`    | `usuarios.administrar` | `{ version }` → `UsuarioResumenDto`                     |
-| POST   | `/api/administracion/usuarios/{id}/desactivar` | `usuarios.administrar` | `{ version }` → `UsuarioResumenDto`                     |
+| Método | Ruta                                                  | Permiso                                | Entrada / salida                                                                                                    |
+| ------ | ----------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/administracion/personas`                        | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto[]` (acotado por ámbito)                                                                   |
+| GET    | `/api/administracion/personas/{personaId}`            | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto`; 404 fuera del ámbito                                                                    |
+| GET    | `/api/administracion/personas/catalogos`              | `personas.ver` o `personas.ver_ambito` | roles, materias, materias–carrera, carreras, cargos y dedicaciones                                                  |
+| POST   | `/api/administracion/personas/documento/verificar`    | `personas.administrar`                 | `{ documento, exceptoPersonaId? }` → `{ existe, personaId?, nombre?, legajo?, activo? }` (`activo` nulo sin cuenta) |
+| POST   | `/api/administracion/personas`                        | `personas.administrar`                 | `GuardarPersonaDto` → `201 PersonaAdministracionDto`                                                                |
+| PUT    | `/api/administracion/personas/{personaId}`            | `personas.administrar`                 | `GuardarPersonaDto` con `version` → `PersonaAdministracionDto`                                                      |
+| POST   | `/api/administracion/personas/{personaId}/activar`    | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                                                          |
+| POST   | `/api/administracion/personas/{personaId}/desactivar` | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                                                          |
 
-## Rutas de docentes y catálogos
+`GuardarPersonaDto = { nombre, apellido, documento, legajo, cuil?, fechaNacimiento, telefono?, upn,
+membresias[{ rolId, materiaId?, carreraId? }], designaciones[{ materiaId, carreraId, cargoId,
+dedicacionId?, horas }], version? }`. Reglas: al menos un rol con su ámbito; asignaciones obligatorias
+con rol Docente o Jefe de Cátedra; `dedicacionId` es obligatorio en una asignación nueva y sólo puede
+faltar en una histórica que conserva su dedicación legada; el documento se guarda y compara por sus dígitos y no se repite;
+la lista de roles y la de designaciones se reemplazan completas en una sola transacción.
 
-| Método | Ruta                                                  | Permiso                      | Entrada / salida                                   |
-| ------ | ----------------------------------------------------- | ---------------------------- | -------------------------------------------------- |
-| GET    | `/api/administracion/docentes`                        | `usuarios.ver` o JdC acotado | `DocenteResumenDto[]`                              |
-| GET    | `/api/administracion/docentes/{personaId}`            | `usuarios.ver` o JdC acotado | `DocenteResumenDto`                                |
-| POST   | `/api/administracion/docentes`                        | `usuarios.administrar`       | `GuardarDocenteDto` → `201 DocenteResumenDto`      |
-| PUT    | `/api/administracion/docentes/{personaId}`            | `usuarios.administrar`       | `GuardarDocenteDto` → `DocenteResumenDto`          |
-| POST   | `/api/administracion/docentes/{personaId}/activar`    | `usuarios.administrar`       | `DocenteResumenDto`                                |
-| POST   | `/api/administracion/docentes/{personaId}/desactivar` | `usuarios.administrar`       | `DocenteResumenDto`                                |
-| GET    | `/api/administracion/docentes/catalogos`              | `usuarios.ver` o JdC acotado | materias, cargos y personas elegibles según ámbito |
-| GET    | `/api/administracion/catalogos`                       | autenticado                  | `CatalogoIdentityDto` filtrado por permisos        |
+## Mi Portal de una persona
 
-Alta/edición docente es atómica desde la perspectiva HTTP. Si falla identity o el comando público de Designaciones, el servidor revierte o compensa la unidad completa y retorna Problem Details.
+Bajo `/api/administracion/personas/{personaId}/portal` se exponen las mismas operaciones que
+`/api/portal/perfil` (lectura, contacto, CV, experiencia, educación, certificaciones, proyectos,
+habilidades, intereses y descargas de CV y documento de proyecto). Leer y descargar requiere poder
+ver a la persona; las mutaciones, además, `portal.administrar`; fuera del ámbito, 404. El Host
+autoriza y delega en `IAdministracionPortal` (`Modules.Portal.Contracts`), que usa las mismas
+validaciones y versiones de Mi Portal. El operador es el autor auditado y el dueño en Storage de los
+archivos que sube; el archivo queda vinculado al perfil de la persona.
+
+Alta/edición de persona es atómica desde la perspectiva HTTP. Si falla identity o el comando público de Designaciones, el servidor revierte o compensa la unidad completa y retorna Problem Details.
 
 `roles` es un resumen único por `rolId`; no se repiten por cada materia. `membresias` conserva cada
 asignación activa completa. Los payloads de escritura usan sólo IDs canónicos: las etiquetas visibles
 de roles, carreras y materias no son identificadores. Un mismo usuario puede tener, por ejemplo,
 `docente + Materia A` y `jefe_catedra + Materia B` sin combinaciones implícitas entre filas.
-`perfilDocente` se compone con esas membresías y las designaciones vigentes de la misma `personaId`;
-no es un campo persistido.
 
-Las tablas administrativas navegan entre las fichas mediante `/usuarios?personaId={id}` y
-`/docentes?personaId={id}`; abrir esos enlaces sólo selecciona el recurso existente y no crea registros.
+Las rutas de frontend `/usuarios` y `/docentes` (con `?personaId=`) redirigen a `/personas` y
+`/personas/{id}`.
 
 ## Rutas de roles
 
-| Método | Ruta                                      | Permiso                     | Entrada / salida                           |
-| ------ | ----------------------------------------- | --------------------------- | ------------------------------------------ |
-| GET    | `/api/administracion/roles`               | `roles.ver`                 | `RolDto[]`                                 |
-| GET    | `/api/administracion/roles/{id}`          | `roles.ver`                 | `RolDto`                                   |
-| POST   | `/api/administracion/roles`               | `roles.administrar`         | `CrearRolDto` → `201 RolDto`               |
-| PUT    | `/api/administracion/roles/{id}`          | `roles.administrar`         | `EditarRolDto` con `version` → `RolDto`    |
-| DELETE | `/api/administracion/roles/{id}`          | `roles.administrar`         | `{ version }` → `204 No Content`           |
-| GET    | `/api/administracion/roles/{id}/permisos` | `roles.ver`                 | `PermisoDto[]`                             |
-| PUT    | `/api/administracion/roles/{id}/permisos` | `roles.gestionar_membresia` | `{ permisoIds, version }` → `PermisoDto[]` |
-| GET    | `/api/administracion/permisos`            | `roles.ver`                 | catálogo cerrado `PermisoDto[]`            |
+| Método | Ruta                                        | Permiso                     | Entrada / salida                           |
+| ------ | ------------------------------------------- | --------------------------- | ------------------------------------------ |
+| GET    | `/api/administracion/roles`                 | `roles.ver`                 | `RolDto[]` (activos e inactivos)           |
+| GET    | `/api/administracion/roles/{id}`            | `roles.ver`                 | `RolDto`                                   |
+| POST   | `/api/administracion/roles`                 | `roles.administrar`         | `CrearRolDto` → `201 RolDto`               |
+| PUT    | `/api/administracion/roles/{id}`            | `roles.administrar`         | `EditarRolDto` con `version` → `RolDto`    |
+| POST   | `/api/administracion/roles/{id}/desactivar` | `roles.administrar`         | `{ version }` → `RolDto`                   |
+| POST   | `/api/administracion/roles/{id}/activar`    | `roles.administrar`         | `{ version }` → `RolDto`                   |
+| GET    | `/api/administracion/roles/{id}/permisos`   | `roles.ver`                 | `PermisoDto[]`                             |
+| PUT    | `/api/administracion/roles/{id}/permisos`   | `roles.gestionar_membresia` | `{ permisoIds, version }` → `PermisoDto[]` |
+| GET    | `/api/administracion/permisos`              | `roles.ver`                 | catálogo cerrado `PermisoDto[]`            |
 
 ## Estado del sistema y auditoría
 
+> Rediseñado por `sistema-seccion-unificada` (ARS-154/155/157): la vista de salud, el uso
+> del asistente y la auditoría se unifican en la sección «Sistema» de un único frontend
+> con tabs permission-gated; ver el design spec del producto para la UI. Esta sección
+> describe únicamente el contrato HTTP.
+
 | Método | Ruta                                 | Permiso              | Entrada / salida               |
 | ------ | ------------------------------------ | -------------------- | ------------------------------ |
-| GET    | `/api/administracion/sistema/estado` | `sistema.estado.ver` | `EstadoBaseDatosDto`           |
+| GET    | `/api/administracion/sistema/estado` | `sistema.estado.ver` | `EstadoSistemaDto`             |
 | GET    | `/api/administracion/auditoria`      | `auditoria.ver`      | filtros → `PaginaAuditoriaDto` |
+| GET    | `/api/inferencia/estado`             | `sistema.estado.ver` | `EstadoInferenciaDto`          |
 
-El estado de PostgreSQL se comprueba mediante `SELECT 1` con timeout de 3 segundos. La respuesta sólo contiene `estado`, `comprobadoEn` y `duracionMs`; una falla retorna `no_disponible` sin revelar excepción, host ni configuración. El dashboard combina este resultado con los pings HTTP existentes de Aulas, Tareas, Designaciones y Portal; cada sonda se muestra independientemente.
+### Estado del sistema
 
-La consulta de auditoría acepta `desde`, `hasta`, `accion` (`INSERT`, `UPDATE`, `DELETE`), `schema`, `tabla`, `cambiadoPor` (UUID, conservado para compatibilidad), `actor` (fragmento del nombre visible, sin distinguir mayúsculas), `rowPk`, `pagina` (predeterminada 1) y `tamanoPagina` (predeterminado 50, máximo 100). La búsqueda por actor usa el nombre visible presentado en la tabla y se aplica junto con los filtros antes del conteo y la paginación; el orden permanece estable por fecha descendente e ID descendente. El actor se resuelve mediante joins izquierdos opcionales a `identity.users` y `identity.personas`: se prioriza `Apellido, Nombre`, luego `display_name` y, si no hay cuenta, `Actor no identificado`. Los módulos conocidos `identity`, `designaciones` y `portal` se muestran como **Identidad**, **Designaciones** y **Portal**; otros schemas usan una etiqueta legible de fallback. Cada consulta tiene timeout de 5 segundos. Fechas invertidas, acción inválida, actor de más de 100 caracteres o límites de página fuera de rango responden `400 validation`. La API es exclusivamente GET. La acción se presenta como Alta, Actualización o Eliminación física; un `UPDATE` no se convierte en baja por inferencia. La UI muestra fecha, usuario, acción, módulo y resumen; el objeto, clave de fila y `requestId` quedan en el detalle. No se exponen UPN/correo, `client_ip` ni snapshots crudos. Los valores del detalle sólo se incluyen para campos aprobados; PII, secretos y campos no clasificados se devuelven con `oculto: true` y valores nulos.
+El estado de PostgreSQL se comprueba mediante `SELECT 1` con timeout de 3 segundos, igual que
+antes. `mantenimientoAsistente` es nuevo (design.md D7): corre **concurrente** con la
+comprobación de PostgreSQL, con su **propio** techo de 3 segundos, leído a través de
+`Modules.Asistente.Contracts.IConsultaDeMantenimiento` — el Host nunca abre una conexión al
+schema `asistente` para esto. Vale `"activo"` o `"inactivo"` según el interruptor de
+mantenimiento del asistente, o `"desconocido"` ante cualquier falla o vencimiento de ese techo
+propio (logueado como warning, nunca como error 500: una falla del asistente no puede tirar
+abajo la comprobación de PostgreSQL). La respuesta nunca incluye la razón del mantenimiento ni
+quién lo activó — esos datos siguen exclusivamente detrás de `asistente.consultar`
+(`GET /api/asistente/capacidades`); `sistema.estado.ver` sólo ve el interruptor. La pestaña
+«Estado» de `/sistema` combina este resultado con los pings HTTP existentes de Aulas, Tareas,
+Designaciones, Portal, el ping anónimo del asistente (`GET /api/asistente/ping`) y el estado de la
+inferencia (abajo); cada sonda se muestra independientemente.
+
+### Estado de la inferencia
+
+`GET /api/inferencia/estado` devuelve `EstadoInferenciaDto`. Lo sirve `Modules.Asistente`: sin
+`Inferencia:Url` responde `deshabilitado` sin contactar el servicio; si no, consulta
+`GET /api/version` de Ollama con timeout de 3 segundos y cualquier falla (red, 401/403 de Access o
+BasicAuth, 5xx, timeout) es `no_disponible` sin revelar URL, usuario ni excepción. La pestaña
+«Estado» lo muestra como el componente «Inferencia (IA)»; `deshabilitado` se presenta como tal
+(servicio no configurado en el ambiente), nunca como una falla.
+
+### Auditoría: feed unificado de dos fuentes
+
+`GET /api/administracion/auditoria` deja de ser una consulta de sólo `audit.change_log`: fusiona
+esa tabla con el rastro de administración del asistente
+(`asistente.auditoria_administracion`, leído exclusivamente a través del contrato
+`Modules.Asistente.Contracts.IConsultasDeAuditoriaDeAdministracion` — el Host jamás hace SQL
+directo contra el schema `asistente`, ni siquiera de sólo lectura) en un único feed ordenado y
+paginado. El orden total es `cambiadoEn` descendente; en un empate exacto de instante,
+`origen: "cambios"` va antes que `origen: "asistente"`; y por último `id` numérico descendente
+dentro de cada fuente. `total` suma el conteo de las dos fuentes. El rastro del asistente tiene
+un cupo de lectura de 2000 filas por consulta (retención 365 días a ritmo humano de edición, así
+que en la práctica nunca se alcanza); si se alcanza, o si esa fuente falla por cualquier otro
+motivo, la página se sirve igual con `parcial: true` y `fuentesNoDisponibles: ["asistente"]`,
+usando sólo `audit.change_log` — nunca falla la request completa por una falla del asistente.
+
+**Parámetros**: `desde`, `hasta`, `accion` (`INSERT` | `UPDATE` | `DELETE`), `modulo` (`identity`
+| `designaciones` | `portal` | `asistente`, o cualquier nombre de schema ≤ 63 caracteres como
+fallback para módulos futuros), `tabla` (`schema.tabla` calificada o el nombre de tabla desnudo, ≤
+127 caracteres), `rowPk` (≤ 200 caracteres, ver abajo), `cambiadoPor` (UUID, conservado por compatibilidad),
+`q` (≤ 100 caracteres — **reemplaza** a `actor`, ver abajo), `pagina` (predeterminada 1),
+`tamanoPagina` (predeterminado 50, máximo 100). `schema` y `actor` ya **no existen**: el frontend
+es el único consumidor y el cambio va en el mismo diff. Cuando `modulo` selecciona una sola
+fuente (`"asistente"`, o cualquier otro valor — que sólo puede vivir en `audit.change_log`), la
+otra fuente ni se consulta: es a la vez una optimización de costo y un aislamiento de fallas
+(si `modulo=portal`, una caída del asistente no afecta la respuesta en absoluto).
+
+**Clave de fila (`rowPk`)**: un valor que empieza con `{` es la **clave precisa** y debe ser un
+objeto JSON no vacío de componentes escalares (texto o número) sin nombres repetidos; si no lo es,
+responde `400 validation`. Contra `audit.change_log` coincide con el `row_pk` canónico de los
+eventos nuevos (simples o compuestos) y con los eventos legados cuya clave completa se recupera en
+lectura (`audit.resolved_key`); nunca adjudica a una relación precisa una agrupación histórica
+parcial. Cualquier otro valor se compara como texto exacto contra la clave de fila tal como se
+guardó. Contra el rastro del asistente `rowPk` siempre se compara como texto exacto.
+
+**Búsqueda (`q`)**: reemplaza a `actor` con alcance más amplio, pero es **estrictamente sobre
+etiquetas, nunca sobre valores**. `q` se normaliza (recortado, minúsculas, sin acentos) y se
+compara contra: la etiqueta de módulo (`identity`→«Identidad», etc.), la etiqueta de objeto
+(`schema.tabla`→«Persona», «Rol», …), las etiquetas de los campos cambiados (para un `UPDATE`) o
+de las claves del snapshot (para un `INSERT`/`DELETE`), el nombre `schema.tabla` y la clave de
+fila mismos, y el actor tal como se muestra (incluyendo los literales «Proceso automático» /
+«Actor no identificado»). Ninguna rama lee `old_row`/`new_row`/un valor mapeado, así que `q`
+nunca es un oráculo para un dato enmascarado o sin clasificar — hay un test que sembra un valor
+enmascarado y uno seguro y verifica que ninguno de los dos aparece en los resultados de una
+búsqueda por ese valor. La comparación usa la extensión PostgreSQL `unaccent` más `ILIKE`
+(`database/audit/20261103000700_AuditBusquedaIdentity.sql`, aplicada por una migración de `IdentityDbContext` —
+el Host no depende del orden de migración del asistente, que ya la requiere por su cuenta).
+
+**`q` también encuentra por el sujeto humanizado (fix, 2026-09-27)**: como el objeto de
+`identity.users`/`identity.personas`/`identity.user_roles` puede nombrar al sujeto afectado
+(«Cuenta de usuario de {nombre}», «Persona {nombre}», «Roles de {nombre}»), `q` resuelve —en UNA
+consulta aparte, nunca por fila— qué cuentas/personas tienen HOY un nombre que matchea, y agrega
+tres ramas por sus **ids** (`identity.users`/`identity.personas` por su propio `rowPk`,
+`identity.user_roles` por el `user_id` del snapshot, extraído con `->>` y casteado, nunca
+comparado contra el texto de `q`). Repite la misma exclusión que ya usa la etiqueta: un evento
+que cambió `display_name` (para `users`) o `nombre`/`apellido` (para `personas`) nunca es un hit
+por nombre, aunque el nombre actual ya matchee — un renombre no se filtra por búsqueda tampoco.
+
+**Actor y evidencia (`tipoActor`)**: person names se muestran en orden natural, «Nombre Apellido»
+(no «Apellido, Nombre»), para el actor y para un eventual usuario afectado (design.md D6). Cuatro
+casos, cada uno con su propio `tipoActor`:
+
+| `changed_by` | `request_id` | Se muestra como         | `tipoActor`       |
+| ------------ | ------------ | ----------------------- | ----------------- |
+| resuelve     | cualquiera   | persona / display name  | `persona`         |
+| no resuelve  | cualquiera   | «Actor no identificado» | `no_identificado` |
+| nulo         | presente     | «Actor no identificado» | `no_identificado` |
+| nulo         | nulo         | «Proceso automático»    | `proceso`         |
+
+«Proceso automático» exige la **ausencia total** de contexto de solicitud (ni actor ni
+`request_id`): sólo una migración, un seed o un proceso de fondo escriben así, nunca un request
+HTTP con un usuario anónimo. Ese último caso —hubo un request pero su actor no se pudo
+identificar— es indistinguible de un `changed_by` estampado sin cuenta que lo resuelva, y los
+dos se muestran «Actor no identificado». Una sesión SQL directa sin las GUC de sesión (fuera de
+la aplicación, ya prohibido por AGENTS.md) también cae en «Proceso automático»: es el único otro
+escritor sin contexto de request, y queda documentado acá en vez de tratarse como un caso a
+prevenir en código.
+
+**Acción y resumen (`accionEtiqueta`, `resumen`)**: la acción se presenta como **Alta**, **Cambio**
+o **Eliminación** — nunca «Actualización» ni «Eliminación física»; un `UPDATE` nunca puede leer
+«Eliminación» porque sólo un `DELETE` físico la produce. El resumen sólo muestra valores en un
+caso preciso: una `UPDATE` de **exactamente un** campo de valor seguro lee
+`"{Objeto} #{rowPk}: {Campo} {antes} → {después}"` (el `#rowPk` sólo cuando `rowPk` es numérico,
+para que una clave UUID no inunde la línea). Todo lo demás —un `INSERT`, un `DELETE`, más de un
+campo cambiado, o cualquier campo enmascarado o sin clasificar— se queda en la forma genérica
+`"{accionEtiqueta} de {objeto} · {campos}"`, sin valores. Según el formato de clave del evento
+(`formatoClave`, metadato de lectura, no un campo del DTO), el resumen agrega un sufijo: «· Clave
+legada recuperada en lectura» para un evento legado cuya clave completa se reconstruyó, o «·
+Agrupación histórica (clave parcial; no es una relación precisa)» para un evento legado de
+`identity.rol_permisos`, `portal.docente_habilidades` o `tareas.tarea_relaciones` cuya clave
+completa no se pudo reconstruir. En los eventos con clave compuesta y en los legados recuperados,
+`rowPk` devuelve la clave completa como JSON, sin alterarla. Para `audit.change_log`, «valor seguro» significa clasificado para
+esa tabla en `PoliticaValoresAuditoria` (una lista por `schema.tabla`; ningún nombre se autoriza
+por prefijo o sufijo) y ausente de la lista de datos personales/secretos, que gana ante cualquier
+solapamiento. Los eventos del asistente usan su propia lista blanca, pequeña y explícita (`cupo`,
+`tope_mensual_usd` y `activo` son seguros; `razon` queda sin clasificar y por lo tanto
+enmascarada) con sus propios resúmenes por tipo de acción
+(`presupuesto.rol`, `presupuesto.usuario` — Alta si el cupo previo era nulo, si no Cambio —,
+`tope_organizacional`, `mantenimiento.activar`/`desactivar`; un código de acción futuro no
+mapeado cae en un «Cambio» genérico humanizado, nunca en un error).
+
+**Eventos de identidad humanizados (design.md D5, «Humanized identity events»)**: un valor
+booleano de un campo seguro (`activo`, `is_active`, `es_sistema`, …) se presenta como **«Sí»**/
+**«No»**, nunca `true`/`false` — tanto en `resumen` como en cada `CambioAuditoriaDto.valorAnterior`/
+`valorNuevo` del panel de detalle. Para `identity.users`, `identity.personas` e
+`identity.user_roles`, `objeto` nombra al sujeto humano: «Cuenta de usuario de {nombre}»,
+«Persona {nombre}» y, para una asignación de rol, «Roles de {nombre}». El nombre se resuelve de
+las filas de identidad **actuales** — la misma resolución que ya usa el actor —, nunca del
+snapshot del evento; si el propio evento cambió `nombre`, `apellido` o `display_name`, o la
+búsqueda no encuentra a la persona, `objeto` se queda en su forma genérica sin nombre (`«Cuenta de
+usuario»`, `«Persona»`, `«Asignación de rol»`) para que un cambio de nombre nunca se exponga como
+diff. Un alta o baja de `identity.user_roles` además reemplaza el `resumen` genérico por «Rol
+{rol} asignado a {nombre}» / «Rol {rol} quitado a {nombre}», con `{rol}` resuelto por `role_id`
+contra `identity.roles` — **la misma regla cubre una `UPDATE` de `identity.user_roles` cuyas
+columnas cambiadas incluyan `deleted_at`** (nulo → con valor lee «quitado a»; con valor → nulo
+lee «asignado a»), porque la revocación real (`ServicioUsuarios.ReemplazarAsignaciones`) es un
+soft-delete por `UPDATE`, nunca un `DELETE` físico; la acción mostrada (`accionEtiqueta`) sigue
+siendo la real (`Cambio` para esa `UPDATE`), sólo el `resumen` cambia. El `user_id`/`role_id` del
+snapshot son ids internos usados sólo para esa
+búsqueda, nunca valores mostrados. La resolución de nombres de sujeto es **una sola consulta
+batched por página** (los ids se juntan de toda la página antes de consultar), no una por fila.
+
+**Formato de valores en `cambios` (fix del panel de detalle, 2026-09-27)**: un `null` de JSON
+llega como `valorAnterior`/`valorNuevo` **`null`** (nunca el texto `"null"`); el panel lo muestra
+como «—». Un campo TIMESTAMPTZ de valor seguro (`created_at`, `deleted_at`) se presenta en hora de
+`America/Argentina/Buenos_Aires` como `d/m/aaaa HH:mm:ss`; un campo DATE de valor seguro
+(`vigente_desde`, `vigente_hasta`) como `d/m/aaaa` — nunca el ISO/UTC crudo del snapshot; el mismo
+valor ya formateado es el que reusa un resumen con valores. Un campo cuyo `valorAnterior` Y
+`valorNuevo` son ambos `null`/ausentes en el snapshot crudo **no aparece** en `cambios` — ni
+siquiera enmascarado — porque no aporta información (evaluado antes de enmascarar: el DTO de un
+campo enmascarado siempre lleva `null`/`null` aunque el valor real no lo sea).
+
+Cada consulta a `audit.change_log` tiene timeout de 5 segundos; el rastro del asistente no
+declara uno propio explícito (lee como máximo 2000 filas pequeñas de una tabla propia). Fechas
+invertidas, acción inválida, `q`/`tabla`/`modulo`/`rowPk` fuera de longitud, un `rowPk` JSON
+inválido o límites de página fuera de rango responden `400 validation`. La API es exclusivamente GET; no muta ni borra eventos de
+ninguna fuente. La UI muestra fecha, usuario, acción, módulo y resumen; el objeto, clave de fila
+y `requestId` quedan en el detalle (`requestId` siempre `null`/«—» para un evento del asistente:
+ese rastro no registra ningún id de solicitud). No se exponen UPN/correo, `client_ip` ni
+snapshots crudos de ninguna fuente. Los valores del detalle sólo se incluyen para campos
+aprobados; PII, secretos y campos no clasificados se devuelven con `oculto: true` y valores
+nulos.
 
 ## Desarrollo
 
-`GET /api/desarrollo/identidades` devuelve únicamente roles y permisos activos:
+`GET /api/desarrollo/identidades` lista las identidades sembradas para elegir quién ingresa, con
+los nombres de sus roles vigentes sólo para reconocerlas:
 
 ```text
-IdentidadDesarrolloDto = { usuarioId, nombreParaMostrar, upn, roles[
-  { codigo, nombre, permisos[], materias[{id,codigo,nombre}], carreras[{id,codigo,nombre}] }
-] }
+IdentidadDesarrolloDto = { usuarioId, nombreParaMostrar, upn, roles[] }
 ```
 
-El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario activo, marca de dataset sintético, asignación vigente y ámbito. No acepta ámbitos declarados por el cliente. En Production la ruta y el esquema no están registrados, por lo que el resultado es `404` aunque se envíen esos headers.
+El cliente envía `X-Dev-User-Id` y, una vez elegida, `X-Dev-Asignacion-Id`. El handler valida usuario
+activo y marca de dataset sintético, y resuelve asignación, rol, ámbito y permisos igual que la
+sesión por cookie: sin asignación elegida opera con la de por defecto. `GET /api/desarrollo/sesion`
+devuelve la misma `SesionDto` que `GET /api/auth/sesion`. `X-Dev-Role-Code` sigue aceptándose como
+atajo para tests y herramientas (elige la primera asignación de ese rol); el frontend no lo usa. No
+acepta ámbitos declarados por el cliente. En Production la ruta y el esquema no están registrados, por lo que el resultado es `404` aunque se envíen esos headers.
 
 ## Códigos de error
 
@@ -159,4 +339,4 @@ El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
 
-El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.
+El catálogo de personas incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.

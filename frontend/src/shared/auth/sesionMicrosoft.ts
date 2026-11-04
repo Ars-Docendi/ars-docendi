@@ -8,9 +8,23 @@ export const RUTA_SESION = "/api/auth/sesion";
 
 export const sesionKeys = {
   actual: ["auth", "sesion"] as const,
+  desarrollo: ["desarrollo", "sesion"] as const,
 };
 
-/** Sesión por cookie tal como la devuelve el backend. */
+/** Asignación de rol: el rol y dónde rige. */
+export interface AsignacionApi {
+  id: string;
+  rolCodigo: string;
+  rolNombre: string;
+  ambitoTipo: "global" | "materia" | "carrera";
+  ambitoNombre: string | null;
+}
+
+/**
+ * Sesión tal como la devuelve el backend (por cookie o, en desarrollo, por headers).
+ * Siempre opera con una asignación; `requiereElegirRol` indica que es la de por
+ * defecto y la persona todavía no eligió.
+ */
 export interface SesionApi {
   usuarioId: string;
   nombreParaMostrar: string;
@@ -18,6 +32,9 @@ export interface SesionApi {
   rolCodigo: string;
   rolNombre: string;
   permisos: string[];
+  asignacion: AsignacionApi;
+  asignaciones: AsignacionApi[];
+  requiereElegirRol: boolean;
 }
 
 /** Sesión vigente, o `null` si no hay cookie válida. */
@@ -29,6 +46,11 @@ export async function obtenerSesion(): Promise<SesionApi | null> {
     if (isAxiosError(error) && error.response?.status === 401) return null;
     throw error;
   }
+}
+
+/** Elige o cambia la asignación con la que opera la sesión por cookie. */
+export async function elegirAsignacion(asignacionId: string): Promise<SesionApi> {
+  return (await apiClient.post<SesionApi>("/api/auth/asignacion", { asignacionId })).data;
 }
 
 export async function cerrarSesion(): Promise<void> {

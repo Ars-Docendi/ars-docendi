@@ -14,7 +14,7 @@ for servicio in frontend backend; do
 done
 intentos="${SMOKE_ATTEMPTS:-30}"
 [[ "$intentos" =~ ^[1-9][0-9]*$ ]] || fatal 'msg="SMOKE_ATTEMPTS inválido"'
-for modulo in designaciones aulas portal tareas; do
+for modulo in designaciones aulas portal tareas notificaciones; do
   comprobado=false
   for ((i=0; i<intentos; i++)); do
     if respuesta="$(docker run --rm --network "container:$backend_id" --entrypoint wget "$IMAGEN_PSQL" \

@@ -1,0 +1,208 @@
+import { Input, Table } from "@ars-docendi/ui";
+import type { EstadoSolicitudAula, SolicitudReservaAula } from "../types";
+import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { rutaDetalleSolicitud } from "../rutas";
+import {
+  fechaSolicitud,
+  horarioSolicitud,
+  opcionesEstados,
+  siguienteOrdenSolicitudes,
+  type ColumnaOrdenSolicitudes,
+  type FiltrosSolicitudesState,
+  type OrdenSolicitudes,
+} from "./filtrosSolicitudes";
+import { EstadoSolicitudPill } from "./EstadoSolicitudPill";
+import { Encabezado, Opciones } from "./EncabezadosSolicitudes";
+
+interface TablaTodasLasSolicitudesProps {
+  solicitudes: SolicitudReservaAula[];
+  solicitudesParaOpciones?: SolicitudReservaAula[];
+  filtros?: FiltrosSolicitudesState;
+  orden?: OrdenSolicitudes | null;
+  onFiltrosChange?: (filtros: FiltrosSolicitudesState) => void;
+  onOrdenChange?: (orden: OrdenSolicitudes | null) => void;
+  /** Un click en cualquier parte de la fila (o Enter con el foco en ella) abre el detalle. */
+  onAbrir: (solicitud: SolicitudReservaAula) => void;
+}
+
+const SIN_CAMBIOS = () => {};
+
+/**
+ * Tabla "Todas las solicitudes" del Administrativo, con filtros y orden por encabezado. Sin columna
+ * Acciones: un click en cualquier fila (de cualquier estado) abre la página de detalle, donde se
+ * resuelve la solicitud. Reemplaza el doble click por estado de la decisión 8 del change
+ * reserva-aulas (ver reserva-aulas-detalle-y-cancelacion/design.md).
+ */
+export function TablaTodasLasSolicitudes({
+  solicitudes,
+  solicitudesParaOpciones = solicitudes,
+  filtros = { dia: "", materia: "", comision: "", docente: "", estado: [] },
+  orden = null,
+  onFiltrosChange = SIN_CAMBIOS,
+  onOrdenChange = SIN_CAMBIOS,
+  onAbrir,
+}: TablaTodasLasSolicitudesProps) {
+  const estados = opcionesEstados(solicitudesParaOpciones);
+
+  function cambiarFiltro<K extends keyof FiltrosSolicitudesState>(
+    campo: K,
+    valor: FiltrosSolicitudesState[K],
+  ) {
+    onFiltrosChange({ ...filtros, [campo]: valor });
+  }
+
+  function cambiarOrden(columna: ColumnaOrdenSolicitudes) {
+    onOrdenChange(siguienteOrdenSolicitudes(orden, columna));
+  }
+
+  function alternarEstado(valor: EstadoSolicitudAula) {
+    const valores = filtros.estado;
+    cambiarFiltro(
+      "estado",
+      valores.includes(valor) ? valores.filter((actual) => actual !== valor) : [...valores, valor],
+    );
+  }
+
+  return (
+    <Table className="adoc-aulas-table">
+      <ContenedorTabla etiqueta="Todas las solicitudes de reserva de aula">
+        <Table.Head>
+          <Table.Row>
+            <Encabezado
+              etiqueta="Docente"
+              columna="docente"
+              orden={orden}
+              onOrden={cambiarOrden}
+              filtro={
+                <Input
+                  className="adoc-filtro-encabezado-campo"
+                  placeholder="Buscar docente…"
+                  aria-label="Buscar Docente"
+                  value={filtros.docente}
+                  onChange={(e) => cambiarFiltro("docente", e.target.value)}
+                />
+              }
+              activo={Boolean(filtros.docente.trim())}
+              onLimpiar={() => cambiarFiltro("docente", "")}
+            />
+            <Encabezado
+              etiqueta="Día"
+              columna="dia"
+              orden={orden}
+              onOrden={cambiarOrden}
+              filtro={
+                <Input
+                  className="adoc-filtro-encabezado-campo"
+                  placeholder="Buscar día…"
+                  aria-label="Buscar Día"
+                  value={filtros.dia}
+                  onChange={(e) => cambiarFiltro("dia", e.target.value)}
+                />
+              }
+              activo={Boolean(filtros.dia.trim())}
+              onLimpiar={() => cambiarFiltro("dia", "")}
+            />
+            <Table.HeaderCell
+              sort={orden?.columna === "horario" ? orden.direccion : null}
+              onSortChange={() => cambiarOrden("horario")}
+            >
+              Horario
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sort={orden?.columna === "alumnos" ? orden.direccion : null}
+              onSortChange={() => cambiarOrden("alumnos")}
+            >
+              Capacidad
+            </Table.HeaderCell>
+            <Table.HeaderCell>Cód. Materia</Table.HeaderCell>
+            <Encabezado
+              etiqueta="Materia"
+              columna="materia"
+              orden={orden}
+              onOrden={cambiarOrden}
+              filtro={
+                <Input
+                  className="adoc-filtro-encabezado-campo"
+                  placeholder="Buscar materia…"
+                  aria-label="Buscar Materia"
+                  value={filtros.materia}
+                  onChange={(e) => cambiarFiltro("materia", e.target.value)}
+                />
+              }
+              activo={Boolean(filtros.materia.trim())}
+              onLimpiar={() => cambiarFiltro("materia", "")}
+            />
+            <Encabezado
+              etiqueta="Comisión"
+              columna="comision"
+              orden={orden}
+              onOrden={cambiarOrden}
+              filtro={
+                <Input
+                  className="adoc-filtro-encabezado-campo"
+                  placeholder="Buscar comisión…"
+                  aria-label="Buscar Comisión"
+                  value={filtros.comision}
+                  onChange={(e) => cambiarFiltro("comision", e.target.value)}
+                />
+              }
+              activo={Boolean(filtros.comision.trim())}
+              onLimpiar={() => cambiarFiltro("comision", "")}
+            />
+            <Encabezado
+              etiqueta="Estado"
+              columna="estado"
+              orden={orden}
+              onOrden={cambiarOrden}
+              filtro={
+                <Opciones opciones={estados} valores={filtros.estado} onToggle={alternarEstado} />
+              }
+              activo={filtros.estado.length > 0}
+              onLimpiar={() => cambiarFiltro("estado", [])}
+            />
+            <Table.HeaderCell>Aula</Table.HeaderCell>
+          </Table.Row>
+        </Table.Head>
+        <Table.Body>
+          {solicitudes.length === 0 ? (
+            <Table.Row>
+              <Table.Cell colSpan={9} className="empty">
+                Sin resultados para los filtros aplicados.
+              </Table.Cell>
+            </Table.Row>
+          ) : (
+            solicitudes.map((solicitud) => {
+              const nombreDocente = solicitud.docente
+                ? `${solicitud.docente.apellido}, ${solicitud.docente.nombre}`
+                : "docente sin asignar";
+              return (
+                <Table.Row key={solicitud.id} {...propsFilaClickeable(() => onAbrir(solicitud))}>
+                  <Table.Cell>
+                    <EnlaceFila
+                      ruta={rutaDetalleSolicitud(solicitud.id)}
+                      etiqueta={`Ver la solicitud de ${nombreDocente} del ${fechaSolicitud(solicitud)}`}
+                    >
+                      {solicitud.docente ? nombreDocente : "—"}
+                    </EnlaceFila>
+                  </Table.Cell>
+                  <Table.Cell>{fechaSolicitud(solicitud)}</Table.Cell>
+                  <Table.Cell>{horarioSolicitud(solicitud)}</Table.Cell>
+                  <Table.Cell>{solicitud.cantidadAlumnosAprox}</Table.Cell>
+                  <Table.Cell>{solicitud.materia.codigo}</Table.Cell>
+                  <Table.Cell>{solicitud.materia.nombre}</Table.Cell>
+                  <Table.Cell>{solicitud.comision}</Table.Cell>
+                  <Table.Cell>
+                    <EstadoSolicitudPill estado={solicitud.estado} />
+                  </Table.Cell>
+                  <Table.Cell>{solicitud.aulaAsignada ?? "—"}</Table.Cell>
+                </Table.Row>
+              );
+            })
+          )}
+        </Table.Body>
+      </ContenedorTabla>
+    </Table>
+  );
+}

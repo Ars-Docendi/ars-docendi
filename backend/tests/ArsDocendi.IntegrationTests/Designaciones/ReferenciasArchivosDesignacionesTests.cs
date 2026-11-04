@@ -6,7 +6,7 @@ using Modules.Designaciones.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class ReferenciasArchivosDesignacionesTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Fact]
     public async Task Referencias_archivos_enlistan_misma_transaccion_y_rollback_no_deja_asociacion()

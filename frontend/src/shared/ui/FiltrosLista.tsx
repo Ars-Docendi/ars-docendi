@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { DatePicker, Input, Select } from "@ars-docendi/ui";
+import { Input, Select } from "@ars-docendi/ui";
+import { CampoFechaISO } from "./CampoFechaISO";
 import { ComboboxBuscable } from "./ComboboxBuscable";
 import { MultiSelectFiltro } from "./MultiSelectFiltro";
 import "./FiltrosLista.css";
@@ -126,9 +127,9 @@ export function FiltrosLista<T extends Record<string, string>>({
           if (campo.tipo === "fecha") {
             return (
               <span key={campo.clave} className="adoc-filtros-fijo-control">
-                <DatePicker
+                <CampoFechaISO
                   value={valores[campo.clave] ?? ""}
-                  onChange={(e) => set(campo.clave, e.target.value)}
+                  onChange={(valor) => set(campo.clave, valor)}
                   aria-label={campo.ariaLabel}
                 />
               </span>
@@ -214,9 +215,9 @@ export function FiltrosLista<T extends Record<string, string>>({
                   ))}
                 </Select>
               ) : campo.tipo === "fecha" ? (
-                <DatePicker
+                <CampoFechaISO
                   value={valores[campo.clave] ?? ""}
-                  onChange={(e) => set(campo.clave, e.target.value)}
+                  onChange={(valor) => set(campo.clave, valor)}
                   aria-label={`Filtrar por ${campo.etiqueta.toLowerCase()}`}
                 />
               ) : campo.tipo === "numero" ? (

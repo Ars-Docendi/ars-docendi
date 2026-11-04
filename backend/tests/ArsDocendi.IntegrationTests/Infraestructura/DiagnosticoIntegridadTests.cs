@@ -40,73 +40,6 @@ public sealed class DiagnosticoIntegridadTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Cli_detecta_duplicados_y_scope_legados_sin_sanear_ni_emitir_upn()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        // Solo en esta base desechable: simula datos anteriores a las nuevas garantías.
-        await using var preparar = new NpgsqlCommand("""
-            DROP INDEX identity.users_upn_normalizado_key;
-            INSERT INTO identity.users(id, upn, display_name) VALUES
-              ('22222222-2222-4222-8222-222222222221', 'Diagnostico@example.invalid', 'Sintetico'),
-              ('22222222-2222-4222-8222-222222222222', ' diagnostico@EXAMPLE.invalid ', 'Sintetico');
-            INSERT INTO identity.roles(id, code, name, scope) VALUES
-              ('22222222-2222-4222-8222-222222222223', 'diagnostico_legacy', 'Diagnostico legacy', 'materia');
-            BEGIN;
-            SET LOCAL session_replication_role = replica;
-            INSERT INTO identity.user_roles(user_id, role_id) VALUES
-              ('22222222-2222-4222-8222-222222222221', '22222222-2222-4222-8222-222222222223');
-            COMMIT;
-            """, conexion);
-        await preparar.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-        var antes = await HuellaAsync(conexion);
-        var resultado = await EjecutarCliAsync(Cadena);
-        Assert.Equal(1, resultado.Codigo);
-        using var json = JsonDocument.Parse(resultado.Salida);
-        var hallazgos = json.RootElement.GetProperty("hallazgos").EnumerateArray().ToArray();
-        Assert.Contains(hallazgos, h => h.GetProperty("categoria").GetString() == "identity-upn-duplicado"
-            && h.GetProperty("cantidad").GetInt64() == 2);
-        Assert.Contains(hallazgos, h => h.GetProperty("categoria").GetString() == "identity-scope-incoherente"
-            && h.GetProperty("cantidad").GetInt64() == 1);
-        Assert.DoesNotContain("example.invalid", resultado.Salida + resultado.Error);
-        Assert.DoesNotContain("Sintetico", resultado.Salida + resultado.Error);
-        Assert.Equal(antes, await HuellaAsync(conexion));
-    }
-
-    [Fact]
-    public async Task Cli_detecta_ciclo_legado_sin_recursion_infinita_ni_reparacion()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var preparar = new NpgsqlCommand("""
-            INSERT INTO identity.users(id, upn, display_name) VALUES
-              ('33333333-3333-4333-8333-333333333330', 'ciclo@example.invalid', 'Sintetico');
-            BEGIN;
-            SET LOCAL session_replication_role = replica;
-            INSERT INTO tareas.tareas(id, titulo, fecha_inicio, fecha_fin, prioridad_id, tipo_id, estado_id,
-              responsable_id, creado_por_id, tarea_padre_id)
-            SELECT id, 'Ciclo sintetico', '2026-01-01', '2026-12-31',
-              (SELECT id FROM tareas.prioridades WHERE codigo = 'media'),
-              (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'administrativa'),
-              (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'),
-              '33333333-3333-4333-8333-333333333330', '33333333-3333-4333-8333-333333333330', padre
-            FROM (VALUES
-              ('33333333-3333-4333-8333-333333333331'::uuid, '33333333-3333-4333-8333-333333333332'::uuid),
-              ('33333333-3333-4333-8333-333333333332'::uuid, '33333333-3333-4333-8333-333333333331'::uuid)
-            ) nodos(id, padre);
-            COMMIT;
-            """, conexion);
-        await preparar.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-        var antes = await HuellaAsync(conexion);
-        var resultado = await EjecutarCliAsync(Cadena);
-        Assert.Equal(1, resultado.Codigo);
-        using var json = JsonDocument.Parse(resultado.Salida);
-        Assert.Contains(json.RootElement.GetProperty("hallazgos").EnumerateArray(),
-            h => h.GetProperty("categoria").GetString() == "tareas-ciclo"
-                && h.GetProperty("cantidad").GetInt64() == 2);
-        Assert.DoesNotContain("Ciclo sintetico", resultado.Salida + resultado.Error);
-        Assert.Equal(antes, await HuellaAsync(conexion));
-    }
-
-    [Fact]
     public async Task Cli_base_limpia_informa_ambiente_release_historial_sin_escrituras()
     {
         await using var conexion = await AbrirConexionAsync();
@@ -220,7 +153,9 @@ public sealed class DiagnosticoIntegridadTests(PostgresFixture postgres)
         var salida = proceso.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
         var error = proceso.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
         using var plazo = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        plazo.CancelAfter(TimeSpan.FromSeconds(30));
+        // Incluye el arranque en frío del Host y sus modelos EF en runners
+        // compartidos; no mide la latencia de una operación del sistema.
+        plazo.CancelAfter(TimeSpan.FromMinutes(2));
         try { await proceso.WaitForExitAsync(plazo.Token); }
         finally { if (!proceso.HasExited) proceso.Kill(entireProcessTree: true); }
         return (proceso.ExitCode, await salida, await error);

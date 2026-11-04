@@ -1,0 +1,6 @@
+/* Card highlighted for a moment after a notification navigated to it. */
+.adoc-resaltado {
+  background: var(--warning-100) !important;
+  box-shadow: 0 0 0 2px var(--warning-500);
+  transition: background-color 0.4s;
+}

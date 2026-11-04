@@ -1,8 +1,9 @@
 import { lazy, Suspense, useState } from "react";
-import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
 import { developmentAuthEnabled } from "./developmentAuth";
+import { IsotipoArsDocendi } from "../marca/IsotipoArsDocendi";
 import { seleccionarSesionDesarrollo } from "./dev/session";
 import { microsoftLoginEnabled, urlIngresoMicrosoft } from "./sesionMicrosoft";
 import { useCurrentUser } from "./useCurrentUser";
@@ -12,11 +13,31 @@ const DevLoginModal = developmentAuthEnabled
   ? lazy(() => import("./dev/DevLoginModal").then((module) => ({ default: module.DevLoginModal })))
   : null;
 
-/** Where to land after login: the route the guard bounced us from, else the default. */
+const DESTINO_POR_DEFECTO = "/portal";
+
+/** Sólo rutas de la propia app: empiezan con una sola `/` y no llevan caracteres de control. */
+function esRutaLocal(ruta: string): boolean {
+  return (
+    ruta.startsWith("/") &&
+    !ruta.startsWith("//") &&
+    !ruta.startsWith("/\\") &&
+    // eslint-disable-next-line no-control-regex
+    !/[\u0000-\u001f\u007f]/.test(ruta)
+  );
+}
+
+/**
+ * Where to land after login: the page the guard bounced us from (path, query and hash), else the
+ * default. Anything that is not a relative path of this app is discarded.
+ */
 function usePostLoginTarget(): string {
   const location = useLocation();
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from;
-  return from?.pathname ?? "/portal";
+  const from = (
+    location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null
+  )?.from;
+  if (!from?.pathname) return DESTINO_POR_DEFECTO;
+  const destino = `${from.pathname}${from.search ?? ""}${from.hash ?? ""}`;
+  return esRutaLocal(destino) ? destino : DESTINO_POR_DEFECTO;
 }
 
 /** Microsoft four-square brand glyph (decorative, page-local). */
@@ -31,29 +52,25 @@ function MsGlyph() {
   );
 }
 
-/** Left institutional marquee — purely decorative. */
+/** Panel de bienvenida a la izquierda — puramente decorativo. */
 function Marquee() {
   return (
     <aside className="login-marquee" aria-hidden="true">
-      <div className="crest">
-        <div className="mark">UNLaM</div>
-        <div>
-          Departamento de Ingeniería
-          <small>Universidad Nacional de La Matanza</small>
-        </div>
-      </div>
+      <IsotipoArsDocendi className="mark" />
       <div className="title-area">
         <h1>
-          Ars <span className="accent">Docendi</span>
+          Te damos la bienvenida a <span className="accent">Ars Docendi</span>
         </h1>
         <p className="pitch">
-          Designaciones, reservas de aula, tareas y perfil del docente — un solo lugar, una sola
-          identidad institucional.
+          Acá vas a poder gestionar designaciones, reservar aulas, seguir tus tareas, mantener tu
+          perfil docente y consultar al asistente conversacional, todo en un solo lugar.
         </p>
       </div>
-      <div className="foot">
-        <span>v0.1.1</span>
-      </div>
+      <p className="foot">
+        Departamento de Ingeniería e Investigaciones Tecnológicas
+        <br />
+        Universidad Nacional de La Matanza
+      </p>
     </aside>
   );
 }
@@ -91,8 +108,9 @@ export function LoginPage() {
     if (DevLoginModal) setDevModalOpen(true);
   }
 
-  function handleDevSelect(userId: string, roleCode: string) {
-    seleccionarSesionDesarrollo(userId, roleCode);
+  function handleDevSelect(userId: string) {
+    // Igual que con Microsoft: con varias asignaciones, RequireAuth lleva a elegir el rol.
+    seleccionarSesionDesarrollo(userId);
     // Close the picker and show the loading button briefly before entering the app.
     setDevModalOpen(false);
     setRedirecting(true);
@@ -106,16 +124,23 @@ export function LoginPage() {
       <Marquee />
 
       <div className="login-form-side">
+        <div className="login-brand">
+          <IsotipoArsDocendi className="login-brand-mark" />
+          <span>
+            <span className="accent">Ars</span> Docendi
+          </span>
+        </div>
+
         <div className="login-card">
           <div className="head">
-            <h2>Iniciá sesión</h2>
-            <p>Usá tu cuenta institucional para acceder.</p>
+            <h2>Ingresá a tu cuenta</h2>
+            <p>Usá tu cuenta institucional @docentes.unlam.edu.ar.</p>
           </div>
 
           {state === "error" && (
             <InlineAlert severity="danger" title="No pudimos confirmar tu identidad.">
-              Microsoft devolvió un error de autenticación. Probá nuevamente; si persiste, contactá
-              a Soporte.
+              Microsoft devolvió un error de autenticación. Probá nuevamente; si persiste,
+              comunicate con Secretaría Académica.
             </InlineAlert>
           )}
 
@@ -133,7 +158,7 @@ export function LoginPage() {
               </Button>
             ) : (
               <Button variant="primary" size="lg" leadingIcon={<MsGlyph />} onClick={handleLogin}>
-                Iniciar sesión con cuenta institucional
+                Ingresar con Microsoft
               </Button>
             )}
             {microsoftLoginEnabled && DevLoginModal && state !== "redirecting" && (
@@ -142,22 +167,12 @@ export function LoginPage() {
               </Button>
             )}
           </div>
-
-          <div className="divider" />
-
-          <div className="helper">
-            <b style={{ color: "var(--color-text-primary)" }}>¿Problemas para ingresar?</b>
-            <br />
-            Escribí a{" "}
-            <a href="mailto:soporte.adocendi@unlam.edu.ar">soporte.adocendi@unlam.edu.ar</a>{" "}
-            indicando tu legajo o DNI.
-          </div>
-
-          <div className="footnote-tiny">
-            Al ingresar aceptás el uso institucional del sistema. Las acciones quedan registradas en
-            el log de auditoría.
-          </div>
         </div>
+
+        <footer className="login-legal">
+          Al ingresar aceptás los{" "}
+          <Link to="/terminos">Términos de uso y la Política de privacidad</Link>.
+        </footer>
       </div>
 
       {DevLoginModal && (

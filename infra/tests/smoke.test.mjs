@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 const repo = new URL("../../", import.meta.url).pathname;
 for (const fallo of ["", "imagen", "ping", "db"]) {
-  test(`smoke ${fallo || "correcto"}: SHA + cuatro pings + identidad DB`, () => {
+  test(`smoke ${fallo || "correcto"}: SHA + cinco pings + identidad DB`, () => {
     assert.ok(existsSync(join(repo, "infra/scripts/smoke.sh")), "falta smoke verificable");
     const dir = mkdtempSync(join(tmpdir(), "smoke-"));
     mkdirSync(join(dir, "bin"));
@@ -16,7 +16,7 @@ for (const fallo of ["", "imagen", "ping", "db"]) {
 case "$*" in
   *'ps -q'*) [[ "$*" = *frontend* ]] && echo frontend-candidato || echo backend-candidato ;;
   *'inspect --format'*) if [[ "$FAIL" = imagen ]]; then echo old; else [[ "$*" = *frontend* ]] && echo "$REGISTRO/arsdocendi-frontend:$TAG_FRONTEND" || echo "$REGISTRO/arsdocendi-backend:$TAG_BACKEND"; fi ;;
-  *wget*) [[ "$FAIL" != ping ]] || exit 1; for m in designaciones aulas portal tareas; do [[ "$*" != *"/api/$m/ping"* ]] || echo "{\\\"module\\\":\\\"$m\\\",\\\"status\\\":\\\"ok\\\"}"; done ;;
+  *wget*) [[ "$FAIL" != ping ]] || exit 1; for m in designaciones aulas portal tareas notificaciones; do [[ "$*" != *"/api/$m/ping"* ]] || echo "{\\\"module\\\":\\\"$m\\\",\\\"status\\\":\\\"ok\\\"}"; done ;;
   *psql*) [[ "$FAIL" != db ]] && echo 'arsdocendi_staging:app_staging:ok' || echo incorrecta ;;
 esac
 `,

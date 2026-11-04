@@ -131,7 +131,7 @@ public sealed partial class ServicioPortal(
         var resultado = await ProtegerArchivosAsync(archivoAnterior, d.DocumentoArchivoId, async token =>
         {
         var archivo = d.DocumentoArchivoId is { } archivoId
-            ? await RequerirArchivoPropioAsync(archivoId, PropositosArchivo.DocumentoProyecto, token)
+            ? await RequerirArchivoAsync(archivoId, archivoAnterior, PropositosArchivo.DocumentoProyecto, token)
             : null;
         actual.Nombre = d.Nombre;
         actual.Rol = d.Rol;
@@ -205,6 +205,17 @@ public sealed partial class ServicioPortal(
     private async Task<ArchivoDto> RequerirArchivoPropioAsync(Guid id, string proposito, CancellationToken ct) =>
         await almacenamiento.RequerirDisponibleDePropietarioAsync(id, proposito, UsuarioIdActual(), ct);
 
+    // Un archivo ya vinculado se conserva aunque lo haya subido otra persona (el dueño del perfil,
+    // cuando un operador lo corrige); sólo un archivo nuevo tiene que ser de quien edita.
+    private async Task<ArchivoDto> RequerirArchivoAsync(Guid id, Guid? vinculado, string proposito, CancellationToken ct)
+    {
+        if (id != vinculado) return await RequerirArchivoPropioAsync(id, proposito, ct);
+        var archivo = await almacenamiento.ObtenerAsync(id, ct);
+        return archivo is { Estado: EstadosArchivo.Disponible } && archivo.Proposito == proposito
+            ? archivo
+            : throw new ExcepcionAplicacion(TipoErrorAplicacion.Validacion, "archivo-not-available", "El archivo no está disponible para ese propósito.");
+    }
+
     private Proyecto CrearProyecto(GuardarProyectoDto d, ArchivoDto? archivo) => new()
     {
         Id = Guid.NewGuid(), Nombre = d.Nombre, Rol = d.Rol, Descripcion = d.Descripcion,
@@ -216,10 +227,21 @@ public sealed partial class ServicioPortal(
         },
     };
 
-    private async Task<Persona> PersonaActualAsync(CancellationToken ct) =>
-        Guid.TryParse(usuario.UserId, out var uid)
+    // Persona cuyo perfil se edita. Sin objetivo es la persona autenticada (Mi Portal); con
+    // objetivo, la que eligió un operador autorizado (ver AdministracionPortal). El usuario
+    // autenticado sigue siendo el autor de los cambios y el dueño de los archivos que sube.
+    private Guid? personaObjetivoId;
+
+    internal void ActuarSobre(Guid personaId) => personaObjetivoId = personaId;
+
+    private async Task<Persona> PersonaActualAsync(CancellationToken ct)
+    {
+        if (personaObjetivoId is { } objetivo)
+            return await identity.ObtenerPersonaAsync(objetivo, ct) ?? throw NoEncontrado();
+        return Guid.TryParse(usuario.UserId, out var uid)
             ? (await identity.ObtenerUsuarioAsync(uid, ct))?.Persona ?? throw NoEncontrado()
             : throw new ExcepcionAplicacion(TipoErrorAplicacion.NoAutenticado, "unauthenticated", "Se requiere autenticación.");
+    }
 
     private Guid UsuarioIdActual() => Guid.TryParse(usuario.UserId, out var uid)
         ? uid

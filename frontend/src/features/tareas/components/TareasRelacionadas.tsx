@@ -1,4 +1,6 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { propagarVolver } from "../../../shared/navegacion/volver";
+import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
 import { Button } from "@ars-docendi/ui";
 import { ComboboxBuscable } from "../../../shared/ui/ComboboxBuscable";
 import { formatearFecha } from "./detalleAdapters";
@@ -25,7 +27,7 @@ export function TareasRelacionadas({
   onQuitar,
   enviando = false,
 }: TareasRelacionadasProps) {
-  const navegar = useNavigate();
+  const volver = useDestinoVolver("tarea");
 
   const relacionadas = tarea.tareasRelacionadasIds
     .map((id) => todas.find((t) => t.id === id))
@@ -45,13 +47,13 @@ export function TareasRelacionadas({
         <ul className="adoc-tareas-vinculo-lista">
           {relacionadas.map((otra) => (
             <li key={otra.id} className="adoc-tareas-vinculo-item">
-              <button
-                type="button"
+              <Link
                 className="adoc-tareas-vinculo-link"
-                onClick={() => navegar(`/tareas/${otra.id}`)}
+                to={`/tareas/${otra.id}`}
+                state={propagarVolver(volver)}
               >
                 N° {otra.numero} — {otra.titulo}
-              </button>
+              </Link>
               <span className="adoc-tareas-vinculo-info">
                 <span className="adoc-tareas-vinculo-meta">
                   Fin {formatearFecha(otra.fechaFin)} · {otra.porcentajeAvance}%

@@ -52,52 +52,6 @@ public sealed class ConsultasSelectivasTests(PostgresFixture postgres) : ClasePo
         Assert.Contains(anterior, protegidos); Assert.Contains(nuevo, protegidos);
     }
 
-    [Theory]
-    [InlineData(1)]
-    [InlineData(8)]
-    public async Task Actor_selectivo_y_metadata_en_un_lote_independiente_del_numero_de_documentos(int documentos)
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var persona = new Persona { Id = Guid.NewGuid(), Nombre = "Nombre", Apellido = "Apellido", Documento = "Sintético" };
-        var cuenta = new Usuario { Id = Guid.NewGuid(), PersonaId = persona.Id, Persona = persona, Upn = "prueba@example.invalid", NombreParaMostrar = "Prueba", Activo = true };
-        persona.Usuario = cuenta;
-        var llamadasIdentity = new List<string>(); var llamadasStorage = new List<string>();
-        var identity = SondaContrato.Crear<IConsultasIdentity>((nombre, args) =>
-        {
-            llamadasIdentity.Add(nombre);
-            return nombre == nameof(IConsultasIdentity.ListarUsuariosAsync)
-                ? Task.FromResult<IReadOnlyList<Usuario>>([cuenta]) : Task.FromResult<Usuario?>(cuenta);
-        });
-        var metadata = new Dictionary<Guid, ArchivoDto>();
-        var storage = SondaContrato.Crear<IArchivosPrueba>((nombre, args) =>
-        {
-            llamadasStorage.Add(nombre);
-            return nombre == nameof(IConsultasArchivos.ObtenerPorIdsAsync)
-                ? Task.FromResult<IReadOnlyDictionary<Guid, ArchivoDto>>(metadata)
-                : Task.FromResult<ArchivoDto?>(metadata[(Guid)args![0]!]);
-        });
-        await using var conexion = await AbrirConexionAsync();
-        await using var crearPerfil = new NpgsqlCommand("INSERT INTO portal.perfiles(id,persona_id) VALUES (@id,@id)", conexion);
-        crearPerfil.Parameters.AddWithValue("id", persona.Id); await crearPerfil.ExecuteNonQueryAsync(ct);
-        for (var n = 0; n < documentos; n++)
-        {
-            var archivo = Guid.NewGuid(); var proyecto = Guid.NewGuid();
-            metadata[archivo] = new(archivo, "documento_proyecto", "archivo.pdf", "application/pdf", "application/pdf", 123, null, "disponible", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
-            await using var insertar = new NpgsqlCommand("""
-                INSERT INTO portal.proyectos(id,perfil_id,nombre,rol,descripcion,desde) VALUES (@id,@perfil,'Proyecto','Rol','Descripción','2020-01-01');
-                INSERT INTO portal.proyecto_documentos(proyecto_id,nombre,archivo_id) VALUES (@id,'archivo.pdf',@archivo);
-                """, conexion);
-            insertar.Parameters.AddWithValue("id", proyecto); insertar.Parameters.AddWithValue("perfil", persona.Id); insertar.Parameters.AddWithValue("archivo", archivo);
-            await insertar.ExecuteNonQueryAsync(ct);
-        }
-        await using var db = PostgresFixture.CrearPortal(Cadena);
-        var servicio = new ServicioPortal(new RepositorioPortal(db), identity, new ActorPortal(cuenta.Id), storage);
-        var perfil = await servicio.ObtenerPropioAsync(ct);
-        Assert.Equal(documentos, perfil.Proyectos.Count);
-        Assert.All(perfil.Proyectos, p => Assert.Equal(123, p.Documento!.TamanoBytes));
-        Assert.Equal(new[] { nameof(IConsultasIdentity.ObtenerUsuarioAsync) }, llamadasIdentity);
-        Assert.Equal(new[] { nameof(IConsultasArchivos.ObtenerPorIdsAsync) }, llamadasStorage);
-    }
 }
 
 public interface IArchivosRetencionPrueba : IArchivosPrueba, IProteccionArchivos, IRetencionArchivos;

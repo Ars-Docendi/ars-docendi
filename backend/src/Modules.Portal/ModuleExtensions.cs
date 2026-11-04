@@ -14,7 +14,7 @@ public static class ModuleExtensions
     public static IServiceCollection AddPortalModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<PortalDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
@@ -26,6 +26,7 @@ public static class ModuleExtensions
         services.AddScoped<RepositorioPortal>();
         services.AddScoped<ServicioPortal>();
         services.AddScoped<Modules.Portal.Contracts.Queries.IPortalQueries>(sp => sp.GetRequiredService<ServicioPortal>());
+        services.AddScoped<Modules.Portal.Contracts.Administracion.IAdministracionPortal, Application.AdministracionPortal>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

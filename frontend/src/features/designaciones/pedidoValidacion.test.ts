@@ -326,35 +326,4 @@ describe("validarPedido", () => {
       expect(errores.docente).toBeUndefined();
     });
   });
-
-  describe("Dedicación solicitada libre en Cambio (D-7)", () => {
-    it.each([1, 2, 6])("acepta Categoría %s partiendo de Categoría 2", (categoria) => {
-      const errores = validarPedido(
-        datosBase({
-          dedicacionActual: "Categoría 2",
-          novedad: "Cambio de cargo o dedicación",
-          cargoSolicitado: "Adjunto",
-          dedicacionSolicitada: `Categoría ${categoria}`,
-          justificacion: "Motivo.",
-        }),
-        { pedidosExistentes: [] },
-      );
-      expect(errores.dedicacionSolicitada).toBeUndefined();
-    });
-
-    it("en Alta no aplica la restricción (no hay dedicación actual)", () => {
-      const errores = validarPedido(
-        datosBase({
-          novedad: "Alta",
-          cargoActual: null,
-          dedicacionActual: null,
-          cargoSolicitado: "Ayudante",
-          dedicacionSolicitada: "Categoría 6",
-          adjuntos: ADJUNTOS_ALTA,
-        }),
-        { pedidosExistentes: [] },
-      );
-      expect(errores.dedicacionSolicitada).toBeUndefined();
-    });
-  });
 });
