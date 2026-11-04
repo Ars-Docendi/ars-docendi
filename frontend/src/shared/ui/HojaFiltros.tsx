@@ -18,6 +18,8 @@ interface GrupoBase<T> {
 export interface GrupoOpciones<T> extends GrupoBase<T> {
   tipo?: "opciones";
   opciones: OpcionFiltro[];
+  /** At most one option: checking one replaces the previous choice (server filters take one value). */
+  unica?: boolean;
 }
 
 /** Free-text group: the filter value is a `string`. */
@@ -128,7 +130,9 @@ function Hoja<T extends ValoresFiltro<T>>({
                       grupo.clave,
                       marcada
                         ? marcados.filter((v) => v !== opcion.valor)
-                        : [...marcados, opcion.valor],
+                        : grupo.unica
+                          ? [opcion.valor]
+                          : [...marcados, opcion.valor],
                     )
                   }
                 />

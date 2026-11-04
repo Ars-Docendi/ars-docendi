@@ -42,6 +42,9 @@
   --sistema-borde-mantenimiento: oklch(80% 0.1 75);
 
   display: grid;
+  /* One shrinkable track: without it the widest child (tab strip, filter row) sets the
+     column width and the whole section overflows a phone. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
   min-width: 0;
 }
@@ -938,18 +941,159 @@
   }
 }
 
+/* ---------- Phones (below 560 px) ---------- */
+
 @media (max-width: 559px) {
-  .auditoria-paginacion .adoc-button,
-  .auditoria-paginacion button,
-  .auditoria-detalle-boton {
+  .sistema-seccion {
+    gap: var(--space-4);
+  }
+
+  .sistema-tarjetas-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sistema-banner {
+    flex-wrap: wrap;
+  }
+
+  /* Recent changes: summary on the first line, time and action under it. */
+  .sistema-cambios-fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "resumen resumen"
+      "hora accion";
+    gap: var(--space-1) var(--space-3);
     min-height: 44px;
   }
 
-  .auditoria-detalle-boton {
-    align-self: flex-start;
+  .sistema-cambios-fila > svg {
+    display: none;
   }
 
-  .auditoria-detalle table {
-    min-width: 0;
+  .sistema-cambios-hora {
+    grid-area: hora;
+  }
+
+  .sistema-cambios-resumen {
+    grid-area: resumen;
+    white-space: normal;
+  }
+
+  .sistema-cambios-fila .sistema-chip-accion {
+    grid-area: accion;
+  }
+
+  .sistema-enlace {
+    min-height: 44px;
+  }
+
+  /* Audit toolbar: shared search + filter sheet, then the period toggle at full width. */
+  .auditoria-filtros-movil {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .auditoria-filtros-movil .adoc-herramientas-lista {
+    margin-bottom: 0;
+  }
+
+  .auditoria-filtros-movil .auditoria-periodo {
+    background: var(--color-bg-raised);
+  }
+
+  .auditoria-filtros-movil .auditoria-toggle {
+    flex: 1;
+    height: 44px;
+    font-size: var(--text-body-sm-size);
+  }
+
+  .auditoria-filtros-movil .auditoria-filtros-resumen {
+    margin: 0;
+  }
+
+  /* Day-grouped list: each event is a two-line card row (summary, then time and action). */
+  .auditoria-lista-encabezado {
+    display: none;
+  }
+
+  .auditoria-fila {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "cambio cambio"
+      "hora accion";
+    gap: 6px var(--space-3);
+    min-height: 44px;
+    padding: var(--space-3);
+  }
+
+  .auditoria-fila > svg {
+    display: none;
+  }
+
+  .auditoria-fila-cambio {
+    grid-area: cambio;
+    align-items: flex-start;
+  }
+
+  .auditoria-fila-hora {
+    grid-area: hora;
+    padding-left: 38px;
+  }
+
+  .auditoria-fila .sistema-chip-accion {
+    grid-area: accion;
+  }
+
+  .auditoria-fila-resumen {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .auditoria-fila-contexto {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .auditoria-dia-titulo {
+    padding-inline: var(--space-3);
+  }
+
+  /* Inline detail under its row: flat, inside the list card. */
+  .auditoria-lista .auditoria-detalle-panel {
+    margin: 0 var(--space-2) var(--space-2);
+    border-color: var(--color-border-default);
+  }
+
+  .auditoria-detalle-encabezado {
+    padding-right: var(--space-2);
+  }
+
+  .auditoria-detalle-cerrar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .auditoria-detalle-valores {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auditoria-detalle-valores > [aria-hidden="true"] {
+    display: none;
+  }
+
+  .auditoria-lista .adoc-pagination {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .auditoria-lista .adoc-pagination .pg {
+    min-width: 44px;
+    height: 44px;
   }
 }

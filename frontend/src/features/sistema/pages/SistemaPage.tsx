@@ -1,12 +1,12 @@
 import { useState, type ComponentType, type ReactNode } from "react";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
-import { Button, Tabs } from "@ars-docendi/ui";
-import type { TabItem } from "@ars-docendi/ui";
+import { Button } from "@ars-docendi/ui";
 import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { IconoRefreshCw } from "../../../shared/ui/iconos";
+import { PanelPestana, Pestanas, type ItemPestana } from "../../../shared/ui/Pestanas";
 import { useSeccionSistema, type IdPestanaSistema } from "../hooks/useSeccionSistema";
 import { PREFIJO_SALUD, useSaludSistema } from "../hooks/useSaludSistema";
 import { resumirSalud, type EstadoDePunto } from "../utils/resumirSalud";
@@ -132,7 +132,7 @@ export function SistemaPage({
     navigate({ pathname: "/sistema", hash: "#auditoria" });
   }
 
-  const items: TabItem[] = pestanasPermitidas.map((id) => {
+  const items: ItemPestana[] = pestanasPermitidas.map((id) => {
     const tono: EstadoDePunto =
       id === "estado"
         ? resumen.puntoEstado
@@ -181,14 +181,16 @@ export function SistemaPage({
         }
       />
 
-      <Tabs
+      {/* Shared tabs: on phones the five tabs become a swipeable strip. */}
+      <Pestanas
+        prefijo="sistema"
         items={items}
         value={pestanaActiva}
         onChange={(id) => cambiarPestana(id as IdPestanaSistema)}
         aria-label="Secciones de Sistema"
       />
 
-      <div role="tabpanel" id={`panel-${pestanaActiva}`} aria-labelledby={`tab-${pestanaActiva}`}>
+      <PanelPestana prefijo="sistema" id={pestanaActiva}>
         {pestanaActiva === "estado" && (
           <PestanaEstado
             puedeVerUso={puedeAsistente}
@@ -213,7 +215,7 @@ export function SistemaPage({
         )}
         {pestanaActiva === "calidad" && <PanelCalidad />}
         {pestanaActiva === "auditoria" && <PestanaAuditoria />}
-      </div>
+      </PanelPestana>
     </main>
   );
 }
