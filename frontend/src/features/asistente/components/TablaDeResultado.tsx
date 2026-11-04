@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Button, Table } from "@ars-docendi/ui";
 import { Link } from "react-router-dom";
 
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { MarcaSensible } from "./MarcaSensible";
 import { TablaAmpliada } from "./TablaAmpliada";
 import {
@@ -352,7 +353,8 @@ export function TablaOrdenable({
 }: TablaOrdenableProps) {
   return (
     <Table className="adoc-asistente-tabla-wrap">
-      <Table.Root>
+      {/* Scroll region with a sticky first column: wide results scroll inside it, never the page. */}
+      <ContenedorTabla etiqueta="Resultado de la consulta">
         <Table.Head>
           <Table.Row>
             {columnas.map((columna, indiceDeColumna) => (
@@ -380,7 +382,7 @@ export function TablaOrdenable({
             </Table.Row>
           ))}
         </Table.Body>
-      </Table.Root>
+      </ContenedorTabla>
     </Table>
   );
 }

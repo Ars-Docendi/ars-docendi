@@ -17,6 +17,7 @@ import type { HistorialAsistente } from "../hooks/useHistorialAsistente";
 import type { MencionEnPregunta } from "../types";
 import { developmentAuthEnabled } from "../../../shared/auth/developmentAuth";
 import { obtenerSesionDesarrollo } from "../../../shared/auth/dev/session";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 
 interface PanelAsistenteProps {
   /**
@@ -66,6 +67,23 @@ export function PanelAsistente({
   const usuarioId = developmentAuthEnabled ? obtenerSesionDesarrollo()?.usuarioId : undefined;
   const rail = usePreferenciaDelRail(usuarioId);
 
+  // Phones: no room for a rail column, so the rail is a drawer opened from the header.
+  const telefono = usePantallaTelefono();
+  const [cajonAbierto, setCajonAbierto] = useState(false);
+  const botonConversaciones = useRef<HTMLButtonElement>(null);
+  const devolverFoco = useRef(false);
+  function cerrarCajon() {
+    devolverFoco.current = true;
+    setCajonAbierto(false);
+  }
+  // After the commit: while the drawer is open the header is `inert` and cannot take focus.
+  useEffect(() => {
+    if (cajonAbierto || !devolverFoco.current) return;
+    devolverFoco.current = false;
+    botonConversaciones.current?.focus();
+  }, [cajonAbierto]);
+  const conCajon = telefono && cajonAbierto;
+
   // El foco vuelve al campo cuando el turno termina —también cuando se lo dejó de
   // esperar— y cuando la conversación se vacía: quien está usando un lector de
   // pantalla o el teclado no tiene que volver a buscarlo para seguir preguntando.
@@ -111,10 +129,25 @@ export function PanelAsistente({
           historial={historial}
           colapsado={rail.colapsado}
           onAlternar={rail.alternar}
+          cajon={telefono ? { abierto: cajonAbierto, onCerrar: cerrarCajon } : undefined}
         />
 
-        <div className="adoc-asistente-columna">
-          <EncabezadoDeConversacion titulo={tituloDelEncabezado} onCerrar={onCerrar} />
+        {conCajon && (
+          <div className="adoc-asistente-cajon-fondo" aria-hidden="true" onClick={cerrarCajon} />
+        )}
+
+        {/* `inert` while the drawer covers it: Tab stays inside the drawer. */}
+        <div className="adoc-asistente-columna" inert={conCajon || undefined}>
+          <EncabezadoDeConversacion
+            titulo={tituloDelEncabezado}
+            onCerrar={onCerrar}
+            conversaciones={
+              telefono
+                ? { abiertas: cajonAbierto, onAbrir: () => setCajonAbierto(true) }
+                : undefined
+            }
+            refConversaciones={botonConversaciones}
+          />
 
           {/* EL ENCABEZADO LLEGA AL BORDE DEL MODAL SIN RELLENO PROPIO; ESTO NO. El
               relleno alrededor del banner, el hilo, la franja y la entrada vive

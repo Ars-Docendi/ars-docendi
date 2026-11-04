@@ -2383,10 +2383,217 @@
     text-align: start;
   }
 
-  /* EL RAIL EN TELÉFONO QUEDA SIN RESOLVER A PROPÓSITO (TD-016/TD-024 —
-     non-goal de este cambio): angosto, 268 px de rail no dejarían casi nada
-     para la conversación, y automatizar el colapso según el ancho es trabajo
-     de la épica móvil, no de este grupo. */
+  /* Below 560 px the rail becomes a drawer (see the phone block below). The stage follows the
+     visible viewport (`useAltoVisible`), so the input stays above the on-screen keyboard. */
+  .adoc-modal-stage:has(.adoc-asistente-modal) {
+    top: var(--asistente-desplazamiento, 0px);
+    height: var(--asistente-alto-visible, 100dvh);
+  }
+}
+
+/* The drawer mode of the rail (phones) hides it with `hidden` while closed. */
+.adoc-asistente-rail[hidden] {
+  display: none;
+}
+
+/* ─────────────────────────────── teléfono (< 560 px) ───────────────────────── */
+
+/* Full-screen chat: the rail is a drawer over the conversation, opened from the header;
+   every control is at least 44 px; content keeps clear of the notch and home indicator. */
+@media (max-width: 559px) {
+  .adoc-asistente-modal {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .adoc-asistente-modal .adoc-asistente {
+    padding: 0;
+  }
+
+  .adoc-asistente-rail.cajon {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: var(--z-overlay);
+    width: min(320px, 86%);
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+    border-right: 1px solid var(--color-border-default);
+    box-shadow: var(--elev-3);
+    transition: none;
+  }
+
+  .adoc-asistente-cajon-fondo {
+    position: absolute;
+    inset: 0;
+    z-index: calc(var(--z-overlay) - 1);
+    background: rgb(0 0 0 / 35%);
+  }
+
+  /* The undo notice must stay readable over the open drawer. */
+  .adoc-asistente-aviso {
+    z-index: calc(var(--z-overlay) + 1);
+    width: auto;
+    right: var(--space-3);
+  }
+
+  .adoc-asistente-rail.cajon .adoc-asistente-rail-encabezado .adoc-btn {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .adoc-asistente-rail.cajon .adoc-asistente-rail-toggle {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .adoc-asistente-rail.cajon .adoc-asistente-rail-busqueda .adoc-input {
+    height: 44px;
+  }
+
+  .adoc-asistente-rail.cajon .adoc-asistente-rail-abrir,
+  .adoc-asistente-rail.cajon .adoc-acciones-trigger,
+  .adoc-asistente-rail-archivadas-toggle {
+    min-height: 44px;
+  }
+
+  .adoc-asistente-rail.cajon .adoc-acciones-trigger {
+    min-width: 44px;
+  }
+
+  .adoc-asistente-encabezado {
+    padding: 0 var(--space-1);
+    gap: 0;
+  }
+
+  .adoc-asistente-encabezado-titulo {
+    flex: 1 1 auto;
+    max-width: none;
+    padding-inline: var(--space-1);
+  }
+
+  .adoc-asistente-encabezado-conversaciones,
+  .adoc-asistente-encabezado-cerrar,
+  .adoc-asistente-ayuda-boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+  }
+
+  .adoc-asistente-encabezado-conversaciones {
+    flex: none;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+
+  .adoc-asistente-encabezado-conversaciones .ico {
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .adoc-asistente-encabezado-cerrar {
+    font-size: 22px;
+  }
+
+  .adoc-asistente-hilo-contenido {
+    padding: var(--space-4) var(--space-3) var(--space-3);
+    gap: 28px;
+  }
+
+  .adoc-asistente-inicio {
+    padding-top: var(--space-6);
+  }
+
+  .adoc-asistente-inicio-ejemplos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adoc-asistente-compositor {
+    padding: var(--space-2) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
+  }
+
+  .adoc-asistente-ir-al-final {
+    right: var(--space-3);
+  }
+
+  /* Result tables: the region scrolls sideways with its first column pinned; the page never does. */
+  .adoc-asistente-tabla .adoc-asistente-tabla-wrap {
+    max-height: 50dvh;
+  }
+
+  .adoc-asistente-orden-boton {
+    min-height: 44px;
+  }
+
+  /* Answer action bar (copy, expand, export, vote): 44 px targets. */
+  .adoc-asistente-barra-boton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .adoc-asistente-barra-boton svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .adoc-asistente-exportar-botones .adoc-btn {
+    min-height: 44px;
+  }
+
+  /* Expanded table: title on its own line, actions wrap under it. */
+  .adoc-asistente-ampliada .adoc-asistente-ampliada-encabezado {
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .adoc-asistente-ampliada .adoc-asistente-ampliada-titulo {
+    flex: 1 1 100%;
+  }
+
+  .adoc-asistente-ampliada .adoc-asistente-ampliada-encabezado .adoc-btn {
+    min-height: 44px;
+  }
+
+  .adoc-asistente-ampliada .adoc-asistente-ampliada-cuerpo {
+    padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
+  }
+
+  /* Mentions: 44 px rows; the career/code go under the name so the name is not cut to a stub. */
+  .adoc-asistente-mencion-fila {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    min-height: 44px;
+  }
+
+  .adoc-asistente-mencion-nombre {
+    flex-basis: calc(100% - 15px - var(--space-3));
+  }
+
+  .adoc-asistente-mencion-datos {
+    min-width: 0;
+    margin-left: calc(15px + var(--space-3));
+  }
+
+  .adoc-asistente-menciones-atajos {
+    display: none;
+  }
+
+  /* The topbar launcher keeps its 32 px pill but gets a 44 px touch target. */
+  .adoc-asistente-lanzador {
+    position: relative;
+  }
+
+  .adoc-asistente-lanzador::after {
+    content: "";
+    position: absolute;
+    inset: -6px 0;
+  }
 }
 
 /* ─────────────────────────── tabla ampliada (ARS-145) ───────────────────────── */
@@ -3617,5 +3824,143 @@
   .calidad-fila--grafico,
   .calidad-fila--causas {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Gestión de IA and support history on phones (below 560 px) ---------- */
+
+@media (max-width: 559px) {
+  /* Segmented toggles (period, metric, problem type) fill the width with 44 px targets. */
+  .adoc-asistente-admin-encabezado-acciones,
+  .adoc-asistente-admin-periodo,
+  .adoc-asistente-admin-metrica-switch {
+    width: 100%;
+  }
+
+  .adoc-asistente-admin-periodo,
+  .adoc-asistente-admin-metrica-switch {
+    flex-wrap: wrap;
+  }
+
+  .adoc-asistente-admin-periodo-boton,
+  .adoc-asistente-admin-metrica-boton {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+
+  .adoc-asistente-admin-exportar {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* Maintenance banner: the action goes under the text instead of squeezing it. */
+  .adoc-asistente-admin-mantenimiento-fila {
+    flex-wrap: wrap;
+  }
+
+  .adoc-asistente-admin-mantenimiento-fila > .adoc-btn,
+  .adoc-asistente-admin-mantenimiento-acciones {
+    flex: 1 1 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  /* KPIs: the small ones two by two, the monthly cap and the model server at full width. */
+  .adoc-asistente-admin-kpis-fila {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adoc-asistente-admin-tope,
+  .adoc-asistente-admin-servidor {
+    grid-column: 1 / -1;
+  }
+
+  .adoc-asistente-admin-panel-uso-tarjeta {
+    padding: var(--space-3);
+  }
+
+  .adoc-asistente-admin-uso-buscador {
+    max-width: none;
+  }
+
+  .adoc-asistente-admin-uso-buscador .adoc-input {
+    width: 100%;
+    height: 44px;
+  }
+
+  /* Two tabs always fit: no scroll-strip edge shading inside the white card. */
+  .adoc-asistente-admin-panel-uso-tarjeta .adoc-tabs {
+    background: none;
+  }
+
+  .adoc-asistente-admin-cupo-editar,
+  .adoc-asistente-admin-tope-editar {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Usage card: label on the left, the same inline editor as the table cell on the right. */
+  .adoc-asistente-admin-uso-tarjeta-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 44px;
+  }
+
+  .adoc-asistente-admin-uso-tarjeta-etiqueta {
+    font-size: var(--text-caption-size);
+    color: var(--color-text-secondary);
+  }
+
+  .calidad-paginacion {
+    flex-wrap: wrap;
+  }
+
+  .calidad-enlace {
+    min-height: 44px;
+    padding-inline: var(--space-2);
+  }
+
+  /* Support history: one person per row, the list scrolls so the reason form stays near. */
+  .adoc-asistente-soporte-personas {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    max-height: 50dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .adoc-asistente-soporte-personas .adoc-btn {
+    width: 100%;
+    height: auto;
+    min-height: 44px;
+    justify-content: flex-start;
+    white-space: normal;
+    text-align: start;
+  }
+
+  .adoc-asistente-soporte-selector .adoc-input,
+  .adoc-asistente-soporte-razon .adoc-input {
+    height: 44px;
+  }
+
+  .adoc-asistente-soporte-razon {
+    flex-wrap: wrap;
+  }
+
+  .adoc-asistente-soporte-razon > :first-child {
+    flex: 1 1 100%;
+  }
+
+  .adoc-asistente-soporte-razon .adoc-btn {
+    flex: 1;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .adoc-asistente-soporte-abrir {
+    min-height: 44px;
   }
 }
