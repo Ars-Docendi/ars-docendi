@@ -221,7 +221,7 @@ protegido. Los changes archivados conservan los IDs originales como evidencia.
   agregaba el asistente no se integró. El lector de catálogo del asistente
   declara esa referencia aparte para el prompt.
 - `database/asistente/*.sql` no tiene historial EF: lo aplica `MigradorAsistente`,
-  que converge y registra una huella de sus scripts y roles en
+  que converge y registra una huella de sus scripts y roles (nombre y OID) en
   `asistente.version_aplicada`. Por eso esos archivos figuran en
   `clasificados` del manifiesto y el contexto `asistente` informa una única
   versión disponible a `--estado-migraciones`/`--script-migraciones`.

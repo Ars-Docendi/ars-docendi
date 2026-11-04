@@ -220,8 +220,12 @@ darse de baja (comportamiento previo, no lo cambia esta tarea).
 que los roles existen, que no tienen privilegios de cluster (en particular
 `NOBYPASSRLS`, sin el cual las policies de RLS no los contienen), que tienen
 `CONNECT` pero no `CREATE` ni `TEMPORARY`, y que no acumularon ningún privilegio de
-mutación. `spin-up.sh` lo corre dos veces: después del provisioning y después de las
-migraciones.
+mutación. `spin-up.sh` lo corre dos veces: después del provisioning (con
+`antes-de-migrar`, que omite exigir los GRANT de lectura) y después de las
+migraciones, donde además exige que esos GRANT existan. Si un rol del asistente se
+recrea sobre una base existente, nace sin GRANT; como la huella de
+`MigradorAsistente` incluye el OID de los roles, la migración del asistente queda
+pendiente y el paso 3 se los vuelve a conceder.
 
 > No es verificable desde el cluster que dos ambientes no compartan contraseña:
 > SCRAM guarda un hash con salt propio por rol, así que dos contraseñas iguales

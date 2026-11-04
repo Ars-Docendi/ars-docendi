@@ -3,7 +3,7 @@
 # no modifica y no borra nada.
 #
 # Uso:
-#   verificar-roles-asistente.sh <ambiente>
+#   verificar-roles-asistente.sh <ambiente> [antes-de-migrar]
 #
 # Variables:
 #   PGHOST PGPORT PGUSER PGPASSWORD   credenciales admin de Postgres (libpq)
@@ -22,6 +22,7 @@
 source "$(dirname "$0")/_comun.sh"
 
 ambiente="${1:-}"
+momento="${2:-}"
 validar_ambiente "$ambiente"
 
 base="$(nombre_base "$ambiente")"
@@ -140,13 +141,17 @@ comprobar "sin CREATE sobre ningún schema" "0" \
 # 7. Si las tablas ya existen —o sea, después de las migraciones—, los GRANT del
 #    asistente tienen que haber corrido. Este control detecta el caso que los
 #    tests de CI no pueden ver: que la migración funcione, pero no se haya
-#    ejecutado en ESTE ambiente. Antes de migrar no hay tablas y se saltea.
+#    ejecutado en ESTE ambiente. Antes de migrar se saltea aunque haya tablas: un
+#    rol recién recreado sobre una base existente todavía no tiene GRANT, y es la
+#    migración del paso 3 la que se los devuelve.
 tablas="$(psql_base "$base" -c "SELECT count(*)
                                 FROM information_schema.tables
                                 WHERE table_schema IN ('identity', 'designaciones')
                                   AND table_type = 'BASE TABLE';")"
 
-if [[ "$tablas" -gt 0 ]]; then
+if [[ "$momento" == "antes-de-migrar" ]]; then
+  log_info msg="antes de migrar: no se controlan los GRANT de lectura" base="$base"
+elif [[ "$tablas" -gt 0 ]]; then
   comprobar "los GRANT de lectura ya se aplicaron" "t" \
     "$(psql_base "$base" -c "SELECT count(*) > 0
                              FROM information_schema.column_privileges

@@ -175,7 +175,7 @@ if ! existe_base "$base"; then base_nueva=true; fi
 "$scripts_dir/provision-db.sh" "$ambiente"
 # Test de humo: los roles del asistente existen y no tienen privilegios de
 # escritura, ANTES de que corra ninguna migración.
-"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
+"$scripts_dir/verificar-roles-asistente.sh" "$ambiente" antes-de-migrar
 # Consultas y preview de la misma imagen candidata, sin listener ni binds.
 trabajo="$(mktemp -d)"
 backup_id=""

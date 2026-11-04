@@ -57,6 +57,38 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         Assert.Equal(antes, despuesDeDos);
     }
 
+    [Fact]
+    public async Task Un_rol_recreado_con_el_mismo_nombre_deja_la_migracion_pendiente_y_recupera_sus_GRANT()
+    {
+        // El deploy de staging que lo encontró: provision-db.sh recreó los roles sobre una
+        // base ya migrada, y la huella (sólo nombres) daba la migración por aplicada.
+        var ct = TestContext.Current.CancellationToken;
+        var sufijo = Guid.NewGuid().ToString("N")[..8];
+        string basico = $"asistente_ro_rec_{sufijo}", pii = $"asistente_ro_pii_rec_{sufijo}";
+        await EjecutarAsync($"CREATE ROLE \"{basico}\" NOLOGIN; CREATE ROLE \"{pii}\" NOLOGIN");
+        try
+        {
+            var migrador = Migrador(basico, pii);
+            await migrador.MigrarAsync(ct);
+            Assert.Empty((await migrador.ConsultarAsync(ct)).Pendientes);
+
+            await EjecutarAsync($"DROP OWNED BY \"{pii}\"; DROP ROLE \"{pii}\"; CREATE ROLE \"{pii}\" NOLOGIN");
+            Assert.NotEmpty((await migrador.ConsultarAsync(ct)).Pendientes);
+
+            await migrador.MigrarAsync(ct);
+            Assert.True(await EscalarAsync<bool>(
+                $"""
+                SELECT count(*) > 0 FROM information_schema.column_privileges
+                 WHERE grantee = '{pii}' AND privilege_type = 'SELECT'
+                """));
+        }
+        finally
+        {
+            await EjecutarAsync(
+                $"DROP OWNED BY \"{basico}\", \"{pii}\"; DROP ROLE \"{basico}\"; DROP ROLE \"{pii}\"");
+        }
+    }
+
     // --------------------------- D7 (asistente-rediseno-v3, PO-changed 2026-09-26): `razon`
     // (single value) becomes `razones` (list) + `comentario`, and `lento` is removed entirely.
 
@@ -237,11 +269,13 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private MigradorAsistente Migrador() =>
+    private MigradorAsistente Migrador() => Migrador(RolSoloLectura, RolSoloLecturaPii);
+
+    private MigradorAsistente Migrador(string basico, string pii) =>
         new(Options.Create(new OpcionesAsistente
         {
-            RolSoloLectura = RolSoloLectura,
-            RolSoloLecturaPii = RolSoloLecturaPii,
+            RolSoloLectura = basico,
+            RolSoloLecturaPii = pii,
         }),
             new CadenaDuena(Cadena),
             NullLogger<MigradorAsistente>.Instance);

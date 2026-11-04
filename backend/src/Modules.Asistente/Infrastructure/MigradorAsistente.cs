@@ -47,10 +47,10 @@ internal sealed class MigradorAsistente(
 
     public async Task<EstadoMigracionesModulo> ConsultarAsync(CancellationToken ct)
     {
-        var disponible = Huella();
-
         await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
+
+        var disponible = await HuellaAsync(conexion, ct);
 
         // Dos consultas y no un CASE: PostgreSQL resuelve las tablas al parsear,
         // así que nombrar una que todavía no existe falla aunque la rama no corra.
@@ -148,7 +148,7 @@ internal sealed class MigradorAsistente(
 
         await using (var registro = new NpgsqlCommand(SqlRegistrarVersion, conexion))
         {
-            registro.Parameters.AddWithValue("huella", Huella());
+            registro.Parameters.AddWithValue("huella", await HuellaAsync(conexion, ct));
             await registro.ExecuteNonQueryAsync(ct);
         }
 
@@ -167,10 +167,12 @@ internal sealed class MigradorAsistente(
         """;
 
     /// <summary>
-    /// <c>asistente_</c> + SHA-256 de los scripts, en orden, y de los dos nombres de
-    /// rol: cambiar cualquiera de ellos es una versión nueva que hay que aplicar.
+    /// <c>asistente_</c> + SHA-256 de los scripts, en orden, y de los dos roles con su OID:
+    /// cambiar cualquiera de ellos es una versión nueva que hay que aplicar. El OID entra
+    /// porque los GRANT lo nombran a él y no al nombre: un rol recreado con el mismo nombre
+    /// (spin-up sobre una base que sobrevivió a sus roles) nace sin ningún privilegio.
     /// </summary>
-    private string Huella()
+    private async Task<string> HuellaAsync(NpgsqlConnection conexion, CancellationToken ct)
     {
         var valores = opciones.Value;
         var contenido = new StringBuilder();
@@ -181,7 +183,17 @@ internal sealed class MigradorAsistente(
                 .Append(RecursosSql.Leer(typeof(MigradorAsistente).Assembly, recurso)).Append('\n');
         }
 
-        contenido.Append(valores.RolSoloLectura).Append('\n').Append(valores.RolSoloLecturaPii);
+        await using var oids = new NpgsqlCommand(
+            """
+            SELECT coalesce((SELECT oid::text FROM pg_roles WHERE rolname = @basico), '')
+                   || '|' ||
+                   coalesce((SELECT oid::text FROM pg_roles WHERE rolname = @pii), '')
+            """, conexion);
+        oids.Parameters.AddWithValue("basico", valores.RolSoloLectura);
+        oids.Parameters.AddWithValue("pii", valores.RolSoloLecturaPii);
+
+        contenido.Append(valores.RolSoloLectura).Append('\n').Append(valores.RolSoloLecturaPii)
+            .Append('\n').Append((string?)await oids.ExecuteScalarAsync(ct));
 
         return "asistente_"
             + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(contenido.ToString())))[..16];
