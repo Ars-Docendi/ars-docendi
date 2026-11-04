@@ -126,7 +126,7 @@
 .adoc-notif-tab[aria-selected="true"] {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  color: #fff;
+  color: var(--color-accent-on);
 }
 .adoc-notif-tab:focus-visible {
   outline: 2px solid var(--color-border-focus);
@@ -232,7 +232,7 @@
   border: 1px solid var(--neutral-400);
   border-radius: 4px;
   background: var(--color-bg-raised);
-  color: #fff;
+  color: var(--color-accent-on);
 }
 .adoc-notif-item[aria-checked="true"] .adoc-notif-check {
   background: var(--color-accent);

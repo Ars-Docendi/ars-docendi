@@ -5,7 +5,7 @@ export const recorrerLaPantalla: ArticuloAyuda = {
   moduloSlug: "primeros-pasos",
   grupo: "Moverte por el sistema",
   titulo: "Cómo recorrer la pantalla",
-  resumen: "Menú lateral, notificaciones, migas de pan y cierre de sesión.",
+  resumen: "Menú lateral, notificaciones, migas de pan, modo oscuro y cierre de sesión.",
   introduccion:
     "Todas las pantallas del sistema comparten la misma estructura: un menú a la izquierda y el contenido de la pantalla a la derecha. En el celular el menú se abre desde el botón ☰ de la barra de arriba.",
   permisos: [],
@@ -23,6 +23,9 @@ export const recorrerLaPantalla: ArticuloAyuda = {
     "cambiar rol",
     "notificaciones",
     "campana",
+    "tema",
+    "modo oscuro",
+    "modo claro",
   ],
   pasos: [
     {
@@ -67,6 +70,12 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       etiquetaIndice: "Cambiar rol",
       cuerpo:
         "Si tenés más de un rol, hacé clic sobre tu nombre al pie del menú lateral y elegí Cambiar rol. Aparecen tus roles con su materia o carrera; al elegir otro, el menú y las pantallas pasan a ser las de ese rol y volvés al inicio. No hace falta cerrar sesión.",
+    },
+    {
+      titulo: "Elegí el tema claro u oscuro",
+      etiquetaIndice: "Tema",
+      cuerpo:
+        "Hacé clic sobre tu nombre al pie del menú lateral y, en Tema, elegí Claro, Oscuro o Sistema. Con Sistema, la pantalla sigue el modo de tu computadora o celular y cambia sola cuando el dispositivo cambia. La elección queda guardada en ese navegador.",
     },
     {
       titulo: "Cerrá la sesión",
