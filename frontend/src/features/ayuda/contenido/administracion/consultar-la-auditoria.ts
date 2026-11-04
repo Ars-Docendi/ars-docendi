@@ -94,7 +94,7 @@ export const consultarLaAuditoria: ArticuloAyuda = {
     {
       pregunta: "¿Cómo se ve en el celular?",
       respuesta:
-        "En pantallas de menos de 560 px los eventos se muestran como tarjetas con fecha, usuario, acción y módulo, y el detalle se abre desde la tarjeta. Los filtros de la consulta se reúnen en el botón «Filtros (n)», que abre una hoja con «Limpiar» y «Aplicar filtros»; la búsqueda por actor queda arriba y se aplica mientras escribís. La consulta sigue paginando como en escritorio.",
+        "En pantallas de menos de 560 px la búsqueda queda arriba y se aplica al hacer una pausa; debajo están «Filtros (n)» y el período (Hoy, 7 días, 30 días, Todo). «Filtros (n)» abre una hoja con Acción, Módulo, Desde y Hasta (dd/mm/aaaa), Tabla y Clave de fila, que se aplican con «Aplicar filtros»; los aplicados quedan como chips que podés quitar de a uno. Cada evento ocupa dos líneas y, al tocarlo, el detalle se abre justo debajo. La consulta sigue paginando de a 50.",
     },
   ],
   relacionados: [

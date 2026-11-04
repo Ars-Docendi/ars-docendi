@@ -20,7 +20,7 @@ Every list table SHALL render its scroll container as a focusable region with an
 
 ### Requirement: Card list below 560 px
 
-Below 560 px, Personas, Roles, Mis pedidos, Revisión, Períodos, Reserva de aulas (Mis solicitudes and Todas las solicitudes), Tareas, Proyectos, Registros de auditoría and Dashboard del sistema SHALL render their rows as a `<ul>` of cards instead of the table. The card list MUST be a separate render path, not table elements restyled with `display: block`. Each card SHALL show: the existing row link as its title, stretched over the whole card; a monospace meta line; a secondary line; and the module's real status badges. The card list MUST show the same rows, in the same order, as the table for the same filters and sort. Opening a card SHALL navigate to the same destination as opening the row (Períodos opens its edit modal).
+Below 560 px, Personas, Roles, Mis pedidos, Revisión, Períodos, Reserva de aulas (Mis solicitudes and Todas las solicitudes), Tareas and Proyectos SHALL render their rows as a `<ul>` of cards instead of the table (the Sistema section, which replaced Registros de auditoría and Dashboard del sistema, follows its own requirement below). The card list MUST be a separate render path, not table elements restyled with `display: block`. Each card SHALL show: the existing row link as its title, stretched over the whole card; a monospace meta line; a secondary line; and the module's real status badges. The card list MUST show the same rows, in the same order, as the table for the same filters and sort. Opening a card SHALL navigate to the same destination as opening the row (Períodos opens its edit modal).
 
 #### Scenario: Personas as cards on a phone
 
@@ -92,3 +92,38 @@ On detail pages below 560 px, primary actions SHALL be placed in a bar fixed to 
 - **GIVEN** a long pedido detail on a phone
 - **WHEN** the user scrolls to the middle of the page
 - **THEN** the primary actions remain visible at the bottom
+
+### Requirement: Sistema section on phones
+
+Below 560 px the Sistema section SHALL fit the viewport width with no horizontal page scroll. Its tabs (Estado, Asistente, Modelo, Calidad, Auditoría) SHALL use the swipeable tab strip, keeping each tab's status dot. Estado SHALL stack component cards one per row and show each recent change with its summary above its time and action. The Auditoría tab SHALL keep its day-grouped list with each event on two lines (summary and context, then time and action), SHALL open the event detail directly under the tapped row instead of beside the list, and SHALL return focus to that row when the detail closes. Its server-side pagination (50 per page) MUST be kept, with controls of at least 44 px.
+
+#### Scenario: Five tabs on a 390 px phone
+
+- **GIVEN** an administrator with every Sistema permission on a 390 px viewport
+- **WHEN** they open Sistema
+- **THEN** the page does not scroll sideways
+- **AND** the tab strip scrolls sideways and tapping «Auditoría» brings it fully into view
+
+#### Scenario: Audit detail under its row
+
+- **GIVEN** the Auditoría tab on a phone
+- **WHEN** the user taps an event
+- **THEN** its detail appears right below that event
+- **AND** closing the detail returns focus to the event
+
+### Requirement: Assistant administration on phones
+
+Below 560 px the assistant usage, model and quality tabs of Sistema SHALL fit the viewport width. The usage list (per user and per role) SHALL render one card per row, in the same order as the table, carrying the same access and daily-quota controls with the same handlers and announcements; it paginates like the other card lists. «Respuestas con problemas» SHALL render one card per answer and keep its server-side pagination without client pagination. Small comparison tables («Por modelo», the chart's table view) SHALL stay tables inside the accessible scroll region with a sticky first column. KPI grids SHALL stack to at most two columns, with the monthly cap and the model server at full width. Segmented toggles (period, metric, problem type) SHALL span the width with targets of at least 44 px.
+
+#### Scenario: Editing a daily quota from a card
+
+- **GIVEN** the usage tab on a phone with two users
+- **WHEN** the administrator edits the daily quota on a user's card and saves
+- **THEN** no table is rendered
+- **AND** the same save handler as the table row runs with that user's key
+
+#### Scenario: Problem answers keep server paging
+
+- **GIVEN** 40 answers with problems and a server page of 25
+- **WHEN** the quality tab renders on a phone
+- **THEN** 25 cards are shown with the server's «Anterior»/«Siguiente» controls and no card pagination

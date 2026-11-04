@@ -374,9 +374,12 @@ Todas las cadenas visibles para la persona usuaria, tal como las cita la spec de
 
 ## Teléfono
 
-- Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
-- **Auditoría**: cada evento es una tarjeta (fecha, usuario, acción, módulo y resumen) sin menú «⋯», porque la fila solo abre el detalle. Los filtros de la consulta se reúnen en «Filtros (n)» (hoja inferior con «Limpiar» y «Aplicar filtros», sin contador de resultados porque la consulta es del servidor; las fechas se escriben dd/mm/aaaa) y se aplican al confirmar la hoja; la búsqueda por actor, arriba, se aplica mientras se escribe. Auditoría no incorpora selector de orden. La paginación del servidor se mantiene.
-- **Dashboard**: cada comprobación es una tarjeta con estado, duración y última comprobación; **Actualizar** sigue arriba.
+- Por debajo de 560 px (teléfono) la sección usa el patrón compartido del change `experiencia-movil-tablas`. Desde 560 px no cambia nada; en escritorio sigue igual.
+- **Pestañas**: Estado, Asistente, Modelo, Calidad y Auditoría forman una tira que se desliza de costado, con sombra en el borde que tiene más pestañas; la pestaña elegida se desplaza a la vista y conserva su punto de estado. La sección nunca desborda la pantalla: una sola columna que se encoge.
+- **Estado**: el banner de resumen se apila; las tarjetas de componente van de a una por fila. En «Cambios recientes» cada fila muestra el resumen arriba y la hora y la acción debajo, con 44 px de alto mínimo.
+- **Auditoría**: arriba la búsqueda (se aplica al hacer una pausa, como en escritorio), el botón «Filtros (n)» y el período (Hoy / 7 días / 30 días / Todo) como control segmentado de 44 px. «Filtros (n)» abre la hoja compartida con Acción y Módulo (una opción cada uno: marcar otra reemplaza la anterior), Desde y Hasta en dd/mm/aaaa, Tabla y Clave de fila; «Aplicar filtros» (sin contador, la consulta es del servidor) y «Limpiar». Una fecha nueva cubre el día entero (Desde desde las 00:00, Hasta hasta las 23:59); si la fecha no cambia, se conserva la hora elegida en escritorio. Los filtros aplicados quedan como chips removibles. Sin selector de orden.
+- **Lista de Auditoría**: se mantiene agrupada por día; cada evento ocupa dos líneas (resumen y contexto, y debajo la hora y la acción), sin la fila de encabezados ni el chevrón. El detalle no se abre al costado: aparece debajo de la fila tocada, con «×» de 44 px, y al cerrarlo el foco vuelve a la fila. La paginación del servidor (50 por página) se mantiene, con botones de 44 px.
+- **Asistente, Modelo y Calidad**: ver la sección «Teléfono» del [design spec del asistente](./asistente-conversacional-design-spec.md#teléfono).
 
 ## Referencias
 

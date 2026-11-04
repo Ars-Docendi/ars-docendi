@@ -26,6 +26,14 @@ Breakpoints from `navegacion-consistente` D13 stay: 560 px (phone: paddings, sta
 
 **D10. Naming and scope.** Spanish identifiers (`ListaTarjetas`, `HojaFiltros`, `usePantallaTelefono`, `adoc-lista-tarjetas`, `adoc-hoja-filtros`). The shared component and hook are justified by ten consuming pages, not speculative. No new dependencies.
 
+**D11. Sistema and assistant after the develop merge.** The tabbed Sistema section replaced the Auditoría and Dashboard pages this change first adapted, so the phone work is re-applied to the new components instead of restoring the old ones:
+
+- Sistema uses the shared `Pestanas` (same `.adoc-tabs` markup, so desktop is unchanged) to get the phone strip; its grid gets one shrinkable track so no child widens the page.
+- The audit list was already a list of row buttons, not a table, so it is restyled on phones (two lines per event) instead of duplicated as `ListaTarjetas`. The detail panel, beside the list on desktop, renders under the selected row on phones. `FiltrosAuditoriaMovil` maps the URL filter state onto `HerramientasLista`: the period stays a visible segmented control (it is the primary filter and has a non-empty default, which a chip cannot express), action and module become single-choice groups (`unica` on `GrupoOpciones`, additive), dates are typed dd/mm/aaaa and a changed date covers the whole day while an unchanged one keeps its desktop hour. Search keeps the desktop 300 ms debounce.
+- The assistant chat is a modal that already went full-screen at 640 px. On phones the rail becomes a drawer rendered inside the modal (absolute, like the expanded table) rather than a portal `Drawer`, because the library modal closes on any Escape that reaches `window`: the drawer stops Escape itself. It stays mounted while closed (`hidden`) so the undo notice survives. The modal height follows `visualViewport` through `useAltoVisible` (CSS variables on the root while open), because `dvh` does not shrink for the on-screen keyboard on iOS Safari nor, by default, on Chrome for Android; the global viewport meta is left alone.
+- Result tables switch from `Table.Root` to `ContenedorTabla` at every width (sticky first column, region, shadow), like the other tables in D2.
+- Assistant administration: the usage rows hold inline editors, so the cards reuse the very same cell renderers through two additive `ListaTarjetas` options: a plain title when a row has no destination, and a `detalle` slot for inline controls. «Respuestas con problemas» is server-paginated, so it uses `paginar={false}`. The small numeric tables (per model, chart table view) stay tables in `ContenedorTabla`, per D2.
+
 ## Risks / Trade-offs
 
 - Two render paths per page can drift. Mitigation: both consume the same filtered rows and the same handlers; the flow tests exercise the card path.

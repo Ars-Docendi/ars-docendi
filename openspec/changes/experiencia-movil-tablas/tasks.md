@@ -46,3 +46,14 @@
 - [x] 6.1 `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`.
 - [x] 6.2 `pnpm format:check`, `node scripts/docs/check-links.mjs`, `pnpm exec openspec validate --all`.
 - [x] 6.3 Manual pass in the browser at 360, 390, 559, 560, 768 and 1280 px over the ten pages and the help: no horizontal page scroll, targets of at least 44 px for primary controls, desktop unchanged. Record any check the environment cannot complete.
+
+## 7. Sistema and assistant (after merging develop)
+
+- [x] 7.1 Sistema: switch its tabs to the shared `Pestanas`, give the section one shrinkable grid track, stack the Estado cards and recent changes, and remove the stale phone rules left from the old Auditoría page.
+- [x] 7.2 Auditoría tab: `FiltrosAuditoriaMovil` (search with debounce, «Filtros (n)» sheet with single-choice Acción/Módulo, dd/mm/aaaa dates, Tabla, Clave; period as a segmented control), two-line event rows and the detail under its row. Add single-choice groups to `HojaFiltros`. Re-create the phone filter tests against the new components.
+- [x] 7.3 Assistant chat: full-screen modal sized by `useAltoVisible`, rail as an in-modal drawer opened from the header (focus in and back, Escape closes only the drawer, conversation `inert` behind it), single-column examples, 44 px targets, safe-area insets, launcher touch target. Add the drawer flow tests.
+- [x] 7.4 Result tables in `ContenedorTabla`; expanded table header wraps on phones; mention options wrap their details.
+- [x] 7.5 Gestión de IA: usage cards sharing the table's cell editors (`ListaTarjetas` plain title and `detalle` slot), problem answers as unpaginated cards, «Por modelo» and the chart table in `ContenedorTabla`, stacked KPIs and full-width segmented toggles. Add the usage card test.
+- [x] 7.6 Support history: one person per row in a bounded scroll list and the reason form stacked. Push preferences checked at 390 px (no change needed).
+- [x] 7.7 Update the design specs (`administracion-sistema`, `asistente-conversacional`) and the help articles `administracion/consultar-la-auditoria` and `administracion/leer-el-dashboard-del-sistema`.
+- [x] 7.8 Verify at 390 × 844 in the running app (no horizontal page scroll on every touched screen) and run the checks of section 6.

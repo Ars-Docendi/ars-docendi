@@ -21,6 +21,7 @@ The earlier `portal-docente-responsive` and `navegacion-consistente` changes mad
 - **Pagination (E)**: card lists paginate client-side, 20 per page, with 44 px targets. This is a deliberate exception to "Grillas sin paginación", limited to phones.
 - **Detail pages (F)**: primary actions in a sticky bottom bar with safe-area inset.
 - **Centro de ayuda (G)**: no sidebar on phones, search on top of the content, an "En esta página" collapsible index on articles, no horizontal overflow.
+- **Sistema and assistant (I)**: after develop replaced Auditoría and Dashboard with the tabbed Sistema section and added the assistant chatbot and its administration tabs, those screens get the same treatment: swipeable Sistema tabs, audit filters through the shared sheet with the detail under its row, a full-screen chat that keeps the input above the keyboard, the conversation rail as a drawer, result tables in the scroll region, and usage and quality lists as cards.
 - **Global (H)**: `--ui-zoom: 1` below 768 px, drawer highlight margin, remaining `100vh` to `dvh`, 16 px inputs on phones.
 
 No data, filter state or route changes: the existing URL state hooks drive both renderings.
@@ -33,6 +34,7 @@ No data, filter state or route changes: the existing URL state hooks drive both 
 - `filtros-movil`: filter sheet, chips, native sort select and search field on phones.
 - `escala-y-viewport-movil`: UI zoom, viewport units, input font size and drawer highlight.
 - `ayuda-movil`: Centro de ayuda layout and navigation on phones.
+- `asistente-movil`: the assistant modal, conversation rail and result tables on phones.
 
 ### Modified Capabilities
 
@@ -40,7 +42,7 @@ No data, filter state or route changes: the existing URL state hooks drive both 
 
 ## Impact
 
-- Frontend only. New shared pieces under `shared/ui` (`ListaTarjetas`, `HojaFiltros`, `usePantallaTelefono`), a small CSS layer in `index.css`/`shared/ui`, and per-page adapters in `features/{personas,roles,designaciones,aulas,tareas,sistema}`. Help: `ayuda.css`, `LayoutAyuda`, `BarraLateralAyuda`, `BuscadorAyuda`, article page.
+- Frontend only. New shared pieces under `shared/ui` (`ListaTarjetas`, `HojaFiltros`, `usePantallaTelefono`), a small CSS layer in `index.css`/`shared/ui`, and per-page adapters in `features/{personas,roles,designaciones,aulas,tareas,sistema,asistente}`. Help: `ayuda.css`, `LayoutAyuda`, `BarraLateralAyuda`, `BuscadorAyuda`, article page.
 - Docs: design specs under `docs/product/designs/` for the affected features, and the Centro de ayuda articles that describe filters, tabs and tables (rule 9).
 - No backend, API, schema or dependency changes. Dependency graph unaffected.
 - Rollback: revert the commit; no persisted state is introduced.

@@ -82,7 +82,7 @@ export const leerElDashboardDelSistema: ArticuloAyuda = {
     {
       pregunta: "¿Cómo se ve en el celular?",
       respuesta:
-        "En pantallas de menos de 560 px las comprobaciones se muestran como tarjetas, una por componente, con su estado, duración y última comprobación. El botón Actualizar sigue disponible arriba.",
+        "En pantallas de menos de 560 px las pestañas de Sistema se deslizan de costado y cada componente es una tarjeta a todo el ancho, con su estado y tiempo de respuesta. En «Cambios recientes» cada cambio muestra el resumen arriba y la hora y la acción debajo. El botón Actualizar sigue disponible arriba.",
     },
   ],
   relacionados: ["administracion/consultar-la-auditoria"],
