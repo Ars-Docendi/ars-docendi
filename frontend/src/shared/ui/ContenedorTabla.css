@@ -53,3 +53,58 @@
 .adoc-contenedor-tabla-marco[data-desplazada] table.adoc-table > tbody > tr > :first-child {
   box-shadow: 6px 0 6px -6px rgb(0 0 0 / 20%);
 }
+
+/* Column resize handles, phones only (see ColumnasAjustables.tsx). Every header cell but the
+   pinned first one (already sticky, so already a containing block) anchors its handle, without a
+   stacking context of its own: a positioned cell with a z-index (a caller's `position: sticky;
+   top: 0` header) would cover the half of the previous cell's handle that straddles the border. */
+.adoc-contenedor-tabla table.adoc-tabla-ajustable > thead > tr > th:not(:first-child) {
+  position: relative;
+  z-index: auto;
+}
+/* Once a width is set the columns follow it exactly and long values wrap instead of widening. */
+.adoc-contenedor-tabla table.adoc-table.adoc-tabla-ajustable--con-anchos {
+  table-layout: fixed;
+  min-width: 0;
+}
+.adoc-contenedor-tabla table.adoc-tabla-ajustable--con-anchos :is(th, td) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* Straddles the column border; under the pinned first header cell (z-index 3) when scrolled. */
+.adoc-ajustar-columna {
+  position: absolute;
+  top: 0;
+  right: -14px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: col-resize;
+  touch-action: none;
+}
+.adoc-tabla-ajustable th:last-child > .adoc-ajustar-columna {
+  right: 0;
+  width: 20px;
+  justify-content: flex-end;
+}
+.adoc-ajustar-columna::after {
+  content: "";
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--color-border-strong);
+}
+.adoc-ajustar-columna:hover::after,
+.adoc-ajustar-columna:focus-visible::after {
+  background: var(--color-accent);
+}
+.adoc-ajustar-columna:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
