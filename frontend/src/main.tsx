@@ -6,7 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@ars-docendi/ui/theme.css";
 import "@ars-docendi/ui/components.css";
 import "./index.css";
+import "./tema-oscuro.css";
 import { router } from "./app/router";
+import { iniciarTema } from "./shared/tema/tema";
+
+iniciarTema();
 
 const queryClient = new QueryClient();
 

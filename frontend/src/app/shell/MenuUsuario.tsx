@@ -11,6 +11,13 @@ import { chevronIcon } from "./icons";
 import { Modal } from "../../shared/ui/Modal";
 import { DialogoSalida } from "../../shared/navegacion/GestorDeNavegacion";
 import { hayCambiosPendientes, liberarGuardias } from "../../shared/navegacion/guardias";
+import { usePreferenciaTema, type PreferenciaTema } from "../../shared/tema/tema";
+
+const OPCIONES_TEMA: { valor: PreferenciaTema; etiqueta: string }[] = [
+  { valor: "claro", etiqueta: "Claro" },
+  { valor: "oscuro", etiqueta: "Oscuro" },
+  { valor: "sistema", etiqueta: "Sistema" },
+];
 
 /**
  * Nombre corto para la tarjeta: primer nombre y primer apellido a partir del
@@ -30,13 +37,14 @@ interface MenuUsuarioProps {
 /**
  * Tarjeta de usuario al pie de la barra lateral (y del panel móvil), con el rol y
  * el ámbito con que opera. Al tocarla abre hacia arriba el menú con "Cambiar rol"
- * (sólo con más de una asignación) y "Cerrar sesión".
+ * (sólo con más de una asignación), el tema y "Cerrar sesión".
  */
 export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
   const navigate = useNavigate();
   const cerrarSesion = useCerrarSesion();
   const [abierto, setAbierto] = useState(false);
   const [cambiandoRol, setCambiandoRol] = useState(false);
+  const [tema, elegirTema] = usePreferenciaTema();
   const ref = useRef<HTMLDivElement>(null);
   const ambito = user.asignacion ? etiquetaAmbito(user.asignacion) : "";
   const rolYAmbito = [user.role, ambito].filter(Boolean).join(", ");
@@ -84,6 +92,24 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
               Cambiar rol
             </Button>
           )}
+          <div className="adoc-usuario-tema" role="group" aria-label="Tema">
+            <span className="titulo" aria-hidden>
+              Tema
+            </span>
+            <div className="opciones">
+              {OPCIONES_TEMA.map(({ valor, etiqueta }) => (
+                <button
+                  key={valor}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={tema === valor}
+                  onClick={() => elegirTema(valor)}
+                >
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
+          </div>
           <Button variant="ghost" size="sm" role="menuitem" onClick={() => void salir()}>
             Cerrar sesión
           </Button>

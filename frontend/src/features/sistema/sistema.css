@@ -49,6 +49,13 @@
   min-width: 0;
 }
 
+/* En oscuro, el mismo cuarto tono entre el 100 y el 500 de cada estado. */
+[data-theme="dark"] .sistema-seccion {
+  --sistema-borde-disponible: oklch(42% 0.08 150);
+  --sistema-borde-no-disponible: oklch(42% 0.11 25);
+  --sistema-borde-mantenimiento: oklch(45% 0.09 75);
+}
+
 /* Compatibilidad con el nombre de clase histórico del `<main>` (ver git blame). */
 .administracion-sistema {
   display: grid;

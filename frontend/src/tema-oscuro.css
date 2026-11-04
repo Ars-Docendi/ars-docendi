@@ -1,0 +1,160 @@
+/* ============================================================
+   Tema oscuro de Ars Docendi.
+   ------------------------------------------------------------
+   `@ars-docendi/ui` trae un `[data-theme="dark"]` que invierte la escala
+   neutral tal cual (100 ↔ 900). Eso rompe los usos donde la app y la
+   librería pintan FONDOS con `--neutral-100..300` (hovers, chips, pestañas):
+   en oscuro quedaban casi blancos con texto claro encima. Y la librería fija
+   `background: #fff` en ~25 componentes, que en oscuro siguen blancos.
+
+   Esta paleta mantiene el ROL de cada paso en vez de su luminosidad:
+   - 100–300: fondos de interacción, apenas más claros que la superficie.
+   - 400: bordes y pistas. 500: deshabilitado. 600–800: texto, de terciario a
+     primario. 900: el velo de modales y paneles, que tiene que seguir oscuro.
+   Mismo tono cálido (75°) y la misma croma baja que el tema claro; el acento
+   verde institucional (165°) sube de luminosidad para conservar contraste
+   sobre fondos oscuros. Valores en oklch, como `theme.css`.
+
+   Registrado como TD-033: corresponde subirlo a ui-lib.
+   ============================================================ */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* --- NEUTRALS (cálidos) ------------------------------ */
+  --neutral-100: oklch(26% 0.006 75); /* hover sobre superficie elevada */
+  --neutral-200: oklch(29% 0.006 75); /* hover, chips, badge cancelado */
+  --neutral-300: oklch(34% 0.007 75); /* borde sutil, presionado */
+  --neutral-400: oklch(44% 0.007 75); /* borde por defecto, pista del interruptor */
+  --neutral-500: oklch(56% 0.007 75); /* texto deshabilitado, punto neutral */
+  --neutral-600: oklch(68% 0.007 75); /* texto terciario */
+  --neutral-700: oklch(80% 0.006 75); /* texto secundario */
+  --neutral-800: oklch(93% 0.005 75); /* texto primario, chip invertido */
+  --neutral-900: oklch(8% 0.004 75); /* velo de overlays (no se invierte) */
+
+  /* --- ACENTO (verde institucional) -------------------- */
+  --accent-100: oklch(27% 0.05 165);
+  --accent-200: oklch(35% 0.075 165);
+  --accent-300: oklch(46% 0.095 165);
+  --accent-400: oklch(56% 0.11 165);
+  --accent-500: oklch(68% 0.12 165);
+  --accent-600: oklch(75% 0.105 165);
+  --accent-700: oklch(83% 0.085 165);
+  --accent-800: oklch(91% 0.055 165);
+
+  /* --- ESTADOS ------------------------------------------ */
+  --success-100: oklch(27% 0.05 150);
+  --success-500: oklch(62% 0.13 150);
+  --success-700: oklch(83% 0.09 150);
+
+  --warning-100: oklch(29% 0.06 75);
+  --warning-500: oklch(72% 0.13 75);
+  --warning-700: oklch(87% 0.1 80);
+
+  --danger-100: oklch(28% 0.07 25);
+  --danger-500: oklch(60% 0.17 25); /* texto blanco encima (píldoras de aviso) */
+  --danger-700: oklch(83% 0.11 25);
+
+  --info-100: oklch(27% 0.05 245);
+  --info-500: oklch(66% 0.12 245);
+  --info-700: oklch(84% 0.09 245);
+
+  /* --- SUPERFICIES: canvas < superficie < elevada ------- */
+  --color-bg-canvas: oklch(15% 0.005 75);
+  --color-bg-surface: oklch(19% 0.005 75);
+  --color-bg-raised: oklch(22% 0.006 75);
+  --color-bg-sunken: oklch(13% 0.005 75);
+  --color-bg-inverse: var(--neutral-800);
+
+  /* --- TEXTO --------------------------------------------- */
+  --color-text-primary: var(--neutral-800);
+  --color-text-secondary: var(--neutral-700);
+  --color-text-tertiary: var(--neutral-600);
+  --color-text-disabled: var(--neutral-500);
+  --color-text-on-accent: oklch(16% 0.02 165);
+  --color-text-on-inverse: var(--color-bg-surface);
+  --color-text-link: var(--accent-600);
+  --color-text-danger: var(--danger-700);
+
+  /* --- BORDES -------------------------------------------- */
+  --color-border-subtle: var(--neutral-300);
+  --color-border-default: var(--neutral-400);
+  --color-border-strong: var(--neutral-600);
+  --color-border-ink: var(--neutral-800);
+  --color-border-focus: var(--accent-500);
+  --color-border-danger: var(--danger-500);
+
+  /* --- ACENTO SEMÁNTICO ----------------------------------- */
+  --color-accent: var(--accent-500);
+  --color-accent-hover: var(--accent-600);
+  --color-accent-pressed: var(--accent-700);
+  --color-accent-subtle: var(--accent-100);
+  --color-accent-on: var(--color-text-on-accent);
+
+  /* --- ESTADOS SEMÁNTICOS --------------------------------- */
+  --color-status-neutral-bg: var(--neutral-200);
+  --color-status-neutral-fg: var(--neutral-700);
+}
+
+/* Las reglas de abajo envuelven el selector de tema en `:where()`: quedan con
+   la MISMA especificidad que la regla de la librería que reemplazan y ganan
+   sólo por orden, así los estados (:hover, .checked, .current, .done) de la
+   librería siguen ganándoles. */
+
+/* ---- Fondos blancos fijos de @ars-docendi/ui → superficie elevada ---- */
+:where(:root[data-theme="dark"]) .adoc-btn.v-secondary,
+:where(:root[data-theme="dark"]) .adoc-btn.v-destructive,
+:where(:root[data-theme="dark"]) .adoc-btn.v-warning,
+:where(:root[data-theme="dark"]) .adoc-input,
+:where(:root[data-theme="dark"]) .adoc-textarea,
+:where(:root[data-theme="dark"]) .adoc-select,
+:where(:root[data-theme="dark"]) .adoc-file-row,
+:where(:root[data-theme="dark"]) .adoc-check .box,
+:where(:root[data-theme="dark"]) .adoc-radio.checked .box,
+:where(:root[data-theme="dark"]) .adoc-toast,
+:where(:root[data-theme="dark"]) .adoc-modal,
+:where(:root[data-theme="dark"]) .adoc-drawer,
+:where(:root[data-theme="dark"]) .adoc-pagination .pg,
+:where(:root[data-theme="dark"]) .adoc-table-wrap,
+:where(:root[data-theme="dark"]) .adoc-dlist,
+:where(:root[data-theme="dark"]) .adoc-timeline,
+:where(:root[data-theme="dark"]) .adoc-timeline .marker,
+:where(:root[data-theme="dark"]) .adoc-timeline li.current .marker,
+:where(:root[data-theme="dark"]) .adoc-audit,
+:where(:root[data-theme="dark"]) .adoc-role-badge,
+:where(:root[data-theme="dark"]) .adoc-calendar,
+:where(:root[data-theme="dark"]) .adoc-calendar header .nav,
+:where(:root[data-theme="dark"]) .adoc-role-menu {
+  background: var(--color-bg-raised);
+}
+
+/* ---- Texto blanco fijo sobre rellenos que en oscuro son claros ---- */
+:where(:root[data-theme="dark"]) .adoc-btn.v-destructive:hover,
+:where(:root[data-theme="dark"]) .adoc-btn.v-warning:hover,
+:where(:root[data-theme="dark"]) .adoc-timeline li.done .marker,
+:where(:root[data-theme="dark"]) .adoc-timeline li.returned .marker,
+:where(:root[data-theme="dark"]) .adoc-timeline li.rejected .marker,
+:where(:root[data-theme="dark"]) .adoc-traffic .dot::after,
+:where(:root[data-theme="dark"]) .adoc-calendar .day.selected {
+  color: var(--color-text-on-accent);
+}
+:where(:root[data-theme="dark"]) .adoc-pagination .pg.current {
+  color: var(--color-text-on-inverse);
+}
+:where(:root[data-theme="dark"]) .adoc-check.checked .box::after {
+  border-color: var(--color-text-on-accent);
+}
+:where(:root[data-theme="dark"]) .adoc-check.indeterminate .box::after {
+  background: var(--color-text-on-accent);
+}
+:where(:root[data-theme="dark"]) .adoc-btn.v-primary:disabled {
+  color: var(--color-text-disabled);
+  background: var(--neutral-300);
+  border-color: var(--neutral-300);
+}
+
+/* Las sombras negras al 8–16 % no se ven sobre fondos oscuros: los popovers
+   se separan del fondo con el borde que ya tienen; el velo se refuerza. */
+:where(:root[data-theme="dark"]) :is(.adoc-modal-stage, .adoc-drawer-stage)::before {
+  opacity: 0.6;
+}

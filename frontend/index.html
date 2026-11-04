@@ -6,6 +6,15 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#009674" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Tema antes del primer pintado, para no destellar en claro. La lógica vive en src/shared/tema/tema.ts.
+      try {
+        var t = localStorage.getItem("ars-docendi:tema");
+        if (t === "oscuro" || (t !== "claro" && matchMedia("(prefers-color-scheme: dark)").matches))
+          document.documentElement.dataset.theme = "dark";
+      } catch (e) {}
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Ars Docendi" />

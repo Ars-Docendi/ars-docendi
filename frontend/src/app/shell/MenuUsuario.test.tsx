@@ -141,3 +141,26 @@ describe("rol activo", () => {
     expect(screen.getByRole("dialog")).toHaveTextContent("Programación I");
   });
 });
+
+describe("tema", () => {
+  it("elegir un tema lo aplica al documento y lo recuerda en este navegador", async () => {
+    render(
+      <MemoryRouter>
+        <MenuUsuario user={usuario([ADMIN])} />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Oscuro" }));
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("ars-docendi:tema")).toBe("oscuro");
+    expect(screen.getByRole("menuitemradio", { name: "Oscuro" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Claro" }));
+    expect(document.documentElement.dataset.theme).toBe("light");
+    localStorage.clear();
+  });
+});
