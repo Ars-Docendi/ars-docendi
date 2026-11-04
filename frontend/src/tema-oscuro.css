@@ -13,7 +13,8 @@
      primario. 900: el velo de modales y paneles, que tiene que seguir oscuro.
    Mismo tono cálido (75°) y la misma croma baja que el tema claro; el acento
    verde institucional (165°) sube de luminosidad para conservar contraste
-   sobre fondos oscuros. Valores en oklch, como `theme.css`.
+   sobre fondos oscuros, con menos croma para no vibrar. El contraste es
+   deliberadamente moderado: fondo gris medio y texto primario al 87 %. Valores en oklch, como `theme.css`.
 
    Registrado como TD-033: corresponde subirlo a ui-lib.
    ============================================================ */
@@ -26,48 +27,50 @@
   color-scheme: dark;
 
   /* --- NEUTRALS (cálidos) ------------------------------ */
-  --neutral-100: oklch(26% 0.006 75); /* hover sobre superficie elevada */
-  --neutral-200: oklch(29% 0.006 75); /* hover, chips, badge cancelado */
-  --neutral-300: oklch(34% 0.007 75); /* borde sutil, presionado */
+  --neutral-100: oklch(29% 0.006 75); /* hover sobre superficie elevada */
+  --neutral-200: oklch(32% 0.006 75); /* hover, chips, badge cancelado */
+  --neutral-300: oklch(36% 0.007 75); /* borde sutil, presionado */
   --neutral-400: oklch(44% 0.007 75); /* borde por defecto, pista del interruptor */
   --neutral-500: oklch(56% 0.007 75); /* texto deshabilitado, punto neutral */
-  --neutral-600: oklch(68% 0.007 75); /* texto terciario */
-  --neutral-700: oklch(80% 0.006 75); /* texto secundario */
-  --neutral-800: oklch(93% 0.005 75); /* texto primario, chip invertido */
+  --neutral-600: oklch(66% 0.007 75); /* texto terciario */
+  --neutral-700: oklch(76% 0.006 75); /* texto secundario */
+  --neutral-800: oklch(87% 0.006 75); /* texto primario, chip invertido */
   --neutral-900: oklch(8% 0.004 75); /* velo de overlays (no se invierte) */
 
   /* --- ACENTO (verde institucional) -------------------- */
-  --accent-100: oklch(27% 0.05 165);
-  --accent-200: oklch(35% 0.075 165);
-  --accent-300: oklch(46% 0.095 165);
-  --accent-400: oklch(56% 0.11 165);
-  --accent-500: oklch(68% 0.12 165);
-  --accent-600: oklch(75% 0.105 165);
-  --accent-700: oklch(83% 0.085 165);
-  --accent-800: oklch(91% 0.055 165);
+  --accent-100: oklch(30% 0.04 165);
+  --accent-200: oklch(37% 0.06 165);
+  --accent-300: oklch(46% 0.08 165);
+  --accent-400: oklch(56% 0.095 165);
+  --accent-500: oklch(66% 0.105 165);
+  --accent-600: oklch(72% 0.09 165);
+  --accent-700: oklch(80% 0.07 165);
+  --accent-800: oklch(88% 0.045 165);
 
-  /* --- ESTADOS ------------------------------------------ */
-  --success-100: oklch(27% 0.05 150);
-  --success-500: oklch(62% 0.13 150);
-  --success-700: oklch(83% 0.09 150);
+  /* --- ESTADOS: fondos apagados, texto sin saturar ------- */
+  --success-100: oklch(30% 0.035 150);
+  --success-500: oklch(60% 0.11 150);
+  --success-700: oklch(80% 0.075 150);
 
-  --warning-100: oklch(29% 0.06 75);
-  --warning-500: oklch(72% 0.13 75);
-  --warning-700: oklch(87% 0.1 80);
+  --warning-100: oklch(31% 0.035 75);
+  --warning-500: oklch(70% 0.11 75);
+  --warning-700: oklch(83% 0.085 80);
 
-  --danger-100: oklch(28% 0.07 25);
-  --danger-500: oklch(60% 0.17 25); /* texto blanco encima (píldoras de aviso) */
-  --danger-700: oklch(83% 0.11 25);
+  --danger-100: oklch(30% 0.045 25);
+  --danger-500: oklch(58% 0.15 25); /* texto blanco encima (píldoras de aviso) */
+  --danger-700: oklch(80% 0.09 25);
 
-  --info-100: oklch(27% 0.05 245);
-  --info-500: oklch(66% 0.12 245);
-  --info-700: oklch(84% 0.09 245);
+  --info-100: oklch(30% 0.035 245);
+  --info-500: oklch(64% 0.1 245);
+  --info-700: oklch(80% 0.075 245);
 
-  /* --- SUPERFICIES: canvas < superficie < elevada ------- */
-  --color-bg-canvas: oklch(15% 0.005 75);
-  --color-bg-surface: oklch(19% 0.005 75);
-  --color-bg-raised: oklch(22% 0.006 75);
-  --color-bg-sunken: oklch(13% 0.005 75);
+  /* --- SUPERFICIES: canvas < superficie < elevada -------
+     Gris cálido medio, no negro: el texto primario queda ~10:1 sobre la
+     superficie elevada, en vez de ~17:1, que en pantallas grandes cansa. */
+  --color-bg-canvas: oklch(20% 0.005 75);
+  --color-bg-surface: oklch(23% 0.005 75);
+  --color-bg-raised: oklch(25.5% 0.006 75);
+  --color-bg-sunken: oklch(18% 0.005 75);
   --color-bg-inverse: var(--neutral-800);
 
   /* --- TEXTO --------------------------------------------- */
@@ -83,7 +86,7 @@
   /* --- BORDES -------------------------------------------- */
   --color-border-subtle: var(--neutral-300);
   --color-border-default: var(--neutral-400);
-  --color-border-strong: var(--neutral-600);
+  --color-border-strong: oklch(54% 0.007 75);
   --color-border-ink: var(--neutral-800);
   --color-border-focus: var(--accent-500);
   --color-border-danger: var(--danger-500);
