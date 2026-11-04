@@ -25,6 +25,12 @@ interface RailDeConversacionesProps {
   historial: HistorialAsistente;
   colapsado: boolean;
   onAlternar: () => void;
+  /**
+   * Phones: the rail is a drawer over the conversation instead of a column. It stays mounted
+   * while closed so the undo notice keeps showing; opening a conversation or starting a new one
+   * closes it.
+   */
+  cajon?: { abierto: boolean; onCerrar: () => void };
 }
 
 /**
@@ -36,6 +42,7 @@ export function RailDeConversaciones({
   historial,
   colapsado,
   onAlternar,
+  cajon,
 }: RailDeConversacionesProps) {
   const { conversaciones, busqueda, setBusqueda, conversacionActivaId, aviso } = historial;
   const lista = conversaciones.data ?? [];
@@ -62,17 +69,57 @@ export function RailDeConversaciones({
   const listaRef = useRef<HTMLDivElement>(null);
   const enfocarLista = () => listaRef.current?.focus();
 
+  // The drawer takes the focus when it opens, on its close button.
+  const cajonAbierto = cajon?.abierto ?? false;
+  useEffect(() => {
+    if (cajonAbierto) toggleRef.current?.focus();
+  }, [cajonAbierto]);
+
+  const alElegir = cajon?.onCerrar;
+
   return (
     // FRAGMENTO Y NO UN SOLO `<nav>`: el aviso de deshacer tiene que seguir visible con el rail
     // colapsado, superpuesto al hilo (design spec § v3), y el `<nav>` recorta su contenido con
     // `overflow: hidden` durante la transición de ancho.
     <>
       <nav
-        className={colapsado ? "adoc-asistente-rail colapsado" : "adoc-asistente-rail"}
+        id="asistente-conversaciones"
+        className={
+          cajon
+            ? "adoc-asistente-rail cajon"
+            : colapsado
+              ? "adoc-asistente-rail colapsado"
+              : "adoc-asistente-rail"
+        }
         aria-label="Conversaciones"
+        hidden={cajon ? !cajon.abierto : undefined}
+        onKeyDown={
+          cajon
+            ? (evento) => {
+                // Escape closes only the drawer: the modal also listens for it on `window`.
+                if (evento.key !== "Escape" || evento.defaultPrevented) return;
+                evento.stopPropagation();
+                cajon.onCerrar();
+              }
+            : undefined
+        }
       >
         <div className="adoc-asistente-rail-encabezado">
-          {colapsado ? (
+          {cajon ? (
+            <>
+              <NuevaConversacion asistente={asistente} onIniciada={cajon.onCerrar} />
+
+              <button
+                ref={toggleRef}
+                type="button"
+                className="adoc-asistente-rail-toggle"
+                aria-label="Cerrar conversaciones"
+                onClick={cajon.onCerrar}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </>
+          ) : colapsado ? (
             <>
               <button
                 ref={toggleRef}
@@ -156,6 +203,7 @@ export function RailDeConversaciones({
                           activa={conversacion.id === conversacionActivaId}
                           historial={historial}
                           enfocarLista={enfocarLista}
+                          alElegir={alElegir}
                           mostrarMarcaArchivada
                         />
                       ))}
@@ -172,6 +220,7 @@ export function RailDeConversaciones({
                             activa={conversacion.id === conversacionActivaId}
                             historial={historial}
                             enfocarLista={enfocarLista}
+                            alElegir={alElegir}
                           />
                         ))}
                       </ul>
@@ -184,6 +233,7 @@ export function RailDeConversaciones({
                   conversacionActivaId={conversacionActivaId}
                   historial={historial}
                   enfocarLista={enfocarLista}
+                  alElegir={alElegir}
                 />
               )}
 
@@ -205,11 +255,13 @@ function SeccionDeArchivadas({
   conversacionActivaId,
   historial,
   enfocarLista,
+  alElegir,
 }: {
   archivadas: ConversacionResumen[];
   conversacionActivaId: string | null;
   historial: HistorialAsistente;
   enfocarLista: () => void;
+  alElegir?: () => void;
 }) {
   // COLAPSADA POR DEFAULT, al revés que los grupos colapsables del nav (design spec § v3): archivar
   // es justamente sacar algo del primer plano, así que la sección arranca cerrada.
@@ -239,6 +291,7 @@ function SeccionDeArchivadas({
               activa={conversacion.id === conversacionActivaId}
               historial={historial}
               enfocarLista={enfocarLista}
+              alElegir={alElegir}
             />
           ))}
         </ul>
@@ -252,6 +305,7 @@ function ItemDeConversacion({
   activa,
   historial,
   enfocarLista,
+  alElegir,
   mostrarMarcaArchivada = false,
 }: {
   conversacion: ConversacionResumen;
@@ -259,6 +313,8 @@ function ItemDeConversacion({
   historial: HistorialAsistente;
   /** A dónde va el foco cuando renombrar, archivar o eliminar se llevan el control que lo tenía. */
   enfocarLista: () => void;
+  /** Runs after opening the conversation (closes the phone drawer). */
+  alElegir?: () => void;
   /**
    * La marca «Archivada» junto al título. SÓLO en los resultados de búsqueda —donde activas y
    * archivadas se mezclan en una sola lista y hace falta distinguirlas—: dentro de su propia
@@ -365,7 +421,10 @@ function ItemDeConversacion({
         className="adoc-asistente-rail-abrir"
         title={conversacion.titulo}
         aria-current={activa || undefined}
-        onClick={() => void historial.abrirConversacion(conversacion.id)}
+        onClick={() => {
+          void historial.abrirConversacion(conversacion.id);
+          alElegir?.();
+        }}
         onDoubleClick={conversacion.archivada ? undefined : empezarRenombre}
       >
         {conversacion.titulo}

@@ -11,3 +11,10 @@ export const MODULOS_AUDITORIA = [
   { valor: "portal", etiqueta: "Portal" },
   { valor: "asistente", etiqueta: "Asistente" },
 ] as const;
+
+/** The «Acción» options (shared by the desktop chips and the phone filter sheet). */
+export const ACCIONES_AUDITORIA = [
+  { valor: "INSERT", etiqueta: "Altas" },
+  { valor: "UPDATE", etiqueta: "Cambios" },
+  { valor: "DELETE", etiqueta: "Eliminaciones" },
+] as const;

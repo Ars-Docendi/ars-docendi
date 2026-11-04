@@ -12,17 +12,17 @@ internal static class AvisosTarea
     private const int MaximoComentario = 90;
 
     public static AvisoNuevo Asignada(Tarea tarea) => Nuevo(
-        TiposEventoNotificacion.TareaAsignada, tarea, "Tarea asignada",
+        TiposEventoNotificacion.TareaAsignada, tarea, $"Tarea N° {tarea.Numero} asignada",
         $"Se te asignó la tarea N° {tarea.Numero}: {tarea.Titulo}.",
         new() { ["numero"] = tarea.Numero, ["titulo"] = tarea.Titulo });
 
     public static AvisoNuevo EstadoCambiado(Tarea tarea, string actor, string de, string a) => Nuevo(
-        TiposEventoNotificacion.TareaEstadoCambiado, tarea, "Cambio de estado en la tarea",
+        TiposEventoNotificacion.TareaEstadoCambiado, tarea, $"Tarea N° {tarea.Numero}: cambio de estado",
         $"{actor} cambió la tarea N° {tarea.Numero} ({tarea.Titulo}) de {de} a {a}.",
         new() { ["numero"] = tarea.Numero, ["actor"] = actor, ["de"] = de, ["a"] = a });
 
     public static AvisoNuevo Comentada(Tarea tarea, string actor, string texto) => Nuevo(
-        TiposEventoNotificacion.TareaComentada, tarea, "Nuevo comentario en la tarea",
+        TiposEventoNotificacion.TareaComentada, tarea, $"Tarea N° {tarea.Numero}: nuevo comentario",
         $"{actor} comentó en la tarea N° {tarea.Numero} ({tarea.Titulo}): “{Recortar(texto)}”",
         new() { ["numero"] = tarea.Numero, ["actor"] = actor });
 

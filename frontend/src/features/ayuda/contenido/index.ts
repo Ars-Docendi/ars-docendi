@@ -3,6 +3,7 @@ import { ingresarAlSistema } from "./primeros-pasos/ingresar-al-sistema";
 import { recorrerLaPantalla } from "./primeros-pasos/recorrer-la-pantalla";
 import { permisosYPantallasVisibles } from "./primeros-pasos/permisos-y-pantallas-visibles";
 import { usarElCentroDeAyuda } from "./primeros-pasos/usar-el-centro-de-ayuda";
+import { activarLasNotificacionesEnElCelular } from "./primeros-pasos/activar-las-notificaciones-en-el-celular";
 import { entenderTuPerfil } from "./mi-portal/entender-tu-perfil";
 import { completarDatosDeContacto } from "./mi-portal/completar-datos-de-contacto";
 import { cargarEducacionYCertificaciones } from "./mi-portal/cargar-educacion-y-certificaciones";
@@ -88,6 +89,7 @@ export const ARTICULOS: readonly ArticuloAyuda[] = [
   recorrerLaPantalla,
   permisosYPantallasVisibles,
   usarElCentroDeAyuda,
+  activarLasNotificacionesEnElCelular,
   // Mi portal
   entenderTuPerfil,
   completarDatosDeContacto,

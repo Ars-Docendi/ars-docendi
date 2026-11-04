@@ -1,0 +1,93 @@
+/* Phone toolbar of a list (see HerramientasLista.tsx). */
+.adoc-herramientas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.adoc-herramientas-busqueda {
+  position: relative;
+}
+.adoc-herramientas-busqueda svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+.adoc-herramientas-busqueda .adoc-input {
+  width: 100%;
+  height: 44px;
+  padding-left: 38px;
+}
+.adoc-herramientas-fila {
+  display: flex;
+  gap: var(--space-2);
+}
+.adoc-herramientas-fila > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.adoc-herramientas-fila .adoc-btn {
+  height: 44px;
+  justify-content: center;
+}
+.adoc-herramientas-fila .adoc-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.adoc-herramientas-fila .adoc-select {
+  width: 100%;
+  height: 44px;
+}
+.adoc-herramientas-contador {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+  font-size: 12px;
+  font-weight: 600;
+}
+.adoc-herramientas-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.adoc-chip-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--accent-500);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--accent-700);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.adoc-chip-filtro svg {
+  width: 14px;
+  height: 14px;
+}
+.adoc-chips-limpiar {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-link);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}

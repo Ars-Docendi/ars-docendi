@@ -1,6 +1,9 @@
 import { useId } from "react";
 import { InlineAlert } from "@ars-docendi/ui";
 
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
+import { ListaTarjetas } from "../../../shared/ui/ListaTarjetas";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import type { PaginaDeProblemas, TipoDeProblema } from "../types";
 import {
   ETIQUETAS_DE_TIPO,
@@ -40,6 +43,7 @@ export function ProblemasDeCalidad({
   onCambiarPagina,
 }: ProblemasDeCalidadProps) {
   const idTitulo = useId();
+  const telefono = usePantallaTelefono();
 
   if (!puedeRevisar) {
     return (
@@ -97,34 +101,56 @@ export function ProblemasDeCalidad({
       ) : (
         pagina && (
           <>
-            <div className="adoc-table-wrap">
-              <table className="adoc-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Día</th>
-                    <th scope="col">Pregunta</th>
-                    <th scope="col">Problema</th>
-                    <th scope="col">Detalle</th>
-                    <th scope="col">Modelo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagina.filas.map((f, i) => (
-                    <tr key={`${numeroDePagina}-${i}`}>
-                      <td className="calidad-nowrap">{formatearDia(f.dia)}</td>
-                      <td>{f.pregunta}</td>
-                      <td>
-                        <span className={`calidad-tipo calidad-tipo--${f.tipo}`}>
-                          {ETIQUETAS_DE_TIPO[f.tipo]}
-                        </span>
-                      </td>
-                      <td>{detalleDeProblema(f.tipo, f.motivo)}</td>
-                      <td className="calidad-mono calidad-nowrap">{f.modelo ?? "—"}</td>
+            {telefono ? (
+              // Server-paginated: the cards show the page as it came, with the controls below.
+              <ListaTarjetas
+                etiqueta="Respuestas con problemas"
+                paginar={false}
+                vacio="No hay respuestas con este problema en el período."
+                reinicio={`${tipo ?? ""}|${numeroDePagina}`}
+                tarjetas={pagina.filas.map((f, i) => ({
+                  id: `${numeroDePagina}-${i}`,
+                  nombre: f.pregunta,
+                  titulo: f.pregunta,
+                  meta: `${formatearDia(f.dia)} · ${f.modelo ?? "—"}`,
+                  linea: detalleDeProblema(f.tipo, f.motivo),
+                  insignias: (
+                    <span className={`calidad-tipo calidad-tipo--${f.tipo}`}>
+                      {ETIQUETAS_DE_TIPO[f.tipo]}
+                    </span>
+                  ),
+                }))}
+              />
+            ) : (
+              <div className="adoc-table-wrap">
+                <ContenedorTabla etiqueta="Respuestas con problemas">
+                  <thead>
+                    <tr>
+                      <th scope="col">Día</th>
+                      <th scope="col">Pregunta</th>
+                      <th scope="col">Problema</th>
+                      <th scope="col">Detalle</th>
+                      <th scope="col">Modelo</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {pagina.filas.map((f, i) => (
+                      <tr key={`${numeroDePagina}-${i}`}>
+                        <td className="calidad-nowrap">{formatearDia(f.dia)}</td>
+                        <td>{f.pregunta}</td>
+                        <td>
+                          <span className={`calidad-tipo calidad-tipo--${f.tipo}`}>
+                            {ETIQUETAS_DE_TIPO[f.tipo]}
+                          </span>
+                        </td>
+                        <td>{detalleDeProblema(f.tipo, f.motivo)}</td>
+                        <td className="calidad-mono calidad-nowrap">{f.modelo ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </ContenedorTabla>
+              </div>
+            )}
             <nav className="calidad-paginacion" aria-label="Paginación de respuestas con problemas">
               <span aria-live="polite">
                 {formatearCantidad(primeraFila)}–{formatearCantidad(ultimaFila)} de{" "}

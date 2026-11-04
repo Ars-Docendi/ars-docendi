@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Navigate, useLocation, useOutletContext, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useOutletContext, useParams } from "react-router-dom";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { FilaEnlaceAyuda } from "../components/FilaEnlaceAyuda";
@@ -8,8 +8,9 @@ import { PasoArticulo } from "../components/PasoArticulo";
 import { PreguntasFrecuentes } from "../components/PreguntasFrecuentes";
 import type { ContextoLayoutAyuda } from "../components/contextoLayout";
 import { useAyudaVisible } from "../hooks/useAyudaVisible";
+import { usePantallaAngosta } from "../hooks/usePantallaAngosta";
 import { usePasoActivo } from "../hooks/usePasoActivo";
-import { RUTA_AYUDA, idPaso, rutaArticulo, rutaModulo } from "../utils/rutas";
+import { RUTA_AYUDA, idPaso, rutaArticulo, rutaModulo, rutaPaso } from "../utils/rutas";
 
 function prefiereMenosMovimiento(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -20,6 +21,7 @@ export function ArticuloAyudaPage() {
   const { key, hash } = useLocation();
   const { fijarPasoActivo } = useOutletContext<ContextoLayoutAyuda>();
   const { modulos, articulos } = useAyudaVisible();
+  const angosta = usePantallaAngosta();
   const cabecera = useRef<HTMLElement>(null);
   const articuloMostrado = useRef<string>(undefined);
 
@@ -69,6 +71,21 @@ export function ArticuloAyudaPage() {
         <PageHeader title={articulo.titulo} />
         <p className="ayuda-introduccion">{articulo.introduccion}</p>
       </header>
+
+      {angosta && articulo.pasos.length >= 2 && (
+        <details className="ayuda-indice-movil">
+          <summary>En esta página</summary>
+          <ol>
+            {articulo.pasos.map((paso, indice) => (
+              <li key={idPaso(indice + 1)}>
+                <Link to={rutaPaso(articulo.moduloSlug, articulo.slug, indice + 1)}>
+                  {paso.etiquetaIndice ?? paso.titulo}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
 
       {articulo.pasos.map((paso, indice) => (
         <PasoArticulo key={`${articulo.slug}-${indice}`} paso={paso} numero={indice + 1} />

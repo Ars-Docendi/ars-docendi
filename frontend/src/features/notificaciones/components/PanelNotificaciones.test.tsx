@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Fragment, StrictMode } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { limpiarToasts } from "../../../shared/ui/toasts";
@@ -16,6 +17,20 @@ const api = vi.hoisted(() => ({
   listarPagina: vi.fn(),
   marcarLeida: vi.fn(),
   marcarLeidas: vi.fn(),
+}));
+const push = vi.hoisted(() => ({ estado: "sin-soporte" as string }));
+vi.mock("../push/useDispositivoPush", () => ({
+  useDispositivoPush: () => ({
+    estado: push.estado,
+    trabajando: false,
+    error: null,
+    activar: vi.fn(),
+    desactivar: vi.fn(),
+  }),
+}));
+vi.mock("../api/pushApi", () => ({
+  obtenerPreferenciasPush: vi.fn().mockResolvedValue({ modulos: [] }),
+  guardarPreferenciasPush: vi.fn(),
 }));
 vi.mock("../api/notificacionesApi", async (importarOriginal) => ({
   ...(await importarOriginal<typeof import("../api/notificacionesApi")>()),
@@ -47,17 +62,19 @@ function renderizar({
   const Envoltorio = estricto ? StrictMode : Fragment;
   const resultado = render(
     <Envoltorio>
-      <QueryClientProvider client={cliente}>
-        <PanelNotificaciones
-          abierto
-          onCerrar={onCerrar}
-          triggerRef={{ current: disparador }}
-          desplazamiento={200}
-          rol={rol}
-          onNavegar={onNavegar}
-        />
-        <Toaster />
-      </QueryClientProvider>
+      <MemoryRouter>
+        <QueryClientProvider client={cliente}>
+          <PanelNotificaciones
+            abierto
+            onCerrar={onCerrar}
+            triggerRef={{ current: disparador }}
+            desplazamiento={200}
+            rol={rol}
+            onNavegar={onNavegar}
+          />
+          <Toaster />
+        </QueryClientProvider>
+      </MemoryRouter>
     </Envoltorio>,
   );
   return { ...resultado, cliente, onCerrar, onNavegar, disparador };
@@ -73,6 +90,8 @@ function listas(porEstado: { NO_LEIDAS?: Notificacion[]; LEIDAS?: Notificacion[]
 beforeEach(() => {
   vi.clearAllMocks();
   limpiarToasts();
+  push.estado = "sin-soporte";
+  localStorage.clear();
   api.contarNoLeidas.mockResolvedValue(0);
   api.marcarLeida.mockResolvedValue({});
   api.marcarLeidas.mockResolvedValue(1);
@@ -502,4 +521,66 @@ describe("PanelNotificaciones — cierre y foco", () => {
     unmount();
     await waitFor(() => expect(disparador).toHaveFocus());
   });
+});
+
+describe("PanelNotificaciones — preferencias de push", () => {
+  it("the gear opens the preferences view inside the panel and 'Volver' returns to the list", async () => {
+    listas({});
+    push.estado = "activo";
+    const usuario = userEvent.setup();
+    renderizar();
+
+    await usuario.click(
+      await screen.findByRole("button", { name: "Preferencias de notificaciones" }),
+    );
+    const dialogo = screen.getByRole("dialog", { name: "Preferencias de notificaciones" });
+    expect(
+      within(dialogo).getByRole("switch", { name: "Notificaciones en este dispositivo" }),
+    ).toBeChecked();
+    expect(within(dialogo).queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Volver a las notificaciones" })).toHaveFocus();
+
+    await usuario.click(screen.getByRole("button", { name: "Volver a las notificaciones" }));
+    expect(await screen.findByRole("dialog", { name: "Notificaciones" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "No leídas", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preferencias de notificaciones" })).toHaveFocus();
+  });
+
+  it("offers one dismissible hint while push is off, and it stays dismissed", async () => {
+    listas({});
+    push.estado = "desactivado";
+    const usuario = userEvent.setup();
+    const primera = renderizar();
+
+    expect(await screen.findByText(/Recibí los avisos en este dispositivo/)).toBeInTheDocument();
+    await usuario.click(screen.getByRole("button", { name: "Descartar sugerencia" }));
+    expect(screen.queryByText(/Recibí los avisos en este dispositivo/)).not.toBeInTheDocument();
+
+    primera.unmount();
+    renderizar();
+    await screen.findByRole("dialog", { name: "Notificaciones" });
+    expect(screen.queryByText(/Recibí los avisos en este dispositivo/)).not.toBeInTheDocument();
+  });
+
+  it("the hint's 'Activar' opens the preferences view", async () => {
+    listas({});
+    push.estado = "desactivado";
+    const usuario = userEvent.setup();
+    renderizar();
+    await usuario.click(await screen.findByRole("button", { name: "Activar" }));
+    expect(
+      screen.getByRole("dialog", { name: "Preferencias de notificaciones" }),
+    ).toBeInTheDocument();
+  });
+
+  it.each(["activo", "bloqueado", "sin-soporte", "ios-sin-instalar", "servidor-apagado"])(
+    "shows no hint when the device is '%s'",
+    async (estado) => {
+      listas({});
+      push.estado = estado;
+      renderizar();
+      await screen.findByRole("dialog", { name: "Notificaciones" });
+      expect(screen.queryByText(/Recibí los avisos en este dispositivo/)).not.toBeInTheDocument();
+    },
+  );
 });

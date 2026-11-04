@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import type { CalidadAgregada } from "../types";
 import {
   formatearCantidad,
@@ -66,7 +67,7 @@ export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
         <div id={idTabla}>
           {comoTabla ? (
             <div className="adoc-table-wrap">
-              <table className="adoc-table">
+              <ContenedorTabla etiqueta={`Respuestas negativas por ${unidad}`}>
                 <caption className="calidad-solo-lector">{descripcion}</caption>
                 <thead>
                   <tr>
@@ -96,7 +97,7 @@ export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ContenedorTabla>
             </div>
           ) : (
             <>

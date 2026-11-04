@@ -52,7 +52,7 @@ public sealed class EmisionDesignacionesTests(PostgresFixture postgres)
         Assert.Equal("PEDIDO_PARA_REVISAR", aviso.TipoEvento);
         Assert.Equal("PEDIDO_DESIGNACION", aviso.TipoEntidad);
         Assert.Equal(EnCoordinacion, aviso.EntidadId);
-        Assert.Equal("Pedido para revisar", aviso.Titulo);
+        Assert.Equal("Pedido 2026-9002 para revisar", aviso.Titulo);
         Assert.StartsWith("Pasó a Secretaría el pedido 2026-9002 (el alta del docente de Prof. Suárez, Valeria · ", aviso.Mensaje);
         Assert.EndsWith("). Esperando tu revisión.", aviso.Mensaje);
         Assert.Equal("en_revision_secretaria", ContextoDe(aviso).GetProperty("estado").GetString());
@@ -115,7 +115,7 @@ public sealed class EmisionDesignacionesTests(PostgresFixture postgres)
         Assert.All(avisos, a =>
         {
             Assert.Equal("jefe_catedra", a.RolDestino);
-            Assert.Equal("Pedido rechazado", a.Titulo);
+            Assert.Equal("Pedido 2026-9002 rechazado", a.Titulo);
             Assert.EndsWith("). Justificativo: Documentación incompleta", a.Mensaje);
             Assert.StartsWith("Se rechazó el pedido 2026-9002 (", a.Mensaje);
         });
@@ -133,7 +133,7 @@ public sealed class EmisionDesignacionesTests(PostgresFixture postgres)
         var aviso = Assert.Single(await NotificacionesAsync());
         Assert.Equal(Jefe, aviso.Destinatario);
         Assert.Equal("jefe_catedra", aviso.RolDestino);
-        Assert.Equal("Pedido devuelto", aviso.Titulo);
+        Assert.Equal("Pedido 2026-9002 devuelto", aviso.Titulo);
         Assert.EndsWith("para que lo corrija Jefe de Cátedra. Comentario: Falta el CV", aviso.Mensaje);
     }
 

@@ -103,6 +103,8 @@ El cliente del servicio de inferencia compartido (Ollama en `ia.<DOMINIO>`) vive
 
 `Modules.Asistente` tampoco referencia `ArsDocendi.Migraciones`: su migrador no envuelve un `DbContext` ni historial EF, sino SQL que converge por construcción (ver [data-model.md](data-model.md#migraciones-en-deploy)).
 
+`Modules.Notificaciones` agrega una dependencia de **paquete** (no un edge del grafo): `WebPush` 1.0.13, cliente Web Push con VAPID y cifrado RFC 8291, usado sólo detrás de `IEnviadorPush`.
+
 Dependencias de **paquete** de `ArsDocendi.Shared` (no son aristas del grafo de proyectos y quedan fuera del manifiesto, pero explican por qué Shared ya no es puro):
 
 | Paquete                                    | Razón                                              |

@@ -84,6 +84,75 @@ namespace Modules.Notificaciones.Infrastructure.Migrations
                             t.ExcludeFromMigrations();
                         });
                 });
+
+            modelBuilder.Entity("Modules.Notificaciones.Domain.SuscripcionPush", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("auth");
+
+                    b.Property<DateTimeOffset>("CreadaEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("creada_en");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("endpoint");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("p256dh");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("suscripciones_push", "notificaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Notificaciones.Domain.PreferenciaPush", b =>
+                {
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.Property<string>("Modulo")
+                        .HasColumnType("text")
+                        .HasColumnName("modulo");
+
+                    b.Property<DateTimeOffset>("ActualizadaEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actualizada_en");
+
+                    b.Property<bool>("Habilitado")
+                        .HasColumnType("boolean")
+                        .HasColumnName("habilitado");
+
+                    b.HasKey("UsuarioId", "Modulo");
+
+                    b.ToTable("preferencias_push", "notificaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -90,6 +90,10 @@ jobs:
       SELLADO_CLAVE: ${{ secrets.SELLADO_CLAVE_PROD }}
       SELLADO_CLAVE_2: ${{ secrets.SELLADO_CLAVE_2_PROD }}
       SELLADO_VERSION_VIGENTE: ${{ vars.SELLADO_VERSION_VIGENTE }}
+      # Web Push (notificaciones al celular): sin las claves el push queda apagado.
+      WEBPUSH_PUBLIC_KEY: ${{ vars.WEBPUSH_PUBLIC_KEY }}
+      WEBPUSH_PRIVATE_KEY: ${{ secrets.WEBPUSH_PRIVATE_KEY }}
+      WEBPUSH_SUBJECT: ${{ vars.WEBPUSH_SUBJECT }}
       ASPNETCORE_ENVIRONMENT: Production
       DEVELOPMENT_AUTHENTICATION_ENABLED: "false"
       # En prod el ingreso con Microsoft es obligatorio: sin estos valores el backend no arranca.

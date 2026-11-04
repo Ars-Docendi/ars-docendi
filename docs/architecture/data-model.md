@@ -11,7 +11,7 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
 - `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial` y los catálogos `estados_proyecto`, `estados_tarea`, `prioridades` y `tipos_tarea`); DDL versionado en `database/tareas/`. Estados, prioridades y tipos se referencian por IDs numéricos; los números visibles de proyectos/tareas usan secuencias. Las cinco tablas de negocio tienen triggers `audit.attach`; sus snapshots nuevos usan la allowlist por tabla de `audit.safe_snapshot` y excluyen título, descripción, solución, texto y detalle libres.
-- `NotificacionesDbContext` → schema `notificaciones` (`notificaciones`); DDL versionado en `database/notificaciones/`. **Sin** `audit.attach`: la única mutación posterior al alta es el instante de lectura (una fila de auditoría por clic), el evento de origen ya queda auditado en el módulo emisor y los textos copian nombres.
+- `NotificacionesDbContext` → schema `notificaciones` (`notificaciones`, `suscripciones_push`, `preferencias_push`); DDL versionado en `database/notificaciones/`. **Sin** `audit.attach`: la única mutación posterior al alta es el instante de lectura (una fila de auditoría por clic), el evento de origen ya queda auditado en el módulo emisor y los textos copian nombres.
 - `AlmacenamientoDbContext` → schema `storage`
 
 ### Dueño de `identity` y `audit`
@@ -219,6 +219,15 @@ Una fila por usuario destinatario (fan-out al momento del evento): varios Jefes 
 | `notificaciones` | `id`, `destinatario_usuario_id` (FK `identity.users`), `rol_destino` (NULL = cualquier perfil), `tipo_evento`, `tipo_entidad` (`SOLICITUD_AULA`, `PEDIDO_DESIGNACION`, `TAREA`), `entidad_id` (sin FK: apunta a tres módulos), `titulo`, `mensaje` y `contexto jsonb` (snapshots inmutables), `leida_en`, `creada_en` | Sí, indirecta: los textos nombran personas |
 
 Índice `(destinatario_usuario_id, leida_en, creada_en DESC)`: sirve la cuenta de no leídas y las dos listas. CHECK: `tipo_entidad` cerrado, textos no vacíos, `contexto` objeto JSON. `rol_destino` es texto libre (los roles son datos), igual que `aulas.solicitudes_reserva.rol_solicitante`.
+
+**Web Push** (change `notificaciones-push`). Dos tablas más, también sin `audit.attach` (son ajustes de dispositivo e interfaz y las claves de una suscripción no deben copiarse al log de auditoría):
+
+| Tabla                | Descripción                                                                                                                                                                                                                                            | PII                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `suscripciones_push` | `id`, `usuario_id` (FK `identity.users`, `ON DELETE CASCADE`), `endpoint` (único: URL del servicio de push), `p256dh` y `auth` (claves de cifrado de la suscripción), `creada_en`. Una fila por dispositivo                                            | Sí, indirecta: el endpoint identifica un dispositivo |
+| `preferencias_push`  | PK `(usuario_id, modulo)`, `habilitado`, `actualizada_en`. Interruptor del canal push por módulo; una fila ausente significa habilitado. `modulo` con CHECK (`AULAS`, `DESIGNACIONES`, `TAREAS`); el módulo de un aviso se deriva de su `tipo_entidad` | No                                                   |
+
+Un endpoint ya existente se **reasigna** al usuario que lo suscribe (un dispositivo es de quien tiene la sesión). Las filas se borran al dar de baja, cuando el servicio de push responde 404/410 y con el usuario.
 
 ### Portal (`schema: portal`)
 
@@ -655,20 +664,21 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 
 ### Excepciones vigentes
 
-| From                             | To                  | Justificación                                                                                                    |
-| -------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `designaciones.pedidos`          | `identity.personas` | Un pedido apuntando a una persona inexistente es un registro legal roto: el costo de la inconsistencia es máximo |
-| `designaciones.pedidos`          | `identity.materias` | La materia canónica determina la cátedra del Jefe de Cátedra                                                     |
-| `designaciones.pedidos`          | `identity.carreras` | La carrera determina el Coordinador competente (BR-designaciones-009)                                            |
-| `designaciones.pedido_historial` | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
-| `designaciones.pedido_historial` | `identity.users`    | Ídem, para el actor                                                                                              |
-| `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
-| `designaciones.designaciones`    | `identity.materias` | FK `ON DELETE RESTRICT` (`20261013170855_IntegridadMateriaDesignaciones.sql`)                                    |
-| `designaciones.designaciones`    | `identity.carreras` | Ídem que pedidos                                                                                                 |
-| `aulas.solicitudes_reserva`      | `identity.personas` | Una solicitud sin docente resoluble es un registro roto — mismo criterio que `designaciones.pedidos`             |
-| `aulas.solicitudes_reserva`      | `identity.materias` | La materia se acota a las asignadas al docente — mismo criterio que `designaciones.pedidos.materia_id`           |
-| `notificaciones.notificaciones`  | `identity.users`    | Un aviso sin destinatario resoluble es una fila rota — mismo criterio que las demás FK hacia `identity`          |
-| `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
+| From                                                       | To                  | Justificación                                                                                                    |
+| ---------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `designaciones.pedidos`                                    | `identity.personas` | Un pedido apuntando a una persona inexistente es un registro legal roto: el costo de la inconsistencia es máximo |
+| `designaciones.pedidos`                                    | `identity.materias` | La materia canónica determina la cátedra del Jefe de Cátedra                                                     |
+| `designaciones.pedidos`                                    | `identity.carreras` | La carrera determina el Coordinador competente (BR-designaciones-009)                                            |
+| `designaciones.pedido_historial`                           | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
+| `designaciones.pedido_historial`                           | `identity.users`    | Ídem, para el actor                                                                                              |
+| `designaciones.designaciones`                              | `identity.personas` | Ídem que pedidos                                                                                                 |
+| `designaciones.designaciones`                              | `identity.materias` | FK `ON DELETE RESTRICT` (`20261013170855_IntegridadMateriaDesignaciones.sql`)                                    |
+| `designaciones.designaciones`                              | `identity.carreras` | Ídem que pedidos                                                                                                 |
+| `aulas.solicitudes_reserva`                                | `identity.personas` | Una solicitud sin docente resoluble es un registro roto — mismo criterio que `designaciones.pedidos`             |
+| `aulas.solicitudes_reserva`                                | `identity.materias` | La materia se acota a las asignadas al docente — mismo criterio que `designaciones.pedidos.materia_id`           |
+| `notificaciones.notificaciones`                            | `identity.users`    | Un aviso sin destinatario resoluble es una fila rota — mismo criterio que las demás FK hacia `identity`          |
+| `notificaciones.suscripciones_push` y `.preferencias_push` | `identity.users`    | `ON DELETE CASCADE`: son ajustes del usuario y no tienen sentido sin él                                          |
+| `audit.change_log`                                         | `identity.users`    | Preexistente                                                                                                     |
 
 Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.
 

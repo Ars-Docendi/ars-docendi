@@ -39,6 +39,8 @@
 #                                     sólo prod: administrador inicial que crea --migrate
 #   SELLADO_CLAVE SELLADO_CLAVE_2     claves HMAC base64 de la cadena de sellos, versiones 1 y 2
 #   SELLADO_VERSION_VIGENTE           versión con la que se sella (default 1; su clave es obligatoria en prod)
+#   WEBPUSH_PUBLIC_KEY WEBPUSH_PRIVATE_KEY WEBPUSH_SUBJECT
+#                                     claves VAPID del Web Push (vacías = push apagado; ver docs/operations/web-push.md)
 #   Estas variables llegan a Compose por el entorno del proceso, no por el .env efímero.
 #   Las contraseñas del asistente y ASISTENTE_CLAVE también: el .env efímero sólo
 #   lleva nombres de rol y el proveedor ya resuelto.

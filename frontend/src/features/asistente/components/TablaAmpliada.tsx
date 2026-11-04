@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@ars-docendi/ui";
 
+import type { AnchosDeColumnas } from "../../../shared/ui/ColumnasAjustables";
 import { TablaOrdenable } from "./TablaDeResultado";
 import { contraerTablaIcon, copyIcon, downloadIcon } from "../../../app/shell/icons";
 import { descargarArchivo } from "../utils/descargas";
@@ -26,6 +27,9 @@ interface TablaAmpliadaProps {
   orden: OrdenDeColumna | null;
   onOrdenar: (indiceDeColumna: number) => void;
   porCelda: Map<string, VinculoDelResultado>;
+  /** Column widths set on a phone, shared with the inline table. */
+  anchos: AnchosDeColumnas | null;
+  onAnchosChange: (anchos: AnchosDeColumnas) => void;
   truncado: boolean;
   haySensibles: boolean;
   /** El hilo del turno, sólo para nombrar el archivo exportado. */
@@ -43,6 +47,8 @@ export function TablaAmpliada({
   orden,
   onOrdenar,
   porCelda,
+  anchos,
+  onAnchosChange,
   truncado,
   haySensibles,
   hilo,
@@ -149,6 +155,8 @@ export function TablaAmpliada({
           orden={orden}
           onOrdenar={onOrdenar}
           porCelda={porCelda}
+          anchos={anchos}
+          onAnchosChange={onAnchosChange}
         />
 
         {haySensibles && (

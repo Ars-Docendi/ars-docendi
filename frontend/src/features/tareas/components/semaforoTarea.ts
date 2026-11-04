@@ -39,3 +39,17 @@ export function estadoSemaforo(
   if (porcentaje >= 50) return "yellow";
   return "green";
 }
+
+/**
+ * Nivel de alerta que tiñe una fila o tarjeta: solo amarillo (por vencer) y rojo (vencida)
+ * resaltan; verde es el caso normal y los estados terminales no muestran semáforo.
+ */
+export function nivelAlertaSemaforo(
+  estado: EstadoTarea,
+  fechaInicio: string,
+  fechaFin: string,
+): "por-vencer" | "vencida" | null {
+  if (!muestraSemaforo(estado)) return null;
+  const semaforo = estadoSemaforo(fechaInicio, fechaFin);
+  return semaforo === "red" ? "vencida" : semaforo === "yellow" ? "por-vencer" : null;
+}

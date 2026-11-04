@@ -1,5 +1,6 @@
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 
+import "./Pestanas.css";
 import { idPanelPestana, idPestana } from "./pestanasIds";
 
 export interface ItemPestana {
@@ -25,10 +26,23 @@ interface PestanasProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange">
  * está en el orden de tabulación (tabindex itinerante).
  */
 export function Pestanas({ prefijo, items, value, onChange, className, ...resto }: PestanasProps) {
+  function seleccionar(id: string, destino?: HTMLElement) {
+    onChange(id);
+    // On phones the strip scrolls: the chosen tab ends up fully in view.
+    const reducido = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    destino?.scrollIntoView?.({
+      inline: "center",
+      block: "nearest",
+      behavior: reducido ? "auto" : "smooth",
+    });
+  }
+
   function activar(id: string) {
     onChange(id);
     // El nuevo botón ya existe: el foco acompaña a la selección.
-    document.getElementById(idPestana(prefijo, id))?.focus();
+    const boton = document.getElementById(idPestana(prefijo, id));
+    boton?.focus();
+    boton?.scrollIntoView?.({ inline: "center", block: "nearest" });
   }
 
   function alPresionar(evento: KeyboardEvent<HTMLButtonElement>, id: string) {
@@ -71,7 +85,7 @@ export function Pestanas({ prefijo, items, value, onChange, className, ...resto 
             tabIndex={activa ? 0 : -1}
             disabled={item.disabled}
             className={activa ? "active" : undefined}
-            onClick={() => onChange(item.id)}
+            onClick={(evento) => seleccionar(item.id, evento.currentTarget)}
             onKeyDown={(evento) => alPresionar(evento, item.id)}
           >
             {item.label}

@@ -103,6 +103,11 @@ export const entenderElListadoDeTareas: ArticuloAyuda = {
       respuesta:
         "El número del título cuenta todas las tareas que podés ver; los selectores y los filtros solo achican las filas de las tablas.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px cada tarea es una tarjeta: el título abre la tarea, con el número y las fechas de inicio y fin en una línea de datos, debajo el responsable, la prioridad, el avance y, si tiene, el proyecto, y el estado en una insignia. Las tarjetas por vencer o vencidas conservan su color. Los estados se eligen en pestañas deslizables y la lista pagina de a 20 tarjetas.",
+    },
   ],
   relacionados: [
     "tareas/filtrar-y-ordenar-tareas",

@@ -251,8 +251,8 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
   a la que se acaba de llegar no tendría sentido. El hilo sobrevive porque vive en el lanzador,
   que sigue montado en la barra mientras la aplicación navega por debajo; al reabrir, la
   conversación está donde estaba.
-- **Móvil**: fuera del alcance de v3 (sólo escritorio). Sin página propia, en un teléfono el
-  asistente queda inalcanzable hasta la épica de mobile (TD-024, ligado a TD-016).
+- **Móvil**: fuera del alcance de v3; lo resuelve `experiencia-movil-tablas` (ver
+  «Teléfono» más abajo).
 - **Copy en voseo rioplatense**, coherente con el backend y la definición, aunque los principios
   generales pidan evitar el «vos» informal en mensajes del sistema: la superficie entera del
   asistente ya habla así y mezclar registros sería peor.
@@ -646,6 +646,61 @@ CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fue
   referencia mientras el texto de la mención siga presente. La lectura de soporte
   (`SoporteHistorialController`) no recibe este campo: ahí quien lee nunca es el actor cuyo
   alcance decide la visibilidad.
+
+## Teléfono
+
+Por debajo de 560 px (change `experiencia-movil-tablas`). Desde 560 px y en escritorio no cambia
+nada. Todo control tocable mide al menos 44 px.
+
+- **Lanzador**: la pastilla «Preguntar» de la barra superior conserva sus 32 px visibles pero su
+  área táctil llega a 44 px.
+- **Pantalla completa**: el modal ocupa toda la pantalla, sin radio ni margen, y respeta las
+  áreas seguras (muesca arriba, indicador de inicio abajo). Su alto sigue al área visible que deja
+  el teclado en pantalla, así que el campo de la pregunta queda siempre a la vista, pegado al
+  borde inferior; lo único que se desplaza es el hilo.
+- **Conversaciones**: el rail no es una columna. El encabezado suma, a la izquierda del título,
+  un botón «Conversaciones» (ícono de historial) que abre el rail como un cajón desde la
+  izquierda, sobre un velo que lo cierra al tocarlo. El cajón trae «Nueva conversación», «Cerrar
+  conversaciones» (×), la búsqueda y la lista completa; abrir una conversación o empezar una
+  nueva lo cierra. Escape cierra sólo el cajón, no el asistente, y el foco vuelve al botón
+  «Conversaciones». Mientras está abierto, la conversación de atrás no recibe el foco. El aviso
+  de deshacer queda visible por encima del cajón. La preferencia de rail colapsado no aplica.
+- **Inicio**: los ejemplos van en una sola columna.
+- **Tabla de resultado**: es una región desplazable con la primera columna fija y sombra en el
+  borde derecho mientras quedan columnas; la tabla nunca ensancha la pantalla. Los encabezados
+  ordenables y los íconos de la barra de acciones miden 44 px. En la tabla ampliada el título va
+  en su propia línea y «Copiar tabla», «Exportar a CSV» y «Contraer» se acomodan debajo.
+- **Ancho de las columnas**: cada encabezado lleva en su borde derecho un tirador «Ajustar ancho
+  de «columna»» (28 px de ancho, a caballo del borde; en la última columna, 20 px por dentro), con
+  una barra de 3 × 22 px en el tono de borde fuerte que pasa al acento con hover o foco. Arrastrarlo
+  cambia el ancho de esa columna; con el foco, ← y → lo cambian de a 16 px; un doble toque (o
+  doble clic) le devuelve el ancho que tenía. Ninguna columna baja de 64 px. Hasta que se usa un
+  tirador la tabla se ve igual; después las columnas conservan su ancho y los valores largos pasan
+  a otra línea dentro de la celda. Usar el tirador nunca ordena. La primera columna sigue fija y la
+  pantalla no se desplaza de costado. La tabla en línea y la ampliada comparten los anchos mientras
+  la respuesta está en pantalla; no se guardan. Desde 560 px no hay tiradores.
+- **Menciones**: el popover ocupa el ancho del campo; cada opción mide 44 px y lleva la carrera y
+  el código debajo del nombre, para que el nombre no quede recortado. Se oculta la pista de
+  teclado «Enter elige · Esc cierra».
+- **Soporte del historial**: la lista de personas va de a una por fila y se desplaza dentro de su
+  propio alto, para que la razón y «Ver historial» queden cerca; el campo de la razón ocupa el
+  ancho y el botón queda debajo.
+
+### Sistema → Asistente, Modelo y Calidad
+
+- **Encabezado**: período (Hoy / 7 días / 30 días) y «Exportar CSV» a todo el ancho, con 44 px.
+  El banner de mantenimiento lleva el botón debajo del texto.
+- **KPIs**: los indicadores chicos van de a dos; el tope mensual y el servidor del modelo, a todo
+  el ancho.
+- **Uso por usuario / por rol**: en vez de la tabla, una tarjeta por fila, en el mismo orden que
+  la tabla (la métrica elegida): nombre, roles, la barra con el valor y, separados, «Acceso» y
+  «Cupo diario» con los mismos controles que la fila de escritorio (mismo guardado, mismos
+  anuncios). Las tarjetas paginan de a 20. El selector de métrica ocupa el ancho.
+- **Calidad**: «Por modelo» y la vista «Ver como tabla» del gráfico son regiones desplazables con
+  la primera columna fija y el mismo ajuste de ancho de columnas que la tabla de resultado. «Respuestas con problemas» muestra una tarjeta por respuesta (la
+  pregunta, día y modelo, el detalle y el tipo de problema) y conserva la paginación del
+  servidor, con botones de 44 px.
+- **Modelo**: los formularios ya se apilaban en una columna; no cambian.
 
 ## Referencias
 

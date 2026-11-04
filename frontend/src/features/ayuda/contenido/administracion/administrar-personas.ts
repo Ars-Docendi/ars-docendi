@@ -136,6 +136,11 @@ export const administrarPersonas: ArticuloAyuda = {
       respuesta:
         "Con su cuenta institucional @docentes.unlam.edu.ar, cuyo mail es el que cargaste como UPN. Para entrar necesita estar activa y tener al menos un rol vigente. Ver «Cómo ingresar al sistema».",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px Personas se muestra como tarjetas: el nombre abre a la persona y el menú «⋯» reúne las acciones de la fila. El botón «Filtros (n)» abre una hoja con todos los filtros («Limpiar» y «Ver N resultados»), lo aplicado queda como chips con «Limpiar filtros» y el orden se elige en «Ordenar por». La lista pagina de a 20 tarjetas y la búsqueda está arriba. En tablets la tabla se mantiene.",
+    },
   ],
   relacionados: [
     "administracion/administrar-roles-y-permisos",

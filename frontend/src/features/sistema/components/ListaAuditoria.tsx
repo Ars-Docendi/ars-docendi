@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from "react";
 import { Button, InlineAlert, Pagination } from "@ars-docendi/ui";
 
 import type { EventoAuditoria, PaginaAuditoria } from "../api/auditoriaApi";
@@ -12,6 +13,8 @@ interface ListaAuditoriaProps {
   onSeleccionarFila: (evento: EventoAuditoria) => void;
   onCambiarPagina: (pagina: number) => void;
   onReintentar: () => void;
+  /** Detail of the selected event, rendered right under its row (phones). */
+  detalleEnLinea?: ReactNode;
 }
 
 function iniciales(nombre: string): string {
@@ -46,6 +49,7 @@ export function ListaAuditoria({
   onSeleccionarFila,
   onCambiarPagina,
   onReintentar,
+  detalleEnLinea,
 }: ListaAuditoriaProps) {
   if (esError) {
     return (
@@ -106,41 +110,43 @@ export function ListaAuditoria({
               {grupo.elementos.map((evento) => {
                 const seleccionada = evento.id === eventoSeleccionado;
                 return (
-                  <button
-                    key={evento.id}
-                    id={`auditoria-fila-${evento.id}`}
-                    type="button"
-                    className="auditoria-fila"
-                    aria-pressed={seleccionada}
-                    aria-current={seleccionada ? "true" : undefined}
-                    onClick={() => onSeleccionarFila(evento)}
-                  >
-                    <span className="auditoria-fila-hora">
-                      {horaHmsEnZona(new Date(evento.cambiadoEn))}
-                    </span>
-                    <span className="auditoria-fila-cambio">
-                      <span
-                        className={`auditoria-avatar ${
-                          evento.tipoActor === "persona"
-                            ? "auditoria-avatar--persona"
-                            : "auditoria-avatar--neutral"
-                        }`}
-                        aria-hidden="true"
-                      >
-                        {iniciales(evento.actor)}
+                  <Fragment key={evento.id}>
+                    <button
+                      id={`auditoria-fila-${evento.id}`}
+                      type="button"
+                      className="auditoria-fila"
+                      aria-pressed={seleccionada}
+                      aria-current={seleccionada ? "true" : undefined}
+                      onClick={() => onSeleccionarFila(evento)}
+                    >
+                      <span className="auditoria-fila-hora">
+                        {horaHmsEnZona(new Date(evento.cambiadoEn))}
                       </span>
-                      <span className="auditoria-fila-texto">
-                        <span className="auditoria-fila-resumen">{evento.resumen}</span>
-                        <span className="auditoria-fila-contexto">
-                          {evento.actor} · {evento.modulo} · {evento.objeto}
+                      <span className="auditoria-fila-cambio">
+                        <span
+                          className={`auditoria-avatar ${
+                            evento.tipoActor === "persona"
+                              ? "auditoria-avatar--persona"
+                              : "auditoria-avatar--neutral"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {iniciales(evento.actor)}
+                        </span>
+                        <span className="auditoria-fila-texto">
+                          <span className="auditoria-fila-resumen">{evento.resumen}</span>
+                          <span className="auditoria-fila-contexto">
+                            {evento.actor} · {evento.modulo} · {evento.objeto}
+                          </span>
                         </span>
                       </span>
-                    </span>
-                    <span className={`sistema-chip-accion sistema-chip-accion--${evento.accion}`}>
-                      {evento.accionEtiqueta}
-                    </span>
-                    {CHEVRON}
-                  </button>
+                      <span className={`sistema-chip-accion sistema-chip-accion--${evento.accion}`}>
+                        {evento.accionEtiqueta}
+                      </span>
+                      {CHEVRON}
+                    </button>
+                    {seleccionada && detalleEnLinea}
+                  </Fragment>
                 );
               })}
             </div>

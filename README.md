@@ -137,6 +137,15 @@ dotnet user-secrets set "AutenticacionMicrosoft:Habilitada" "true" --project bac
 
 Y en `frontend/.env.local` (no se versiona) agregá `VITE_MICROSOFT_LOGIN_ENABLED=true`. El botón principal pasa a ser el ingreso con Microsoft y el selector queda como acceso secundario. Sólo entran cuentas cuyo mail coincida con el UPN de un usuario activo con rol: dalo de alta antes desde la pantalla de usuarios. Probalo en Chrome, Edge o Firefox; algunos Safari no envían las cookies `Secure` del retorno sobre `http://localhost`.
 
+Para probar las **notificaciones push** (Web Push) cargá un par de claves VAPID y un `Subject` real en tus user-secrets (sin claves el push queda apagado). Apple rechaza un `Subject` en dominio reservado como `.local`; usá un `mailto:` o `https:` real. Detalle y despliegue en [docs/operations/web-push.md](docs/operations/web-push.md):
+
+```bash
+npx web-push generate-vapid-keys
+dotnet user-secrets set "Notificaciones:WebPush:PublicKey" "<pública>" --project backend/src/ArsDocendi.Host
+dotnet user-secrets set "Notificaciones:WebPush:PrivateKey" "<privada>" --project backend/src/ArsDocendi.Host
+dotnet user-secrets set "Notificaciones:WebPush:Subject" "mailto:tu.correo@unlam.edu.ar" --project backend/src/ArsDocendi.Host
+```
+
 **Variables de entorno del frontend** (`VITE_*`, Vite las inlinea en build time — cambiarlas
 requiere reiniciar `dev` o rebuildear):
 
