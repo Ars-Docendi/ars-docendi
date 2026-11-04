@@ -9,11 +9,12 @@
     <meta name="color-scheme" content="light dark" />
     <script>
       // Tema antes del primer pintado, para no destellar en claro. La lógica vive en src/shared/tema/tema.ts.
+      var t = null;
       try {
-        var t = localStorage.getItem("ars-docendi:tema");
-        if (t === "oscuro" || (t !== "claro" && matchMedia("(prefers-color-scheme: dark)").matches))
-          document.documentElement.dataset.theme = "dark";
+        t = localStorage.getItem("ars-docendi:tema");
       } catch (e) {}
+      if (t === "oscuro" || (t !== "claro" && matchMedia("(prefers-color-scheme: dark)").matches))
+        document.documentElement.dataset.theme = "dark";
     </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

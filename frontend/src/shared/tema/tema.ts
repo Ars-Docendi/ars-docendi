@@ -6,7 +6,11 @@ export type PreferenciaTema = "sistema" | "claro" | "oscuro";
 const CLAVE = "ars-docendi:tema";
 const CONSULTA_OSCURO = "(prefers-color-scheme: dark)";
 
+/** La elegida en esta pestaña: manda sobre el almacenamiento, que puede no guardarla. */
+let preferenciaVigente: PreferenciaTema | null = null;
+
 export function leerPreferenciaTema(): PreferenciaTema {
+  if (preferenciaVigente) return preferenciaVigente;
   try {
     const valor = localStorage.getItem(CLAVE);
     return valor === "claro" || valor === "oscuro" ? valor : "sistema";
@@ -34,6 +38,7 @@ export function iniciarTema() {
 export function usePreferenciaTema() {
   const [preferencia, setPreferencia] = useState(leerPreferenciaTema);
   function elegir(nueva: PreferenciaTema) {
+    preferenciaVigente = nueva;
     setPreferencia(nueva);
     try {
       localStorage.setItem(CLAVE, nueva);

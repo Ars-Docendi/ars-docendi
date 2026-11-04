@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as EventoTeclado } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, InlineAlert, RoleMenu } from "@ars-docendi/ui";
 
@@ -57,6 +57,8 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
     function cerrarConEscape(event: KeyboardEvent) {
       if (event.key === "Escape") setAbierto(false);
     }
+    // Patrón de menú ARIA: al abrir, el foco pasa a la primera opción.
+    ref.current?.querySelector<HTMLElement>(".adoc-usuario-pop [role^='menuitem']")?.focus();
     document.addEventListener("mousedown", cerrarAlTocarAfuera);
     document.addEventListener("keydown", cerrarConEscape);
     return () => {
@@ -64,6 +66,15 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
       document.removeEventListener("keydown", cerrarConEscape);
     };
   }, [abierto]);
+
+  function moverConFlechas(event: EventoTeclado<HTMLDivElement>) {
+    const paso = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+    if (!paso) return;
+    event.preventDefault();
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>("[role^='menuitem']")];
+    const actual = items.indexOf(document.activeElement as HTMLElement);
+    items[(actual + paso + items.length) % items.length]?.focus();
+  }
 
   async function salir() {
     try {
@@ -78,7 +89,7 @@ export function MenuUsuario({ user, collapsed = false }: MenuUsuarioProps) {
   return (
     <div className="adoc-usuario" ref={ref}>
       {abierto && (
-        <div className="adoc-usuario-pop" role="menu">
+        <div className="adoc-usuario-pop" role="menu" onKeyDown={moverConFlechas}>
           {user.asignaciones.length > 1 && (
             <Button
               variant="ghost"
