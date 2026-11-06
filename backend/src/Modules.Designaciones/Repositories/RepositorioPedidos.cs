@@ -81,10 +81,11 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
             .ToListAsync(ct);
     }
 
-    /// <summary>Pedidos a sincronizar, con tracking y el historial que el sellado necesita.</summary>
+    /// <summary>Pedidos a sincronizar, con tracking y lo que el sellado necesita: adjuntos e historial.</summary>
     public async Task<IReadOnlyList<Pedido>> ObtenerParaSincronizarAsync(
         IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
         await db.Pedidos
+            .Include(p => p.Adjuntos)
             .Include(p => p.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id))
             .Include(p => p.CargoSolicitado)
             .Include(p => p.DedicacionSolicitadaCatalogo)

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import type { Novedad } from "../types";
 import { etiquetaNovedad } from "./tableroRevisionModelo";
+import "./NovedadChip.css";
 
 /** Clase de color del chip según la novedad (mapea a los tonos del design system). */
 const CLASE_POR_NOVEDAD: Record<Novedad, string> = {

@@ -201,7 +201,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         //
         // Up to 166 with notificaciones-push: `GET …/push/clave-publica`, `POST` and `DELETE
         // …/push/suscripciones`, `GET` and `PUT …/push/preferencias`.
-        Assert.Equal(166, operaciones.Length);
+        //
+        // Subió a 169 con conciliacion-designaciones: `GET /api/designaciones/conciliacion`,
+        // `POST …/conciliacion/sincronizar` y `POST …/pedidos/{id}/no-aprobar`.
+        Assert.Equal(169, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

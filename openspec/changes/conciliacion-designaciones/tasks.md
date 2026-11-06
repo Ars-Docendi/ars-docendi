@@ -62,7 +62,7 @@
 
 ## 9. Verificación
 
-- [ ] 9.1 `dotnet test backend/ArsDocendi.slnx`
+- [x] 9.1 `dotnet test backend/ArsDocendi.slnx`
 - [x] 9.2 `node --test scripts/tests/migrations.test.mjs`, `node scripts/migrations/validate.mjs` y `--validar-recursos` tras `dotnet build -c Release`
 - [x] 9.3 `pnpm --filter frontend test:run`, `pnpm --filter frontend lint` y `pnpm --filter frontend build`
 - [x] 9.4 `pnpm format:check`, `node scripts/docs/check-links.mjs` y `pnpm exec openspec validate --all`

@@ -142,9 +142,15 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         // Aceptado por Decanato y todavía no sincronizado: la designación vigente sigue igual,
         // pero el lote que va a rectificar ya lleva el cambio.
         var ct = TestContext.Current.CancellationToken;
+        // En el seed es un borrador: sin un evento fuera de borrador no habría qué sellar.
         await EjecutarSeedAsync(ct, """
             UPDATE designaciones.pedidos SET estado = 'en_lote'
              WHERE id = 'd5000000-0000-4000-8000-000000000001';
+            INSERT INTO designaciones.pedido_historial
+                (id, pedido_id, accion, rol_id, actor_id, etapa, comentario, created_at)
+            VALUES ('d7000000-0000-4000-8000-000000000901', 'd5000000-0000-4000-8000-000000000001',
+                    'aceptar', 'a1000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000005',
+                    'en_lote', NULL, TIMESTAMPTZ '2026-06-20 12:00:00+00');
             """);
 
         var (propuesta, _, _) = await DescargarAsync(ct);

@@ -35,6 +35,23 @@ function Valores({ valores }: { valores: ValoresDesignacion }) {
   );
 }
 
+/** Cuántas materias tiene hoy y con cuántas queda: "2 → 3", o "2" si no cambia. */
+function MateriasDelDocente({ hoy, queda }: { hoy: number; queda: number }) {
+  return (
+    <span className="conc-materias">
+      <span className="conc-sr-only">
+        {hoy === queda
+          ? `Sigue con ${plural(queda, "materia", "materias")}`
+          : `Pasa de ${hoy} a ${plural(queda, "materia", "materias")}`}
+      </span>
+      <span aria-hidden="true">
+        {hoy !== queda && <>{hoy} → </>}
+        <strong>{queda}</strong>
+      </span>
+    </span>
+  );
+}
+
 function Docente({ docente, nueva }: { docente: DocenteConciliacion; nueva?: boolean }) {
   return (
     <div className="conc-docente">
@@ -285,10 +302,10 @@ export function TablaPorConciliar({
                       </div>
                     </Table.Cell>
                     <Table.Cell className="conc-col-materias">
-                      <span className="conc-materias">
-                        Hoy <strong>{docente.vigentes.length}</strong>, queda con{" "}
-                        <strong>{resultado(docente).length}</strong>
-                      </span>
+                      <MateriasDelDocente
+                        hoy={docente.vigentes.length}
+                        queda={resultado(docente).length}
+                      />
                     </Table.Cell>
                     <Table.Cell>
                       <span className="conc-estados">

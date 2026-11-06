@@ -168,7 +168,8 @@ public sealed class ConciliacionTests(PostgresFixture postgres) : VigenciasPedid
         await ConciliacionPrueba.SincronizarAsync(AltaId, identity, db, ct);
 
         db.ChangeTracker.Clear();
-        var aprobado = await db.Pedidos.Include(p => p.Historial).SingleAsync(p => p.Id == AltaId, ct);
+        var aprobado = await db.Pedidos.Include(p => p.Adjuntos).Include(p => p.Historial)
+            .SingleAsync(p => p.Id == AltaId, ct);
         // El último sello coincide con el pedido aprobado [BR-designaciones-019].
         await SellosPrueba.Sellador(db).VerificarEstadoPrevioAsync(aprobado, ct);
         Assert.Single(aprobado.Historial, h => h.Accion == AccionesHistorial.Sincronizar);
@@ -253,7 +254,8 @@ public sealed class ConciliacionTests(PostgresFixture postgres) : VigenciasPedid
     private static async Task<Pedido> EnLoteAsync(
         DesignacionesDbContext db, Guid pedidoId, Action<Pedido> ajustar, CancellationToken ct)
     {
-        var pedido = await db.Pedidos.SingleAsync(p => p.Id == pedidoId, ct);
+        // Con adjuntos: el sello fotografía el pedido completo [BR-designaciones-019].
+        var pedido = await db.Pedidos.Include(p => p.Adjuntos).SingleAsync(p => p.Id == pedidoId, ct);
         ajustar(pedido);
         pedido.Estado = EstadosPedido.EnLote;
         pedido.EtapaRetorno = null;
