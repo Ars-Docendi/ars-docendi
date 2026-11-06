@@ -16,7 +16,7 @@ const consultar = (ambiente) =>
     { cwd: repo, encoding: "utf8", env: { PATH: process.env.PATH } },
   );
 
-for (const ambiente of ["staging", "pr-123"]) {
+for (const ambiente of ["staging", "presentacion", "pr-123"]) {
   test(`${ambiente} conserva su subdominio`, () => {
     const resultado = consultar(ambiente);
     assert.equal(resultado.status, 0, resultado.stderr);

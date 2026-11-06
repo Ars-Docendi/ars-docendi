@@ -8,6 +8,9 @@ ingress:
   # Producción sólo en el dominio raíz; prod sigue siendo su identidad interna.
   - hostname: example.net
     service: http://traefik:80
+  # Presentación: staging en la PC principal para usar Ollama por la red local.
+  - hostname: presentacion.example.net
+    service: http://traefik:80
   # IA (Ollama) sólo para staging/pr-N; prod la consume localmente, no por aquí.
   # Entrypoint privado `ollama` de Traefik, nunca `web`. cloudflared exige un
   # JWT válido de Cloudflare Access aunque la aplicación Access se borre.
