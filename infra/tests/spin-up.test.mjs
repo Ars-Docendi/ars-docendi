@@ -128,7 +128,7 @@ fi
   rmSync(dir, { recursive: true, force: true });
   return { ...result, log, env };
 }
-for (const ambiente of ["prod", "staging", "pr-123"]) {
+for (const ambiente of ["prod", "presentacion", "staging", "pr-123"]) {
   test(`${ambiente}: conserva datos y hace backup antes de migrar`, () => {
     const r = ejecutar(ambiente);
     assert.equal(r.status, 0, r.stderr);
@@ -137,7 +137,7 @@ for (const ambiente of ["prod", "staging", "pr-123"]) {
     assert.ok(r.log.indexOf("backup-storage.sh") < r.log.indexOf("--migrate"));
     assert.ok(r.log.indexOf("--script-migraciones") < r.log.indexOf("--migrate"));
     assert.ok(r.log.includes("smoke.sh"));
-    if (ambiente === "prod") assert.doesNotMatch(r.log, /seed.sh/);
+    if (ambiente === "prod" || ambiente === "presentacion") assert.doesNotMatch(r.log, /seed.sh/);
   });
 }
 test("PR cerrado bajo lock no provisiona ni publica", () => {

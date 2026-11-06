@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Actualiza un ambiente persistente: preflight/preview, backup, migraciones y smoke.
-# Nunca reset/drop/purge en deploy ordinario; prod nunca recibe seed.
+# Nunca reset/drop/purge en deploy ordinario; prod y presentacion nunca reciben seed.
 #
 # Uso:
-#   spin-up.sh <ambiente>          # ambiente: prod | staging | pr-<N>
+#   spin-up.sh <ambiente>          # ambiente: prod | staging | presentacion | pr-<N>
 #
 # Variables requeridas (se inyectan en runtime / CI, nunca al repo):
 #   DOMINIO                           dominio público real (reemplaza example.net)
@@ -71,7 +71,7 @@ secret_variable="SEAWEEDFS_APP_SECRET_KEY_${variable_ambiente}"
 seaweedfs_app_access_key="${!access_variable:-${SEAWEEDFS_APP_ACCESS_KEY:-}}"
 seaweedfs_app_secret_key="${!secret_variable:-${SEAWEEDFS_APP_SECRET_KEY:-}}"
 if [[ -z "$seaweedfs_app_access_key" || -z "$seaweedfs_app_secret_key" ]]; then
-  if [[ "$ambiente" == "prod" || "$ambiente" == "staging" ]]; then
+  if [[ "$ambiente" =~ ^(prod|staging|presentacion)$ ]]; then
     seaweedfs_app_access_key="$(seaweedfs_app_access_for "$ambiente")"
     seaweedfs_app_secret_key="$(seaweedfs_app_secret_for "$ambiente" "$SEAWEEDFS_ROOT_SECRET_KEY")"
   else
@@ -242,7 +242,7 @@ fi
 # Mismo test de humo, ahora con las tablas creadas: ninguna migración le dio al
 # asistente un privilegio de mutación.
 "$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
-if [[ "$ambiente" != prod ]]; then
+if [[ "$ambiente" != prod && "$ambiente" != presentacion ]]; then
   SEED_BASE_CREATED="$base_nueva" "$scripts_dir/seed.sh" "$ambiente"
   # Sólo mientras el seed lo marque pendiente: sellar en cada deploy legitimaría cambios
   # hechos por SQL. Un sellado fallido conserva la marca y se reintenta en el próximo deploy.

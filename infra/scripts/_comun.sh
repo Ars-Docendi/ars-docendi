@@ -69,11 +69,11 @@ nombre_base() {
   echo "arsdocendi_$(echo "$ambiente" | tr '-' '_')"
 }
 
-# Valida que el nombre de ambiente tenga forma esperada (prod|staging|pr-<N>).
+# Valida que el nombre de ambiente tenga forma esperada (prod|staging|presentacion|pr-<N>).
 validar_ambiente() {
   local ambiente="$1"
-  if [[ ! "$ambiente" =~ ^(prod|staging|pr-[0-9]+)$ ]]; then
-    fatal "msg=\"ambiente inválido\" ambiente=\"${ambiente}\" esperado=\"prod|staging|pr-<N>\""
+  if [[ ! "$ambiente" =~ ^(prod|staging|presentacion|pr-[0-9]+)$ ]]; then
+    fatal "msg=\"ambiente inválido\" ambiente=\"${ambiente}\" esperado=\"prod|staging|presentacion|pr-<N>\""
   fi
 }
 
