@@ -75,10 +75,12 @@ export const PESTANIAS: Pestania[] = [
 
 /**
  * Pestaña en la que abre la Tabla: el área propia del actor (Coordinador → "En
- * Coordinación", etc.). Administración no tiene área propia —ve todo el
- * departamento por igual—, así que abre en "Todos".
+ * Coordinación", etc.). Secretaría abre en "Finalizados", donde exporta el lote del
+ * período. Administración no tiene área propia —ve todo el departamento por igual—,
+ * así que abre en "Todos".
  */
 export function pestaniaInicial(actor: ActorContexto): IdPestania {
+  if (actor.rol === "Secretaría") return "finalizados";
   return AREAS.find((area) => area.rol === actor.rol)?.id ?? "todos";
 }
 
