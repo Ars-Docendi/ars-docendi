@@ -242,6 +242,9 @@
 .conc-modal-cuerpo p {
   margin: 0;
 }
+.conc-preview-nota {
+  color: var(--color-text-secondary);
+}
 .conc-modal-ancho {
   width: min(720px, calc(100vw - 32px));
 }

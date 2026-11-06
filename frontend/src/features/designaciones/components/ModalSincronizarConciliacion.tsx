@@ -27,7 +27,7 @@ export function ModalSincronizarConciliacion({
 }: ModalSincronizarConciliacionProps) {
   const resumen = resumenSincronizacion(aceptados);
   const totales = [
-    { n: resumen.personasNuevas, t: "Personas nuevas" },
+    { n: resumen.personasNuevas, t: "Docentes nuevos" },
     { n: resumen.altas, t: "Altas" },
     { n: resumen.cambios, t: "Cambios" },
     { n: resumen.bajas, t: "Bajas" },
@@ -73,7 +73,7 @@ export function ModalSincronizarConciliacion({
               <div className="nom">
                 {nombreCompleto(docente)}
                 {docente.personaNueva && (
-                  <span className="conc-chip-persona-nueva">Se crea la persona</span>
+                  <span className="conc-chip-persona-nueva">Primera designación</span>
                 )}
               </div>
               <ul>
@@ -84,9 +84,12 @@ export function ModalSincronizarConciliacion({
             </div>
           ))}
         </div>
-        <InlineAlert severity="warning" title="No se puede deshacer">
-          Los pedidos pasan a Aprobado y ya no se pueden editar.
-        </InlineAlert>
+        <p className="conc-preview-nota">
+          Al sincronizar se actualiza la base de docentes: se escriben las altas, los cambios de
+          cargo o dedicación y las bajas de cada materia, y el rol Docente se asigna en la materia
+          de cada alta y se retira en la de cada baja. Quien todavía no tiene mail recibe el rol
+          cuando se lo cargan en Personas. Los pedidos pasan a Aprobado y ya no se pueden editar.
+        </p>
       </div>
     </Modal>
   );

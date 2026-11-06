@@ -32,7 +32,7 @@ export const conciliarElLote: ArticuloAyuda = {
       titulo: "Revisá cómo queda cada docente",
       etiquetaIndice: "Revisar",
       cuerpo:
-        "Pulsá la fila para ver el detalle por materia: Hoy es la designación vigente y Queda es lo que pide el pedido, con las horas de investigación y externas, la justificación de un cambio y el tipo de baja. Las materias sin pedido figuran como Sin cambios. Al pie ves con cuántas materias y horas semanales queda. Un docente marcado Persona nueva se da de alta en el sistema al sincronizar.",
+        "Pulsá la fila para ver el detalle por materia: Hoy es la designación vigente y Queda es lo que pide el pedido, con las horas de investigación y externas, la justificación de un cambio y el tipo de baja. Las materias sin pedido figuran como Sin cambios. Al pie ves con cuántas materias y horas semanales queda. Un docente marcado Docente nuevo no tiene otra designación: el pedido es su primer cargo.",
     },
     {
       titulo: "Rechazá lo que no se aprobó",
@@ -50,7 +50,7 @@ export const conciliarElLote: ArticuloAyuda = {
       titulo: "Aceptá y sincronizá",
       etiquetaIndice: "Sincronizar",
       cuerpo:
-        "Tildá a los docentes que coinciden con la rectificación, o la casilla del encabezado para todos los visibles. Aceptar un docente acepta todos sus cambios. Pulsá Sincronizar, junto a las pestañas: la vista previa muestra cuántas personas nuevas, altas, cambios y bajas se aplican y el detalle de cada uno. Confirmá con Sincronizar.",
+        "Tildá a los docentes que coinciden con la rectificación, o la casilla del encabezado para todos los visibles. Aceptar un docente acepta todos sus cambios. Pulsá Sincronizar, junto a las pestañas: la vista previa muestra cuántos docentes nuevos, altas, cambios y bajas se aplican, el detalle de cada uno y qué se actualiza en la base de docentes. Confirmá con Sincronizar.",
       nota: {
         tipo: "importante",
         titulo: "No se puede deshacer",
@@ -74,9 +74,9 @@ export const conciliarElLote: ArticuloAyuda = {
         descripcion: "Se cierra la designación vigente y se retira el rol Docente en esa materia.",
       },
       {
-        termino: "Persona nueva",
+        termino: "Docente nuevo",
         descripcion:
-          "Se da de alta con sus datos y sin mail. Al cargarle el mail en Personas, el rol Docente aparece precargado según sus designaciones.",
+          "Alguien sin otra designación vigente: el Alta es su primer cargo. La persona ya existe desde que se creó el pedido, con sus datos y sin mail. Al cargarle el mail en Personas, el rol Docente aparece precargado según sus designaciones.",
       },
     ],
   },

@@ -42,8 +42,9 @@ desde acá requiere además `designaciones.editar`.
    conciliación y el docente queda sin aceptar.
 5. Tilda a los docentes que coinciden (o todos los visibles) y usa **Sincronizar N cambios**,
    junto a las pestañas.
-6. La vista previa muestra totales (personas nuevas, altas, cambios, bajas) y una línea por
-   pedido con materia y carrera, con el aviso de que no se puede deshacer. Al confirmar, los
+6. La vista previa muestra totales (docentes nuevos, altas, cambios, bajas), una línea por
+   pedido con materia y carrera y una nota neutra con lo que se actualiza en la base
+   (designaciones por materia y rol Docente) y que los pedidos ya no se podrán editar. Al confirmar, los
    pedidos pasan a **Sincronizados** con fecha y autor, y ya no se pueden editar.
 
 ## Layout / IA

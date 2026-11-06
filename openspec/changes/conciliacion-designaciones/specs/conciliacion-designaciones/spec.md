@@ -36,7 +36,7 @@ La ruta `/designaciones/conciliacion` SHALL mostrar los pedidos del período act
 
 - **GIVEN** un Alta `en_lote` de una persona sin designaciones vigentes
 - **WHEN** se muestra en la conciliación
-- **THEN** la columna Hoy dice "Sin designación" y el docente se identifica como persona nueva
+- **THEN** la columna Hoy dice "Sin designación" y el docente se identifica como docente nuevo
 
 #### Scenario: Baja
 
@@ -116,7 +116,7 @@ Quien tiene `designaciones.editar` SHALL poder editar cualquier campo de un pedi
 
 ### Requirement: Vista previa de la sincronización
 
-Antes de sincronizar, la pantalla SHALL mostrar una vista previa con la cantidad de personas nuevas, altas, cambios y bajas, y el detalle por docente de cada movimiento con su carrera. También SHALL avisar que la operación no se puede deshacer y que los pedidos ya no se podrán editar.
+Antes de sincronizar, la pantalla SHALL mostrar una vista previa con la cantidad de docentes nuevos, altas, cambios y bajas, y el detalle por docente de cada movimiento con su carrera. También SHALL explicar, sin tono de alerta, qué se actualiza en la base (designaciones por materia y rol Docente) y que los pedidos ya no se podrán editar.
 
 #### Scenario: Vista previa con docentes aceptados
 

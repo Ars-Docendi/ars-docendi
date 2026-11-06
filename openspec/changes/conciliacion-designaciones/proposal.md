@@ -14,7 +14,7 @@ Hoy, cuando Decanato acepta un pedido, éste pasa a `en_lote` y la designación 
   - Agrupa por docente y muestra todas sus materias: lo que tiene hoy, cómo queda, la carrera, la novedad y el pedido.
   - Se acepta por docente. Cada cambio se puede editar o rechazar.
   - Pestañas: Por conciliar, Rechazados y Sincronizados.
-- **Sincronizar** muestra primero una vista previa (personas nuevas, altas, cambios, bajas y el detalle por docente). Después aplica en una sola transacción:
+- **Sincronizar** muestra primero una vista previa (docentes nuevos, altas, cambios, bajas y el detalle por docente). Después aplica en una sola transacción:
   - Alta abre la designación, Baja la cierra y Cambio la cierra y abre otra (o la actualiza si empezó ese mismo día).
   - Cada pedido pasa a `aprobado`.
   - Lo sincronizado ya no se puede editar.

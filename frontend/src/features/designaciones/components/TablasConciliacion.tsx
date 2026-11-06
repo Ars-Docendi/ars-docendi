@@ -57,7 +57,7 @@ function Docente({ docente, nueva }: { docente: DocenteConciliacion; nueva?: boo
     <div className="conc-docente">
       <span className="nombre">
         {nombreCompleto(docente)}
-        {nueva && <span className="conc-chip-persona-nueva">Persona nueva</span>}
+        {nueva && <span className="conc-chip-persona-nueva">Docente nuevo</span>}
       </span>
       <span className="cuil">{docente.cuil ?? `DNI ${docente.documento}`}</span>
     </div>
@@ -177,7 +177,7 @@ function Detalle({ docente, ...acciones }: { docente: DocenteConciliacion } & Ac
             </tbody>
           </table>
           <p className="conc-detalle-pie">
-            {docente.personaNueva && "Persona nueva: se da de alta en el sistema al sincronizar. "}
+            {docente.personaNueva && "Docente nuevo: es su primera designación. "}
             Queda con <strong>{plural(queda.length, "materia", "materias")}</strong> y{" "}
             <strong>{horas} h</strong> semanales de materia.
           </p>
