@@ -85,10 +85,8 @@ export function ModalSincronizarConciliacion({
           ))}
         </div>
         <p className="conc-preview-nota">
-          Al sincronizar se actualiza la base de docentes: se escriben las altas, los cambios de
-          cargo o dedicación y las bajas de cada materia, y el rol Docente se asigna en la materia
-          de cada alta y se retira en la de cada baja. Quien todavía no tiene mail recibe el rol
-          cuando se lo cargan en Personas. Los pedidos pasan a Aprobado y ya no se pueden editar.
+          Se actualizan las designaciones y el rol Docente de cada materia. Los pedidos pasan a
+          Aprobado y ya no se pueden editar.
         </p>
       </div>
     </Modal>
