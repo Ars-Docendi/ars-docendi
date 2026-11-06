@@ -12,6 +12,7 @@ import type {
   TipoAdjunto,
   TipoBaja,
 } from "../types";
+import { mensajeFormatoInvalido, mimeAdmitido } from "../../../shared/api/archivosApi";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { asignacionVigenteEnMateria, claveMateria } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
@@ -94,6 +95,7 @@ export function PedidoForm({
     datosIniciales(catedra, pedidoInicial),
   );
   const [errores, setErrores] = useState<ErroresValidacion>({});
+  const [erroresFormato, setErroresFormato] = useState<Partial<Record<TipoAdjunto, string>>>({});
   const [inicial] = useState(() => JSON.stringify(datos));
   const sucio = JSON.stringify(datos) !== inicial;
   useEffect(() => onSucioChange?.(sucio), [sucio, onSucioChange]);
@@ -281,6 +283,10 @@ export function PedidoForm({
   function agregarAdjunto(tipo: TipoAdjunto, archivos: FileList) {
     const archivo = archivos.item(0);
     if (!archivo) return;
+    // Arrastrar no respeta el `accept` del selector: el formato se valida acá también.
+    const errorFormato = mimeAdmitido(tipo, archivo) ? undefined : mensajeFormatoInvalido(tipo);
+    setErroresFormato((prev) => ({ ...prev, [tipo]: errorFormato }));
+    if (errorFormato) return;
     setDatos((prev) => ({
       ...prev,
       adjuntos: [
@@ -291,6 +297,7 @@ export function PedidoForm({
   }
 
   function quitarAdjunto(tipo: TipoAdjunto) {
+    setErroresFormato((prev) => ({ ...prev, [tipo]: undefined }));
     setDatos((prev) => ({
       ...prev,
       adjuntos: prev.adjuntos.filter((adjunto) => adjunto.tipo !== tipo),
@@ -510,6 +517,7 @@ export function PedidoForm({
           <SeccionAdjuntosPedido
             novedad={novedad}
             errorAdjuntos={errores.adjuntos}
+            erroresFormato={erroresFormato}
             adjuntoComoUploaded={adjuntoComoUploaded}
             onAgregar={agregarAdjunto}
             onQuitar={quitarAdjunto}
