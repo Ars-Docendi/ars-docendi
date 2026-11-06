@@ -1,8 +1,8 @@
-import { Button, Input, Table } from "@ars-docendi/ui";
+import { Input, Table } from "@ars-docendi/ui";
 import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { useFiltrosURL, useOrdenURL, usePestanaURL } from "../../../shared/navegacion/estadoURL";
 import { PanelPestana, Pestanas } from "../../../shared/ui/Pestanas";
-import type { ActorContexto, PedidoDesignacion, PeriodoDesignacion } from "../types";
+import type { ActorContexto, PedidoDesignacion } from "../types";
 import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { ListaRevisionMovil } from "./ListaRevisionMovil";
@@ -42,10 +42,6 @@ interface TablaRevisionProps {
   filtrosColumnas?: FiltrosColumnasTablero;
   onFiltrosColumnasChange?: (filtros: FiltrosColumnasTablero) => void;
   onSeleccionar: (pedido: PedidoDesignacion) => void;
-  periodoActivo?: PeriodoDesignacion | null;
-  onExportar?: () => void;
-  exportando?: boolean;
-  errorExportacion?: string;
 }
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
@@ -82,10 +78,6 @@ export function TablaRevision({
   filtrosColumnas,
   onFiltrosColumnasChange,
   onSeleccionar,
-  periodoActivo,
-  onExportar,
-  exportando = false,
-  errorExportacion,
 }: TablaRevisionProps) {
   // Pestaña, orden y filtros de columna viven en el query: Atrás y recargar los restauran. Cambiar
   // de pestaña agrega una entrada al historial; el orden y los filtros la reemplazan.
@@ -117,8 +109,6 @@ export function TablaRevision({
   // filas y ya la dice la pestaña. En Finalizados no hay área que mostrar.
   const mostrarArea = areaEsFiltrable(pestania);
   const columnasVisibles = COLUMNAS.length + (mostrarArea ? 1 : 0);
-  const puedeExportar =
-    actor.rol === "Secretaría" || actor.rol === "Decanato" || actor.rol === "Administración";
   const contarColumnas = (columnas: FiltrosColumnasTablero) =>
     pedidosDePestania(
       aplicarFiltros(
@@ -128,7 +118,6 @@ export function TablaRevision({
       ),
       pestania,
     ).length;
-  const mostrarExportar = pestania === "finalizados" && puedeExportar && Boolean(onExportar);
 
   return (
     <div className="adoc-revision">
@@ -140,35 +129,7 @@ export function TablaRevision({
           onChange={(id) => setPestania(id as IdPestania)}
           aria-label="Área del circuito"
         />
-        {mostrarExportar && (
-          <div className="adoc-revision-exportar">
-            <span className="adoc-revision-periodo">
-              {periodoActivo ? `Período: ${periodoActivo.nombre}` : "Sin período activo"}
-            </span>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!periodoActivo || exportando}
-              loading={exportando}
-              onClick={onExportar}
-              aria-describedby={!periodoActivo ? "revision-sin-periodo" : undefined}
-            >
-              Exportar
-            </Button>
-            {!periodoActivo && (
-              <span id="revision-sin-periodo" className="adoc-revision-exportar-ayuda">
-                Configurá un período activo para descargar el lote.
-              </span>
-            )}
-            {exportando && <span role="status">Exportando…</span>}
-          </div>
-        )}
       </div>
-      {errorExportacion && (
-        <p className="adoc-revision-exportar-error" role="alert">
-          {errorExportacion}
-        </p>
-      )}
 
       <PanelPestana prefijo="revision" id={pestania}>
         {telefono ? (

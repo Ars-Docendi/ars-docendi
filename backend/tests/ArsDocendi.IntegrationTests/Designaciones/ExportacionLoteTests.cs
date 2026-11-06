@@ -13,18 +13,15 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "exportacion_lote")
 {
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
-    private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
-    [Theory]
-    [InlineData("a0000000-0000-4000-8000-000000000004", "secretaria")]
-    [InlineData("a0000000-0000-4000-8000-000000000005", "decanato")]
-    [InlineData("a0000000-0000-4000-8000-000000000006", "administrativo")]
-    public async Task Rol_departamental_descarga_la_planilla_institucional(string usuario, string rol)
+    [Fact]
+    public async Task Secretaria_descarga_la_planilla_institucional()
     {
         var ct = TestContext.Current.CancellationToken;
         await EjecutarSeedAsync(ct);
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse(usuario), rol);
+        Autenticar(cliente, Secretaria, "secretaria");
 
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
 
@@ -59,8 +56,12 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         Assert.Equal("n", Celda(filas.First(), "G")?.Attribute("t")?.Value);
     }
 
-    [Fact]
-    public async Task API_rechaza_sin_autenticacion_y_roles_fuera_del_lote()
+    [Theory]
+    [InlineData("a0000000-0000-4000-8000-000000000002", "jefe_catedra")]
+    // Departamentales sin designaciones.exportar_lote: exportar se decide por permiso, no por rol.
+    [InlineData("a0000000-0000-4000-8000-000000000005", "decanato")]
+    [InlineData("a0000000-0000-4000-8000-000000000006", "administrativo")]
+    public async Task API_rechaza_sin_autenticacion_y_sin_permiso_de_exportar(string usuario, string rol)
     {
         var ct = TestContext.Current.CancellationToken;
         await EjecutarSeedAsync(ct);
@@ -71,7 +72,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             (await sinAutenticar.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct)).StatusCode);
 
         using var cliente = host.CreateClient();
-        Autenticar(cliente, Jefe, "jefe_catedra");
+        Autenticar(cliente, Guid.Parse(usuario), rol);
         Assert.Equal(
             HttpStatusCode.Forbidden,
             (await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct)).StatusCode);
@@ -85,7 +86,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         await EjecutarAsync("UPDATE designaciones.periodos SET activo = FALSE WHERE id = @id", ct, new NpgsqlParameter("id", Periodo));
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         Assert.Equal(
             HttpStatusCode.Conflict,
             (await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct)).StatusCode);
@@ -112,7 +113,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'", ct);
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
@@ -216,7 +217,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     private async Task<(XDocument Propuesta, XDocument Altas, XDocument Bajas)> DescargarAsync(CancellationToken ct)
     {
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         using var zip = new ZipArchive(
@@ -240,7 +241,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             """, ct);
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
@@ -267,7 +268,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         await EjecutarAsync("DELETE FROM designaciones.periodos WHERE id <> @id", ct, new NpgsqlParameter("id", Periodo));
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);

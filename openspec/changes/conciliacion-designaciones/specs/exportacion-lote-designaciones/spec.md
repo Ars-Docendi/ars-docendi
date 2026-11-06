@@ -2,6 +2,28 @@
 
 ## MODIFIED Requirements
 
+### Requirement: Descarga autorizada desde Finalizados
+
+En Revisión, quien tiene `designaciones.exportar_lote` SHALL ver Exportar lote como acción principal del encabezado, en todas las pestañas, con el período activo en el subtítulo. Una migración SHALL conceder ese permiso inicialmente sólo a Secretaría Académica; otros roles lo reciben desde la membresía de roles. Backend y frontend MUST decidir por ese permiso, nunca por código de rol. La descarga MUST NOT modificar pedidos, designaciones, estados ni permisos de aprobación.
+
+#### Scenario: Rol habilitado descarga
+
+- **GIVEN** un usuario con `designaciones.exportar_lote` en Revisión, en cualquier pestaña
+- **WHEN** pulsa Exportar lote
+- **THEN** MUST descargar un archivo XLSX real, mostrando progreso y evitando solicitudes simultáneas desde el botón
+
+#### Scenario: Rol no habilitado llama directamente a la API
+
+- **GIVEN** un usuario de Decanato o Administrativo al que no se le concedió `designaciones.exportar_lote`
+- **WHEN** abre Revisión o intenta descargar el lote por API
+- **THEN** MUST NOT ver el botón y la API MUST responder 403 sin datos del lote
+
+#### Scenario: Fallo de descarga
+
+- **GIVEN** un error de servidor o red
+- **WHEN** se intenta exportar
+- **THEN** la UI MUST informar el error y permitir reintentar sin presentar un archivo fallido como exitoso
+
 ### Requirement: Libro con pedidos finalizados y designaciones resultantes
 
 El XLSX SHALL contener exactamente tres hojas basadas en el modelo institucional:

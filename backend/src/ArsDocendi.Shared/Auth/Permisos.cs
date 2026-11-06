@@ -28,6 +28,11 @@ public static class Permisos
     /// antes de sincronizarlo. No cambia la edición de borradores y devueltos.
     /// </summary>
     public const string DesignacionesEditar = "designaciones.editar";
+
+    /// <summary>
+    /// Descargar la planilla del lote de designaciones del período activo.
+    /// </summary>
+    public const string DesignacionesExportarLote = "designaciones.exportar_lote";
     public const string AulasVer = "aulas.ver";
     public const string AulasSolicitar = "aulas.solicitar";
     public const string AulasGestionar = "aulas.gestionar";
@@ -122,6 +127,7 @@ public static class Permisos
         DesignacionesVerSeguimiento,
         DesignacionesConciliar,
         DesignacionesEditar,
+        DesignacionesExportarLote,
         AulasVer,
         AulasSolicitar,
         AulasGestionar,

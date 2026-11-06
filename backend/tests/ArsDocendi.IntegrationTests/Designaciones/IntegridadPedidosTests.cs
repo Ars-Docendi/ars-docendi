@@ -29,6 +29,7 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
     private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
+    private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Decanato = Guid.Parse("a0000000-0000-4000-8000-000000000005");
     private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
     private static readonly Guid PersonaLibre = Guid.Parse("d0000000-0000-4000-8000-000000000004");
@@ -243,7 +244,7 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
         await EnviarAsync(identityDb, db, PersonaLibre, ct);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
-        Autenticar(cliente, Decanato, "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         var url = $"/api/designaciones/periodos/{Periodo}/lote.xlsx";
 
         using var primera = await cliente.GetAsync(url, ct);

@@ -56,7 +56,7 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
         tipo: "importante",
         titulo: "Alcance de un rol personalizado",
         cuerpo:
-          "Un rol propio puede agrupar permisos, pero no habilita a aceptar, rechazar ni devolver pedidos en el circuito de aprobación de designaciones: esa facultad es de los roles del circuito. Lo mismo pasa con Conciliar y Editar designaciones (por defecto, de Secretaría Académica y Administrativos): se pueden sumar a otro rol del circuito, como Decanato, pero un rol propio con esos permisos no alcanza para conciliar ni editar.",
+          "Un rol propio puede agrupar permisos, pero no habilita a aceptar, rechazar ni devolver pedidos en el circuito de aprobación de designaciones: esa facultad es de los roles del circuito. Lo mismo pasa con Conciliar y Editar designaciones (por defecto, de Secretaría Académica y Administrativos): se pueden sumar a otro rol del circuito, como Decanato, pero un rol propio con esos permisos no alcanza para conciliar ni editar. Exportar el lote (por defecto, sólo de Secretaría Académica) sí se decide únicamente por el permiso.",
       },
     },
     {

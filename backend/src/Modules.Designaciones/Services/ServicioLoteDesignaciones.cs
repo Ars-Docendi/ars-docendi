@@ -4,6 +4,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using ArsDocendi.Shared.Aplicacion;
+using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Repositories;
@@ -31,7 +32,7 @@ internal sealed class ServicioLoteDesignaciones(
     public async Task<ArchivoLoteDesignaciones> ExportarAsync(Guid periodoId, CancellationToken ct)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
-        if (!actor.EsDeptoWide)
+        if (!actor.TienePermiso(Permisos.DesignacionesExportarLote))
         {
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.Prohibido,

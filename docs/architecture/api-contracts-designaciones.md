@@ -53,9 +53,9 @@ por haber registrado la persona en un Alta.
 
 ## Exportación del lote
 
-| Método | Ruta                                         | Permiso y ámbito                                                          | Salida |
-| ------ | -------------------------------------------- | ------------------------------------------------------------------------- | ------ |
-| GET    | `/api/designaciones/periodos/{id}/lote.xlsx` | `designaciones.ver` + Secretaría, Decanato o Administración departamental | XLSX   |
+| Método | Ruta                                         | Permiso y ámbito                                                     | Salida |
+| ------ | -------------------------------------------- | -------------------------------------------------------------------- | ------ |
+| GET    | `/api/designaciones/periodos/{id}/lote.xlsx` | `designaciones.exportar_lote` (de inicio, sólo Secretaría Académica) | XLSX   |
 
 La ruta sólo acepta el período activo indicado por `{id}`. El archivo fijo
 `lote-designaciones.xlsx` contiene exactamente tres hojas institucionales:

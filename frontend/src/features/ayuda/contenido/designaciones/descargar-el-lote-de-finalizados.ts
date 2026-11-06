@@ -7,7 +7,7 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
   titulo: "Cómo descargar el lote de finalizados",
   resumen: "Exportar el libro de pedidos finalizados del período activo.",
   introduccion:
-    "El lote es un libro de Excel con las altas, bajas y cambios aceptados por Decanato en el período activo, más las designaciones que continúan vigentes. Va a la rectificación y, cuando vuelve, se concilia en la pantalla Conciliación. Lo descargan Secretaría Académica, Decanato y Administración desde la pestaña Finalizados.",
+    "El lote es un libro de Excel con las altas, bajas y cambios aceptados por Decanato en el período activo, más las designaciones que continúan vigentes. Va a la rectificación y, cuando vuelve, se concilia en la pantalla Conciliación. Lo descarga quien tiene el permiso de exportar el lote (de inicio, Secretaría Académica) desde el encabezado de Revisión.",
   permisos: ["designaciones.revisar"],
   palabrasClave: [
     "lote",
@@ -24,18 +24,14 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
   ],
   pasos: [
     {
-      titulo: "Andá a la pestaña Finalizados",
-      etiquetaIndice: "Finalizados",
+      titulo: "Abrí Revisión",
+      etiquetaIndice: "Revisión",
       cuerpo:
-        "En Revisión, elegí la pestaña Finalizados. Si tu rol puede descargar el lote, a la derecha de las pestañas aparecen el texto Período con el nombre del período activo y el botón Exportar.",
-      captura: {
-        src: "/ayuda/designaciones/descargar-el-lote-de-finalizados-paso-1.webp",
-        alt: "Pestaña Finalizados con «Período: …» y el botón Exportar a la derecha de las pestañas.",
-      },
+        "Si tenés el permiso, a la derecha del título Revisión aparece el botón Exportar lote, en cualquier pestaña. Debajo del título, el texto Período indica el período activo que se va a descargar.",
     },
     {
-      titulo: "Pulsá Exportar",
-      etiquetaIndice: "Exportar",
+      titulo: "Pulsá Exportar lote",
+      etiquetaIndice: "Exportar lote",
       cuerpo:
         "El botón muestra Exportando… mientras se arma el archivo, y el navegador descarga lote-designaciones.xlsx. Mientras dura la descarga no se pueden lanzar otras desde el botón.",
     },
@@ -49,7 +45,7 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
       titulo: "Si algo falla",
       etiquetaIndice: "Errores",
       cuerpo:
-        "Sin período activo, Exportar queda deshabilitado con la explicación «Configurá un período activo para descargar el lote». Si el período cambió mientras tenías la pantalla abierta, ves «El período cambió. Actualizamos los períodos; reintentá la descarga.». Si el sistema detecta que algún pedido del período se modificó por fuera del circuito, el lote no se descarga y ves «No se pudo verificar la integridad del período y el lote no se descargó. Avisá a la administración del sistema.». Ante cualquier otro error, el sistema muestra «No se pudo descargar el lote. Reintentá.»",
+        "Sin período activo, Exportar lote queda deshabilitado y debajo del título se lee «Sin período activo: configuralo para descargar el lote.». Si el período cambió mientras tenías la pantalla abierta, ves «El período cambió. Actualizamos los períodos; reintentá la descarga.». Si el sistema detecta que algún pedido del período se modificó por fuera del circuito, el lote no se descarga y ves «No se pudo verificar la integridad del período y el lote no se descargó. Avisá a la administración del sistema.». Estos avisos aparecen bajo el encabezado como «No se descargó el lote». Ante cualquier otro error, el sistema muestra «No se pudo descargar el lote. Reintentá.»",
     },
   ],
   despues: {
@@ -64,14 +60,14 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
         "Es un código que resume todo el circuito de los pedidos del período hasta ese momento. Si después alguien alterara un pedido o su historial por fuera del sistema, el código dejaría de coincidir con el del libro que ya circuló.",
     },
     {
-      pregunta: "No veo el botón Exportar. ¿Por qué?",
+      pregunta: "No veo el botón Exportar lote. ¿Por qué?",
       respuesta:
-        "Solo lo ven Secretaría Académica, Decanato y Administración, y solo en la pestaña Finalizados. El resto de los roles no puede descargar el lote.",
+        "Solo lo ve quien tiene el permiso de exportar el lote. De inicio lo tiene Secretaría Académica; la administración del sistema puede concedérselo a otro rol.",
     },
     {
       pregunta: "¿El lote incluye el período que tengo elegido en el filtro?",
       respuesta:
-        "No: siempre usa el período activo, el que figura junto al botón. Los filtros de la tabla no recortan el contenido del libro.",
+        "No: siempre usa el período activo, el que figura debajo del título. Los filtros de la tabla no recortan el contenido del libro.",
     },
   ],
   relacionados: [

@@ -42,6 +42,7 @@
 
 - [x] 6.1 `ServicioLoteDesignaciones`: pedidos del lote `en_lote` + `aprobado`, excluir `no_aprobado`, y proyectar en `PROPUESTA COMPLETA` los Cambios `en_lote` con los valores del pedido
 - [x] 6.2 Tests del lote: Cambio no sincronizado, Baja `en_lote` sin continuidad duplicada, Alta `aprobado` sin duplicar fila y `no_aprobado` ausente de las tres hojas
+- [x] 6.3 Permiso `designaciones.exportar_lote` (migración incremental de Identity, concedido sólo a Secretaría Académica); `LoteController` y `ServicioLoteDesignaciones` deciden por permiso en lugar de por rol departamental
 
 ## 7. Frontend
 
@@ -52,6 +53,7 @@
 - [x] 7.5 Ruta `designaciones/conciliacion` con `RequirePermission` y entrada de navegación por `designaciones.conciliar`
 - [x] 7.6 Tablero de Revisión, badges y detalle: ubicar y rotular `aprobado` y `no_aprobado` (En lote, Aprobado, Rechazado en conciliación)
 - [x] 7.7 Tests de flujo: aceptar, sincronizar y ver Sincronizado; rechazar sin motivo; editar un rechazado que vuelve a Por conciliar; sin permiso no hay enlace ni ruta
+- [x] 7.8 Revisión: Exportar lote como acción primaria del `PageHeader`, en todas las pestañas, con el período en el subtítulo y visible por `designaciones.exportar_lote`
 
 ## 8. Documentación
 

@@ -197,7 +197,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         var enLoteJefe = await jefe.GetFromJsonAsync<PedidoDto>($"/api/designaciones/pedidos/{creado.Id}", ct);
         Assert.Equal("en_proceso", enLoteJefe!.Estado);
 
-        using var respuesta = await decanato.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
+        using var respuesta = await secretaria.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
