@@ -75,13 +75,21 @@ internal sealed class ServicioLoteDesignaciones(
         var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
         var materias = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
         var datos = consulta!;
+        // Lo que Decanato aceptó, se haya sincronizado o no. Lo rechazado en la conciliación
+        // sale del lote: la rectificación no lo aprobó.
         var pedidosEnLote = datos.PedidosDelPeriodo
-            .Where(p => p.Estado == EstadosPedido.EnLote)
+            .Where(p => p.Estado is EstadosPedido.EnLote or EstadosPedido.Aprobado)
             .OrderBy(p => p.PersonaId)
             .ThenBy(p => p.MateriaId)
             .ThenBy(p => p.Numero, StringComparer.Ordinal)
             .ToArray();
         var pedidosPorId = pedidosEnLote.ToDictionary(p => p.Id);
+        // Un Cambio sin sincronizar todavía no tocó la designación vigente: la fila muestra
+        // lo que el pedido propone, no lo que la persona ya tiene.
+        var cambiosPendientes = pedidosEnLote
+            .Where(p => p.Novedad == Novedades.CambioDeCargoODedicacion && p.MaterializadoEn is null)
+            .GroupBy(p => (p.PersonaId, p.MateriaId))
+            .ToDictionary(g => g.Key, g => g.First());
         var designacionesPorClave = datos.DesignacionesVigentes
             .GroupBy(d => (d.PersonaId, d.MateriaId))
             .ToDictionary(g => g.Key, g => g.OrderByDescending(d => d.VigenteDesde).ThenByDescending(d => d.CreadoEn).First());
@@ -99,7 +107,9 @@ internal sealed class ServicioLoteDesignaciones(
 
         var propuesta = datos.DesignacionesVigentes
             .Where(d => !clavesBaja.Contains((d.PersonaId, d.MateriaId)))
-            .Select(d => MapearPropuesta(d, personas, materias, pedidosPorId))
+            .Select(d => cambiosPendientes.TryGetValue((d.PersonaId, d.MateriaId), out var cambio)
+                ? MapearPropuestaCambioPendiente(d, cambio, personas, materias)
+                : MapearPropuesta(d, personas, materias, pedidosPorId))
             .Concat(bajas.Select(p => MapearPropuestaBaja(p, personas, materias)))
             .Concat(altasSinDesignacion)
             .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
@@ -214,6 +224,35 @@ internal sealed class ServicioLoteDesignaciones(
             designacion.Horas,
             materia?.Nombre,
             pedido?.Numero ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Cambio aceptado por Decanato y todavía no sincronizado: anterior es lo vigente y la
+    /// propuesta, lo que pide el pedido.
+    /// </summary>
+    private static FilaPropuestaLote MapearPropuestaCambioPendiente(
+        Designacion designacion,
+        Pedido pedido,
+        IReadOnlyDictionary<Guid, Persona> personas,
+        IReadOnlyDictionary<Guid, Materia> materias)
+    {
+        personas.TryGetValue(designacion.PersonaId, out var persona);
+        materias.TryGetValue(designacion.MateriaId, out var materia);
+        return new FilaPropuestaLote(
+            designacion.PersonaId,
+            designacion.MateriaId,
+            Nombre(persona),
+            persona?.Cuil,
+            CargoDedicacion(
+                designacion.Cargo?.Nombre,
+                designacion.DedicacionCatalogo?.Nombre ?? designacion.Dedicacion),
+            CargoDedicacion(
+                pedido.CargoSolicitado?.Nombre,
+                pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada),
+            pedido.Justificacion,
+            pedido.Horas ?? designacion.Horas,
+            materia?.Nombre,
+            pedido.Numero);
     }
 
     private static FilaPropuestaLote MapearPropuestaBaja(

@@ -29,6 +29,11 @@ public sealed record AlcancePedido(Guid MateriaId, Guid CarreraId);
 /// <see cref="RolesDeSistema"/> contiene sólo códigos de roles con <c>es_sistema</c>:
 /// un rol creado por el operador agrupa permisos pero no participa del circuito.
 /// </para>
+/// <para>
+/// <see cref="Permisos"/> son los permisos efectivos de la sesión (los mismos que
+/// evalúan las políticas de autorización). La conciliación y la edición posterior al
+/// circuito se deciden por permiso, nunca por código de rol.
+/// </para>
 /// </summary>
 public sealed record ActorContexto(
     Guid UsuarioId,
@@ -36,7 +41,11 @@ public sealed record ActorContexto(
     IReadOnlySet<Guid> MateriasACargo,
     IReadOnlySet<Guid> CarrerasACargo)
 {
+    public IReadOnlySet<string> Permisos { get; init; } = new HashSet<string>();
+
     public bool Tiene(string codigoRol) => RolesDeSistema.Contains(codigoRol);
+
+    public bool TienePermiso(string codigoPermiso) => Permisos.Contains(codigoPermiso);
 
     /// <summary>Alcance departamental: ve y actúa sobre todo el departamento [BR-designaciones-009].</summary>
     public bool EsDeptoWide =>
@@ -66,6 +75,12 @@ public abstract record AccionPedido
     public sealed record Priorizar(string Motivo) : AccionPedido;
 
     public sealed record Despriorizar(string? Comentario = null) : AccionPedido;
+
+    /// <summary>La rectificación lo aprobó: pasa a <c>aprobado</c> al sincronizar.</summary>
+    public sealed record Sincronizar : AccionPedido;
+
+    /// <summary>La rectificación no lo aprobó: pasa a <c>no_aprobado</c> con motivo.</summary>
+    public sealed record NoAprobar(string Motivo) : AccionPedido;
 }
 
 /// <summary>

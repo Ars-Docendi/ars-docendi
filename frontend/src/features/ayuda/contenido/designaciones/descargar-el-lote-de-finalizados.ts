@@ -7,7 +7,7 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
   titulo: "Cómo descargar el lote de finalizados",
   resumen: "Exportar el libro de pedidos finalizados del período activo.",
   introduccion:
-    "El lote es un libro de Excel con las altas, bajas y cambios aprobados del período activo, más las designaciones que continúan vigentes. Lo descargan Secretaría Académica, Decanato y Administración desde la pestaña Finalizados.",
+    "El lote es un libro de Excel con las altas, bajas y cambios aceptados por Decanato en el período activo, más las designaciones que continúan vigentes. Va a la rectificación y, cuando vuelve, se concilia en la pantalla Conciliación. Lo descargan Secretaría Académica, Decanato y Administración desde la pestaña Finalizados.",
   permisos: ["designaciones.revisar"],
   palabrasClave: [
     "lote",
@@ -43,7 +43,7 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
       titulo: "Abrí el libro",
       etiquetaIndice: "Contenido del libro",
       cuerpo:
-        "El libro tiene tres hojas. PROPUESTA COMPLETA: una fila por asignación vigente, baja aprobada o alta aprobada del período. ALTAS: los pedidos de Alta aprobados. BAJAS: los pedidos de Baja aprobados, con el cargo anterior y el motivo. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco. Arriba a la derecha de la primera hoja, la celda «INTEGRIDAD · sello …» identifica el estado exacto del período que se exportó.",
+        "El libro tiene tres hojas. PROPUESTA COMPLETA: una fila por asignación vigente, baja o alta del lote; un cambio todavía sin sincronizar muestra el cargo actual como anterior y lo pedido como propuesta. ALTAS: los pedidos de Alta del lote. BAJAS: los pedidos de Baja del lote, con el cargo anterior y el motivo. Un pedido rechazado en la conciliación ya no aparece. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco. Arriba a la derecha de la primera hoja, la celda «INTEGRIDAD · sello …» identifica el estado exacto del período que se exportó.",
     },
     {
       titulo: "Si algo falla",
@@ -55,7 +55,7 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
   despues: {
     titulo: "¿Qué sucede después?",
     cuerpo:
-      "Descargar el lote no modifica pedidos, designaciones ni estados: podés repetirlo cuantas veces quieras. Sólo deja registrado el código de integridad que figura en el libro. El libro refleja el estado del momento de la descarga e incluye todo el período activo aunque la tabla tenga filtros aplicados.",
+      "Descargar el lote no modifica pedidos, designaciones ni estados: podés repetirlo cuantas veces quieras. Las designaciones se actualizan recién al sincronizar en Conciliación. Sólo deja registrado el código de integridad que figura en el libro. El libro refleja el estado del momento de la descarga e incluye todo el período activo aunque la tabla tenga filtros aplicados.",
   },
   preguntas: [
     {
@@ -74,5 +74,9 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
         "No: siempre usa el período activo, el que figura junto al botón. Los filtros de la tabla no recortan el contenido del libro.",
     },
   ],
-  relacionados: ["designaciones/revisar-el-tablero", "designaciones/gestionar-periodos"],
+  relacionados: [
+    "designaciones/revisar-el-tablero",
+    "designaciones/conciliar-el-lote",
+    "designaciones/gestionar-periodos",
+  ],
 };

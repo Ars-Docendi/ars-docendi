@@ -193,8 +193,9 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         await Accionar(secretaria, creado.Id, "aceptar", new AccionPedidoDto(), ct);
         var finalizado = await Accionar(decanato, creado.Id, "aceptar", new AccionPedidoDto(), ct);
         Assert.Equal(EstadosPedido.EnLote, finalizado.Estado);
-        var finalJefe = await jefe.GetFromJsonAsync<PedidoDto>($"/api/designaciones/pedidos/{creado.Id}", ct);
-        Assert.Equal("aprobado", finalJefe!.Estado);
+        // En lote espera la rectificación: para el Jefe sigue en proceso hasta sincronizar.
+        var enLoteJefe = await jefe.GetFromJsonAsync<PedidoDto>($"/api/designaciones/pedidos/{creado.Id}", ct);
+        Assert.Equal("en_proceso", enLoteJefe!.Estado);
 
         using var respuesta = await decanato.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
@@ -208,6 +209,23 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         Assert.Contains("Solicitud de alta", propuesta, StringComparison.Ordinal);
         Assert.DoesNotContain("Fernández, Lucía", bajas, StringComparison.Ordinal);
         Assert.DoesNotContain(finalizado.Id.ToString(), propuesta, StringComparison.Ordinal);
+
+        // Vuelve la rectificación: Secretaría acepta al docente y sincroniza.
+        using var sinPermiso = await jefe.GetAsync("/api/designaciones/conciliacion", ct);
+        Assert.Equal(HttpStatusCode.Forbidden, sinPermiso.StatusCode);
+        var conciliacion = await secretaria.GetFromJsonAsync<ConciliacionDto>("/api/designaciones/conciliacion", ct);
+        var docente = Assert.Single(conciliacion!.Docentes, d => d.Pedido.Id == creado.Id);
+        Assert.Equal(EstadosPedido.EnLote, docente.Pedido.Estado);
+        using var sincronizar = new HttpRequestMessage(HttpMethod.Post, "/api/designaciones/conciliacion/sincronizar")
+        {
+            Content = JsonContent.Create(new SincronizarConciliacionDto(
+                [new PedidoAceptadoDto(docente.Pedido.Id, docente.Pedido.Version)])),
+        };
+        sincronizar.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        using var sincronizado = await secretaria.SendAsync(sincronizar, ct);
+        Assert.True(sincronizado.IsSuccessStatusCode, await sincronizado.Content.ReadAsStringAsync(ct));
+        var finalJefe = await jefe.GetFromJsonAsync<PedidoDto>($"/api/designaciones/pedidos/{creado.Id}", ct);
+        Assert.Equal("aprobado", finalJefe!.Estado);
     }
 
     private static async Task<PedidoDto> PostPedido(HttpClient cliente, Guid persona, CancellationToken ct)

@@ -448,7 +448,6 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         var core = new ServicioPedidos(
             pedidos,
             designaciones,
-            new MaterializadorDesignaciones(designaciones),
             resolutor,
             identity,
             new UnidadDeTrabajo(db),

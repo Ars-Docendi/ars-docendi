@@ -137,6 +137,91 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Cambio_en_lote_sin_sincronizar_muestra_lo_que_propone_el_pedido()
+    {
+        // Aceptado por Decanato y todavía no sincronizado: la designación vigente sigue igual,
+        // pero el lote que va a rectificar ya lleva el cambio.
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'en_lote'
+             WHERE id = 'd5000000-0000-4000-8000-000000000001';
+            """);
+
+        var (propuesta, _, _) = await DescargarAsync(ct);
+
+        var fila = Assert.Single(FilasDeDatos(propuesta, 5),
+            f => Valor(f, "B") == "López, Carla" && Valor(f, "F") == "Ampliación de responsabilidades");
+        Assert.StartsWith("Profesor Asociado", Valor(fila, "E"), StringComparison.Ordinal);
+        Assert.NotEqual(Valor(fila, "D"), Valor(fila, "E"));
+    }
+
+    [Fact]
+    public async Task Baja_en_lote_sin_sincronizar_no_duplica_la_continuidad()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'en_lote'
+             WHERE id = 'd5000000-0000-4000-8000-000000000008';
+            """);
+
+        var (propuesta, _, bajas) = await DescargarAsync(ct);
+
+        Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Giménez, Laura");
+        Assert.Contains("Giménez, Laura", Texto(bajas));
+    }
+
+    [Fact]
+    public async Task Alta_sincronizada_aparece_una_sola_vez()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'aprobado', materializado_en = now()
+             WHERE id = 'd5000000-0000-4000-8000-000000000004';
+            INSERT INTO designaciones.designaciones
+                (id, persona_id, materia_id, carrera_id, cargo_id, dedicacion_id, horas,
+                 horas_investigacion, horas_externas, vigente_desde, origen_pedido_id)
+            SELECT 'd6000000-0000-4000-8000-000000000099', persona_id, materia_id, carrera_id,
+                   cargo_solicitado_id, dedicacion_solicitada_id, horas, horas_investigacion,
+                   horas_externas, DATE '2026-08-01', id
+              FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000004';
+            """);
+
+        var (propuesta, altas, _) = await DescargarAsync(ct);
+
+        Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Ortiz, Brenda");
+        Assert.Contains("Ortiz, Brenda", Assert.Single(FilasDeDatos(altas, 2)).ToString());
+    }
+
+    [Fact]
+    public async Task Rechazado_en_la_conciliacion_sale_de_las_tres_hojas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'no_aprobado'
+             WHERE id IN ('d5000000-0000-4000-8000-000000000004', 'd5000000-0000-4000-8000-000000000008');
+            """);
+
+        var (propuesta, altas, bajas) = await DescargarAsync(ct);
+
+        Assert.DoesNotContain("Ortiz, Brenda", Texto(propuesta) + Texto(altas) + Texto(bajas));
+        Assert.DoesNotContain("Giménez, Laura", Texto(bajas));
+    }
+
+    private async Task<(XDocument Propuesta, XDocument Altas, XDocument Bajas)> DescargarAsync(CancellationToken ct)
+    {
+        using var cliente = CrearHost().CreateClient();
+        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        using var zip = new ZipArchive(
+            new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
+        return (
+            LeerXml(zip, "xl/worksheets/sheet1.xml"),
+            LeerXml(zip, "xl/worksheets/sheet2.xml"),
+            LeerXml(zip, "xl/worksheets/sheet3.xml"));
+    }
+
+    [Fact]
     public async Task XLSX_conserva_textos_literales_CUIL_y_celdas_sin_fuente()
     {
         var ct = TestContext.Current.CancellationToken;

@@ -66,6 +66,32 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
                 .ThenByDescending(p => p.CreadoEn)
                 .ToListAsync(ct);
 
+    /// <summary>Pedidos del período en lote, rechazados en la conciliación o sincronizados.</summary>
+    public async Task<IReadOnlyList<Pedido>> ListarEnConciliacionAsync(Guid periodoId, CancellationToken ct)
+    {
+        string[] estados = [EstadosPedido.EnLote, EstadosPedido.NoAprobado, EstadosPedido.Aprobado];
+        return await db.Pedidos
+            .AsNoTracking()
+            .Include(p => p.CargoSolicitado)
+            .Include(p => p.DedicacionSolicitadaCatalogo)
+            .Include(p => p.Historial.Where(h =>
+                h.Accion == AccionesHistorial.Sincronizar || h.Accion == AccionesHistorial.NoAprobar))
+            .AsSplitQuery()
+            .Where(p => p.PeriodoId == periodoId && estados.Contains(p.Estado))
+            .ToListAsync(ct);
+    }
+
+    /// <summary>Pedidos a sincronizar, con tracking y el historial que el sellado necesita.</summary>
+    public async Task<IReadOnlyList<Pedido>> ObtenerParaSincronizarAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
+        await db.Pedidos
+            .Include(p => p.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id))
+            .Include(p => p.CargoSolicitado)
+            .Include(p => p.DedicacionSolicitadaCatalogo)
+            .AsSplitQuery()
+            .Where(p => ids.Contains(p.Id))
+            .ToListAsync(ct);
+
     public async Task<IReadOnlyList<Pedido>> ListarDelPeriodoAsync(Guid periodoId, CancellationToken ct) =>
         await db.Pedidos
                 .AsNoTracking()

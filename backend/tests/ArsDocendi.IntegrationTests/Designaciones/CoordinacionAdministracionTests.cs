@@ -66,38 +66,28 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
     }
 
     [Fact]
-    public async Task Administracion_obsoleta_tras_aprobacion_no_pisa_horas_origen_ni_eventos()
+    public async Task Administracion_obsoleta_tras_sincronizar_no_pisa_horas_origen_ni_eventos()
     {
         var ct = TestContext.Current.CancellationToken;
         await SembrarAsync(ct);
         await using var circuito = PostgresFixture.CrearDesignaciones(Cadena);
         var pedido = await circuito.Pedidos.SingleAsync(p => p.Id == PedidoId, ct);
-        pedido.Estado = EstadosPedido.EnRevisionDecanato;
+        pedido.Estado = EstadosPedido.EnLote;
         pedido.Horas = 16;
         pedido.Snapshot = new SnapshotPedido("Congelado", "Anterior", 10, "Materia", 1, 2);
         await circuito.SaveChangesAsync(ct);
         await SellosPrueba.SellarEtapaForzadaAsync(circuito, pedido, ct);
+        // Administración lee las vigencias antes de que la conciliación las cambie.
         await using var administrador = PostgresFixture.CrearDesignaciones(Cadena);
         var repositorio = new RepositorioDesignaciones(administrador);
         var actuales = await repositorio.ListarVigentesDePersonaAsync(pedido.PersonaId, ct);
         var datos = actuales.Select(d => new GuardarDesignacionVigenteDto(d.MateriaId, d.CarreraId,
             d.CargoId, d.DedicacionId, 11)).ToArray();
-        await using var transaccion = await circuito.Database.BeginTransactionAsync(ct);
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
-        await CrearApi(Decanato, identity, circuito).AplicarAccionAsync(PedidoId, new AccionPedido.Aceptar(), ct);
-        var operacion = new ServicioAdministracionDesignaciones(repositorio)
-            .ReemplazarVigentesAsync(pedido.PersonaId, datos, ct);
-        await using var observador = await AbrirConexionAsync();
-        var bloqueada = false;
-        for (var i = 0; i < 100 && !operacion.IsCompleted; i++)
-        {
-            await using var consulta = new NpgsqlCommand("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND wait_event='advisory' AND cardinality(pg_blocking_pids(pid)) > 0)", observador);
-            if ((bool)(await consulta.ExecuteScalarAsync(ct))!) { bloqueada = true; break; }
-            await Task.Delay(20, ct);
-        }
-        await transaccion.CommitAsync(ct);
-        Assert.True(bloqueada);
-        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => operacion);
+        await ConciliacionPrueba.SincronizarAsync(PedidoId, identity, circuito, ct);
+
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
+            new ServicioAdministracionDesignaciones(repositorio).ReemplazarVigentesAsync(pedido.PersonaId, datos, ct));
         circuito.ChangeTracker.Clear();
         var conservada = await circuito.Designaciones.SingleAsync(d => d.PersonaId == pedido.PersonaId
             && d.MateriaId == pedido.MateriaId && d.VigenteHasta == null, ct);
@@ -105,7 +95,7 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
         Assert.Equal(PedidoId, conservada.OrigenPedidoId);
         var persistido = await circuito.Pedidos.Include(p => p.Historial).SingleAsync(p => p.Id == PedidoId, ct);
         Assert.Equal(pedido.Snapshot, persistido.Snapshot);
-        Assert.Single(persistido.Historial, h => h.Accion == AccionesHistorial.Aceptar);
+        Assert.Single(persistido.Historial, h => h.Accion == AccionesHistorial.Sincronizar);
     }
 
     [Theory]
@@ -119,7 +109,7 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
         var pedido = await circuito.Pedidos.SingleAsync(p => p.Id == PedidoId, ct);
         if (aprobar)
         {
-            pedido.Estado = EstadosPedido.EnRevisionDecanato;
+            pedido.Estado = EstadosPedido.EnLote;
             pedido.Snapshot = new SnapshotPedido("Congelado", "Anterior", 10, "Materia", 1, 2);
             pedido.Horas = 16;
             await circuito.SaveChangesAsync(ct);
@@ -137,8 +127,10 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
         await new ServicioAdministracionDesignaciones(new RepositorioDesignaciones(administrador))
             .ReemplazarVigentesAsync(pedido.PersonaId, datos, ct);
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
-        var operacion = CrearApi(aprobar ? Decanato : Jefe, identity, circuito).AplicarAccionAsync(PedidoId,
-            aprobar ? new AccionPedido.Aceptar() : new AccionPedido.Enviar(), ct);
+        // Aprobar es sincronizar la conciliación: es lo que escribe las vigencias.
+        Task operacion = aprobar
+            ? ConciliacionPrueba.SincronizarAsync(PedidoId, identity, circuito, ct)
+            : CrearApi(Jefe, identity, circuito).AplicarAccionAsync(PedidoId, new AccionPedido.Enviar(), ct);
         var bloqueada = false;
         try
         {
@@ -151,16 +143,17 @@ public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : 
             }
         }
         finally { await transaccion.CommitAsync(ct); }
-        var respuesta = await operacion;
+        await operacion;
         Assert.True(bloqueada, "El circuito confirmó o leyó snapshot sin esperar el guard de administración.");
-        Assert.Equal(aprobar ? 10 : 32, respuesta.Snapshot!.Horas);
         circuito.ChangeTracker.Clear();
+        var snapshot = (await circuito.Pedidos.AsNoTracking().SingleAsync(p => p.Id == PedidoId, ct)).Snapshot;
+        Assert.Equal(aprobar ? 10 : 32, snapshot!.Horas);
         var vigente = await circuito.Designaciones.SingleAsync(d => d.PersonaId == pedido.PersonaId
             && d.MateriaId == pedido.MateriaId && d.VigenteHasta == null, ct);
         Assert.Equal(aprobar ? 16 : 32, vigente.Horas);
         Assert.Equal(aprobar ? PedidoId : null, vigente.OrigenPedidoId);
         await using var verificacion = PostgresFixture.CrearDesignaciones(Cadena);
         Assert.Equal(1, await verificacion.PedidoHistorial.CountAsync(h => h.PedidoId == PedidoId
-            && h.Accion == (aprobar ? AccionesHistorial.Aceptar : AccionesHistorial.Enviar), ct));
+            && h.Accion == (aprobar ? AccionesHistorial.Sincronizar : AccionesHistorial.Enviar), ct));
     }
 }

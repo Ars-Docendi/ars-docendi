@@ -372,6 +372,8 @@ const ETIQUETAS_ESTADO_REVISION: Record<string, string> = {
   en_revision_decanato: "En Decanato",
   devuelto: "Devuelto",
   en_lote: "En lote",
+  no_aprobado: "Rechazado en conciliación",
+  aprobado: "Aprobado",
   rechazado: "Rechazado",
   cancelado: "Cancelado",
 };

@@ -137,14 +137,21 @@ function compararEnArea(a: PedidoDesignacion, b: PedidoDesignacion): number {
  * más reciente arriba).
  */
 function compararFinalizados(a: PedidoDesignacion, b: PedidoDesignacion): number {
-  const rango = (p: PedidoDesignacion) => (p.estado === "en_lote" ? 0 : 1);
+  const rango = (p: PedidoDesignacion) =>
+    p.estado === "en_lote" || p.estado === "aprobado" ? 0 : 1;
   const diff = rango(a) - rango(b);
   if (diff !== 0) return diff;
   return fechaUltimaActualizacionMs(b) - fechaUltimaActualizacionMs(a);
 }
 
 /** Estados terminales: el pedido ya no se mueve. Van todos a "Finalizados". */
-const ESTADOS_TERMINALES: EstadoPedido[] = ["en_lote", "rechazado", "cancelado"];
+const ESTADOS_TERMINALES: EstadoPedido[] = [
+  "en_lote",
+  "aprobado",
+  "no_aprobado",
+  "rechazado",
+  "cancelado",
+];
 
 /**
  * Pedidos de una pestaña, ya ordenados. Las de etapa agrupan por dónde está

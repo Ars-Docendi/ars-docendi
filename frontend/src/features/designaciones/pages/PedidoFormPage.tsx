@@ -18,6 +18,7 @@ import { erroresValidacionPedido } from "../api/erroresValidacionPedido";
 import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
+const RUTA_CONCILIACION = "/designaciones/conciliacion";
 
 /** Etiqueta corta del período a partir de su id. */
 function etiquetaPeriodo(periodoId: string, periodos: { id: string; nombre: string }[]): string {
@@ -45,7 +46,14 @@ export function PedidoFormPage() {
     origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_MIS_PEDIDOS
       ? origen.ruta
       : RUTA_MIS_PEDIDOS;
-  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : rutaMisPedidos;
+  // Editado desde Conciliación, vuelve ahí; desde cualquier otro lado, al detalle.
+  const desdeConciliacion = origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_CONCILIACION;
+  const rutaRetorno =
+    esEdicion && id
+      ? desdeConciliacion
+        ? origen.ruta
+        : `/designaciones/pedidos/${id}`
+      : rutaMisPedidos;
 
   // El formulario avisa si tiene cambios; tras guardar se sale sin preguntar.
   const [sucio, setSucio] = useState(false);
@@ -119,7 +127,14 @@ export function PedidoFormPage() {
       <Migas
         items={[
           { label: "Inicio", href: "/" },
-          { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
+          {
+            label: esEdicion
+              ? desdeConciliacion
+                ? "Conciliación"
+                : "Detalle del pedido"
+              : "Mis pedidos",
+            href: rutaRetorno,
+          },
           { label: esEdicion ? "Editar pedido" : "Nuevo pedido" },
         ]}
       />

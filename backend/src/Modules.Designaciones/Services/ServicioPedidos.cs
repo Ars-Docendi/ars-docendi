@@ -13,13 +13,12 @@ namespace Modules.Designaciones.Services;
 /// <summary>
 /// Orquesta el ciclo de vida de los pedidos de designación: resuelve el ámbito del
 /// actor, delega los guards a <see cref="MaquinaEstadosPedido"/>, persiste la
-/// transición con su evento de historial y dispara la materialización cuando el
-/// pedido termina de recorrer el circuito.
+/// transición con su evento de historial. Las designaciones vigentes se escriben al
+/// sincronizar la conciliación (<see cref="ServicioConciliacion"/>), no acá.
 /// </summary>
 internal sealed partial class ServicioPedidos(
     RepositorioPedidos pedidos,
     RepositorioDesignaciones designaciones,
-    MaterializadorDesignaciones materializador,
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
     UnidadDeTrabajo unidadDeTrabajo,
@@ -128,6 +127,8 @@ internal sealed partial class ServicioPedidos(
                 pedido.PersonaId == personaId ? [] : [personaId], token);
             await sellador.VerificarEstadoPrevioAsync(pedido, token);
             pedidos.EsperarVersion(pedido, datos.Version.Value);
+            var personaPrevia = pedido.PersonaId;
+            var materiaPrevia = pedido.MateriaId;
             pedido.PeriodoId = datos.PeriodoId;
             pedido.PersonaId = personaId;
             pedido.MateriaId = datos.MateriaId;
@@ -135,9 +136,25 @@ internal sealed partial class ServicioPedidos(
             pedido.Novedad = datos.Novedad;
             AplicarDatos(pedido, datos);
             pedidos.ReemplazarAdjuntos(pedido, ConstruirAdjuntos(pedido.Id, datos.Adjuntos, archivos, datos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null));
-            var rol = pedido.Estado == EstadosPedido.Borrador
-                ? RolesCircuito.JefeCatedra
-                : pedido.PropietarioActual ?? RolesCircuito.JefeCatedra;
+            var enConciliacion = EstadosPedido.EnConciliacion.Contains(pedido.Estado);
+            if (enConciliacion)
+            {
+                // Corregido según la rectificación: debe seguir siendo sincronizable, y
+                // un rechazado en la conciliación vuelve a conciliarse.
+                await designaciones.BloquearAsync(pedido.PersonaId, pedido.MateriaId, token);
+                await ValidarCompletitudCircuitoAsync(pedido, token);
+                await ValidarDesignacionVigenteAsync(pedido, token);
+                // La fotografía de "lo que tenía" sólo se rehace si cambió de quién o de
+                // qué cátedra es el pedido: la del primer envío ya no lo describiría.
+                if (pedido.Snapshot is null || personaPrevia != personaId || materiaPrevia != datos.MateriaId)
+                    pedido.Snapshot = await ArmarSnapshotAsync(pedido, token);
+                pedido.Estado = EstadosPedido.EnLote;
+            }
+            var rol = enConciliacion
+                ? MaquinaEstadosPedido.RolActuantePorPermiso(actor)
+                : pedido.Estado == EstadosPedido.Borrador
+                    ? RolesCircuito.JefeCatedra
+                    : pedido.PropietarioActual ?? RolesCircuito.JefeCatedra;
             await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Editar, rol, actor, null, token);
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
@@ -175,16 +192,9 @@ internal sealed partial class ServicioPedidos(
             if (transicion.AccionHistorial == AccionesHistorial.Enviar)
                 pedido.Snapshot = await ArmarSnapshotAsync(pedido, token);
             AplicarTransicion(pedido, transicion);
-            var comentario = transicion.Comentario;
-
-            // Vigencias e historial se confirman en la misma transacción.
-            if (transicion.EstadoResultante == EstadosPedido.EnLote)
-            {
-                var detalle = await materializador.MaterializarAsync(pedido, token);
-                if (detalle is not null)
-                    comentario = string.IsNullOrWhiteSpace(comentario) ? detalle : comentario + "\n" + detalle;
-            }
-            await RegistrarEnHistorialAsync(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, comentario, token);
+            // Aceptar en Decanato deja el pedido en lote sin tocar las designaciones
+            // vigentes: se escriben recién al sincronizar la conciliación.
+            await RegistrarEnHistorialAsync(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, transicion.Comentario, token);
 
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
@@ -271,7 +281,7 @@ internal sealed partial class ServicioPedidos(
     /// acción lo decide la máquina de estados. El evento se sella en la misma transacción
     /// [BR-designaciones-019], así que se registra con el pedido ya en su estado posterior.
     /// </summary>
-    private async Task RegistrarEnHistorialAsync(
+    internal async Task RegistrarEnHistorialAsync(
         Pedido pedido, string accion, string codigoRol, ActorContexto actor, string? comentario,
         CancellationToken ct)
     {

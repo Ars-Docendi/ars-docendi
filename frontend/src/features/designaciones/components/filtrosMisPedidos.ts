@@ -89,11 +89,11 @@ function coincideEstado(estado: EstadoPedido, filtro: FiltroEstado): boolean {
     case "borrador":
       return estado === "borrador";
     case "revision":
-      return estado.startsWith("en_revision") || estado === "en_proceso";
+      return estado.startsWith("en_revision") || estado === "en_proceso" || estado === "en_lote";
     case "aprobado":
-      return estado === "en_lote" || estado === "aprobado";
+      return estado === "aprobado";
     case "rechazado":
-      return estado === "rechazado";
+      return estado === "rechazado" || estado === "no_aprobado";
     case "devuelto":
       return estado === "devuelto";
     case "cancelado":

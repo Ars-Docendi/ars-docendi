@@ -263,6 +263,12 @@ UPDATE designaciones.designaciones
 SET origen_pedido_id = 'd5000000-0000-4000-8000-000000000006'
 WHERE id = 'd6000000-0000-4000-8000-000000000006';
 
+-- 9006 llegó al lote por el circuito anterior a la conciliación: ya se escribió sobre
+-- las designaciones (la de arriba) y la sincronización no debe volver a escribirlo.
+UPDATE designaciones.pedidos
+SET materializado_en = TIMESTAMPTZ '2026-06-15 16:00:00+00'
+WHERE id = 'd5000000-0000-4000-8000-000000000006';
+
 INSERT INTO designaciones.pedido_adjuntos (id, pedido_id, tipo, nombre, uri) VALUES
     ('d8000000-0000-4000-8000-000000000001', 'd5000000-0000-4000-8000-000000000003', 'cv', 'cv-pablo-herrera.pdf', 'synthetic://pedidos/9003/cv'),
     ('d8000000-0000-4000-8000-000000000002', 'd5000000-0000-4000-8000-000000000003', 'dni_frente', 'dni-frente-pablo.pdf', 'synthetic://pedidos/9003/dni-frente'),

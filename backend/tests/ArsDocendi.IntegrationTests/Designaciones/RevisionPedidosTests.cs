@@ -105,7 +105,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Aprobacion_final_materializa_una_designacion_trazable()
+    public async Task Aceptar_en_Decanato_no_escribe_y_sincronizar_materializa_una_designacion_trazable()
     {
         var ct = TestContext.Current.CancellationToken;
         await SembrarAsync(ct);
@@ -138,6 +138,12 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             pedido.Id, new AccionPedido.Aceptar(), clave, "aceptar", string.Empty, ct);
         var repetido = await servicioDecanato.AplicarAccionIdempotenteAsync(
             pedido.Id, new AccionPedido.Aceptar(), clave, "aceptar", string.Empty, ct);
+
+        // En lote espera la rectificación: todavía no hay designación.
+        db.ChangeTracker.Clear();
+        Assert.False(await db.Designaciones.AnyAsync(d =>
+            d.PersonaId == persona && d.MateriaId == Materia && d.VigenteHasta == null, ct));
+        await ConciliacionPrueba.SincronizarAsync(pedido.Id, identityDb, db, ct);
 
         db.ChangeTracker.Clear();
         var designacion = Assert.Single(await db.Designaciones.Where(d =>
@@ -172,6 +178,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             altaId, new AccionPedido.Aceptar(), ct);
         await CrearServicio(Decanato, identityDb, db).AplicarAccionAsync(
             altaId, new AccionPedido.Aceptar(), ct);
+        await ConciliacionPrueba.SincronizarAsync(altaId, identityDb, db, ct);
 
         var altaMaterializada = await db.Designaciones.AsNoTracking().SingleAsync(d =>
             d.PersonaId == Guid.Parse("d0000000-0000-4000-8000-000000000011")
@@ -202,6 +209,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             cambioId, new AccionPedido.Aceptar(), ct);
         await CrearServicio(Decanato, identityDb, db).AplicarAccionAsync(
             cambioId, new AccionPedido.Aceptar(), ct);
+        await ConciliacionPrueba.SincronizarAsync(cambioId, identityDb, db, ct);
 
         var designaciones = await db.Designaciones.AsNoTracking()
             .Where(d => d.PersonaId == Guid.Parse("d0000000-0000-4000-8000-000000000001")
@@ -229,7 +237,6 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         var core = new ServicioPedidos(
             pedidos,
             designaciones,
-            new MaterializadorDesignaciones(designaciones),
             resolutor,
             identity,
             new UnidadDeTrabajo(db),

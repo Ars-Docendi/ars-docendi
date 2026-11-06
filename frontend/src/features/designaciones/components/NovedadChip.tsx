@@ -61,12 +61,16 @@ const ICONO_POR_NOVEDAD: Record<Novedad, ReactElement> = {
   "Cambio de cargo o dedicación": ICONO_REFRESH,
 };
 
-/** Chip de novedad (Alta / Baja / Cambio) con icono Lucide y color de estado. */
-export function NovedadChip({ novedad }: { novedad: Novedad }) {
+/**
+ * Chip de novedad (Alta / Baja / Cambio) con icono Lucide y color de estado. Con `cantidad` > 1
+ * resume varios pedidos de la misma novedad ("Alta 2").
+ */
+export function NovedadChip({ novedad, cantidad }: { novedad: Novedad; cantidad?: number }) {
   return (
     <span className={`adoc-novedad-chip ${CLASE_POR_NOVEDAD[novedad]}`}>
       {ICONO_POR_NOVEDAD[novedad]}
       {etiquetaNovedad(novedad)}
+      {cantidad != null && cantidad > 1 ? ` ${cantidad}` : ""}
     </span>
   );
 }

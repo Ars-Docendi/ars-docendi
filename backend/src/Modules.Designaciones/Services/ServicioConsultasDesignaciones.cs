@@ -136,6 +136,8 @@ internal sealed partial class ServicioConsultasDesignaciones(
         EstadosPedido.EnRevisionDecanato => "En Decanato",
         EstadosPedido.Devuelto => "Devuelto",
         EstadosPedido.EnLote => "En lote",
+        EstadosPedido.Aprobado => "Aprobado",
+        EstadosPedido.NoAprobado => "Rechazado en conciliación",
         EstadosPedido.Rechazado => "Rechazado",
         EstadosPedido.Cancelado => "Cancelado",
         _ => estado,
