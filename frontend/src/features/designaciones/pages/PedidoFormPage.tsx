@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { InlineAlert } from "@ars-docendi/ui";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
@@ -174,7 +175,10 @@ export function PedidoFormPage() {
               ))}
             </ul>
           ) : (
-            "Ocurrió un error al guardar. Revisá los datos e intentá de nuevo."
+            mensajeProblema(
+              errorMutacion,
+              "Ocurrió un error al guardar. Revisá los datos e intentá de nuevo.",
+            )
           )}
         </InlineAlert>
       )}

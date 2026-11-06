@@ -1,6 +1,7 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Storage.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Modules.Designaciones.Api;
@@ -216,6 +217,57 @@ public sealed class ConciliacionTests(PostgresFixture postgres) : VigenciasPedid
     }
 
     [Fact]
+    public async Task Editar_en_la_conciliacion_conserva_los_adjuntos_que_subio_el_jefe()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await using var identity = PostgresFixture.CrearIdentity(Cadena);
+        var jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+        var cv = Guid.Parse("e0000000-0000-4000-8000-000000000011");
+        var frente = Guid.Parse("e0000000-0000-4000-8000-000000000012");
+        var dorso = Guid.Parse("e0000000-0000-4000-8000-000000000013");
+        var ajeno = Guid.Parse("e0000000-0000-4000-8000-000000000014");
+        var almacenamiento = new PedidosApiTests.AlmacenamientoFalso(jefe, [
+            PedidosApiTests.Archivo(cv, PropositosArchivo.Cv, "cv.pdf"),
+            PedidosApiTests.Archivo(frente, PropositosArchivo.DniFrente, "frente.png"),
+            PedidosApiTests.Archivo(dorso, PropositosArchivo.DniDorso, "dorso.png"),
+            PedidosApiTests.Archivo(ajeno, PropositosArchivo.Cv, "otro-cv.pdf"),
+        ]);
+        // Los adjuntos sembrados del Alta pasan a referir archivos que subió el Jefe.
+        var archivoPorTipo = new Dictionary<string, Guid>
+        {
+            [TiposAdjunto.Cv] = cv, [TiposAdjunto.DniFrente] = frente, [TiposAdjunto.DniDorso] = dorso,
+        };
+        var alta = await EnLoteAsync(db, AltaId, pedido =>
+        {
+            Assert.Equal(archivoPorTipo.Keys.Order(), pedido.Adjuntos.Select(a => a.Tipo).Order());
+            foreach (var adjunto in pedido.Adjuntos) adjunto.ArchivoId = archivoPorTipo[adjunto.Tipo];
+        }, ct);
+        GuardarPedidoDto Edicion(Guid cvAdjunto, uint version) => new(
+            alta.PeriodoId, alta.PersonaId, Materia, Carrera, Novedades.Alta,
+            alta.CargoSolicitadoId, alta.DedicacionSolicitadaId, 8, 3, 2, null, null, null,
+            [
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, cvAdjunto),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, frente),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, dorso),
+            ],
+            version);
+
+        // Secretaría edita con los archivos del Jefe: no son suyos, pero ya eran del pedido.
+        var editado = await Servicio(identity, db, almacenamiento, ArsDocendi.Shared.Auth.Permisos.DesignacionesEditar)
+            .EditarAsync(AltaId, Edicion(cv, alta.Version), ct);
+        Assert.Equal(8, editado.Horas);
+        Assert.Contains(editado.Adjuntos, a => a.ArchivoId == cv);
+
+        // Un archivo ajeno que el pedido no tenía sigue sin poder adjuntarse.
+        db.ChangeTracker.Clear();
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() =>
+            Servicio(identity, db, almacenamiento, ArsDocendi.Shared.Auth.Permisos.DesignacionesEditar)
+                .EditarAsync(AltaId, Edicion(ajeno, editado.Version), ct));
+    }
+
+    [Fact]
     public async Task Sin_designaciones_editar_un_pedido_en_lote_no_se_edita()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -237,7 +289,12 @@ public sealed class ConciliacionTests(PostgresFixture postgres) : VigenciasPedid
 
     /// <summary>La API de pedidos actuando como Secretaría con los permisos indicados.</summary>
     private static IServicioPedidosApi Servicio(
-        IdentityDbContext identityDb, DesignacionesDbContext db, params string[] permisos)
+        IdentityDbContext identityDb, DesignacionesDbContext db, params string[] permisos) =>
+        Servicio(identityDb, db, null, permisos);
+
+    private static IServicioPedidosApi Servicio(
+        IdentityDbContext identityDb, DesignacionesDbContext db,
+        IAlmacenamientoArchivos? almacenamiento, params string[] permisos)
     {
         var identity = new ConsultasIdentity(identityDb);
         var resolutor = new ResolutorActor(
@@ -245,9 +302,10 @@ public sealed class ConciliacionTests(PostgresFixture postgres) : VigenciasPedid
         var pedidos = new RepositorioPedidos(db);
         var core = new ServicioPedidos(
             pedidos, new RepositorioDesignaciones(db), resolutor, identity, new UnidadDeTrabajo(db),
-            SellosPrueba.Sellador(db), NullLogger<ServicioPedidos>.Instance);
+            SellosPrueba.Sellador(db), NullLogger<ServicioPedidos>.Instance, almacenamiento: almacenamiento);
         return new ServicioPedidosApi(
-            core, pedidos, resolutor, identity, new RepositorioIdempotencia(db), new UnidadDeTrabajo(db));
+            core, pedidos, resolutor, identity, new RepositorioIdempotencia(db), new UnidadDeTrabajo(db),
+            almacenamiento);
     }
 
     /// <summary>Lleva el pedido a en lote por EF y lo sella como si hubiera llegado por el circuito.</summary>

@@ -113,7 +113,11 @@ internal sealed partial class ServicioPedidos(
         {
             throw new ErrorDominioPedido("El actor no puede editar este pedido en su estado o ámbito actual.");
         }
-        var archivos = await ValidarDatosAsync(datos, actor, ct);
+        // Lo que ya está adjunto lo subió quien creó el pedido: quien puede editarlo
+        // (Secretaría en la conciliación, por ejemplo) lo conserva sin ser su propietario.
+        var adjuntosPrevios = pedido.Adjuntos
+            .Where(a => a.ArchivoId is not null).Select(a => a.ArchivoId!.Value).ToHashSet();
+        var archivos = await ValidarDatosAsync(datos, actor, ct, adjuntosPrevios);
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
             datos.PeriodoId, personaId, pedidoId, ct))
         {
@@ -332,7 +336,8 @@ internal sealed partial class ServicioPedidos(
     }
 
     private async Task<IReadOnlyDictionary<Guid, ArchivoDto>> ValidarDatosAsync(
-        DatosPedido datos, ActorContexto actor, CancellationToken ct)
+        DatosPedido datos, ActorContexto actor, CancellationToken ct,
+        IReadOnlySet<Guid>? adjuntosPrevios = null)
     {
         if (!Novedades.Admitidas.Contains(datos.Novedad))
             throw new ErrorDominioPedido($"La novedad no está admitida para nuevos pedidos: \"{datos.Novedad}\".");
@@ -410,12 +415,18 @@ internal sealed partial class ServicioPedidos(
             throw new ErrorDominioPedido(
                 "La persona no tiene una designación vigente en la materia seleccionada.");
 
-        return await ValidarAdjuntosAsync(datos.Adjuntos, actor.UsuarioId, ct);
+        return await ValidarAdjuntosAsync(
+            datos.Adjuntos, actor.UsuarioId, adjuntosPrevios ?? new HashSet<Guid>(), ct);
     }
 
+    /// <summary>
+    /// Un archivo nuevo tiene que ser del actor; uno que el pedido ya tenía adjunto sólo tiene
+    /// que seguir disponible para el mismo propósito.
+    /// </summary>
     private async Task<IReadOnlyDictionary<Guid, ArchivoDto>> ValidarAdjuntosAsync(
         IReadOnlyList<Modules.Designaciones.Api.GuardarAdjuntoPedidoDto> adjuntos,
         Guid propietarioId,
+        IReadOnlySet<Guid> adjuntosPrevios,
         CancellationToken ct)
     {
         if (almacenamiento is null) return new Dictionary<Guid, ArchivoDto>();
@@ -435,6 +446,14 @@ internal sealed partial class ServicioPedidos(
                 TiposAdjunto.Justificativo => PropositosArchivo.Justificativo,
                 _ => string.Empty,
             };
+            if (adjuntosPrevios.Contains(archivoId))
+            {
+                var previo = await almacenamiento.ObtenerAsync(archivoId, ct);
+                if (previo is null || previo.Estado != EstadosArchivo.Disponible || previo.Proposito != proposito)
+                    throw new ErrorDominioPedido("El archivo no está disponible para ese propósito.");
+                archivos[archivoId] = previo;
+                continue;
+            }
             try
             {
                 archivos[archivoId] = await almacenamiento.RequerirDisponibleDePropietarioAsync(
