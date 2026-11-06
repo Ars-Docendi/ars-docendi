@@ -34,9 +34,16 @@ jobs:
           GHCR_TOKEN: ${{ github.token }}
         run: printf '%s' "$GHCR_TOKEN" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
 
-      - name: Build y push de imágenes inmutables
+      # Mismo tag sha-<SHA> que deploy-staging y mismos build args: si staging ya
+      # publicó este SHA se reutiliza; reconstruirlo en paralelo pisaba sus imágenes.
+      - name: Build y push de imágenes inmutables (si faltan)
         run: |
-          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true --build-arg VITE_MICROSOFT_LOGIN_ENABLED=true -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" -f frontend/Dockerfile .
+          if docker manifest inspect "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" >/dev/null 2>&1 &&
+            docker manifest inspect "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" >/dev/null 2>&1; then
+            printf 'Imágenes de %s ya publicadas: se reutilizan\n' "$GITHUB_SHA"
+            exit 0
+          fi
+          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true --build-arg VITE_MICROSOFT_LOGIN_ENABLED=${{ vars.MICROSOFT_CLIENT_ID_STAGING != '' }} -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" -f frontend/Dockerfile .
           # El backend embebe el DDL de database/; el contexto es la raíz.
           docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" -f backend/Dockerfile .
           docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
