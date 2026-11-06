@@ -20,7 +20,7 @@ secret_variable="SEAWEEDFS_APP_SECRET_KEY_${variable_ambiente}"
 app_access_key="${!access_variable:-${SEAWEEDFS_APP_ACCESS_KEY:-}}"
 app_secret_key="${!secret_variable:-${SEAWEEDFS_APP_SECRET_KEY:-}}"
 if [[ -z "$app_access_key" || -z "$app_secret_key" ]]; then
-  if [[ "$ambiente" == "prod" || "$ambiente" == "staging" ]]; then
+  if [[ "$ambiente" =~ ^(prod|staging|presentacion)$ ]]; then
     app_access_key="$(seaweedfs_app_access_for "$ambiente")"
     app_secret_key="$(seaweedfs_app_secret_for "$ambiente" "$SEAWEEDFS_ROOT_SECRET_KEY")"
   else
