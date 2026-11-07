@@ -337,6 +337,20 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
 
 **VRAM [estimado]:** pesos ~4,7 GiB + KV de 2 slots ~1,9 GiB (13.312 × 2 × ~76,5 KiB) + buffers ~0,6 GiB ≈ **7,3 GiB de 8**. Con el monitor conectado a la misma GPU el escritorio come 0,3–1 GB, así que puede no entrar. **Medido el 2026-10-03** en una 3070 con el escritorio usando ~1,3 GB: los 2 slots no entraron (falló al reservar 1.989 MiB de KV) y con el respaldo de 1 slot de 16.384 la placa llegó a 7,3 GiB en total.
 
+**Con comisiones, el slot de 13.312 ya no alcanza.** Medido el 2026-11-07, con el schema `comisiones` en el prefijo (change `asistente-lee-comisiones`): evaluador completo (cuatro ejes) contra Qwen3-8B Q4_K_M en llama-server, un slot de 16.384, con el perfil de esta sección. Los números salen de los logs del servidor (`n_tokens` al liberar el slot, menos los tokens generados), sobre 129 llamadas:
+
+| Medida                                   | Tokens |
+| ---------------------------------------- | ------ |
+| Pedido más largo (sólo entrada)          | 12.846 |
+| Mediana de entrada                       | 12.541 |
+| Salida más larga observada               | 322    |
+| Pedido más largo + techo de salida (600) | 13.446 |
+
+- **Entra en 1 slot de 16.384**, con 2.938 tokens de margen. Ninguna llamada se truncó.
+- **No entra con garantía en 2 slots de 13.312.** Con el techo de 600 tokens el peor caso pide 13.446. En la corrida no falló nada porque la salida real más larga fue de 322 tokens, pero una generación que use el techo entero se cortaría.
+- **Cuánto creció.** El 2026-10-03 el pedido más largo era de 9,8k tokens. Ahora es de 12,8k: suman los schemas `portal` y `comisiones` (este último, ~6,9k caracteres de prefijo) y los ejemplos nuevos.
+- **Por qué no se compactó.** La tarea pedía compactar sólo si no entraba en 16.384, y entra. El perfil por defecto del compose sigue en 2 × 13.312. En esta placa ya no entraba en VRAM, y ahora tampoco alcanza para el pedido: el que pruebe en una 3070 tiene que usar `LLAMA_SLOTS=1 LLAMA_CTX=16384`.
+
 ### Pasos
 
 1. **Servidor.** Docker Desktop con WSL2 (Windows) o `nvidia-container-toolkit` (Linux), y driver NVIDIA reciente:
@@ -399,7 +413,7 @@ Medido el 2026-10-03 (ARS-166) con el evaluador contra Qwen3-8B Q4_K_M, perfil o
 | Borrador Qwen3-0.6B Q4_K_M, contexto de 16.384 | no arranca                  | —          | —               | —       | sin memoria |
 | Borrador Qwen3-0.6B Q4_K_M, contexto de 12.288 | no arranca                  | —          | —               | —       | sin memoria |
 
-- **El modelo borrador no entra en la 3070.** Con Qwen3-8B Q4_K_M cargado, el servidor falla al reservar el KV con los dos contextos. Bajar más el contexto no sirve: el pedido más largo ya usa 9,8k tokens.
+- **El modelo borrador no entra en la 3070.** Con Qwen3-8B Q4_K_M cargado, el servidor falla al reservar el KV con los dos contextos. Bajar más el contexto no sirve: el pedido más largo ya usaba 9,8k tokens, y con comisiones usa 12,8k (2026-11-07).
 - **Los n-gramas no cargan otro modelo.** Proponen tokens copiando secuencias que ya aparecieron en el pedido, y el modelo principal los verifica en lote. Rinde porque las consultas se parecen a los ejemplos del prefijo. Con 6 / 24 se aceptó el 24 % de lo propuesto, que cubre el 20 % de los tokens de salida.
 - **Los tamaños importan.** Con los valores por defecto de la imagen cambió un veredicto (`cap-023`, de abstención a traducción incorrecta), así que la especulación no es inocua por definición. Con 6 / 24 los veredictos fueron los de la línea de base en tres corridas, y la velocidad se repitió (67,5 a 67,7 tok/s). Cambiar esos tamaños exige volver a medir.
 - **Decisión.** El perfil de la 3070 (`compose.llm-3070.yml`) lleva `--spec-type ngram-simple --spec-ngram-simple-size-n 6 --spec-ngram-simple-size-m 24`: 16 % más de velocidad de salida y 9 % menos de tiempo de corrida, sin VRAM extra. No se midió en `compose.llm.yml` (vLLM ni su alternativa llama-server), que queda sin cambios.
