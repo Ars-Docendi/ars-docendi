@@ -293,6 +293,7 @@ Develop puso en pc-prod un Ollama compartido con **qwen3.5:9b**. Lo publica Trae
 Diferencias con el diseño de la §2:
 
 - **Un pedido a la vez.** Ollama fuerza `NUM_PARALLEL=1` para qwen3.5, y ese slot lo comparten prod, staging y los previews. Las cifras de concurrencia de la §5, que suponen vLLM, no aplican acá. El perfil `compose.asistente-ollama.yml` deja la compuerta en 1 por ambiente.
+- **Arranque en frío (`asistente-modelo-en-reposo`).** El modelo se descarga por ocio (`OLLAMA_KEEP_ALIVE`), al recrear Ollama o cuando otro inquilino carga uno distinto. El backend lo detecta con `GET /api/ps` (ruta que Traefik debe admitir, ver [operación](../operations/ollama-compartido.md)), cacheado 30 s, y el chat ofrece «Activar modelo», que lanza `POST /api/generate` con el modelo y el mismo `num_ctx` que los turnos (otro valor lo haría recargar). Presupuesto de la credencial compartida (30/min): como mucho 2 `/api/ps` y 2 precargas por minuto y por ambiente, sólo mientras alguien tiene el asistente abierto.
 - **Contexto.** El servidor arranca en 4096. Con ese valor, Ollama recortaría en silencio el esquema del prefijo. Por eso el adaptador manda `truncate: false` y `num_ctx`, y el servidor necesita `OLLAMA_CONTEXT_LENGTH=16384`, que es el mismo valor que `Asistente__ContextoDelModelo`.
 - **Caché de prefijo parcial.**
   - Qwen3.5 es híbrido: Gated DeltaNet más 8 capas de atención completa. El KV cuesta ~32 KiB por token y 16k entran en ~8–8,5 GB.

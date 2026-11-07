@@ -399,6 +399,14 @@ Se deriva de los **GRANT efectivos** del rol con el que el actor consulta y **nu
 
 Cada ejemplo se valida con `EXPLAIN` contra los privilegios del actor antes de ofrecerse. Cuesta cero tokens, así que sigue respondiendo con el proveedor caído.
 
+#### `GET /api/asistente/modelo/disponibilidad` y `POST /api/asistente/modelo/activacion`
+
+Ambos con `asistente.consultar` (`asistente-modelo-en-reposo`). Responden `{ "estado": "no_aplica" | "listo" | "en_reposo" | "activando" | "desconocido", "ultimaActivacionFallida": boolean }`, sin nombre de modelo, URL ni nada de otros inquilinos de la GPU.
+
+- `GET .../disponibilidad`: si el modelo con que respondería un turno está cargado en Ollama (`GET /api/ps`). Sólo el proveedor `ollama` (también por selección en caliente) tiene estado; `local`, nube y `simulado` responden `no_aplica` sin salir a ninguna red. `desconocido` cubre toda falla de consulta (404 de la ruta, 401, 429, timeout de 3 s) y el cliente no muestra nada. La lectura se reutiliza `Asistente__TiempoDeVidaDisponibilidadSegundos` (30 s) con un solo pedido en vuelo por ambiente.
+- `POST .../activacion` (sin cuerpo): precarga el modelo con `POST /api/generate` (sólo `model` y el mismo `num_ctx` que los turnos). Responde `202` con el estado del momento y no espera a la carga: una sola por ambiente aunque lleguen muchos pedidos, con un enfriamiento de `Asistente__EnfriamientoDeActivacionSegundos` (30 s) y un tope de `Asistente__TiempoMaximoDeActivacionSegundos` (120 s). Si ya está `listo` o no aplica, no contacta a Ollama. No consume cupo ni cuenta para el techo, el breaker ni la compuerta.
+- `403` sin `asistente.consultar`.
+
 #### `POST /api/asistente/retroalimentacion`
 
 Pedido: `{ token, voto, razones?, comentario? }`. `token` es `claveDeRetroalimentacion` de un turno `respondida` — autoriza calificar **ese turno**, no identifica a quién lo envía. `voto` es booleano (👍/👎). `razones` es opcional y, solo cuando `voto` es falso, una lista de cero o más de cuatro valores cerrados, sin repetidos: `datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro`. `comentario` es opcional, texto libre de hasta 500 caracteres, recortado (los espacios al principio y al final no cuentan) antes de validar el largo y de guardarse; vacío después de recortar se trata como ausente. `razones`/`comentario` presentes junto a `voto: true` se ignoran del lado del servidor — nunca se confía en que el cliente los haya omitido. `lento` (retirado por `asistente-rediseno-v3`, design.md D7, PO-changed 2026-09-26) se rechaza igual que cualquier otro valor desconocido — nada shippeó a producción con esa razón, así que no hay ninguna fila vieja que preservar. `comentario` nunca se loguea, nunca viaja al proveedor del modelo y no tiene superficie de lectura en ninguna pantalla (ver TD-012 en `docs/quality/tech-debt.md`).
