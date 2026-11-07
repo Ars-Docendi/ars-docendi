@@ -71,6 +71,28 @@ public sealed class VinculosDePersonasYAulasTests
     }
 
     [Fact]
+    public void The_key_link_skips_a_cell_that_already_carries_another_link()
+    {
+        // Found end to end: «¿qué solicitudes fueron rechazadas?» put the persona link on the pedido
+        // number, which already linked to the pedido; on screen one of the two was lost.
+        var resultado = Resultado(
+            ["numero", "apellido", "persona_id"],
+            [["2026-9005", "Lovelace", Propia]]);
+        IReadOnlyList<VinculoDelResultado> vinculos =
+        [
+            new(0, 0, "pedido-designacion", "x"),
+            new(0, 2, "persona", "p1", EsClave: true),
+        ];
+
+        var (limpio, movidos) = ClavesInternas.Quitar(resultado, vinculos);
+
+        Assert.Equal(["numero", "apellido"], limpio.Columnas);
+        Assert.Equal(
+            [("pedido-designacion", 0), ("persona", 1)],
+            movidos.Select(v => (v.Tipo, v.Columna)));
+    }
+
+    [Fact]
     public void Sin_celda_de_rotulo_la_columna_se_queda_y_el_vinculo_con_ella()
     {
         // there the link would have nowhere to go, so the column must stay.

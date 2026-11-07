@@ -25,10 +25,16 @@ internal static class ClavesInternas
         // Una columna sale sólo si no queda un uuid a la vista (todo lo que tiene es un uuid) y
         // cada vínculo que lleva tiene dónde ir. Si no, se queda, vinculada: mejor un uuid
         // enlazado que un vínculo huérfano.
+        // A cell that already carries another link (a pedido number) is not a label: two links in
+        // one cell collapse into one on screen and the other one is lost.
+        var ocupadas = vinculos.Where(v => !v.EsClave).Select(v => (v.Fila, v.Columna)).ToHashSet();
+
+        int? RotuloLibre(int fila) => Rotulo(filas[fila], columnasClave, c => ocupadas.Contains((fila, c)));
+
         var salen = columnasClave
-            .Where(c => filas.All(f => f[c] is null || (f[c] is string s && Guid.TryParse(s, out _))))
+            .Where(c => filas.All(f => f[c] is null or Guid || (f[c] is string s && Guid.TryParse(s, out _))))
             .Where(c => vinculos.Where(v => v.EsClave && v.Columna == c)
-                .All(v => Rotulo(filas[v.Fila], columnasClave) is not null))
+                .All(v => RotuloLibre(v.Fila) is not null))
             .ToHashSet();
 
         if (salen.Count == 0)
@@ -43,7 +49,7 @@ internal static class ClavesInternas
         var nuevosVinculos = vinculos.Select(v =>
         {
             var destino = salen.Contains(v.Columna)
-                ? Rotulo(filas[v.Fila], columnasClave)!.Value
+                ? RotuloLibre(v.Fila)!.Value
                 : v.Columna;
             return v with { Columna = nuevoIndice[destino] };
         }).ToList();
@@ -60,12 +66,12 @@ internal static class ClavesInternas
         return (nuevo, nuevosVinculos);
     }
 
-    /// <summary>La primera celda de texto de la fila que no es una clave.</summary>
-    private static int? Rotulo(IReadOnlyList<object?> fila, HashSet<int> claves)
+    /// <summary>La primera celda de texto de la fila que no es una clave ni lleva ya otro vínculo.</summary>
+    private static int? Rotulo(IReadOnlyList<object?> fila, HashSet<int> claves, Func<int, bool> ocupada)
     {
         for (var c = 0; c < fila.Count; c++)
         {
-            if (!claves.Contains(c) && fila[c] is string { Length: > 0 })
+            if (!claves.Contains(c) && !ocupada(c) && fila[c] is string { Length: > 0 })
             {
                 return c;
             }

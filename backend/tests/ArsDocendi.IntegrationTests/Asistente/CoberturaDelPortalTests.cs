@@ -185,6 +185,28 @@ public sealed class CoberturaDelPortalTests
 
         Assert.Contains("14 cargaron su formación", mensaje, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void A_scoped_actor_is_told_the_coverage_total_is_the_whole_padron()
+    {
+        // Found end to end: a jefe de cátedra read «de los 24 docentes de tu cátedra» when the 24
+        // is the Departamento's padrón and only the numerator is scoped.
+        var mensaje = RedactorDeRespuesta.ArmarMensaje(
+            "¿qué proyectos cargaron mis docentes?",
+            new ResultadoDeConsulta(["apellido"], [new object?[] { "Díaz" }], false),
+            alcanzaTodo: false,
+            [new CoberturaDeUnDato("proyectos", 3, 24)]);
+
+        Assert.Contains("El total (24) es el padrón de todo el Departamento", mensaje, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "padrón de todo el Departamento",
+            RedactorDeRespuesta.ArmarMensaje(
+                "¿qué proyectos cargaron los docentes?",
+                new ResultadoDeConsulta(["apellido"], [new object?[] { "Díaz" }], false),
+                alcanzaTodo: true,
+                [new CoberturaDeUnDato("proyectos", 3, 24)]),
+            StringComparison.Ordinal);
+    }
 }
 
 /// <summary>

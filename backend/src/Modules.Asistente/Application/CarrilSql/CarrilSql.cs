@@ -475,7 +475,8 @@ public sealed class CarrilSql(
                 : ModoDeEnmascarado.Todo);
         var texto = await redactor.RedactarAsync(
             mensaje, paraElModelo, alcanzaTodo, cobertura, ct,
-            hayTextoLibreOculto: paraElModelo.Columnas.Count < resultado.Columnas.Count);
+            hayTextoLibreOculto: paraElModelo.Columnas.Count < resultado.Columnas.Count,
+            comoSeBusco: generacion.Razonamiento);
 
         return new ResultadoDelTurno(
             EstadoDelTurno.Respondida,

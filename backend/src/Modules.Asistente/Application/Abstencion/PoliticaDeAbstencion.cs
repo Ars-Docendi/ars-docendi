@@ -228,7 +228,14 @@ internal static class PoliticaDeAbstencion
                 $"{declarada.Frase()} Es un dato que cada docente carga sobre sí mismo y "
                 + "la mayoría no lo hizo. NO presentes lo que ves como el total del "
                 + "Departamento, y NO afirmes que nadie cumple una condición: decí "
-                + "sobre cuántos se sabe.");
+                + "sobre cuántos se sabe."
+                // The denominator is the whole padrón and the numerator only what the actor reaches:
+                // a jefe de cátedra got «de los 24 docentes de tu cátedra» when 24 is the Departamento.
+                + (alcanzaTodo
+                    ? string.Empty
+                    : $" El total ({declarada.Total}) es el padrón de todo el Departamento, NO los "
+                        + "docentes del ámbito del usuario: no lo presentes como «los docentes de tu "
+                        + "cátedra» ni de tu carrera."));
         }
 
         if (!alcanzaTodo)
