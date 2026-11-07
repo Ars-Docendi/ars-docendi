@@ -48,11 +48,11 @@
 - [x] 6.1 `docs/architecture/domains/asistente.md`: add the comisiones question catalog (what can and cannot be asked, free aulas excluded), the prefix numbers of 4.3, and the abstention-by-domain rule. Verify: `pnpm format:check` and `node scripts/docs/check-links.mjs`
 - [x] 6.2 `docs/architecture/data-model.md` (comisiones section: now readable by the assistant under RLS) and `backend/src/Modules.Asistente/README.md`. Verify: same commands as 6.1
 - [x] 6.3 `docs/business-rules/asistente.md`: reword BR-asistente-001 and BR-asistente-003 (the example and the "scope and permission" statement now hold per domain, comisiones being permission only), and add BR-asistente-010 for D2 with "No es normativa" and its test mapping. Verify: the rule format check in `pnpm format:check`; the `_index.md` already lists the file
-- [ ] 6.4 State in the PR that there is no assistant article in the Centro de ayuda (`frontend/src/features/ayuda/contenido/` has none), so rule 9 adds no article. Verify: `grep -ril asistente frontend/src/features/ayuda/contenido` shows only the dashboard article and the index
+- [x] 6.4 State in the PR that there is no assistant article in the Centro de ayuda (`frontend/src/features/ayuda/contenido/` has none), so rule 9 adds no article. Verify: `grep -ril asistente frontend/src/features/ayuda/contenido` shows only the dashboard article and the index
 
 ## 7. Verification
 
 - [x] 7.1 Backend: `dotnet test backend/ArsDocendi.slnx` — 2460/2460 on a clean checkout of 37e45bd8 (2026-11-07); in a checkout with a local `.env` pointing at an Ollama, `Sin_proveedor_local_la_telemetria_dice_que_no_esta_configurado` fails because of that local configuration, not because of this change.
 - [x] 7.2 SQL and migrations: `node --test scripts/tests/migrations.test.mjs`, `node scripts/migrations/validate.mjs`, then after `dotnet build -c Release`, `dotnet run --project backend/src/ArsDocendi.Host --no-build -c Release -- --validar-recursos`
-- [ ] 7.3 Docs and specs: `pnpm format:check`, `node scripts/docs/check-links.mjs`, `pnpm exec openspec validate --all`
-- [ ] 7.4 Record any check the environment could not complete in the PR description
+- [x] 7.3 Docs and specs: `pnpm format:check`, `node scripts/docs/check-links.mjs`, `pnpm exec openspec validate --all`
+- [x] 7.4 Record any check the environment could not complete in the PR description
