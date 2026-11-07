@@ -458,6 +458,13 @@
       "categoria": "agregacion",
       "actor": "materia",
       "sql_referencia": "SELECT count(DISTINCT x.perfil_id) AS cantidad FROM portal.proyectos x"
+    },
+    {
+      "id": "cap-062",
+      "pregunta": "¿Qué docentes tengo a cargo?",
+      "categoria": "cruce_de_tablas",
+      "actor": "materia",
+      "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id WHERE d.vigente_hasta IS NULL ORDER BY p.apellido, p.nombre"
     }
   ]
 }

@@ -13,6 +13,11 @@
       "sql": "SELECT count(*) AS cantidad FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.carreras ca ON ca.id = d.carrera_id WHERE c.codigo = 'titular' AND ca.name = 'Ingeniería en Informática' AND d.vigente_hasta IS NULL"
     },
     {
+      "pregunta": "¿Cuáles son los docentes a mi cargo y en qué materia están?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, m.name AS materia, p.id AS persona_id FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE d.vigente_hasta IS NULL ORDER BY m.name, p.apellido, p.nombre"
+    },
+    {
       "pregunta": "¿Qué materias no tienen ningún docente designado?",
       "categoria": "cruce_de_tablas",
       "sql": "SELECT DISTINCT ca.name AS carrera, m.name AS materia FROM identity.materias m JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo JOIN identity.carreras ca ON ca.id = pl.carrera_id WHERE m.is_active AND NOT EXISTS (SELECT 1 FROM designaciones.designaciones d WHERE d.materia_id = m.id AND d.carrera_id = ca.id AND d.vigente_hasta IS NULL) ORDER BY ca.name, m.name"

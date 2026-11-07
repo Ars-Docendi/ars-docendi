@@ -1,15 +1,15 @@
 {
   "Eje": "capacidad",
   "Sello": {
-    "Prefijo": "263d74f4f90389eb0ae958b2c32e42ebd1c1c32637af3193ac22a703de0d63c7",
-    "Dataset": "66174198cdc7e827ee28b6618568bda85c56bc20b1cab0cd51f5ff573166ba85",
+    "Prefijo": "9e00a3aa65e418f5fd2433b4bc6afd8eb616047d74d12c6e5ad8f449264cfc57",
+    "Dataset": "210ab9e2d25fbd4b2abbae93c65b4c34b9a60eb7b31fee84a69c767d333283b9",
     "Fixture": "6b1f31774c5b0c0163d7b561bacebea092566820e12852f142d0948157abd420"
   },
   "Items": {
     "cap-001": "traduccion_correcta",
     "cap-002": "traduccion_correcta",
     "cap-003": "traduccion_correcta",
-    "cap-004": "abstencion_sobrelo_factible",
+    "cap-004": "traduccion_correcta",
     "cap-005": "traduccion_correcta",
     "cap-006": "traduccion_correcta",
     "cap-007": "traduccion_correcta",
@@ -18,14 +18,14 @@
     "cap-010": "traduccion_correcta",
     "cap-011": "traduccion_correcta",
     "cap-012": "traduccion_correcta",
-    "cap-013": "traduccion_correcta",
+    "cap-013": "abstencion_sobrelo_factible",
     "cap-014": "traduccion_correcta",
     "cap-015": "traduccion_correcta",
     "cap-016": "traduccion_correcta",
     "cap-017": "abstencion_correcta",
     "cap-018": "abstencion_correcta",
     "cap-019": "traduccion_correcta",
-    "cap-020": "abstencion_correcta",
+    "cap-020": "intento_sobre_lo_infactible",
     "cap-021": "abstencion_correcta",
     "cap-022": "traduccion_correcta",
     "cap-023": "traduccion_correcta",
@@ -66,6 +66,7 @@
     "cap-058": "traduccion_correcta",
     "cap-059": "traduccion_correcta",
     "cap-060": "traduccion_correcta",
-    "cap-061": "traduccion_correcta"
+    "cap-061": "traduccion_correcta",
+    "cap-062": "traduccion_correcta"
   }
 }

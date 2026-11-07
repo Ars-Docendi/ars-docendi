@@ -53,25 +53,25 @@ mismo en la misma corrida no informaría nada.
 
 ## Las cuatro vigentes
 
-Congeladas **en vivo**, sin cassettes, contra `claude-sonnet-5` el 2026-11-07 (tarde),
-con el prefijo `263d74f4f90389eb…`, que incluye `comisiones`, las solicitudes de aula
-(`asistente-lee-aulas`), los proyectos del portal (`asistente-portal-jefe-catedra`) y la
-regla de generación que pide las columnas clave de los enlaces
-(`asistente-enlaces-personas-y-aulas`). Capacidad suma `cap-051`..`cap-061` y robustez
-`rob-019`..`rob-022`.
+Congeladas **en vivo** contra `claude-sonnet-5` el 2026-11-07 (tarde), después de agregar a
+las instrucciones de generación la regla de alcance propio: «mis docentes», «los que tengo a
+cargo» o «de mi cátedra» se contestan sin filtro, porque la base ya devuelve sólo lo de quien
+pregunta. Antes, un jefe de cátedra que preguntaba «¿Qué docentes tengo a cargo?» recibía una
+abstención («no hay forma de saber quién pregunta») o una consulta con filtros de más.
+Capacidad suma `cap-062` y robustez `rob-023`.
 
 | Eje       | Ítems | Aciertos | Normalizado |
 | --------- | ----- | -------- | ----------- |
-| Capacidad | 61    | 60       | 98,4 %      |
-| Robustez  | 22    | 21       | 95,5 %      |
-| Diálogo   | 11    | 11       | 100,0 %     |
+| Capacidad | 62    | 60       | 96,8 %      |
+| Robustez  | 23    | 23       | 100,0 %     |
+| Diálogo   | 11    | 10       | 90,9 %      |
 | Social    | 20    | 20       | 100,0 %     |
 
-Los dos que no aciertan (`cap-004`, `rob-022`) acertaron en las otras dos corridas del
-mismo código y quedan en la tabla de abajo. Las líneas anteriores, de comisiones, están
-en [`antes-de-aulas-y-portal/`](./antes-de-aulas-y-portal/README.md).
+Los tres que no aciertan (`cap-013`, `cap-020`, `dia-005-referencia-al-resultado#2`) están
+en `inestables.json`. Las anteriores, en
+[`antes-de-alcance-propio/`](./antes-de-alcance-propio/README.md).
 
-Antes de congelar, tres corridas en vivo mostraron fallas que se corrigieron:
+En las corridas en vivo previas de la misma tarde aparecieron estas fallas, ya corregidas:
 
 - **«Solicitudes» a secas se iba a las reservas de aula** (`cap-008`, `cap-012`,
   `cap-023`): el comentario de `aulas.solicitudes_reserva` dice ahora que esa tabla es

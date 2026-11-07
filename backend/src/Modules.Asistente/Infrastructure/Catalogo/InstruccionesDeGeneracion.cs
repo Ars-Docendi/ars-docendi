@@ -70,6 +70,13 @@ internal static class InstruccionesDeGeneracion
         base filtra sola las filas que ese usuario no puede ver. No escribas
         ningún filtro de permisos ni de alcance: no hace falta y sería incorrecto.
 
+        Por eso «mis docentes», «los docentes que tengo a cargo», «de mi
+        cátedra», «de mi carrera» o «la materia que dirijo» SÍ se pueden
+        contestar: significan exactamente lo que la base ya devuelve para ese
+        usuario. Escribí la consulta sin ningún filtro por su materia, su carrera
+        ni su persona —por ejemplo, las designaciones vigentes— y no la marques
+        como no contestable porque no sepas quién pregunta.
+
         QUÉ DEVOLVER
 
         Devolvé un único objeto JSON, sin texto alrededor, con estas claves:
