@@ -330,14 +330,14 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
 | Decisión               | 5070 (ambientes)                      | 3070 (prueba local)                                                          |
 | ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------- |
 | Servidor               | vLLM, Qwen3-8B-AWQ, KV FP8            | **llama-server**, Qwen3-8B Q4_K_M, KV `q8_0`. vLLM deja muy poco KV con 8 GB |
-| Turnos en vuelo        | 8                                     | **2** slots de 13.312 tokens (`--ctx-size 26624 --parallel 2`)               |
+| Turnos en vuelo        | 8                                     | **1** slot de 16.384 tokens (`--ctx-size 16384 --parallel 1`)                |
 | Ejemplos en el prefijo | Sí (vLLM comparte el prefijo)         | **Sí**: medido, acierta más que eligiendo cuatro por pregunta (ver abajo)    |
 | Techos de tokens       | 800 / 400 / 200                       | **600 / 300 / 150**                                                          |
 | Presupuesto del turno  | 90 s (debajo del corte de Cloudflare) | 120 s (no hay Cloudflare en el medio)                                        |
 
-**VRAM [estimado]:** pesos ~4,7 GiB + KV de 2 slots ~1,9 GiB (13.312 × 2 × ~76,5 KiB) + buffers ~0,6 GiB ≈ **7,3 GiB de 8**. Con el monitor conectado a la misma GPU el escritorio come 0,3–1 GB, así que puede no entrar. **Medido el 2026-10-03** en una 3070 con el escritorio usando ~1,3 GB: los 2 slots no entraron (falló al reservar 1.989 MiB de KV) y con el respaldo de 1 slot de 16.384 la placa llegó a 7,3 GiB en total.
+**VRAM:** pesos ~4,7 GiB + KV de 1 slot ~1,2 GiB (16.384 × ~76,5 KiB) + buffers ~0,6 GiB. **Medido el 2026-10-03** en una 3070 con el escritorio usando ~1,3 GB: la placa llegó a 7,3 GiB en total; el 2026-11-07, con ~1 GB de escritorio, a 6,9 GiB. El perfil anterior, de 2 slots de 13.312, no entró en VRAM (falló al reservar 1.989 MiB de KV) y con comisiones tampoco alcanza para el pedido (ver abajo); por eso el default es 1 slot desde el 2026-11-07.
 
-**Con comisiones, el slot de 13.312 ya no alcanza.** Medido el 2026-11-07, con el schema `comisiones` en el prefijo (change `asistente-lee-comisiones`): evaluador completo (cuatro ejes) contra Qwen3-8B Q4_K_M en llama-server, un slot de 16.384, con el perfil de esta sección. Los números salen de los logs del servidor (`n_tokens` al liberar el slot, menos los tokens generados), sobre 129 llamadas:
+**Por qué 16.384 y no 13.312.** Medido el 2026-11-07, con el schema `comisiones` en el prefijo (change `asistente-lee-comisiones`): evaluador completo (cuatro ejes) contra Qwen3-8B Q4_K_M en llama-server, un slot de 16.384, con el perfil de esta sección. Los números salen de los logs del servidor (`n_tokens` al liberar el slot, menos los tokens generados), sobre 129 llamadas:
 
 | Medida                                   | Tokens |
 | ---------------------------------------- | ------ |
@@ -349,7 +349,7 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
 - **Entra en 1 slot de 16.384**, con 2.938 tokens de margen. Ninguna llamada se truncó.
 - **No entra con garantía en 2 slots de 13.312.** Con el techo de 600 tokens el peor caso pide 13.446. En la corrida no falló nada porque la salida real más larga fue de 322 tokens, pero una generación que use el techo entero se cortaría.
 - **Cuánto creció.** El 2026-10-03 el pedido más largo era de 9,8k tokens. Ahora es de 12,8k: suman los schemas `portal` y `comisiones` (este último, ~6,9k caracteres de prefijo) y los ejemplos nuevos.
-- **Por qué no se compactó.** La tarea pedía compactar sólo si no entraba en 16.384, y entra. El perfil por defecto del compose sigue en 2 × 13.312. En esta placa ya no entraba en VRAM, y ahora tampoco alcanza para el pedido: el que pruebe en una 3070 tiene que usar `LLAMA_SLOTS=1 LLAMA_CTX=16384`.
+- **Por qué no se compactó.** Hacía falta sólo si el pedido no entraba en 16.384, y entra.
 
 ### Pasos
 
@@ -366,13 +366,13 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
 
    ```bash
    llama-server --hf-repo Qwen/Qwen3-8B-GGUF --hf-file Qwen3-8B-Q4_K_M.gguf --alias qwen3-8b \
-     --n-gpu-layers 99 --ctx-size 26624 --parallel 2 --flash-attn on \
+     --n-gpu-layers 99 --ctx-size 16384 --parallel 1 --flash-attn on \
      --cache-type-k q8_0 --cache-type-v q8_0 --jinja --reasoning-budget 0 \
      --spec-type ngram-simple --spec-ngram-simple-size-n 6 --spec-ngram-simple-size-m 24 \
      --metrics --cache-ram 0 --api-key local-3070 --host 127.0.0.1 --port 8000
    ```
 
-2. **Backend.** En el `.env` de la raíz, descomentar el bloque «Modelo propio en una RTX 3070» de `.env.example` (reemplaza `Asistente__Proveedor` y `Asistente__ClaveDelProveedor`). El Host lo lee sólo en Development. Después, el resto como siempre (README del módulo, «Levantar el asistente entero en local»):
+2. **Backend.** En el `.env` de la raíz, descomentar el bloque «Modelo propio en una RTX 3070» de `.env.example` (reemplaza `Asistente__Proveedor` y `Asistente__ClaveDelProveedor`). Con el slot único del servidor, `Asistente__MaximoDeLlamadasConcurrentes` tiene que valer `1`. El Host lo lee sólo en Development. Después, el resto como siempre (README del módulo, «Levantar el asistente entero en local»):
 
    ```bash
    dotnet run --project backend/src/ArsDocendi.Host
@@ -420,13 +420,13 @@ Medido el 2026-10-03 (ARS-166) con el evaluador contra Qwen3-8B Q4_K_M, perfil o
 
 ### Si algo falla
 
-| Síntoma                                                                      | Causa probable                                         | Qué hacer                                                                                                                     |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| El servidor no arranca: `out of memory` / `failed to allocate`               | No entran pesos + KV                                   | `LLAMA_SLOTS=1 LLAMA_CTX=16384` (y `Asistente__MaximoDeLlamadasConcurrentes=1`), o desconectar el monitor de la GPU           |
-| El turno degrada y el log del servidor dice que el pedido excede el contexto | El prefijo no entra en un slot de 13.312               | Mismo respaldo: un slot de 16k. Confirmar `Asistente__EsquemaCompacto=true`; si aun así no entra, `EjemplosEnElPrefijo=false` |
-| Respuestas pobres o abstenciones de más                                      | Un 8B en 4 bits es más débil que Claude                | Esperado. Medir con el evaluador (§7) antes de sacar conclusiones, y probar las opciones de a una                             |
-| Todo anda pero la redacción aparece de golpe                                 | Un proxy en el medio bufferea `text/event-stream`      | Con el proxy de Vite no pasa; revisar que no haya otro                                                                        |
-| `401` en la tarjeta o en el turno                                            | `Asistente__ClaveDelProveedor` distinta de `--api-key` | Igualarlas                                                                                                                    |
+| Síntoma                                                                      | Causa probable                                         | Qué hacer                                                                                                                 |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| El servidor no arranca: `out of memory` / `failed to allocate`               | No entran pesos + KV                                   | Desconectar el monitor de la GPU, o `LLAMA_GGUF=Qwen3-4B-Instruct-2507-Q6_K.gguf` con su repo                             |
+| El turno degrada y el log del servidor dice que el pedido excede el contexto | El pedido no entra en el slot (`LLAMA_CTX` más chico)  | Volver a `LLAMA_CTX=16384`. Confirmar `Asistente__EsquemaCompacto=true`; si aun así no entra, `EjemplosEnElPrefijo=false` |
+| Respuestas pobres o abstenciones de más                                      | Un 8B en 4 bits es más débil que Claude                | Esperado. Medir con el evaluador (§7) antes de sacar conclusiones, y probar las opciones de a una                         |
+| Todo anda pero la redacción aparece de golpe                                 | Un proxy en el medio bufferea `text/event-stream`      | Con el proxy de Vite no pasa; revisar que no haya otro                                                                    |
+| `401` en la tarjeta o en el turno                                            | `Asistente__ClaveDelProveedor` distinta de `--api-key` | Igualarlas                                                                                                                |
 
 **Respaldo de modelo:** Qwen3-4B-Instruct-2507 en Q6_K (~3,1 GiB de pesos; 6,3 GiB de placa con un slot de 16k y el escritorio) deja más lugar para el KV, a costa de calidad: con el perfil optimizado acierta 23 · 12 · 9 · 17 contra 26 · 12 · 10 · 18 del 8B (§3, «Medido con el evaluador en la RTX 3070»). Se cambia con `LLAMA_HF_REPO` y `LLAMA_GGUF`, y `Asistente__Modelo` no necesita cambiar si se mantiene el `--alias`.
 
