@@ -545,6 +545,23 @@ vive en `CacheDeCapacidades`, indexado por **rol**: hay exactamente dos variante
 `Presentacion` queda **fuera** de esa caché, como el alcance: es del actor y no del rol de
 lectura, así que cachearla le devolvería a todos la del primero.
 
+Las áreas, los ejemplos y la presentación de **comisiones** tampoco se cachean por rol:
+los dos roles de lectura tienen el `GRANT`, pero el catálogo solo las ofrece a quien tiene
+`comisiones.ver` vivo (`PerfilDelActor.VeComisiones`). Los ejemplos de comisiones
+(los que `DetectorDeDominios` ubica en ese dominio) se eligen aparte y se suman al final
+de la lista, sin pasar del máximo.
+
+### El alcance se evalúa por dominio
+
+`DetectorDeDominios.Detectar(sql)` (por tokens) devuelve las tablas calificadas y los
+dominios que toca la consulta generada; de ahí salen la cobertura de portal y
+`PoliticaDeAbstencion.AlcanzaTodo(perfil, dominios)`. Designaciones exige ámbito global y
+`designaciones.ver`; portal agrega `portal.ver_trayectoria_ajena`; comisiones exige
+solamente `comisiones.ver` (sin ámbito, igual que la policy). Sin dominio (solo catálogos
+de identity) vale la regla de designaciones; un dominio desconocido nunca alcanza todo.
+Si una consulta de comisiones vuelve vacía, `IConsultorDeCobertura.ObtenerPeriodosImportadosAsync`
+suma los períodos que el actor ve importados (falla en silencio).
+
 ### La única lectura de rol del módulo
 
 `PresentacionPorRol` elige la línea con que el asistente se presenta —por qué cosas suele
@@ -1233,6 +1250,12 @@ cruce que separar los dos registros existe para impedir.
 propósito**: la fila de auditoría tiene que sobrevivir a que el propio dueño
 borre esa conversación (borrado permanente, sin papelera). Sin FK, un id que ya
 no existe sigue siendo una fila de auditoría perfectamente legible.
+
+**Lectura de `comisiones`.** Cuatro de las cinco tablas del snapshot de Guaraní se
+conceden a los dos roles (`001_asistente_grants.sql`, columna por columna; `sga_importaciones`
+queda denegada). La RLS (`ENABLE`, predicado `comisiones.ver` sin ámbito) y los `COMMENT ON`
+son migraciones de Designaciones, que es el dueño del schema; el `GRANT` corre después.
+Ver BR-asistente-010.
 
 El DDL vive en `database/asistente/*.sql` y se embebe como recurso de **este**
 assembly, igual que `database/designaciones/*.sql` en su módulo.

@@ -230,8 +230,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             deDocente.Cubre,
             deJefe.Cubre.Where(area => !area.Nombre.StartsWith("comisiones.", StringComparison.Ordinal)));
 
-        // The same for the examples is comisiones, offered by the live permission and
-        // not by the role: the general ones are the same for both.
+        // Same for the examples: the general ones are the same for both.
         Assert.Equal(
             deDocente.Ejemplos.Where(EsDeComisiones),
             []);

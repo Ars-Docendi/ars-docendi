@@ -90,6 +90,24 @@
       "origen": "cap-014",
       "clase": "coloquial",
       "pregunta": "necesito saber cuántas bajas se pidieron"
+    },
+    {
+      "id": "rob-016",
+      "origen": "cap-044",
+      "clase": "sin_tildes",
+      "pregunta": "Que comisiones se dictan los sabados?"
+    },
+    {
+      "id": "rob-017",
+      "origen": "cap-043",
+      "clase": "coloquial",
+      "pregunta": "che, ¿qué comisiones son de noche?"
+    },
+    {
+      "id": "rob-018",
+      "origen": "cap-040",
+      "clase": "parcial",
+      "pregunta": "dias y horarios de Ledesma"
     }
   ]
 }

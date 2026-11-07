@@ -72,6 +72,53 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
             StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task El_prefijo_trae_los_hechos_de_comisiones_que_el_modelo_no_puede_inferir(
+        bool conDatosPersonales)
+    {
+        var prefijo = (await PrefijoAsync(conDatosPersonales)).Prefijo;
+
+        // Several períodos accumulate, aula/responsabilidad are free text, dia is 1-7, and a null
+        // link means "not matched": without these the model reads a wrong answer as a right one.
+        Assert.Contains("ACUMULA varios períodos", prefijo, StringComparison.Ordinal);
+        Assert.Contains("TEXTO LIBRE", prefijo, StringComparison.Ordinal);
+        Assert.Contains("sábado = 6", prefijo, StringComparison.Ordinal);
+        Assert.Contains("Nulo significa", prefijo, StringComparison.Ordinal);
+
+        // The import log is denied: it must not even be named.
+        Assert.DoesNotContain("sga_importaciones", prefijo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task El_prefijo_lista_las_claves_foraneas_reales_de_comisiones()
+    {
+        var prefijo = (await PrefijoAsync(conDatosPersonales: false)).Prefijo;
+
+        foreach (var relacion in new[]
+        {
+            "comisiones.sga_comisiones.materia_id referencia a identity.materias.id",
+            "comisiones.sga_comision_carreras.carrera_id referencia a identity.carreras.id",
+            "comisiones.sga_comision_docentes.persona_id referencia a identity.personas.id",
+            "comisiones.sga_comision_horarios.comision_guarani_id referencia a comisiones.sga_comisiones.comision_guarani_id",
+        })
+        {
+            Assert.Contains(relacion, prefijo, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Ninguna_lista_de_valores_cerrados_lee_filas_de_comisiones()
+    {
+        // The prompt connection has no actor, so a list read from a row-protected table would come
+        // back empty; and putting row values of such a table in a prompt shared by every actor is the
+        // thing the policy exists to prevent.
+        Assert.DoesNotContain(
+            LectorDeValoresDeCatalogo.Declaradas(conGlosario: true),
+            columna => columna.Esquema == "comisiones");
+    }
+
     // --------------------------------------------------- estabilidad y caché
 
     [Fact]

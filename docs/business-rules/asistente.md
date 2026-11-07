@@ -17,7 +17,7 @@
 - **Rationale:** Es la regla que ya se practicaba y no estaba escrita. Un `GRANT ... ON ALL TABLES IN SCHEMA` no falla ni avisa: entrega cada tabla nueva por default, y alcanza con que alguien agregue una columna personal para que el asistente la lea sin que nadie lo haya decidido. La lista explícita obliga a pasar por el manifiesto, y el test falla si aparece algo sin clasificar.
 - **Provenance:** `inferred_from_code`
 - **Fuente normativa:** No es normativa. Es el correlato documental del invariante #14 de `CLAUDE.md`.
-- **Ejemplos:** `identity.personas.documento` se concede sólo al rol PII, con motivo. `identity.users.azure_oid` no se concede a ninguno, con motivo. `experiencias.descripcion` no se concede, con motivo.
+- **Ejemplos:** `identity.personas.documento` se concede sólo al rol PII, con motivo. `identity.users.azure_oid` no se concede a ninguno, con motivo. `experiencias.descripcion` no se concede, con motivo. De `comisiones` se conceden cuatro tablas columna por columna; `sga_importaciones` y columnas como `importacion_id` o `asignacion_guarani_id` no, con motivo.
 - **Roles afectados:** quien escribe una migración que toque `database/asistente/`.
 - **Mapping a test:** `ManifiestoPrivilegiosTests`, que compara el manifiesto contra los privilegios reales en **cuatro** direcciones: privilegio efectivo no declarado, declaración sin privilegio, tabla de un schema expuesto sin clasificar, y schema de la base que el manifiesto no clasifica.
 
@@ -33,13 +33,13 @@
 
 ### BR-`asistente`-003 El ámbito y el permiso son ejes independientes
 
-- **Statement:** Un resultado vacío sólo puede presentarse como «no hay datos» cuando el actor alcanza **todo lo que la consulta tocó**: ámbito y permiso de dominio a la vez. En cualquier otro caso el texto tiene que reconocer el límite de alcance.
+- **Statement:** Un resultado vacío sólo puede presentarse como «no hay datos» cuando el actor alcanza **todo lo que la consulta tocó**, evaluado **por dominio**: designaciones exige ámbito global y permiso a la vez; portal, además, el permiso de trayectoria ajena; comisiones exige sólo `comisiones.ver`, sin ámbito (BR-`asistente`-010). Una consulta que cruza dominios exige la regla de cada uno. En cualquier otro caso el texto tiene que reconocer el límite de alcance.
 - **Rationale:** La policy de RLS conjuga permiso Y ámbito, así que un actor de ámbito global sin el permiso ve cero filas exactamente igual que uno cuyo literal no matcheó. Usar «es global» como sinónimo de «ve todo» hace que el sistema afirme «no encontré ningún registro» cuando la verdad es «no alcanzás a verlos» — una afirmación falsa dicha con seguridad.
 - **Provenance:** `inferred_from_code`
 - **Fuente normativa:** No es normativa: deriva de la métrica primaria, corrección con abstención.
-- **Ejemplos:** Secretaría (global) sin `designaciones.ver` pregunta por pedidos → «no encontré nada dentro de lo que podés consultar», no «no hay pedidos».
+- **Ejemplos:** Secretaría (global) sin `designaciones.ver` pregunta por pedidos → «no encontré nada dentro de lo que podés consultar», no «no hay pedidos». Un jefe de cátedra con `comisiones.ver` que pregunta por una comisión inexistente sí puede oír «no encontré ningún registro» (acompañado de los períodos importados), pero si compara comisiones con designaciones la respuesta lleva el límite de designaciones aunque devuelva filas.
 - **Roles afectados:** todos.
-- **Mapping a test:** `PerfilDelActorTests.Un_actor_global_sin_el_permiso_de_dominio_NO_alcanza_todo`.
+- **Mapping a test:** `PerfilDelActorTests.Un_actor_global_sin_el_permiso_de_dominio_NO_alcanza_todo`; `AbstencionYRedaccionTests.El_alcance_total_exige_lo_que_exige_cada_dominio_que_la_consulta_toca`; `CarrilSqlTests` (`Un_actor_acotado_con_comisiones_ver_puede_oir_que_no_hay_comisiones`, `Un_actor_global_sin_comisiones_ver_no_oye_que_no_hay_comisiones`, `Un_cruce_de_comisiones_con_designaciones_lleva_el_limite_aunque_haya_filas`).
 
 ### BR-`asistente`-004 No se anuncia lo que el actor no puede ejercer
 
@@ -100,3 +100,13 @@
 - **Ejemplos:** «¿qué docentes saben Python?» con el fixture declarando tres docentes con esa habilidad resuelve `muy_general` y nunca «no encontré nada sobre Python» (sería el mismo falso negativo documentado en `PoliticaDeAbstencion.AlcanzaTodo`). Un `termino` que el modelo devuelve pero que no aparece en el mensaje del usuario —por ejemplo, tomado de la pregunta reescrita de un seguimiento— nunca llega al texto. Dos preguntas fuera de tema seguidas en la misma conversación muestran dos textos distintos, y la segunda nombra las áreas consultables o apunta a «¿qué podés hacer?». Una conversación reanudada cuyo último turno persistido fue `no_contestable` escala la variante del próximo rechazo, aunque el hilo en memoria acabe de nacer.
 - **Roles afectados:** todos los que usan el asistente.
 - **Mapping a test:** `PlantillasDeRechazoTests` (distinción, escalación, ninguna afirmación de ausencia, el puntero de ayuda es una meta-pregunta); `TerminoDelRechazoTests` (validación del término contra el mensaje crudo); `CarrilSqlTests` (integración del carril, catálogo de áreas, la razón del modelo nunca en el texto); `CapaConversacionalTests` (escalación de punta a punta, precedencia de la referencia sin resolver); `HistorialControllerTests.Un_hilo_reanudado_cuyo_ultimo_turno_fue_rechazado_escala_el_siguiente_rechazo`.
+
+### BR-`asistente`-010 Las comisiones se ven por permiso, sin ámbito
+
+- **Statement:** El asistente devuelve una fila de `comisiones.sga_comisiones`, `sga_comision_carreras`, `sga_comision_docentes` o `sga_comision_horarios` a un actor si y sólo si tiene `comisiones.ver`, sea cual sea su ámbito de materia o carrera. Cada policy nombra al actor por sí misma. Sin el permiso, o sin actor fijado, no hay ninguna fila visible. La aplicación y el importador, que conectan como dueño, no se ven afectados.
+- **Rationale:** La pantalla de Comisiones muestra todas las comisiones a quien tiene el permiso, y el asistente no debe saber ni más ni menos que la pantalla. Es una diferencia deliberada con designaciones, donde la policy conjuga permiso Y ámbito: está escrita para que nadie la «arregle» importando el predicado de ámbito.
+- **Provenance:** `from_spec`
+- **Fuente normativa:** No es normativa. Es una decisión del equipo (2026-11-06), parte de la excepción de la regla 11 de AGENTS.md.
+- **Ejemplos:** Un jefe de cátedra ve por el asistente las comisiones de otra materia, igual que en la pantalla. Un docente (sin `comisiones.ver`) recibe cero filas y la consulta no falla.
+- **Roles afectados:** `jefe_catedra`, `coordinador_carrera`, `decanato`, `secretaria`, `administrativo`, `sys_admin` tienen el permiso; `docente` no.
+- **Mapping a test:** `RlsAlcanceTests` (`Un_actor_con_comisiones_ver_ve_toda_comision_sea_cual_sea_su_ambito`, `Un_actor_sin_comisiones_ver_no_ve_ninguna_comision_y_la_consulta_no_falla`, `Sin_actor_fijado_no_hay_ninguna_comision_visible`, `Cada_policy_de_comisiones_nombra_al_actor_sin_apoyarse_en_la_de_otra_tabla`, `El_rol_dueno_sigue_viendo_todas_las_comisiones_sin_fijar_actor`); `PrivilegiosLecturaTests` (registro de importaciones inalcanzable, ningún rol muta).

@@ -264,6 +264,17 @@ snapshot nunca bloquea una operación sobre personas o catálogos. Un índice ú
 parcial sobre `sga_importaciones(periodo_lectivo_guarani_id) WHERE estado =
 'en_curso'` impide dos importaciones simultáneas del mismo período.
 
+**Lectura por el asistente.** Las cuatro tablas de datos (no `sga_importaciones`) son
+legibles por los dos roles de lectura del asistente: `GRANT SELECT` por columna
+(`database/asistente/001_asistente_grants.sql`, listado en
+`manifiesto-privilegios.json`) y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT`
+por tabla cuyo predicado es `identity.asistente_tiene_permiso('comisiones.ver')`, sin
+ámbito. El dueño (la aplicación y el importador) queda exento. Las policies y los
+`COMMENT ON` viven en las migraciones `RlsAsistenteComisionesDesignaciones` y
+`ComentariosAsistenteComisionesDesignaciones`. No se concede `sga_importaciones`
+(nombra al usuario que importó), `importacion_id`, `periodo_lectivo_guarani_id`,
+`modalidad_codigo`, `created_at` ni `asignacion_guarani_id`.
+
 **Excepción de auditoría**: `sga_comisiones` y sus hijas no llevan
 `audit.attach`; auditarlas volcaría cientos de filas por importación en
 `audit.change_log` por datos regenerables. La trazabilidad del snapshot la da

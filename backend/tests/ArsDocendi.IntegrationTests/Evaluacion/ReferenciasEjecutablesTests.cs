@@ -46,6 +46,31 @@ public sealed class ReferenciasEjecutablesTests(PostgresFixture postgres)
             + string.Join(Environment.NewLine, rotas));
     }
 
+    [Fact]
+    public async Task Cada_ejemplo_de_comisiones_ejecuta_y_devuelve_filas_contra_el_fixture()
+    {
+        // An example that returns nothing teaches the model a query that looks right and proves
+        // nothing; one that fails teaches a query that does not run.
+        await AplicarFixtureAsync();
+
+        var ejemplos = new Modules.Asistente.Infrastructure.SelectorDeEjemplos().Catalogo
+            .Where(e => Modules.Asistente.Application.DetectorDeDominios.Detectar(e.Sql).Dominios.HasFlag(Modules.Asistente.Application.DominioConsultado.Comisiones))
+            .ToList();
+        Assert.NotEmpty(ejemplos);
+
+        foreach (var ejemplo in ejemplos)
+        {
+            await using var conexion = new NpgsqlConnection(Cadena);
+            await conexion.OpenAsync(TestContext.Current.CancellationToken);
+            await using var comando = new NpgsqlCommand(ejemplo.Sql, conexion);
+            await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+
+            Assert.True(
+                await lector.ReadAsync(TestContext.Current.CancellationToken),
+                $"El ejemplo «{ejemplo.Pregunta}» no devuelve filas contra el fixture.");
+        }
+    }
+
     private async Task AplicarFixtureAsync()
     {
         await using var conexion = new NpgsqlConnection(Cadena);

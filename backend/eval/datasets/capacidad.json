@@ -134,10 +134,9 @@
     {
       "id": "cap-019",
       "pregunta": "¿En qué aula se dicta Sistemas Operativos?",
-      "categoria": "no_contestable",
+      "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": null,
-      "motivos_aceptables": ["no_cubierto"]
+      "sql_referencia": "SELECT c.periodo_lectivo_nombre, c.nombre AS comision, h.dia, h.desde, h.aula FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE c.materia_nombre ILIKE '%Sistemas Operativos%' ORDER BY c.periodo_lectivo_nombre, c.nombre, h.dia, h.desde"
     },
     {
       "id": "cap-020",
@@ -299,6 +298,86 @@
     {
       "id": "cap-039",
       "pregunta": "¿Cuántas clases dio cada docente el cuatrimestre pasado?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
+    },
+    {
+      "id": "cap-040",
+      "pregunta": "¿En qué días y horarios cursa Ledesma?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre, h.dia, h.desde, h.hasta, h.aula FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE d.nombre ILIKE 'Ledesma%' ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, h.dia, h.desde"
+    },
+    {
+      "id": "cap-041",
+      "pregunta": "¿Quién dicta la comisión 02 de Sistemas Operativos y con qué función?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT c.periodo_lectivo_nombre, d.nombre AS docente, d.responsabilidad FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_docentes d ON d.comision_guarani_id = c.comision_guarani_id WHERE c.nombre = '02' AND c.materia_nombre ILIKE '%Sistemas Operativos%' ORDER BY c.periodo_lectivo_nombre, d.orden"
+    },
+    {
+      "id": "cap-042",
+      "pregunta": "¿Cuántas comisiones tiene a cargo cada docente?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT d.nombre AS docente, count(DISTINCT d.comision_guarani_id) AS comisiones FROM comisiones.sga_comision_docentes d GROUP BY d.nombre ORDER BY comisiones DESC, docente"
+    },
+    {
+      "id": "cap-043",
+      "pregunta": "¿Qué comisiones son del turno noche?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT DISTINCT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE h.desde >= TIME '18:00' ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, c.nombre"
+    },
+    {
+      "id": "cap-044",
+      "pregunta": "¿Qué comisiones se dictan los sábados?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT DISTINCT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE h.dia = 6 ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, c.nombre"
+    },
+    {
+      "id": "cap-045",
+      "pregunta": "¿Qué comisiones hay este cuatrimestre?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT c.periodo_lectivo_nombre, c.materia_nombre, c.nombre AS comision FROM comisiones.sga_comisiones c WHERE c.anio_academico = (SELECT max(anio_academico) FROM comisiones.sga_comisiones) ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, c.nombre"
+    },
+    {
+      "id": "cap-046",
+      "pregunta": "¿Qué docentes designados en una materia con comisiones no figuran en ninguna de ellas?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre, m.name AS materia FROM designaciones.designaciones x JOIN identity.personas p ON p.id = x.persona_id JOIN identity.materias m ON m.id = x.materia_id WHERE x.vigente_hasta IS NULL AND EXISTS (SELECT 1 FROM comisiones.sga_comisiones c WHERE c.materia_id = x.materia_id) AND NOT EXISTS (SELECT 1 FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id WHERE d.persona_id = x.persona_id AND c.materia_id = x.materia_id) ORDER BY materia, p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-047",
+      "pregunta": "¿Cuántas comisiones hay de Investigación Operativa?",
+      "categoria": "agregacion",
+      "actor": "carrera",
+      "sql_referencia": "SELECT count(*) AS cantidad FROM comisiones.sga_comisiones c WHERE c.materia_nombre ILIKE '%Investigación Operativa%'"
+    },
+    {
+      "id": "cap-048",
+      "pregunta": "¿Qué aulas están libres el martes a la noche?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
+    },
+    {
+      "id": "cap-049",
+      "pregunta": "¿Cuántas personas entran en el aula 101?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
+    },
+    {
+      "id": "cap-050",
+      "pregunta": "¿Quién importó las comisiones del segundo cuatrimestre?",
       "categoria": "no_contestable",
       "actor": "global",
       "sql_referencia": null,
