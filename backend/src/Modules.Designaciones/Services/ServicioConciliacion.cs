@@ -285,12 +285,13 @@ internal sealed class ServicioConciliacion(
     {
         if (pedido.Estado == EstadosPedido.Aprobado)
         {
-            return pedido.Novedad == Novedades.Alta || pedido.Snapshot?.Cargo is null
+            // Un externo no tiene cargo en la fotografía: lo que tenía es su sector.
+            var foto = pedido.Snapshot;
+            var cargo = foto?.Cargo ?? (foto?.SectorExterno is { } sigla ? $"Externo – {sigla}" : null);
+            return pedido.Novedad == Novedades.Alta || foto is null || cargo is null
                 ? null
                 : new ValoresDesignacionDto(
-                    pedido.Snapshot.Cargo ?? (pedido.Snapshot.SectorExterno is { } sigla ? $"Externo – {sigla}" : null),
-                    pedido.Snapshot.Dedicacion, pedido.Snapshot.Horas,
-                    pedido.Snapshot.HorasInvestigacion, pedido.Snapshot.HorasExternas);
+                    cargo, foto.Dedicacion, foto.Horas, foto.HorasInvestigacion, foto.HorasExternas);
         }
 
         return vigentes.FirstOrDefault(d => d.MateriaId == pedido.MateriaId) is { } vigente
