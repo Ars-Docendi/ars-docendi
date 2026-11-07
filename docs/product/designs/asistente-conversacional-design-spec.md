@@ -555,6 +555,18 @@ página «Tipos de respuesta», tarjetas 01–20 (sólo los tipos con destino ex
   (dd/mm/aaaa). Al pie, «Abrir pedido →» con aspecto de botón primario. Tono del estado:
   `en_lote` éxito; `en_revision_*` aviso; `devuelto` y `rechazado` peligro; el resto, neutro
   (`--color-status-*-bg/fg`).
+- **Tarjeta de docente** (principal de tipo `persona`: todas las filas son el mismo docente): misma
+  estructura que la ficha del pedido, con ícono de persona, eyebrow «DOCENTE», título
+  «{apellido}, {nombre}», la lista «Designaciones vigentes» (materia · cargo · carrera, sólo las
+  del ámbito del actor) y, al pie, «Ver perfil →» a `/personas/:id`. No muestra correo ni
+  documento: el perfil completo está a un clic.
+- **Lista de docentes**: el apellido de cada fila es un enlace al perfil (nombre accesible «Ver el
+  perfil de {apellido}») y bajo la tabla va la pista «Tocá un nombre para ver su perfil». El
+  identificador interno que habilita el enlace no se muestra. **Sin acceso** (sin
+  `personas.ver`/`personas.ver_ambito`, o docente fuera del ámbito) se ve la misma tabla sin
+  enlaces y sin la pista; nunca un enlace que termine en 403/404. Las solicitudes de reserva de
+  aula enlazan su celda de rótulo a `/aulas/solicitudes/:id` sólo para `aulas.aprobar` o para su
+  dueño con `aulas.solicitar`.
 - **Con ficha** el texto no lleva chips y la tabla de una fila no se muestra debajo: sigue en
   «Ampliar tabla» y «Exportar a CSV» de la barra. Un principal de tipo desconocido se ignora y la
   respuesta se ve como sin ficha.
