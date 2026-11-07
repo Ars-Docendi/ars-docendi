@@ -5,26 +5,26 @@
 
 ## 1. The boundary in the engine
 
-- [ ] 1.1 Red first: a boundary test with a disposable `NOSUPERUSER NOBYPASSRLS` role, extending `RlsAlcanceTests`, that fails before the migration: an actor with `comisiones.ver` sees every comisión whatever their scope, an actor without it sees none, a connection with no actor sees none. Verify: `dotnet test backend/ArsDocendi.slnx --filter RlsAlcance` fails, then passes after 1.2
-- [ ] 1.2 `node scripts/migrations/scaffold.mjs Designaciones RlsAsistenteComisiones`: `ENABLE` (not `FORCE`) row level security and one `FOR SELECT` policy per exposed table, predicate `identity.asistente_tiene_permiso('comisiones.ver')`, header explaining D2 and the `ENABLE` choice. Verify: `node --test scripts/tests/migrations.test.mjs` and `node scripts/migrations/validate.mjs`
-- [ ] 1.3 A test that the owner connection still lists every comisión (the Comisiones screen and the importer are unaffected). Verify: the existing comisiones integration tests keep passing under `dotnet test backend/ArsDocendi.slnx`
+- [x] 1.1 Red first: a boundary test with a disposable `NOSUPERUSER NOBYPASSRLS` role, extending `RlsAlcanceTests`, that fails before the migration: an actor with `comisiones.ver` sees every comisión whatever their scope, an actor without it sees none, a connection with no actor sees none. Verify: `dotnet test backend/ArsDocendi.slnx --filter RlsAlcance` fails, then passes after 1.2
+- [x] 1.2 `node scripts/migrations/scaffold.mjs Designaciones RlsAsistenteComisiones`: `ENABLE` (not `FORCE`) row level security and one `FOR SELECT` policy per exposed table, predicate `identity.asistente_tiene_permiso('comisiones.ver')`, header explaining D2 and the `ENABLE` choice. Verify: `node --test scripts/tests/migrations.test.mjs` and `node scripts/migrations/validate.mjs`
+- [x] 1.3 A test that the owner connection still lists every comisión (the Comisiones screen and the importer are unaffected). Verify: the existing comisiones integration tests keep passing under `dotnet test backend/ArsDocendi.slnx`
 - [ ] 1.4 `node scripts/migrations/scaffold.mjs Designaciones ComentariosAsistenteComisiones`: `COMMENT ON` for the four tables and every granted column, with the facts of the spec (several períodos, free-text `aula` and `responsabilidad`, `dia` as weekdays, the turn convention of 0.1, docente of a comisión versus designación, null link meaning "not matched"). Verify: migration checks as in 1.2 and the prefix test of 4.3
-- [ ] 1.5 `GRANT USAGE ON SCHEMA comisiones` and column-by-column `GRANT SELECT` on the four tables in `database/asistente/001_asistente_grants.sql`, with the D5 columns, explaining in a comment why this lives in `001` and why it runs after the RLS. Verify: `PrivilegiosLecturaTests` and `ManifiestoPrivilegiosTests` (all four directions)
-- [ ] 1.6 `manifiesto-privilegios.json`: `comisiones` schema becomes `expuesto`; the four tables `concedida` with granted and denied columns and the reason of each denied column; `sga_importaciones` as `denegada-explicita` with its reason. Verify: `Todo_schema_de_la_base_esta_clasificado_en_el_manifiesto` and the other three directions pass
-- [ ] 1.7 `manifiesto-sensibilidad.json`: classify every granted column `publica`, the docente `nombre` with the D1 reason. Verify: `ManifiestoSensibilidadTests`
-- [ ] 1.8 A privileges test that `sga_importaciones` fails for lack of privilege (not zero rows) and that neither role can mutate the exposed tables. Verify: `PrivilegiosLecturaTests`
+- [x] 1.5 `GRANT USAGE ON SCHEMA comisiones` and column-by-column `GRANT SELECT` on the four tables in `database/asistente/001_asistente_grants.sql`, with the D5 columns, explaining in a comment why this lives in `001` and why it runs after the RLS. Verify: `PrivilegiosLecturaTests` and `ManifiestoPrivilegiosTests` (all four directions)
+- [x] 1.6 `manifiesto-privilegios.json`: `comisiones` schema becomes `expuesto`; the four tables `concedida` with granted and denied columns and the reason of each denied column; `sga_importaciones` as `denegada-explicita` with its reason. Verify: `Todo_schema_de_la_base_esta_clasificado_en_el_manifiesto` and the other three directions pass
+- [x] 1.7 `manifiesto-sensibilidad.json`: classify every granted column `publica`, the docente `nombre` with the D1 reason. Verify: `ManifiestoSensibilidadTests`
+- [x] 1.8 A privileges test that `sga_importaciones` fails for lack of privilege (not zero rows) and that neither role can mutate the exposed tables. Verify: `PrivilegiosLecturaTests`
 
 ## 2. Abstention by domain
 
-- [ ] 2.1 Red first: unit tests for the domain rule (comisiones-only needs only `comisiones.ver`; a global actor without it does not reach everything; comisiones plus designaciones needs both; identity-only keeps today's result). Verify: `dotnet test backend/ArsDocendi.slnx --filter PerfilDelActor` fails, then passes after 2.2 to 2.4
-- [ ] 2.2 `PerfilDelActor.VeComisiones` read live in `ConsultorDeAlcance`. Verify: a test that the flag follows the matrix without redeploy
-- [ ] 2.3 One detector that maps the tables of a generated query to domains (token-based, replacing the boolean `TablasQueToca(...).Count > 0` at the `CarrilSql` call sites and the `plan.TocaPortal` at `CarrilDelPlan`). Verify: detector tests including an alias and a comment that mention a domain name without touching it
-- [ ] 2.4 `PoliticaDeAbstencion.AlcanzaTodo` takes the domain set; empty-result text, retry decision and narration use it. Verify: the scenarios of `comisiones-visibilidad-asistente` as tests, including the scope notice on a non-empty cross-domain answer for a jefe de cátedra
-- [ ] 2.5 Extend the per-domain evaluation introduced by `asistente-portal-por-ambito` instead of adding a parallel one. Verify: the existing portal abstention tests and the new comisiones ones pass together
+- [x] 2.1 Red first: unit tests for the domain rule (comisiones-only needs only `comisiones.ver`; a global actor without it does not reach everything; comisiones plus designaciones needs both; identity-only keeps today's result). Verify: `dotnet test backend/ArsDocendi.slnx --filter PerfilDelActor` fails, then passes after 2.2 to 2.4
+- [x] 2.2 `PerfilDelActor.VeComisiones` read live in `ConsultorDeAlcance`. Verify: a test that the flag follows the matrix without redeploy
+- [x] 2.3 One detector that maps the tables of a generated query to domains (token-based, replacing the boolean `TablasQueToca(...).Count > 0` at the `CarrilSql` call sites and the `plan.TocaPortal` at `CarrilDelPlan`). Verify: detector tests including an alias and a comment that mention a domain name without touching it
+- [x] 2.4 `PoliticaDeAbstencion.AlcanzaTodo` takes the domain set; empty-result text, retry decision and narration use it. Verify: the scenarios of `comisiones-visibilidad-asistente` as tests, including the scope notice on a non-empty cross-domain answer for a jefe de cátedra
+- [x] 2.5 Extend the per-domain evaluation introduced by `asistente-portal-por-ambito` instead of adding a parallel one. Verify: the existing portal abstention tests and the new comisiones ones pass together
 
 ## 3. Imported períodos on an empty answer
 
-- [ ] 3.1 A reader of the imported períodos using the actor's connection, run only when the query touched comisiones and the result is empty; failure drops the sentence. Verify: tests for the three scenarios (names the períodos, no lookup outside comisiones, failing lookup still answers)
+- [x] 3.1 A reader of the imported períodos using the actor's connection, run only when the query touched comisiones and the result is empty; failure drops the sentence. Verify: tests for the three scenarios (names the períodos, no lookup outside comisiones, failing lookup still answers)
 
 ## 4. What the model and the user see
 

@@ -58,4 +58,34 @@ internal sealed class ConsultorDeCobertura(AperturaDeLectura apertura) : IConsul
 
         return coberturas;
     }
+
+    public async Task<IReadOnlyList<string>> ObtenerPeriodosImportadosAsync(
+        Guid actor, CancellationToken ct)
+    {
+        await using var conexion = await apertura.AbrirAsync(ct);
+
+        await using var transaccion = await conexion.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, ct);
+
+        await PreambuloDelActor.AplicarAsync(conexion, transaccion, actor, ct);
+
+        // The actor's own connection, so the policy applies: an actor without comisiones.ver gets
+        // an empty list, never the periods that exist behind the policy.
+        await using var comando = new NpgsqlCommand(
+            """
+            SELECT DISTINCT anio_academico, periodo_lectivo_nombre
+              FROM comisiones.sga_comisiones
+             ORDER BY anio_academico DESC, periodo_lectivo_nombre
+            """, conexion, transaccion);
+
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+
+        var periodos = new List<string>();
+        while (await lector.ReadAsync(ct))
+        {
+            periodos.Add($"{lector.GetInt32(0)}: {lector.GetString(1)}");
+        }
+
+        return periodos;
+    }
 }

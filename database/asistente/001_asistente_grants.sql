@@ -47,6 +47,7 @@ BEGIN
   EXECUTE format('GRANT USAGE ON SCHEMA identity TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT USAGE ON SCHEMA designaciones TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT USAGE ON SCHEMA portal TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT USAGE ON SCHEMA comisiones TO %I, %I', rol_basico, rol_pii);
 
   -- El schema audit queda FUERA DE ALCANCE, entero. change_log.old_row y
   -- change_log.new_row guardan la fila completa en JSON: cualquier dato personal
@@ -163,5 +164,41 @@ BEGIN
   EXECUTE format('GRANT SELECT (id, perfil_id, puesto, organizacion, desde, hasta, created_at) ON portal.experiencias TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (id, termino, termino_norm, created_at) ON portal.habilidades TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (perfil_id, habilidad_id, tipo, created_at) ON portal.docente_habilidades TO %I, %I', rol_basico, rol_pii);
+
+  -- ------------------------------------------------------------------
+  -- comisiones
+  -- ------------------------------------------------------------------
+  -- CUATRO DE LAS CINCO TABLAS, derivadas de las preguntas (qué comisiones tiene un
+  -- docente, quién dicta la comisión 02, en qué días, horarios y aulas, cuántas
+  -- carga cada uno). `sga_importaciones` NO se concede: es el registro operativo de
+  -- cada importación y nombra a quien la hizo (`usuario_id`); ninguna pregunta del
+  -- catálogo lo necesita. El motor lo rechaza por falta de privilegio, no devuelve
+  -- cero filas.
+  --
+  -- LOS DOS ROLES RECIBEN LO MISMO. Ninguna columna concedida es personal:
+  -- `sga_comision_docentes.nombre` va al rol básico igual que identity.personas.nombre,
+  -- porque `persona_id` es nullable (docente de Guaraní sin persona vinculada) y sin el
+  -- nombre ese docente desaparecería de las respuestas. El documento nunca se guarda.
+  --
+  -- ESTE GRANT VIVE ACÁ Y NO EN UN ARCHIVO NUEVO. Este archivo no tiene historial EF:
+  -- MigradorAsistente lo reaplica entero y registra una huella, así que la regla de
+  -- «no editar una migración publicada» (que protege SQL congelado por historial) no
+  -- aplica; es donde se concedió portal. Un archivo 011 exigiría cablear recurso, lista
+  -- y llamada sin agregar protección: los tests de manifiesto comparan la base efectiva
+  -- contra el manifiesto, no archivo contra archivo.
+  --
+  -- CORRE DESPUÉS DEL RLS. El módulo asistente se aplica después de Designaciones, que
+  -- es quien habilita RLS y crea las policies sobre estas tablas
+  -- (RlsAsistenteComisiones). Conceder antes abriría el snapshot entero en la ventana
+  -- entre los dos merges; por eso el orden es parte de la frontera y no un detalle.
+  --
+  -- Columnas NO concedidas (el motivo va en manifiesto-privilegios.json):
+  -- sga_comisiones.importacion_id (FK hacia el registro denegado),
+  -- periodo_lectivo_guarani_id (clave opaca), modalidad_codigo (código de Guaraní) y
+  -- created_at (mecánica de importación); sga_comision_horarios.asignacion_guarani_id.
+  EXECUTE format('GRANT SELECT (comision_guarani_id, anio_academico, periodo_lectivo_nombre, nombre, materia_codigo, materia_nombre, materia_id, modalidad, ubicacion) ON comisiones.sga_comisiones TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (comision_guarani_id, carrera_codigo, carrera_nombre, carrera_id) ON comisiones.sga_comision_carreras TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (comision_guarani_id, orden, nombre, responsabilidad, persona_id) ON comisiones.sga_comision_docentes TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (comision_guarani_id, dia, desde, hasta, aula) ON comisiones.sga_comision_horarios TO %I, %I', rol_basico, rol_pii);
 END
 $asistente_grants$;

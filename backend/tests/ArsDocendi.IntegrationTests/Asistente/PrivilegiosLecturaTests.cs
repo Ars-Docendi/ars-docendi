@@ -159,7 +159,25 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
         Assert.Equal(PrivilegioInsuficiente, error.SqlState);
     }
 
+    // The import log names the user who ran each import and answers no catalog question: the engine
+    // must reject it for lack of privilege, not return zero rows (which RLS could also produce).
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task El_registro_de_importaciones_de_comisiones_es_inalcanzable(bool conDatosPersonales)
+    {
+        var error = await Assert.ThrowsAsync<PostgresException>(() =>
+            ConsultarComoAsistenteAsync(
+                conDatosPersonales, "SELECT id FROM comisiones.sga_importaciones"));
+
+        Assert.Equal(PrivilegioInsuficiente, error.SqlState);
+    }
+
+    [Theory]
+    [InlineData(false, "importacion_id", "comisiones.sga_comisiones")]
+    [InlineData(true, "importacion_id", "comisiones.sga_comisiones")]
+    [InlineData(false, "asignacion_guarani_id", "comisiones.sga_comision_horarios")]
+    [InlineData(true, "asignacion_guarani_id", "comisiones.sga_comision_horarios")]
     [InlineData(false, "azure_oid", "identity.users")]
     [InlineData(true, "azure_oid", "identity.users")]
     [InlineData(false, "granted_by", "identity.user_roles")]
@@ -191,6 +209,11 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
             "TRUNCATE designaciones.periodos",
             "UPDATE identity.personas SET nombre = 'x'",
             "DELETE FROM identity.personas",
+            "UPDATE comisiones.sga_comisiones SET nombre = 'x'",
+            "DELETE FROM comisiones.sga_comisiones",
+            "TRUNCATE comisiones.sga_comision_docentes",
+            "INSERT INTO comisiones.sga_comision_horarios (comision_guarani_id, asignacion_guarani_id, dia, desde, hasta) "
+                + "VALUES ('C1', 'A1', 1, '08:00', '09:00')",
         ];
 
         foreach (var sentencia in mutaciones)

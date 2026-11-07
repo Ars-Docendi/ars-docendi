@@ -51,6 +51,26 @@ public sealed class CoberturaDelPortalTests
         Assert.Empty(CoberturaDelPortal.TablasQueToca("SELECT id FROM portal.perfiles"));
     }
 
+    // ----------------------------------------------- qué dominios toca la consulta
+
+    [Theory]
+    [InlineData("SELECT 1 FROM comisiones.sga_comisiones c", "Comisiones")]
+    [InlineData("select 1 from PORTAL.perfiles", "Portal")]
+    [InlineData("SELECT 1 FROM designaciones.pedidos", "Designaciones")]
+    [InlineData("SELECT 1 FROM identity.materias", "Ninguno")]
+    [InlineData(
+        "SELECT 1 FROM comisiones.sga_comision_docentes d JOIN designaciones.designaciones x ON x.persona_id = d.persona_id",
+        "Designaciones, Comisiones")]
+    [InlineData("SELECT 1 FROM \"comisiones\".\"sga_comisiones\"", "Comisiones")]
+    // Un alias o un comentario que nombra un dominio no lo toca.
+    [InlineData("SELECT m.code AS comisiones FROM identity.materias m", "Ninguno")]
+    [InlineData("SELECT 1 FROM identity.materias /* designaciones.pedidos */ -- portal.perfiles", "Ninguno")]
+    [InlineData("SELECT 'portal.perfiles' FROM identity.materias", "Ninguno")]
+    public void Detecta_los_dominios_que_toca_la_consulta_por_sus_tablas(string sql, string esperados) =>
+        Assert.Equal(
+            Enum.Parse<DominioConsultado>(esperados),
+            DetectorDeDominios.Detectar(sql).Dominios);
+
     // ----------------------------------------------------- cuál explica el vacío
 
     [Fact]

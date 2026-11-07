@@ -823,6 +823,125 @@
           "clasificacion": "publica"
         }
       ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comisiones",
+      "columnas": [
+        {
+          "columna": "comision_guarani_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "anio_academico",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "periodo_lectivo_nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_codigo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "modalidad",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "ubicacion",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_carreras",
+      "columnas": [
+        {
+          "columna": "comision_guarani_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carrera_codigo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carrera_nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carrera_id",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_docentes",
+      "columnas": [
+        {
+          "columna": "comision_guarani_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "orden",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica",
+          "motivo": "Pública, igual que identity.personas.nombre: persona_id es nullable (docente de Guaraní sin persona vinculada) y sin el nombre esos docentes desaparecerían de las respuestas. El documento del docente nunca se guarda en el snapshot, así que ningún identificador viaja con el nombre."
+        },
+        {
+          "columna": "responsabilidad",
+          "clasificacion": "publica",
+          "motivo": "Texto libre de Guaraní (cargo o función en la comisión), sin dato personal. La protección de comisiones es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "persona_id",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_horarios",
+      "columnas": [
+        {
+          "columna": "comision_guarani_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "dia",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "aula",
+          "clasificacion": "publica",
+          "motivo": "Texto libre de Guaraní que nombra un aula, no una persona. La protección de comisiones es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        }
+      ]
     }
   ]
 }

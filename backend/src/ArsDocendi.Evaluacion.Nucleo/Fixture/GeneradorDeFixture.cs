@@ -227,6 +227,7 @@ public sealed class GeneradorDeFixture
         EscribirDesignaciones(sql);
         EscribirPedidos(sql);
         EscribirPortal(sql);
+        EscribirComisiones(sql);
 
         if (_conSuplementoCompuesto)
         {
@@ -347,13 +348,13 @@ public sealed class GeneradorDeFixture
             "\nINSERT INTO identity.personas "
             + "(id, documento, cuil, legajo, nombre, apellido, fecha_nacimiento, telefono) VALUES\n");
 
-        var azar = FuenteDe("personas");
+        var nombres = NombresDePilaEnOrden(_personas);
         var apellidos = ApellidosEnOrden();
         var filas = new List<string>();
 
         for (var indice = 0; indice < _personas; indice++)
         {
-            var nombre = NombresDePila[azar.Next(NombresDePila.Length)];
+            var nombre = nombres[indice];
             var apellido = apellidos[indice];
             var documento = 20_000_000 + (indice * 137);
 
@@ -366,6 +367,17 @@ public sealed class GeneradorDeFixture
 
         sql.Append(string.Join(",\n", filas));
         sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+    }
+
+    /// <summary>
+    /// El nombre de pila de cada persona, en orden de índice. Lo comparten las personas y los
+    /// docentes de las comisiones, que repiten el nombre como lo informa Guaraní: se recalcula con
+    /// la misma fuente de azar y no se copia, así que no pueden diverger.
+    /// </summary>
+    private static IReadOnlyList<string> NombresDePilaEnOrden(int cuantas)
+    {
+        var azar = FuenteDe("personas");
+        return [.. Enumerable.Range(0, cuantas).Select(_ => NombresDePila[azar.Next(NombresDePila.Length)])];
     }
 
     /// <summary>
@@ -444,6 +456,7 @@ public sealed class GeneradorDeFixture
         sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
 
         EscribirPermisoDePortal(sql);
+        EscribirPermisoDeComisiones(sql);
     }
 
     /// <summary>
@@ -473,6 +486,31 @@ public sealed class GeneradorDeFixture
         SELECT 'a1000000-0000-4000-8000-000000000004', p.id
           FROM identity.permisos p
          WHERE p.code = 'portal.ver_trayectoria_ajena'
+        ON CONFLICT DO NOTHING;
+
+        """);
+
+    /// <summary>
+    /// Le concede <c>comisiones.ver</c> a los roles de los actores de los ítems de comisiones.
+    /// </summary>
+    /// <remarks>
+    /// <b>SIN ESTO, UN ÍTEM DE COMISIONES PASA SIN HABER LEÍDO NADA.</b> La policy exige el permiso;
+    /// sin él el asistente ve cero filas y la referencia —que corre con el mismo actor— también, así
+    /// que los dos lados coinciden sobre una lista vacía. Hoy la migración de permisos ya lo asigna a
+    /// estos roles, pero el ítem no puede depender de que nadie lo cambie: el fixture lo dice por sí
+    /// mismo. Docente queda afuera, como en producción.
+    /// </remarks>
+    private static void EscribirPermisoDeComisiones(StringBuilder sql) => sql.Append(
+        """
+
+        INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+        SELECT r.id, p.id
+          FROM identity.roles r
+          CROSS JOIN identity.permisos p
+         WHERE r.id IN ('a1000000-0000-4000-8000-000000000002',
+                        'a1000000-0000-4000-8000-000000000003',
+                        'a1000000-0000-4000-8000-000000000004')
+           AND p.code = 'comisiones.ver'
         ON CONFLICT DO NOTHING;
 
         """);
@@ -567,6 +605,214 @@ public sealed class GeneradorDeFixture
 
         sql.Append(string.Join(",\n", filas));
         sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+    }
+
+    /// <summary>
+    /// Los dos períodos importados, ambos del mismo año académico: «este cuatrimestre» sin más datos
+    /// es ambiguo y el ítem que lo pregunta mide que el asistente los nombre en lugar de elegir uno.
+    /// </summary>
+    private static readonly IReadOnlyList<(string GuaraniId, string Nombre)> PeriodosDeComisiones =
+    [
+        ("P-1", "1er cuatrimestre"),
+        ("P-2", "2do cuatrimestre"),
+    ];
+
+    /// <summary>
+    /// Cuántas materias canónicas tienen comisiones (las primeras N). El primer período tiene dos
+    /// comisiones por materia («01» y «02») y el segundo sólo la «01»: dos períodos distintos y una
+    /// «comisión 02» que existe en uno solo.
+    /// </summary>
+    private const int MateriasConComisiones = 6;
+
+    /// <summary>La materia, entre las de comisiones, con la comisión sábado y aula en laboratorio.</summary>
+    private const int MateriaDeSistemasOperativos = 2;
+
+    /// <summary>
+    /// El docente de Guaraní sin persona vinculada (<c>persona_id</c> nulo): su apellido no está en
+    /// el padrón. Sin su nombre, «quién dicta» y los conteos lo perderían.
+    /// </summary>
+    private const string DocenteSinVincular = "Prieto, Mariano";
+
+    /// <summary>
+    /// Las comisiones de Guaraní con sus carreras, docentes y horarios.
+    /// </summary>
+    /// <remarks>
+    /// <b>Cardinalidades declaradas, como el resto del fixture.</b> Dos períodos del mismo año; 18
+    /// comisiones (12 + 6); una con materia no vinculada («Física Experimental», <c>materia_id</c>
+    /// nulo) y una con carrera no vinculada; un docente sin persona; dos responsabilidades
+    /// (Titular y Jefe de Trabajos Prácticos) y una sucia («Ingeniería», que no es una
+    /// responsabilidad); horarios de mañana, tarde y noche; comisiones con franja de sábado; aulas en
+    /// texto libre —la misma aula escrita de dos maneras y una franja sin aula—. Un ítem que pregunta
+    /// por el turno noche o los sábados no discrimina si todas o ninguna lo son: ninguna cuenta es
+    /// cero ni el total.
+    /// </remarks>
+    private void EscribirComisiones(StringBuilder sql)
+    {
+        var nombres = NombresDePilaEnOrden(_personas);
+        var apellidos = ApellidosEnOrden();
+        string Docente(int persona) => $"{apellidos[persona]}, {nombres[persona]}";
+
+        var importaciones = new List<string>();
+        var comisiones = new List<string>();
+        var carreras = new List<string>();
+        var docentes = new List<string>();
+        var horarios = new List<string>();
+
+        foreach (var (periodo, (guaraniDelPeriodo, nombreDelPeriodo)) in PeriodosDeComisiones.Index())
+        {
+            var importacion = Identificador('1', 90 + periodo);
+            var cuantas = periodo == 0 ? 2 : 1;
+
+            // A materia that Guaraní knows and the system does not: one comisión, first período.
+            var materiasDelPeriodo = Enumerable.Range(0, MateriasConComisiones)
+                .Select(materia => (Materia: (int?)materia, Nombre: NombresCanonicos[materia]))
+                .ToList();
+            if (periodo == 0)
+            {
+                materiasDelPeriodo.Add((null, "Física Experimental"));
+            }
+
+            importaciones.Add(
+                $"    ('{importacion}', {Ancla.Year}, '{guaraniDelPeriodo}', '{nombreDelPeriodo}', "
+                + $"'exitosa', TIMESTAMPTZ '{Ancla:yyyy-MM-dd} 00:00:00+00', "
+                + $"{cuantas * materiasDelPeriodo.Count})");
+
+            foreach (var (materia, nombreDeLaMateria) in materiasDelPeriodo)
+            {
+                var indiceDeMateria = materia ?? MateriasConComisiones;
+
+                for (var comision = 0; comision < cuantas; comision++)
+                {
+                    var guarani = $"CG-{periodo + 1}-{indiceDeMateria + 1:D2}-{comision + 1:D2}";
+
+                    comisiones.Add(
+                        $"    ('{guarani}', '{importacion}', {Ancla.Year}, '{guaraniDelPeriodo}', "
+                        + $"'{nombreDelPeriodo}', '{comision + 1:D2}', "
+                        + $"'{indiceDeMateria + 1:D5}', '{Escapar(nombreDeLaMateria)}', "
+                        + (materia is { } id ? $"'{IdDeMateria(id)}'" : "NULL")
+                        + $", 'P', 'Presencial', 'Sede Central')");
+
+                    foreach (var puesto in Puestos.Where(p => p.Materia == materia))
+                    {
+                        carreras.Add(
+                            $"    ('{guarani}', '{CodigosDeCarrera[puesto.Carrera]}', "
+                            + $"'{Escapar(NombresDeCarrera[puesto.Carrera])}', '{IdDeCarrera(puesto.Carrera)}')");
+                    }
+
+                    if (materia is null)
+                    {
+                        // The carrera Guaraní knows and the system does not.
+                        carreras.Add($"    ('{guarani}', 'FIS', 'Licenciatura en Física', NULL)");
+                    }
+
+                    EscribirDocentesDe(docentes, guarani, indiceDeMateria, periodo, comision, Docente);
+                    EscribirHorariosDe(horarios, guarani, indiceDeMateria, periodo, comision);
+                }
+            }
+        }
+
+        sql.Append(
+            "\nINSERT INTO comisiones.sga_importaciones "
+            + "(id, anio_academico, periodo_lectivo_guarani_id, periodo_lectivo_nombre, estado, "
+            + "finalizada_at, cantidad) VALUES\n");
+        sql.Append(string.Join(",\n", importaciones));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+
+        sql.Append(
+            "\nINSERT INTO comisiones.sga_comisiones "
+            + "(comision_guarani_id, importacion_id, anio_academico, periodo_lectivo_guarani_id, "
+            + "periodo_lectivo_nombre, nombre, materia_codigo, materia_nombre, materia_id, "
+            + "modalidad_codigo, modalidad, ubicacion) VALUES\n");
+        sql.Append(string.Join(",\n", comisiones));
+        sql.Append("\nON CONFLICT (comision_guarani_id) DO NOTHING;\n");
+
+        sql.Append(
+            "\nINSERT INTO comisiones.sga_comision_carreras "
+            + "(comision_guarani_id, carrera_codigo, carrera_nombre, carrera_id) VALUES\n");
+        sql.Append(string.Join(",\n", carreras));
+        sql.Append("\nON CONFLICT DO NOTHING;\n");
+
+        sql.Append(
+            "\nINSERT INTO comisiones.sga_comision_docentes "
+            + "(comision_guarani_id, orden, nombre, responsabilidad, persona_id) VALUES\n");
+        sql.Append(string.Join(",\n", docentes));
+        sql.Append("\nON CONFLICT DO NOTHING;\n");
+
+        sql.Append(
+            "\nINSERT INTO comisiones.sga_comision_horarios "
+            + "(comision_guarani_id, asignacion_guarani_id, dia, desde, hasta, aula) VALUES\n");
+        sql.Append(string.Join(",\n", horarios));
+        sql.Append("\nON CONFLICT DO NOTHING;\n");
+    }
+
+    /// <summary>
+    /// Titular y JTP por comisión, con las tres rarezas declaradas: el docente sin vincular, una
+    /// responsabilidad sucia y la comisión «02» de un período que el otro no tiene.
+    /// </summary>
+    private void EscribirDocentesDe(
+        List<string> filas, string guarani, int materia, int periodo, int comision,
+        Func<int, string> docente)
+    {
+        var titular = ((materia * 3) + (comision * 5) + (periodo * 7)) % _personas;
+        var jtp = (titular + 11) % _personas;
+
+        filas.Add(
+            $"    ('{guarani}', 1, '{Escapar(docente(titular))}', 'Titular', '{IdDePersona(titular)}')");
+
+        // The unmatched docente teaches the 02 of the first materia, first período, as its JTP.
+        if (periodo == 0 && materia == 0 && comision == 1)
+        {
+            filas.Add($"    ('{guarani}', 2, '{Escapar(DocenteSinVincular)}', 'Jefe de Trabajos Prácticos', NULL)");
+            return;
+        }
+
+        // A value that is not a responsabilidad, as Guaraní really exports it.
+        var responsabilidad = periodo == 1 && materia == 1 ? "Ingeniería" : "Jefe de Trabajos Prácticos";
+
+        filas.Add(
+            $"    ('{guarani}', 2, '{Escapar(docente(jtp))}', '{responsabilidad}', '{IdDePersona(jtp)}')");
+    }
+
+    /// <summary>
+    /// Franjas de cursada. La «01» es de mañana o de tarde según la materia; la «02» es de noche. Hay
+    /// una franja de sábado en Sistemas Operativos y una comisión sólo de sábado.
+    /// </summary>
+    private static void EscribirHorariosDe(
+        List<string> filas, string guarani, int materia, int periodo, int comision)
+    {
+        var dia = 1 + ((materia + comision) % 5);
+
+        var (desde, hasta) = (comision, materia % 2) switch
+        {
+            (1, _) => ("19:00", "22:00"),
+            (_, 0) => ("08:00", "12:00"),
+            _ => ("14:00", "18:00"),
+        };
+
+        // A free-text aula: the same aula spelled two ways across períodos, and one franja with none.
+        var aula = (materia, periodo, comision) switch
+        {
+            (0, 0, 0) => "'Aula 101'",
+            (0, 1, 0) => "'aula 101'",
+            (1, 0, 0) => "NULL",
+            (MateriaDeSistemasOperativos, 0, 0) => "'Laboratorio de Sistemas (Sede Central)'",
+            _ => $"'Aula {200 + (materia * 10) + comision}'",
+        };
+
+        // Only on Saturday: the 02 of the fifth materia, first período.
+        if (periodo == 0 && materia == 4 && comision == 1)
+        {
+            filas.Add($"    ('{guarani}', 'A1', 6, '08:00', '12:00', {aula})");
+            return;
+        }
+
+        filas.Add($"    ('{guarani}', 'A1', {dia}, '{desde}', '{hasta}', {aula})");
+
+        // Saturday second franja of Sistemas Operativos 01, first período.
+        if (periodo == 0 && materia == MateriaDeSistemasOperativos && comision == 0)
+        {
+            filas.Add($"    ('{guarani}', 'A2', 6, '09:00', '13:00', {aula})");
+        }
     }
 
     // ------------------------------------------------------------------ apoyo

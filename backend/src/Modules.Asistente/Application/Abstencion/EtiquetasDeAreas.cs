@@ -39,6 +39,11 @@ internal static class EtiquetasDeAreas
         ("identity.user_roles", "usuarios con sus roles"),
         ("identity.permisos", "usuarios con sus roles"),
         ("identity.rol_permisos", "usuarios con sus roles"),
+        // Last on purpose: the order is observable and the labels above keep their rendering.
+        ("comisiones.sga_comisiones", "comisiones y horarios"),
+        ("comisiones.sga_comision_carreras", "comisiones y horarios"),
+        ("comisiones.sga_comision_docentes", "comisiones y horarios"),
+        ("comisiones.sga_comision_horarios", "comisiones y horarios"),
     ];
 
     /// <summary>

@@ -146,6 +146,85 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         Assert.Equal(0, ajenasVisibles);
     }
 
+    // ------------------------------------------------------------------ comisiones
+
+    // Comisiones is a permission-only boundary (no scope): the Comisiones screen shows every
+    // comisión to anyone holding comisiones.ver, and the assistant must know neither more nor less.
+
+    private static readonly string[] Comisiones =
+    [
+        "sga_comisiones", "sga_comision_carreras", "sga_comision_docentes", "sga_comision_horarios",
+    ];
+
+    [Fact]
+    public async Task Un_actor_con_comisiones_ver_ve_toda_comision_sea_cual_sea_su_ambito()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        Assert.True(await TienePermisoAsync(Coordinador, Permisos.ComisionesVer));
+        Assert.True(await TienePermisoAsync(Jefe, Permisos.ComisionesVer));
+
+        foreach (var tabla in Comisiones)
+        {
+            var delDueno = await EscalarAsync<long>($"SELECT count(*) FROM comisiones.{tabla}");
+            Assert.True(delDueno > 0, $"el seed de la prueba no dejó filas en {tabla}");
+
+            // The coordinator has carrera scope and the jefe materia scope; both see the full table,
+            // including the comisión whose materia is not matched to any materia of the system.
+            Assert.Equal(delDueno, await EscalarComoActorAsync<long>(
+                Coordinador, $"SELECT count(*) FROM comisiones.{tabla}"));
+            Assert.Equal(delDueno, await EscalarComoActorAsync<long>(
+                Jefe, $"SELECT count(*) FROM comisiones.{tabla}"));
+        }
+    }
+
+    [Fact]
+    public async Task Un_actor_sin_comisiones_ver_no_ve_ninguna_comision_y_la_consulta_no_falla()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        // The docente has scope over a materia that has a comisión, but no comisiones.ver.
+        Assert.False(await TienePermisoAsync(Docente, Permisos.ComisionesVer));
+
+        foreach (var tabla in Comisiones)
+        {
+            Assert.Equal(0, await ContarComoActorAsync(Docente, $"comisiones.{tabla}"));
+        }
+    }
+
+    [Fact]
+    public async Task Sin_actor_fijado_no_hay_ninguna_comision_visible()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        await using var conexion = await AbrirConexionComoAsistenteAsync(false);
+        foreach (var tabla in Comisiones)
+        {
+            await using var comando = new NpgsqlCommand(
+                $"SELECT count(*) FROM comisiones.{tabla}", conexion);
+            Assert.Equal(0L, await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+        }
+    }
+
+    [Fact]
+    public async Task Cada_policy_de_comisiones_nombra_al_actor_sin_apoyarse_en_la_de_otra_tabla()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        // With the parent table's RLS off, a child that only inherited visibility from it would
+        // open up. Each child must still return nothing to an actor without the permission.
+        await EjecutarAsync("ALTER TABLE comisiones.sga_comisiones DISABLE ROW LEVEL SECURITY");
+
+        foreach (var hija in Comisiones.Skip(1))
+        {
+            Assert.Equal(0, await ContarComoActorAsync(Docente, $"comisiones.{hija}"));
+        }
+    }
+
     // ----------------------------------------------------------------- no regresión
 
     [Fact]
@@ -173,7 +252,84 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         Assert.Equal(8L, await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task El_rol_dueno_sigue_viendo_todas_las_comisiones_sin_fijar_actor()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+        var duenoDePrueba = $"app_t{Guid.NewGuid():N}"[..20];
+        await EjecutarAsync(
+            $"""
+            CREATE ROLE "{duenoDePrueba}" WITH LOGIN PASSWORD 'dueno-de-prueba' NOSUPERUSER NOBYPASSRLS;
+            GRANT USAGE, CREATE ON SCHEMA comisiones TO "{duenoDePrueba}";
+            GRANT USAGE ON SCHEMA identity TO "{duenoDePrueba}";
+            ALTER TABLE comisiones.sga_comisiones OWNER TO "{duenoDePrueba}";
+            ALTER TABLE comisiones.sga_comision_docentes OWNER TO "{duenoDePrueba}";
+            """);
+
+        var cadena = new NpgsqlConnectionStringBuilder(Cadena)
+        {
+            Username = duenoDePrueba,
+            Password = "dueno-de-prueba",
+            Pooling = false,
+        }.ConnectionString;
+
+        await using var conexion = new NpgsqlConnection(cadena);
+        await conexion.OpenAsync(TestContext.Current.CancellationToken);
+
+        // The Comisiones screen and the importer connect as the owner: ENABLE (not FORCE) must keep
+        // exempting it, with no actor set.
+        foreach (var tabla in new[] { "sga_comisiones", "sga_comision_docentes" })
+        {
+            await using var comando = new NpgsqlCommand(
+                $"SELECT count(*) FROM comisiones.{tabla}", conexion);
+            Assert.True(
+                (long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))! > 0,
+                $"el dueño dejó de ver {tabla}");
+        }
+    }
+
     // ------------------------------------------------------------------------ apoyo
+
+    /// <summary>
+    /// Two comisiones: one whose materia the jefe teaches and one not matched to any materia,
+    /// plus a docente without <c>persona_id</c> and a schedule for each. Inserted as the owner.
+    /// </summary>
+    private async Task SembrarComisionesAsync()
+    {
+        await EjecutarAsync(
+            """
+            INSERT INTO comisiones.sga_importaciones
+                (id, anio_academico, periodo_lectivo_guarani_id, periodo_lectivo_nombre,
+                 estado, finalizada_at, cantidad)
+            VALUES ('d0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                    'exitosa', now(), 2);
+
+            INSERT INTO comisiones.sga_comisiones
+                (comision_guarani_id, importacion_id, anio_academico, periodo_lectivo_guarani_id,
+                 periodo_lectivo_nombre, nombre, materia_codigo, materia_nombre, materia_id)
+            VALUES
+                ('C1', 'd0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                 '01', 'M1', 'Ingenieria de Software', @materia),
+                ('C2', 'd0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                 '02', 'M2', 'Materia sin vincular', NULL);
+
+            INSERT INTO comisiones.sga_comision_carreras
+                (comision_guarani_id, carrera_codigo, carrera_nombre, carrera_id)
+            VALUES ('C1', 'K1', 'Informatica', @carrera), ('C2', 'K2', 'Carrera sin vincular', NULL);
+
+            INSERT INTO comisiones.sga_comision_docentes
+                (comision_guarani_id, orden, nombre, responsabilidad, persona_id)
+            VALUES ('C1', 1, 'Docente de prueba', 'Titular', NULL);
+
+            INSERT INTO comisiones.sga_comision_horarios
+                (comision_guarani_id, asignacion_guarani_id, dia, desde, hasta, aula)
+            VALUES ('C1', 'A1', 2, '19:00', '22:00', 'Aula 1'),
+                   ('C2', 'A2', 6, '08:00', '12:00', NULL);
+            """,
+            ("materia", MateriaIngenieriaDeSoftware),
+            ("carrera", CarreraInformatica));
+    }
 
     private async Task CrearDuenoNoSuperusuarioAsync(string rol)
     {

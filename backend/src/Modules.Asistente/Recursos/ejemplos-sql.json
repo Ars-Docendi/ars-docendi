@@ -101,6 +101,26 @@
       "pregunta": "¿Dónde trabajó cada docente que cargó su experiencia?",
       "categoria": "cruce_de_tablas",
       "sql": "SELECT p.apellido, p.nombre, x.puesto, x.organizacion, x.desde FROM portal.experiencias x JOIN portal.perfiles pf ON pf.id = x.perfil_id JOIN identity.personas p ON p.id = pf.persona_id ORDER BY p.apellido, x.desde DESC"
+    },
+    {
+      "pregunta": "¿En qué comisiones, días y aulas figura el docente Cabrera?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre, h.dia, h.desde, h.hasta, h.aula FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE d.nombre ILIKE 'Cabrera%' ORDER BY c.anio_academico DESC, c.periodo_lectivo_nombre, c.materia_nombre, h.dia, h.desde"
+    },
+    {
+      "pregunta": "¿Quiénes integran la comisión 02 de Paradigmas de Programación y con qué responsabilidad?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT c.periodo_lectivo_nombre, d.nombre AS docente, d.responsabilidad FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_docentes d ON d.comision_guarani_id = c.comision_guarani_id WHERE c.nombre = '02' AND c.materia_nombre ILIKE '%Paradigmas de Programación%' ORDER BY c.anio_academico DESC, c.periodo_lectivo_nombre, d.orden"
+    },
+    {
+      "pregunta": "¿Qué cursadas arrancan a la noche o se dictan en fin de semana?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT DISTINCT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre, h.dia, h.desde, h.hasta FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE h.desde >= TIME '18:00' OR h.dia >= 6 ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, c.nombre, h.dia"
+    },
+    {
+      "pregunta": "¿Quiénes dictan una comisión en una materia donde no tienen designación vigente?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT DISTINCT d.nombre AS docente, c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id WHERE d.persona_id IS NOT NULL AND c.materia_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM designaciones.designaciones x WHERE x.persona_id = d.persona_id AND x.materia_id = c.materia_id AND x.vigente_hasta IS NULL) ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, d.nombre"
     }
   ]
 }

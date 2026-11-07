@@ -324,22 +324,38 @@ public sealed class AbstencionYRedaccionTests
 
     [Theory]
     // Global con designaciones pero SIN el permiso de portal: es el defecto.
-    [InlineData(true, false, true, false)]
-    [InlineData(true, true, true, true)]
+    [InlineData(true, false, false, "Portal", false)]
+    [InlineData(true, true, false, "Portal", true)]
     // La mitad que no se puede romper al arreglar la otra: el permiso de portal
     // no puede pasar a hacer falta para preguntas que no son de portal.
-    [InlineData(true, false, false, true)]
-    // Un actor no global nunca alcanza todo, toque portal o no.
-    [InlineData(false, true, true, false)]
-    [InlineData(false, true, false, false)]
-    public void El_alcance_total_exige_el_permiso_del_dominio_que_la_consulta_toca(
-        bool esGlobal, bool veTrayectoriaAjena, bool tocaPortal, bool alcanzaTodo)
+    [InlineData(true, false, false, "Designaciones", true)]
+    // Un actor no global nunca alcanza todo en designaciones ni en portal.
+    [InlineData(false, true, false, "Portal", false)]
+    [InlineData(false, true, false, "Designaciones", false)]
+    // Sólo catálogos de identity: conserva la regla de designaciones, no cambia ninguna respuesta.
+    [InlineData(true, false, false, "Ninguno", true)]
+    [InlineData(false, false, false, "Ninguno", false)]
+    // Comisiones depende del permiso y de nada más: un actor acotado con el permiso alcanza todo,
+    // y uno global sin el permiso no.
+    [InlineData(false, false, true, "Comisiones", true)]
+    [InlineData(true, false, false, "Comisiones", false)]
+    // Comisiones más designaciones exige las dos reglas: el permiso no compensa el ámbito.
+    [InlineData(false, false, true, "Comisiones, Designaciones", false)]
+    [InlineData(true, false, true, "Comisiones, Designaciones", true)]
+    [InlineData(true, false, false, "Comisiones, Designaciones", false)]
+    // Un dominio que el sistema no sabe evaluar nunca alcanza todo, ni siquiera al actor global.
+    [InlineData(true, true, true, "Designaciones, Desconocido", false)]
+    public void El_alcance_total_exige_lo_que_exige_cada_dominio_que_la_consulta_toca(
+        bool esGlobal, bool veTrayectoriaAjena, bool veComisiones, string dominios, bool alcanzaTodo)
     {
         var perfil = new PerfilDelActor(
             esGlobal, VeDatosPersonales: esGlobal,
-            AlcanzaDesignaciones: esGlobal, VeTrayectoriaAjena: veTrayectoriaAjena);
+            AlcanzaDesignaciones: esGlobal, VeTrayectoriaAjena: veTrayectoriaAjena,
+            VeComisiones: veComisiones);
 
-        Assert.Equal(alcanzaTodo, PoliticaDeAbstencion.AlcanzaTodo(perfil, tocaPortal));
+        Assert.Equal(
+            alcanzaTodo,
+            PoliticaDeAbstencion.AlcanzaTodo(perfil, Enum.Parse<DominioConsultado>(dominios)));
     }
 
     // ------------------------------------------------------------------ apoyo

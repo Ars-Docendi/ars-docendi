@@ -33,16 +33,23 @@ internal static class CoberturaDelPortal
         Nombres.TryGetValue(tabla, out var nombre) ? nombre : "ese dato";
 
     /// <summary>Las tablas de portal que la consulta toca.</summary>
-    public static IReadOnlyList<string> TablasQueToca(string? sql)
-    {
-        if (string.IsNullOrWhiteSpace(sql))
-        {
-            return [];
-        }
+    public static IReadOnlyList<string> TablasQueToca(string? sql) =>
+        TablasQueToca(DetectorDeDominios.Detectar(sql));
 
-        return [.. Nombres.Keys
-            .Where(tabla => sql.Contains($"portal.{tabla}", StringComparison.OrdinalIgnoreCase))
-            .Order(StringComparer.Ordinal)];
+    /// <summary>
+    /// Las tablas de portal declarables entre las que ya detectó el detector del turno. Una sola
+    /// detección alimenta esto y el alcance por dominio.
+    /// </summary>
+    public static IReadOnlyList<string> TablasQueToca(TablasDeLaConsulta consulta)
+    {
+        ArgumentNullException.ThrowIfNull(consulta);
+
+        const string Prefijo = "portal.";
+
+        return [.. consulta.Calificadas
+            .Where(tabla => tabla.StartsWith(Prefijo, StringComparison.Ordinal))
+            .Select(tabla => tabla[Prefijo.Length..])
+            .Where(Nombres.ContainsKey)];
     }
 
     /// <summary>
@@ -70,4 +77,10 @@ public interface IConsultorDeCobertura
     /// <summary>La cobertura de cada tabla pedida, para el actor del turno.</summary>
     Task<IReadOnlyList<CoberturaDeUnDato>> ObtenerAsync(
         IReadOnlyList<string> tablas, Guid actor, CancellationToken ct);
+
+    /// <summary>
+    /// Los períodos lectivos que el actor ve importados en las comisiones, del más reciente al más
+    /// antiguo. Un resultado vacío de comisiones puede significar que el período nunca se importó.
+    /// </summary>
+    Task<IReadOnlyList<string>> ObtenerPeriodosImportadosAsync(Guid actor, CancellationToken ct);
 }

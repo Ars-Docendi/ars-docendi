@@ -72,6 +72,27 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task VeComisiones_sigue_la_matriz_de_permisos_sin_redeploy()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Con permiso y sin ámbito global: el flag mira sólo el permiso.
+        Assert.True((await Consultor().ObtenerAsync(Jefe, ct)).VeComisiones);
+        Assert.True((await Consultor().ObtenerAsync(Secretaria, ct)).VeComisiones);
+
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code = 'comisiones.ver'
+            """);
+
+        // Se lee en vivo: el mismo consultor, después de cambiar la matriz.
+        Assert.False((await Consultor().ObtenerAsync(Secretaria, ct)).VeComisiones);
+    }
+
+    [Fact]
     public void El_texto_del_vacio_solo_afirma_ausencia_cuando_el_actor_alcanza_todo()
     {
         // La política es pura, así que acá se prueba la decisión sin base: dado el booleano, qué se dice.

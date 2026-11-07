@@ -57,8 +57,8 @@
     },
     {
       "nombre": "comisiones",
-      "estado": "denegado",
-      "motivo": "Copia regenerable de las comisiones que informa SIU-Guaraní: docentes con nombre y responsabilidad, horarios y aulas, más el registro de importaciones con su actor. Ninguna pregunta del catálogo lo necesita, y exponerlo exigiría GRANT por columna y RLS que hoy no existen. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+      "estado": "expuesto",
+      "motivo": "Cuatro de las cinco tablas se conceden: las que responden qué comisiones tiene un docente, quién dicta una comisión, en qué días, horarios y aulas, y cuántas carga cada uno. `sga_importaciones` queda denegada porque es el registro operativo de cada importación y nombra a quien la hizo. Conceder es seguro porque la frontera la sostiene el motor: GRANT por columna contra este manifiesto, RLS con el predicado `comisiones.ver` (sin ámbito, igual que la pantalla de Comisiones) y tests que fallan si cualquiera de las dos se degrada (AGENTS.md, regla 11)."
     },
     {
       "nombre": "public",
@@ -683,6 +683,107 @@
       "tabla": "periodo_anclas",
       "estado": "denegada-explicita",
       "motivo": "Anclas de la cadena de sellos por período: infraestructura del control de integridad, no dato de dominio. Ninguna pregunta del alcance la necesita.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comisiones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "comision_guarani_id",
+          "anio_academico",
+          "periodo_lectivo_nombre",
+          "nombre",
+          "materia_codigo",
+          "materia_nombre",
+          "materia_id",
+          "modalidad",
+          "ubicacion"
+        ],
+        "asistente_ro_pii": [
+          "comision_guarani_id",
+          "anio_academico",
+          "periodo_lectivo_nombre",
+          "nombre",
+          "materia_codigo",
+          "materia_nombre",
+          "materia_id",
+          "modalidad",
+          "ubicacion"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "importacion_id",
+          "motivo": "Clave foránea hacia comisiones.sga_importaciones, que no se concede: unir por ella fallaría por falta de privilegio. Es mecánica de importación, no dato del dominio."
+        },
+        {
+          "columna": "periodo_lectivo_guarani_id",
+          "motivo": "Clave opaca del período en Guaraní. El período se identifica por periodo_lectivo_nombre y anio_academico; ninguna pregunta del catálogo necesita la clave."
+        },
+        {
+          "columna": "modalidad_codigo",
+          "motivo": "Código de Guaraní de la modalidad. La columna modalidad trae el valor legible; el código no responde ninguna pregunta."
+        },
+        {
+          "columna": "created_at",
+          "motivo": "Momento en que la importación copió la fila. Es mecánica de importación, no una fecha del dominio: no expresa cuándo empezó a dictarse la comisión."
+        }
+      ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_carreras",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["comision_guarani_id", "carrera_codigo", "carrera_nombre", "carrera_id"],
+        "asistente_ro_pii": [
+          "comision_guarani_id",
+          "carrera_codigo",
+          "carrera_nombre",
+          "carrera_id"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_docentes",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["comision_guarani_id", "orden", "nombre", "responsabilidad", "persona_id"],
+        "asistente_ro_pii": [
+          "comision_guarani_id",
+          "orden",
+          "nombre",
+          "responsabilidad",
+          "persona_id"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_horarios",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["comision_guarani_id", "dia", "desde", "hasta", "aula"],
+        "asistente_ro_pii": ["comision_guarani_id", "dia", "desde", "hasta", "aula"]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "asignacion_guarani_id",
+          "motivo": "Clave opaca de la franja en Guaraní, usada sólo para que el importador reconozca la fila. Ninguna pregunta del catálogo la necesita."
+        }
+      ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_importaciones",
+      "estado": "denegada-explicita",
+      "motivo": "Registro operativo de cada importación desde Guaraní: quién la lanzó (usuario_id), cuándo, con qué resultado y causa de falla. Nombra a una persona por su actuación y no responde ninguna pregunta de catálogo; qué períodos hay importados se deduce de sga_comisiones. Denegada entera y no columna por columna, para que reabrirla exija editar esta entrada.",
       "columnas_concedidas": {},
       "columnas_denegadas": []
     }

@@ -654,6 +654,120 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.DoesNotContain("alcance", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
     }
 
+    private const string ComisionesDeUnDocente =
+        "SELECT c.nombre FROM comisiones.sga_comisiones c WHERE c.nombre = 'no-existe'";
+
+    [Fact]
+    public async Task Un_actor_acotado_con_comisiones_ver_puede_oir_que_no_hay_comisiones()
+    {
+        // The Coordinador has carrera scope, so designaciones would not reach everything for them,
+        // but the comisiones policy is permission-only: telling them "outside your scope" about
+        // data they can see would be false.
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(ComisionesDeUnDocente),
+            ProveedorGuionado.Generacion(ComisionesDeUnDocente));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Coordinador, "¿Existe la comisión no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("alcance", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Un_actor_global_sin_comisiones_ver_no_oye_que_no_hay_comisiones()
+    {
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code = 'comisiones.ver'
+            """);
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(ComisionesDeUnDocente));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿Existe la comisión no-existe?", null, TestContext.Current.CancellationToken);
+
+        // Global scope does not help: the policy returned zero rows for lack of the permission.
+        Assert.Empty(turno.Filas);
+        Assert.Contains("alcance", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+        // And the retry is not spent where it cannot help.
+        Assert.Equal(1, proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task Un_vacio_de_comisiones_dice_que_periodos_hay_importados()
+    {
+        await SembrarComisionesAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(ComisionesDeUnDocente),
+            ProveedorGuionado.Generacion(ComisionesDeUnDocente));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Coordinador, "¿Existe la comisión no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Empty(turno.Filas);
+        Assert.Contains("2026: 1er cuatrimestre", turno.Respuesta, StringComparison.Ordinal);
+        Assert.Contains("2026: 2do cuatrimestre", turno.Respuesta, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Un_vacio_fuera_de_comisiones_no_busca_periodos()
+    {
+        var cobertura = new CoberturaFalsa(() => Task.FromResult<IReadOnlyList<string>>([]));
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(
+                "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"),
+            ProveedorGuionado.Generacion(
+                "SELECT numero FROM designaciones.pedidos WHERE numero = 'tampoco'"));
+
+        var turno = await CarrilCon(proveedor, cobertura: cobertura).ResponderAsync(
+            Secretaria, "¿Existe el trámite no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, cobertura.ConsultasDePeriodos);
+        Assert.DoesNotContain("períodos", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Si_falla_la_busqueda_de_periodos_el_turno_igual_responde()
+    {
+        var cobertura = new CoberturaFalsa(
+            () => throw new InvalidOperationException("la base no contestó"));
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(ComisionesDeUnDocente),
+            ProveedorGuionado.Generacion(ComisionesDeUnDocente));
+
+        var turno = await CarrilCon(proveedor, cobertura: cobertura).ResponderAsync(
+            Secretaria, "¿Existe la comisión no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, cobertura.ConsultasDePeriodos);
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.Contains("No encontré ningún registro", turno.Respuesta, StringComparison.Ordinal);
+        Assert.DoesNotContain("períodos", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Un_cruce_de_comisiones_con_designaciones_lleva_el_limite_aunque_haya_filas()
+    {
+        await SembrarComisionesAsync();
+
+        // An anti-join: for an actor whose designaciones are truncated by scope it can return rows
+        // that exist only because the other side is incomplete.
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
+            """
+            SELECT d.nombre
+              FROM comisiones.sga_comision_docentes d
+             WHERE NOT EXISTS (
+                   SELECT 1 FROM designaciones.designaciones x WHERE x.persona_id = d.persona_id)
+            """));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Coordinador, "¿Quién dicta comisiones sin designación?", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(turno.Filas);
+        Assert.Contains("solo una parte del Departamento", proveedor.Recibidas[^1].Mensaje, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task El_reintento_se_queda_con_la_segunda_consulta_si_esa_trae_datos()
     {
@@ -987,13 +1101,57 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         return (turno, proveedor);
     }
 
+    /// <summary>
+    /// Two imported períodos of the same year, one comisión in the first, and its docente without
+    /// <c>persona_id</c>. Inserted as the owner.
+    /// </summary>
+    private async Task SembrarComisionesAsync() =>
+        await EjecutarAsync(
+            """
+            INSERT INTO comisiones.sga_importaciones
+                (id, anio_academico, periodo_lectivo_guarani_id, periodo_lectivo_nombre,
+                 estado, finalizada_at, cantidad)
+            VALUES ('d0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                    'exitosa', now(), 1),
+                   ('d0000000-0000-4000-8000-000000000002', 2026, 'P2', '2do cuatrimestre',
+                    'exitosa', now(), 1);
+            INSERT INTO comisiones.sga_comisiones
+                (comision_guarani_id, importacion_id, anio_academico, periodo_lectivo_guarani_id,
+                 periodo_lectivo_nombre, nombre, materia_codigo, materia_nombre)
+            VALUES ('C1', 'd0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                    '01', 'M1', 'Materia de prueba'),
+                   ('C2', 'd0000000-0000-4000-8000-000000000002', 2026, 'P2', '2do cuatrimestre',
+                    '01', 'M1', 'Materia de prueba');
+            INSERT INTO comisiones.sga_comision_docentes
+                (comision_guarani_id, orden, nombre, persona_id)
+            VALUES ('C1', 1, 'Docente de prueba', NULL);
+            """);
+
+    private sealed class CoberturaFalsa(
+        Func<Task<IReadOnlyList<string>>> periodos) : IConsultorDeCobertura
+    {
+        public int ConsultasDePeriodos { get; private set; }
+
+        public Task<IReadOnlyList<CoberturaDeUnDato>> ObtenerAsync(
+            IReadOnlyList<string> tablas, Guid actor, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<CoberturaDeUnDato>>([]);
+
+        public Task<IReadOnlyList<string>> ObtenerPeriodosImportadosAsync(
+            Guid actor, CancellationToken ct)
+        {
+            ConsultasDePeriodos++;
+            return periodos();
+        }
+    }
+
     private CarrilSql CarrilCon(
         ProveedorGuionado proveedor,
         int tope = 200,
         ContadorDeLlamadasDelTurno? contador = null,
         ICatalogoDeCapacidades? capacidades = null,
         OpcionesAsistente? opcionesDelGenerador = null,
-        CacheDeConsultasGeneradas? cache = null)
+        CacheDeConsultasGeneradas? cache = null,
+        IConsultorDeCobertura? cobertura = null)
     {
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente { TopeDeFilas = tope });
@@ -1015,7 +1173,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             capacidades: capacidades,
             log: NullLogger<CarrilSql>.Instance,
             cache: cache,
-            opcionesDelRedactor: Options.Create(opcionesDelGenerador ?? new OpcionesAsistente()));
+            opcionesDelRedactor: Options.Create(opcionesDelGenerador ?? new OpcionesAsistente()),
+            cobertura: cobertura);
     }
 
 }

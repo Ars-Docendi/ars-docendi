@@ -27,6 +27,11 @@ internal sealed class CatalogoDeCapacidades(
     private const int MinimoDeEjemplos = 4;
     private const int MaximoDeEjemplos = 6;
 
+    private const string EsquemaDeComisiones = "comisiones.";
+
+    /// <summary>Cuántos ejemplos de comisiones se suman como mucho, para quien puede preguntarlas.</summary>
+    private const int MaximoDeEjemplosDeComisiones = 2;
+
     /// <summary>SQLSTATE de <c>insufficient_privilege</c>.</summary>
     private const string PrivilegioDenegado = "42501";
 
@@ -39,8 +44,15 @@ internal sealed class CatalogoDeCapacidades(
         var resuelto = await ResolverAsync(actor, perfil.VeDatosPersonales, ct);
 
         return new CapacidadesDelActor(
-            resuelto.Cubre,
-            resuelto.Ejemplos,
+            // Same gate as the examples and the presentation: the GRANT is common to both read
+            // roles, but the areas listed (and counted, and described by their comments) must not
+            // announce comisiones to an actor whose policy returns nothing.
+            perfil.VeComisiones
+                ? resuelto.Cubre
+                : [.. resuelto.Cubre.Where(area => !area.Nombre.StartsWith(EsquemaDeComisiones, StringComparison.Ordinal))],
+            // Fuera de la caché, como la presentación: el GRANT de comisiones es de los dos roles de
+            // lectura, pero ofrecer sus preguntas depende del permiso vivo del actor.
+            perfil.VeComisiones ? ConComisiones(resuelto) : resuelto.Ejemplos,
             PoliticaDeAbstencion.LimitesDelAsistente,
             PoliticaDeAbstencion.TextoDeAlcance(perfil.EsGlobal),
             // Fuera de la caché a propósito: lo cacheado se indexa por rol de lectura —dos
@@ -84,6 +96,13 @@ internal sealed class CatalogoDeCapacidades(
         };
     }
 
+    /// <summary>Los ejemplos de comisiones ocupan el final de la lista sin pasar del máximo.</summary>
+    private static IReadOnlyList<string> ConComisiones(Resuelto resuelto) =>
+    [
+        .. resuelto.Ejemplos.Take(MaximoDeEjemplos - resuelto.EjemplosDeComisiones.Count),
+        .. resuelto.EjemplosDeComisiones,
+    ];
+
     private Task<Resuelto> ResolverAsync(Guid actor, bool conDatosPersonales, CancellationToken ct) =>
         cache.ObtenerAsync(conDatosPersonales, () => LeerAsync(actor, conDatosPersonales, ct), ct);
 
@@ -102,18 +121,32 @@ internal sealed class CatalogoDeCapacidades(
             .OrderBy(area => area.Nombre, StringComparer.Ordinal)
             .ToList();
 
-        return new Resuelto(cubre, await ElegirEjemplosAsync(conexion, actor, ct));
+        // Los ejemplos de comisiones se eligen aparte: nunca entran en la lista general, que es igual
+        // para todos los actores de un rol de lectura.
+        var esDeComisiones = ejemplos.Catalogo.ToLookup(
+            e => DetectorDeDominios.Detectar(e.Sql).Dominios.HasFlag(DominioConsultado.Comisiones));
+        var deComisiones = esDeComisiones[true].ToList();
+        var generales = esDeComisiones[false].ToList();
+
+        return new Resuelto(
+            cubre,
+            await ElegirEjemplosAsync(conexion, actor, generales, MaximoDeEjemplos, ct),
+            await ElegirEjemplosAsync(conexion, actor, deComisiones, MaximoDeEjemplosDeComisiones, ct));
     }
 
-    /// <summary>Elige de cuatro a seis ejemplos que el actor <b>puede ejecutar</b>.</summary>
+    /// <summary>Elige hasta <paramref name="maximo"/> ejemplos que el actor <b>puede ejecutar</b>.</summary>
     private async Task<IReadOnlyList<string>> ElegirEjemplosAsync(
-        NpgsqlConnection conexion, Guid actor, CancellationToken ct)
+        NpgsqlConnection conexion,
+        Guid actor,
+        IReadOnlyList<EjemploSql> catalogo,
+        int maximo,
+        CancellationToken ct)
     {
         var elegidos = new List<string>();
 
         // Una vuelta por categoría primero, después el resto: da variedad sin
         // depender del orden en que estén escritos en el catálogo.
-        var candidatos = ejemplos.Catalogo
+        var candidatos = catalogo
             .GroupBy(ejemplo => ejemplo.Categoria, StringComparer.Ordinal)
             .SelectMany(grupo => grupo.Select((ejemplo, indice) => (ejemplo, indice)))
             .OrderBy(par => par.indice)
@@ -122,7 +155,7 @@ internal sealed class CatalogoDeCapacidades(
 
         foreach (var ejemplo in candidatos)
         {
-            if (elegidos.Count == MaximoDeEjemplos)
+            if (elegidos.Count == maximo)
             {
                 break;
             }
@@ -133,7 +166,7 @@ internal sealed class CatalogoDeCapacidades(
             }
         }
 
-        if (elegidos.Count < MinimoDeEjemplos)
+        if (maximo == MaximoDeEjemplos && elegidos.Count < MinimoDeEjemplos)
         {
             // No se rellena con ejemplos que el actor no puede ejecutar: el
             // requisito de «cuatro a seis» está por debajo del de «ejecutables».
@@ -177,7 +210,9 @@ internal sealed class CatalogoDeCapacidades(
     }
 
     internal sealed record Resuelto(
-        IReadOnlyList<AreaCubierta> Cubre, IReadOnlyList<string> Ejemplos);
+        IReadOnlyList<AreaCubierta> Cubre,
+        IReadOnlyList<string> Ejemplos,
+        IReadOnlyList<string> EjemplosDeComisiones);
 }
 
 /// <summary>Guarda lo que cuesta leer del catálogo de PostgreSQL, por rol.</summary>

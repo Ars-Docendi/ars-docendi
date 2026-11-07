@@ -223,9 +223,21 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
 
         Assert.NotEqual(deDocente.Presentacion, deJefe.Presentacion);
         Assert.Equal(deDocente.Alcance, deJefe.Alcance);
-        Assert.Equal(deDocente.Columnas, deJefe.Columnas);
-        Assert.Equal(deDocente.Tablas, deJefe.Tablas);
-        Assert.Equal(deDocente.Ejemplos, deJefe.Ejemplos);
+
+        // The only difference in the areas and the examples is comisiones, offered by the live
+        // permission and not by the role.
+        Assert.Equal(
+            deDocente.Cubre,
+            deJefe.Cubre.Where(area => !area.Nombre.StartsWith("comisiones.", StringComparison.Ordinal)));
+
+        // The same for the examples is comisiones, offered by the live permission and
+        // not by the role: the general ones are the same for both.
+        Assert.Equal(
+            deDocente.Ejemplos.Where(EsDeComisiones),
+            []);
+        Assert.Equal(
+            deDocente.Ejemplos.Take(4),
+            deJefe.Ejemplos.Where(ejemplo => !EsDeComisiones(ejemplo)).Take(4));
     }
 
     // ------------------------------------------------------ la meta-pregunta
@@ -331,6 +343,54 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             Assert.DoesNotContain(prohibida, texto, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    // ------------------------------------------------------------- comisiones
+
+    [Fact]
+    public async Task Con_comisiones_ver_se_ofrecen_las_comisiones_y_sin_el_permiso_no_se_mencionan()
+    {
+        // Both read roles hold the GRANT, so the catalog cannot tell them apart: only the live
+        // permission can. Without this gate the question would be offered and answered with zero rows.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var catalogo = Catalogo();
+
+        var conPermiso = await catalogo.ObtenerAsync(Jefe, ct);
+        var sinPermiso = await catalogo.ObtenerAsync(Docente, ct);
+
+        Assert.Contains("comisiones", conPermiso.Presentacion, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(conPermiso.Ejemplos, EsDeComisiones);
+        Assert.Contains(conPermiso.Cubre, area => area.Nombre.StartsWith("comisiones.", StringComparison.Ordinal));
+
+        Assert.DoesNotContain("comisiones", sinPermiso.Presentacion, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(sinPermiso.Ejemplos, EsDeComisiones);
+        Assert.DoesNotContain(sinPermiso.Cubre, area => area.Nombre.StartsWith("comisiones.", StringComparison.Ordinal));
+
+        // The meta-question text is built from the same lists: nothing about comisiones for the actor
+        // who does not hold the permission.
+        Assert.DoesNotContain(
+            "comisiones", RedaccionDeCapacidades.Texto(sinPermiso), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task La_presentacion_de_comisiones_no_promete_aulas_libres_ni_el_registro_de_importaciones()
+    {
+        await SembrarAsync();
+
+        var texto = (await Catalogo().ObtenerAsync(
+            Secretaria, TestContext.Current.CancellationToken)).Presentacion;
+
+        Assert.Contains("comisiones", texto, StringComparison.OrdinalIgnoreCase);
+        foreach (var prohibida in new[] { "libres", "disponibles", "importacion", "importación" })
+        {
+            Assert.DoesNotContain(prohibida, texto, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private static bool EsDeComisiones(string pregunta) =>
+        new SelectorDeEjemplos().Catalogo.Any(ejemplo =>
+            ejemplo.Pregunta == pregunta
+            && DetectorDeDominios.Detectar(ejemplo.Sql).Dominios.HasFlag(DominioConsultado.Comisiones));
 
     // ------------------------------------------------------------------ apoyo
 
