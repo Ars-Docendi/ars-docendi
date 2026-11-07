@@ -15,7 +15,7 @@ namespace Modules.Designaciones.Infrastructure;
 /// expresar.
 /// </para>
 /// </summary>
-public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbContext> options) : DbContext(options)
+public sealed partial class DesignacionesDbContext(DbContextOptions<DesignacionesDbContext> options) : DbContext(options)
 {
     public const string Schema = "designaciones";
 
@@ -30,6 +30,8 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
     public DbSet<ComandoIdempotente> ComandosIdempotentes => Set<ComandoIdempotente>();
     public DbSet<PedidoSello> PedidoSellos => Set<PedidoSello>();
     public DbSet<PeriodoAncla> PeriodoAnclas => Set<PeriodoAncla>();
+    public DbSet<ImportacionComisiones> ImportacionesComisiones => Set<ImportacionComisiones>();
+    public DbSet<ComisionGuarani> ComisionesGuarani => Set<ComisionGuarani>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,6 +118,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.TipoBajaDetalle).HasColumnName("tipo_baja_detalle");
             e.Property(x => x.EtapaRetorno).HasColumnName("etapa_retorno");
             e.Property(x => x.PropietarioActual).HasColumnName("propietario_actual");
+            e.Property(x => x.MaterializadoEn).HasColumnName("materializado_en");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.Property(x => x.Version).IsRowVersion();
             e.Ignore(x => x.EsTerminal);
@@ -237,6 +240,8 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Motivo).HasColumnName("motivo");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
+
+        MapearComisionesGuarani(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
     }

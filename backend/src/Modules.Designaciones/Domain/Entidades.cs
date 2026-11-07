@@ -124,6 +124,13 @@ public sealed class Pedido
     public string? PropietarioActual { get; set; }
 
     public SnapshotPedido? Snapshot { get; set; }
+
+    /// <summary>
+    /// Cuándo se escribió sobre las designaciones vigentes. Nulo hasta sincronizar; los
+    /// pedidos en lote anteriores a la conciliación ya lo tienen porque se materializaron
+    /// al aceptar Decanato.
+    /// </summary>
+    public DateTimeOffset? MaterializadoEn { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
     public uint Version { get; set; }
 

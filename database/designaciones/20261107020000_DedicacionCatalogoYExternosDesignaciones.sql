@@ -1,4 +1,4 @@
--- 20261106222026_DedicacionCatalogoYExternosDesignaciones (Designaciones).
+-- 20261107020000_DedicacionCatalogoYExternosDesignaciones (Designaciones).
 -- La dedicación se elige sólo del catálogo (con Categoría 0) y se incorporan los docentes externos:
 -- una designación o pedido es interno (cargo + dedicación) o externo (sector externo), nunca ambos.
 -- No editar después de publicar: crear otra migración incremental.
@@ -136,10 +136,12 @@ ALTER TABLE designaciones.pedidos ADD CONSTRAINT pedidos_interno_o_externo CHECK
     OR (cargo_solicitado_id IS NULL AND dedicacion_solicitada_id IS NULL)
 );
 
+-- Conserva los estados de la conciliación (aprobado, no_aprobado) y suma el caso externo.
 ALTER TABLE designaciones.pedidos DROP CONSTRAINT pedidos_completitud_circuito;
 ALTER TABLE designaciones.pedidos ADD CONSTRAINT pedidos_completitud_circuito CHECK (
     novedad NOT IN ('Alta', 'Cambio de cargo o dedicación')
-    OR estado NOT IN ('en_revision_coordinador', 'en_revision_secretaria', 'en_revision_decanato', 'devuelto', 'en_lote')
+    OR estado NOT IN ('en_revision_coordinador', 'en_revision_secretaria', 'en_revision_decanato',
+                      'devuelto', 'en_lote', 'aprobado', 'no_aprobado')
     OR (horas IS NOT NULL AND horas > 0
         AND ((cargo_solicitado_id IS NOT NULL AND dedicacion_solicitada_id IS NOT NULL)
              OR sector_externo_id IS NOT NULL))

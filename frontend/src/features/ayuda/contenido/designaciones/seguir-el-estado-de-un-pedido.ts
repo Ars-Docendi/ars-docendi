@@ -41,13 +41,13 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
       titulo: "Leé el estado de cada pedido",
       etiquetaIndice: "Estados",
       cuerpo:
-        "Borrador: todavía no lo enviaste. En proceso: está circulando por el circuito de revisión (como Jefe de Cátedra no ves en qué etapa). Quienes revisan ven en cambio En Coordinación, En Secretaría o En Decanato. Devuelto: te lo devolvieron para que lo corrijas, con el motivo. Aprobado: pasó todas las etapas y quedó en lote. Rechazado: terminó sin aprobarse. Cancelado: el Jefe de Cátedra lo canceló antes de enviarlo y no sigue el circuito.",
+        "Borrador: todavía no lo enviaste. En proceso: está circulando por el circuito de revisión (como Jefe de Cátedra no ves en qué etapa). Quienes revisan ven en cambio En Coordinación, En Secretaría o En Decanato. Devuelto: te lo devolvieron para que lo corrijas, con el motivo. En lote (quienes revisan): Decanato lo aceptó y espera la conciliación; el Jefe de Cátedra lo sigue viendo En proceso. Aprobado: se sincronizó y la designación ya está vigente. Rechazado: terminó sin aprobarse, en el circuito o en la conciliación del lote (con el motivo). Cancelado: el Jefe de Cátedra lo canceló antes de enviarlo y no sigue el circuito.",
     },
     {
       titulo: "Filtrá y ordená la lista",
       etiquetaIndice: "Filtrar y ordenar",
       cuerpo:
-        "Cada encabezado tiene un filtro: texto para Docente, Legajo, Cátedra y Enviado, y casillas para Tipo y Estado (Aprobado agrupa los pedidos en lote; En revisión, los que están en proceso). Hacé clic en el nombre de la columna para ordenar: una vez ascendente, otra descendente y una tercera para quitar el orden. Si nada coincide, ves «Sin resultados».",
+        "Cada encabezado tiene un filtro: texto para Docente, Legajo, Cátedra y Enviado, y casillas para Tipo y Estado (En revisión agrupa los que están en proceso o en lote; Rechazado incluye los rechazados en la conciliación). Hacé clic en el nombre de la columna para ordenar: una vez ascendente, otra descendente y una tercera para quitar el orden. Si nada coincide, ves «Sin resultados».",
       captura: {
         src: "/ayuda/designaciones/seguir-el-estado-de-un-pedido-paso-3.webp",
         alt: "Encabezado de Estado con el filtro desplegado y las casillas marcadas.",
@@ -73,7 +73,7 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
   despues: {
     titulo: "¿Qué sucede después?",
     cuerpo:
-      "Cuando el último revisor aprueba, el pedido pasa a En lote y queda listo para el lote de finalizados que descargan Secretaría, Decanato y Administración. Si lo devuelven, aparece como Devuelto y podés corregirlo y reenviarlo; si lo rechazan, el circuito termina para ese pedido.",
+      "Cuando el último revisor aprueba, el pedido pasa a En lote y queda listo para el lote de finalizados que descargan Secretaría, Decanato y Administración. Cuando vuelve la rectificación se concilia: si se sincroniza pasa a Aprobado y, si no se aprobó, a Rechazado con el motivo. Si lo devuelven, aparece como Devuelto y podés corregirlo y reenviarlo; si lo rechazan, el circuito termina para ese pedido.",
     viñetas: [
       {
         termino: "Devuelto",
@@ -89,9 +89,9 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
   },
   preguntas: [
     {
-      pregunta: "¿Por qué mi pedido figura como Aprobado en la lista y En lote en el detalle?",
+      pregunta: "Decanato aprobó mi pedido. ¿Por qué todavía figura En proceso?",
       respuesta:
-        "Son dos nombres para el mismo estado: el pedido terminó la cadena de aprobación y espera ser procesado en el lote.",
+        "Porque terminó la cadena de revisión pero todavía no se concilió con la rectificación del lote. Figura Aprobado recién cuando se sincroniza.",
     },
     {
       pregunta: "¿Por qué no veo pedidos de otras cátedras?",

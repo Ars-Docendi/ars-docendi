@@ -5,10 +5,10 @@ export const editarUnPedido: ArticuloAyuda = {
   moduloSlug: "designaciones",
   grupo: "Pedir una designación",
   titulo: "Cómo editar un pedido",
-  resumen: "Qué se puede cambiar de un pedido en borrador o devuelto.",
+  resumen: "Qué se puede cambiar de un pedido en borrador, devuelto o en conciliación.",
   introduccion:
-    "Solo podés editar un pedido mientras es un borrador o cuando una revisión te lo devolvió. Una vez enviado, el pedido queda de solo lectura hasta que lo devuelvan.",
-  permisos: ["designaciones.gestionar"],
+    "Solo podés editar un pedido mientras es un borrador o cuando una revisión te lo devolvió. Una vez enviado, el pedido queda de solo lectura hasta que lo devuelvan. Quien tiene el permiso de editar designaciones puede además corregir, desde Conciliación, un pedido en lote o rechazado en la conciliación.",
+  permisos: ["designaciones.gestionar", "designaciones.conciliar"],
   palabrasClave: [
     "editar",
     "modificar",
@@ -55,6 +55,12 @@ export const editarUnPedido: ArticuloAyuda = {
         "Guardar pedido conserva los cambios sin enviar. Guardar y enviar manda un borrador a revisión; en un pedido devuelto el botón dice Guardar y reenviar y el pedido retoma la etapa que lo devolvió, sin empezar de nuevo la cadena.",
     },
     {
+      titulo: "Corregí un pedido en conciliación",
+      etiquetaIndice: "En conciliación",
+      cuerpo:
+        "Desde Conciliación, Editar abre el mismo formulario con el subtítulo «Editás un pedido en conciliación» y solo el botón Guardar pedido: ya pasó el circuito de revisión. Si estaba rechazado en la conciliación, el aviso «Vuelve a conciliarse» recuerda el motivo y al guardar vuelve a Por conciliar para aceptarlo y sincronizarlo. Un pedido sincronizado ya no se puede editar.",
+    },
+    {
       titulo: "Eliminá un borrador que ya no necesitás",
       etiquetaIndice: "Eliminar un borrador",
       cuerpo:
@@ -81,5 +87,6 @@ export const editarUnPedido: ArticuloAyuda = {
     "designaciones/crear-un-pedido",
     "designaciones/seguir-el-estado-de-un-pedido",
     "designaciones/resolver-un-pedido",
+    "designaciones/conciliar-el-lote",
   ],
 };

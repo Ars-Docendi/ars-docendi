@@ -7,7 +7,7 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 **Entity Framework Core 10** con migraciones por módulo. Cada módulo tiene su propio `DbContext` apuntando a su schema:
 
 - `IdentityDbContext` → schemas `identity` y `audit` (vive en `ArsDocendi.Shared`, ver más abajo)
-- `DesignacionesDbContext` → schema `designaciones`
+- `DesignacionesDbContext` → schemas `designaciones` y `comisiones` (snapshot de Guaraní; historial de migraciones en `designaciones`)
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
 - `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial` y los catálogos `estados_proyecto`, `estados_tarea`, `prioridades` y `tipos_tarea`); DDL versionado en `database/tareas/`. Estados, prioridades y tipos se referencian por IDs numéricos; los números visibles de proyectos/tareas usan secuencias. Las cinco tablas de negocio tienen triggers `audit.attach`; sus snapshots nuevos usan la allowlist por tabla de `audit.safe_snapshot` y excluyen título, descripción, solución, texto y detalle libres.
@@ -132,7 +132,7 @@ dedicación: `pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id`
 lo referencian por FK. Las columnas de texto `dedicacion` y
 `dedicacion_solicitada` quedan sin uso: los triggers rechazan cualquier texto
 nuevo y el backend no las lee
-(`20261106222026_DedicacionCatalogoYExternosDesignaciones`). Nuevas
+(`20261107020000_DedicacionCatalogoYExternosDesignaciones`). Nuevas
 designaciones y solicitudes Alta/Cambio internas requieren una referencia
 activa; una actualización sin cambio de dedicación conserva la referencia,
 incluso si su categoría fue desactivada. Los snapshots ya congelados conservan
@@ -195,6 +195,17 @@ conserva ID/inicio y actualiza cargo, dedicación, tres horas y origen; un Cambi
 posterior cierra/abre atómicamente sin retirar EXCLUDE. El criterio de vigente sigue
 siendo `vigente_hasta IS NULL`.
 
+Estados del pedido: `borrador`, `en_revision_coordinador`, `en_revision_secretaria`,
+`en_revision_decanato`, `devuelto`, `en_lote` (aceptado por Decanato, en el Excel y esperando la
+conciliación), `no_aprobado` (rechazado en la conciliación; sale del Excel y se puede editar para
+volver a `en_lote`), `aprobado` (sincronizado; terminal), `rechazado` y `cancelado`. Las acciones
+del historial suman `sincronizar` y `no_aprobar`. La designación se escribe al **sincronizar**,
+no al aceptar en Decanato. `pedidos.materializado_en` marca los pedidos `en_lote` anteriores a la
+conciliación, ya materializados al aceptar: sincronizarlos no vuelve a escribir la designación y
+no se pueden rechazar ni editar. `CHECK pedidos_materializado_coherente` lo admite sólo en
+`en_lote` o `aprobado`. La sincronización escribe además la membresía Docente de la persona en
+`identity.user_roles` (vía `IAdministracionIdentity`, en la misma transacción) si tiene usuario.
+
 Listado y detalle son consultas distintas: grilla sin documentos y con un resumen
 de hasta cuatro eventos reales por pedido (sin comentarios), detalle completo con
 orden `(created_at,id)`. Relectura administrativa por persona y resolución de
@@ -241,6 +252,35 @@ Una fila por usuario destinatario (fan-out al momento del evento): varios Jefes 
 | `preferencias_push`  | PK `(usuario_id, modulo)`, `habilitado`, `actualizada_en`. Interruptor del canal push por módulo; una fila ausente significa habilitado. `modulo` con CHECK (`AULAS`, `DESIGNACIONES`, `TAREAS`); el módulo de un aviso se deriva de su `tipo_entidad` | No                                                   |
 
 Un endpoint ya existente se **reasigna** al usuario que lo suscribe (un dispositivo es de quien tiene la sesión). Las filas se borran al dar de baja, cuando el servicio de push responde 404/410 y con el usuario.
+
+### Comisiones (`schema: comisiones`) — dueño: `Modules.Designaciones`
+
+Copia de sólo lectura, regenerable, de las comisiones que informa SIU-Guaraní,
+en un schema propio separado de `designaciones`. El prefijo `sga_` marca datos
+externos que Ars Docendi no edita. El DDL vive en `database/comisiones/` y lo
+aplica la migración de Designaciones, cuyo historial queda en
+`designaciones.__EFMigrationsHistory`.
+
+| Tabla                   | Descripción                                                                                                     | PII              |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `sga_importaciones`     | Cada intento de importación: período, actor, estado, cantidades y causa genérica de falla. Único auditado       | No               |
+| `sga_comisiones`        | Una fila por comisión; PK = id de Guaraní (estable entre reimportaciones); `materia_id` vinculada por código    | No               |
+| `sga_comision_carreras` | Carreras/propuestas de la comisión; `carrera_id` vinculada por código                                           | No               |
+| `sga_comision_docentes` | Docentes con nombre y responsabilidad; `persona_id` vinculada por documento. El documento **no** se persiste    | Parcial — nombre |
+| `sga_comision_horarios` | Bandas por asignación de Guaraní (día 1–7, desde, hasta, aula); una asignación puede repetirse entre comisiones | No               |
+
+Cada importación reemplaza en una transacción sólo las comisiones de su período
+(las hijas caen por cascada) y recalcula todos los vínculos desde Guaraní +
+`identity`, por eso no hay datos manuales que perder. Los vínculos a `identity`
+son FKs nullable `ON DELETE SET NULL`: `NULL` = "no existe en el sistema" y el
+snapshot nunca bloquea una operación sobre personas o catálogos. Un índice único
+parcial sobre `sga_importaciones(periodo_lectivo_guarani_id) WHERE estado =
+'en_curso'` impide dos importaciones simultáneas del mismo período.
+
+**Excepción de auditoría**: `sga_comisiones` y sus hijas no llevan
+`audit.attach`; auditarlas volcaría cientos de filas por importación en
+`audit.change_log` por datos regenerables. La trazabilidad del snapshot la da
+`sga_importaciones`, que sí está auditada.
 
 ### Portal (`schema: portal`)
 

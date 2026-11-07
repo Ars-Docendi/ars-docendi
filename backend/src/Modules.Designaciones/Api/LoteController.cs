@@ -7,7 +7,7 @@ namespace Modules.Designaciones.Api;
 
 [ApiController]
 [Route("api/designaciones/periodos")]
-[Authorize(Policy = Permisos.DesignacionesVer)]
+[Authorize(Policy = Permisos.DesignacionesExportarLote)]
 public sealed class LoteController(IServicioLoteDesignaciones servicio) : ControllerBase
 {
     [HttpGet("{id:guid}/lote.xlsx")]

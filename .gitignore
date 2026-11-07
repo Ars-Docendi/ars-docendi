@@ -97,3 +97,4 @@ findings.md
 
 # ---------- Datos reales (PII) — NO versionar; se comparten por canal privado ----------
 infra/scripts/seed-data/sga.sql
+comisiones_endpoint.csv

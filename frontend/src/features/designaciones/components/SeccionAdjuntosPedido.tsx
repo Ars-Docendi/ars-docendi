@@ -1,5 +1,6 @@
 import { FileUpload, InlineAlert } from "@ars-docendi/ui";
 import type { UploadedFile } from "@ars-docendi/ui";
+import { acceptDe } from "../../../shared/api/archivosApi";
 import type { Novedad, TipoAdjunto } from "../types";
 
 /** Adjuntos obligatorios de un Alta (replica los 3 dropzones del frame). */
@@ -13,6 +14,8 @@ interface SeccionAdjuntosPedidoProps {
   /** Solo Alta / Baja / Cambio tienen sección de adjuntos. */
   novedad: Novedad;
   errorAdjuntos?: string;
+  /** Archivo descartado por formato, por zona: reemplaza la pista de la zona. */
+  erroresFormato?: Partial<Record<TipoAdjunto, string>>;
   adjuntoComoUploaded: (tipo: TipoAdjunto) => UploadedFile[];
   onAgregar: (tipo: TipoAdjunto, archivos: FileList) => void;
   onQuitar: (tipo: TipoAdjunto) => void;
@@ -25,6 +28,7 @@ interface SeccionAdjuntosPedidoProps {
 export function SeccionAdjuntosPedido({
   novedad,
   errorAdjuntos,
+  erroresFormato = {},
   adjuntoComoUploaded,
   onAgregar,
   onQuitar,
@@ -43,7 +47,9 @@ export function SeccionAdjuntosPedido({
             <FileUpload
               key={tipo}
               title={titulo}
-              hint={hint}
+              accept={acceptDe(tipo)}
+              error={Boolean(erroresFormato[tipo])}
+              hint={erroresFormato[tipo] ?? hint}
               files={adjuntoComoUploaded(tipo)}
               onFilesAdded={(archivos) => onAgregar(tipo, archivos)}
               onRemove={() => onQuitar(tipo)}
@@ -66,7 +72,9 @@ export function SeccionAdjuntosPedido({
         <div className="adoc-pf-dz-single">
           <FileUpload
             title="Documento justificativo de la baja"
-            hint="Obligatorio · PDF hasta 10 MiB"
+            accept={acceptDe("justificativo")}
+            error={Boolean(erroresFormato.justificativo)}
+            hint={erroresFormato.justificativo ?? "Obligatorio · PDF hasta 10 MiB"}
             files={adjuntoComoUploaded("justificativo")}
             onFilesAdded={(archivos) => onAgregar("justificativo", archivos)}
             onRemove={() => onQuitar("justificativo")}
@@ -83,7 +91,9 @@ export function SeccionAdjuntosPedido({
       <div className="adoc-pf-dz-single">
         <FileUpload
           title="Documento de respaldo"
-          hint="Opcional · PDF hasta 10 MiB"
+          accept={acceptDe("justificativo")}
+          error={Boolean(erroresFormato.justificativo)}
+          hint={erroresFormato.justificativo ?? "Opcional · PDF hasta 10 MiB"}
           files={adjuntoComoUploaded("justificativo")}
           onFilesAdded={(archivos) => onAgregar("justificativo", archivos)}
           onRemove={() => onQuitar("justificativo")}

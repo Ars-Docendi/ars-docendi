@@ -56,7 +56,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.Equal(estados.Sum(x => x.Disponibles.Count), estados.Sum(x => x.Pendientes.Count));
         var archivos = await PreviewMigraciones.GenerarAsync(migradores, estados, "runtime-test", ct);
         Assert.Equal(7, archivos.Keys.Count(x => x.EndsWith(".sql", StringComparison.Ordinal)));
-        Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','portal','aulas','tareas','notificaciones')"));
+        Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','comisiones','portal','aulas','tareas','notificaciones')"));
     }
 
     [Fact]
@@ -118,9 +118,10 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
 
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-UPGRADE'"));
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.users WHERE upn='upgrade@example.test' AND azure_oid IS NULL AND azure_tid IS NULL"));
-        // 25 del baseline (con los retiros y altas de abajo) más los seis del asistente.
-        // Se retiran portal.editar, reportes.ver y sistema.parametrizar y se suman designaciones.ver_seguimiento y aulas.solicitar.
-        Assert.Equal(31L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        // Se retiran portal.editar, reportes.ver y sistema.parametrizar y se suman designaciones.ver_seguimiento, aulas.solicitar,
+        // designaciones.conciliar, designaciones.editar, designaciones.exportar_lote, comisiones.ver y comisiones.importar.
+        Assert.Equal(0L, await Escalar("SELECT count(*) FROM identity.permisos WHERE code IN ('portal.editar','reportes.ver','sistema.parametrizar')"));
+        Assert.Equal(7L, await Escalar("SELECT count(*) FROM identity.permisos WHERE code IN ('designaciones.ver_seguimiento','aulas.solicitar','designaciones.conciliar','designaciones.editar','designaciones.exportar_lote','comisiones.ver','comisiones.importar')"));
         Assert.Equal(0L, await Escalar("""
             SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
             JOIN identity.roles r ON r.id=rp.rol_id
@@ -130,6 +131,16 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
             SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
             JOIN identity.roles r ON r.id=rp.rol_id
             WHERE p.code='designaciones.ver_seguimiento' AND r.code='secretaria'
+            """));
+        // Exportar el lote nace sólo en Secretaría Académica.
+        Assert.Equal(1L, await Escalar("""
+            SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
+            JOIN identity.roles r ON r.id=rp.rol_id
+            WHERE p.code='designaciones.exportar_lote' AND r.code='secretaria'
+            """));
+        Assert.Equal(1L, await Escalar("""
+            SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id
+            WHERE p.code='designaciones.exportar_lote'
             """));
         // Permisos de personas: se traducen desde usuarios.* / docentes.ver y se suma Decanato.
         Assert.Equal(4L, await Escalar("""

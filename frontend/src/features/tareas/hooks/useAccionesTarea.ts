@@ -5,9 +5,11 @@ import {
   agregarRelacion,
   cambiarEstadoTarea,
   crearTarea,
+  desvincularHija,
   editarAvance,
   editarTarea,
   quitarRelacion,
+  vincularHija,
 } from "../api/tareasApi";
 import type { DatosEditablesTarea, EstadoTarea } from "../types";
 
@@ -40,6 +42,12 @@ interface ParamsEditarAvance {
   version: number;
   id: string;
   porcentajeAvance: number;
+}
+
+interface ParamsVinculoHija {
+  id: string;
+  hijaId: string;
+  version: number;
 }
 
 interface ParamsComentario {
@@ -106,6 +114,25 @@ export function useAgregarComentario() {
   return useMutation({
     mutationFn: ({ id, texto }: ParamsComentario) => agregarComentario(id, texto),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
+  });
+}
+
+/** Vuelve hija a una tarea existente. */
+export function useVincularHija() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, hijaId, version }: ParamsVinculoHija) => vincularHija(id, hijaId, version),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
+  });
+}
+
+/** Deja una hija sin padre; conserva su Proyecto. */
+export function useDesvincularHija() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, hijaId, version }: ParamsVinculoHija) =>
+      desvincularHija(id, hijaId, version),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
 

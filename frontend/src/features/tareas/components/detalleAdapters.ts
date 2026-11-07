@@ -27,7 +27,7 @@ const ETIQUETA_POR_ACCION: Record<AccionHistorialTarea, (evento: EventoHistorial
     crear: () => "Creó la tarea",
     cambiar_estado: (e) => `Cambió el estado a "${ETIQUETA_ESTADO[e.estado] ?? e.estado}"`,
     editar_avance: (e) => `Actualizó el avance${e.detalle ? ` a ${e.detalle}` : ""}`,
-    editar: () => "Editó los campos de la tarea",
+    editar: (e) => e.detalle ?? "Editó los campos de la tarea",
   };
 
 /** Iniciales para el avatar a partir de un nombre tipo "M. Díaz" → "MD". */

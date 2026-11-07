@@ -82,9 +82,11 @@ export type EstadoPedido =
   | "en_revision_secretaria"
   | "en_revision_decanato"
   | "devuelto" // sub-estado: volvió a un actor anterior para corrección
-  | "en_lote" // terminal-para-el-prototipo (flujo real: → Universitaria → Aprobado)
+  | "en_lote" // aceptado por Decanato: en el Excel, espera la conciliación
+  | "no_aprobado" // rechazado en la conciliación: sale del Excel, editable para volver a conciliarse
   | "rechazado" // terminal
   | "cancelado" // terminal
+  // "aprobado" es además el estado real de un pedido sincronizado (terminal).
   // Vista sin designaciones.ver_seguimiento (Jefe de Cátedra): el backend no informa la etapa.
   | "en_proceso"
   | "aprobado";
@@ -111,7 +113,9 @@ export type AccionHistorial =
   | "editar"
   | "cancelar"
   | "priorizar"
-  | "despriorizar";
+  | "despriorizar"
+  | "sincronizar"
+  | "no_aprobar";
 
 export interface EventoHistorial {
   id: string;

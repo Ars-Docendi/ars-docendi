@@ -111,6 +111,11 @@ public sealed class CierreTareasHttpTests(PostgresFixture postgres) : TareasHttp
             originales.Add(hija);
             anterior = hija;
         }
+        // Se releen al final de la cadena: cada hija nueva recalcula el avance de sus ancestros.
+        for (var i = 0; i < originales.Count; i++)
+        {
+            originales[i] = (await cliente.GetFromJsonAsync<TareaDto>($"/api/tareas/{originales[i].Id}", ct))!;
+        }
         foreach (var proyecto in new Guid?[] { q.Id, null })
         {
             await Esperar(cliente.PutVersionadoAsync($"/api/tareas/{raiz.Id}", EdicionDe(Secretaria) with { ProyectoId = proyecto }, ct), HttpStatusCode.OK);

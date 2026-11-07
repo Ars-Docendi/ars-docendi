@@ -123,7 +123,19 @@ public sealed class PedidosController(IServicioPedidosApi servicio) : Controller
             id, new AccionPedido.Despriorizar(datos.Comentario), RequerirClave(clave),
             "despriorizar", datos.Comentario ?? string.Empty, ct);
 
-    private static Guid RequerirClave(string? valor)
+    /// <summary>Rechazo en la conciliación del lote: la rectificación no aprobó el pedido.</summary>
+    [HttpPost("{id:guid}/no-aprobar")]
+    [Authorize(Policy = Permisos.DesignacionesConciliar)]
+    public Task<PedidoDto> NoAprobar(
+        Guid id,
+        AccionPedidoDto datos,
+        [FromHeader(Name = "Idempotency-Key")] string? clave,
+        CancellationToken ct) =>
+        servicio.AplicarAccionIdempotenteAsync(
+            id, new AccionPedido.NoAprobar(datos.Comentario ?? string.Empty), RequerirClave(clave),
+            "no-aprobar", datos.Comentario ?? string.Empty, ct);
+
+    internal static Guid RequerirClave(string? valor)
     {
         if (Guid.TryParse(valor, out var clave)) return clave;
         throw new ExcepcionAplicacion(

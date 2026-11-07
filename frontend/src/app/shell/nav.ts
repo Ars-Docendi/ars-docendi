@@ -63,10 +63,22 @@ export const NAVEGACION: NavGroup[] = [
         permiso: "designaciones.revisar",
       },
       {
+        to: "/designaciones/conciliacion",
+        icon: "conciliacion",
+        label: "Conciliación",
+        permiso: "designaciones.conciliar",
+      },
+      {
         to: "/designaciones/periodos",
         icon: "periodos",
         label: "Períodos",
         permiso: "periodos.administrar",
+      },
+      {
+        to: "/designaciones/comisiones",
+        icon: "comisiones",
+        label: "Comisiones",
+        permiso: "comisiones.ver",
       },
     ],
   },

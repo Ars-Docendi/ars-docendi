@@ -56,6 +56,11 @@
       "motivo": "Los avisos in-app de cada usuario: texto armado por los módulos emisores, con nombres y referencias a entidades ajenas, dirigido a una persona concreta. Ninguna pregunta del catálogo lo necesita y leerlo permitiría reconstruir qué le avisaron a quién. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
     },
     {
+      "nombre": "comisiones",
+      "estado": "denegado",
+      "motivo": "Copia regenerable de las comisiones que informa SIU-Guaraní: docentes con nombre y responsabilidad, horarios y aulas, más el registro de importaciones con su actor. Ninguna pregunta del catálogo lo necesita, y exponerlo exigiría GRANT por columna y RLS que hoy no existen. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+    },
+    {
       "nombre": "public",
       "estado": "denegado",
       "motivo": "No es un schema de dominio: tiene el historial de migraciones de EF y las dos tablas de metadatos del seed sintético (seed_metadata, seed_identities). Nada de eso responde una pregunta de nadie, y seed_identities enumera qué usuarios son sembrados, que es información sobre el sistema y no sobre el Departamento."
@@ -380,6 +385,10 @@
         {
           "columna": "snapshot",
           "motivo": "JSONB de forma arbitraria, congelado al enviar el pedido. Hoy guarda cargo, dedicación, horas, materia y horas de investigación y externas; su forma puede cambiar sin que nadie revise este manifiesto, y un JSONB no admite GRANT por columna sobre su contenido. Es el mismo defecto estructural que response_body en idempotencia_comandos. Los mismos datos están disponibles en columnas propias."
+        },
+        {
+          "columna": "materializado_en",
+          "motivo": "Marca técnica de la sincronización: indica si el pedido ya se escribió sobre las designaciones vigentes, para no volver a escribirlo. Lo que una pregunta necesita saber está en estado (aprobado = sincronizado) y en las designaciones vigentes."
         }
       ],
       "nota": "justificacion y tipo_baja_detalle son texto libre que puede nombrar a cualquiera. Se conceden porque el trámite no se entiende sin ellas, y se clasifican como sensible-texto en el manifiesto de sensibilidad: no viajan al modelo."

@@ -1,3 +1,5 @@
+using ArsDocendi.Shared.Auth;
+
 namespace Modules.Designaciones.Domain;
 
 /// <summary>
@@ -16,7 +18,10 @@ namespace Modules.Designaciones.Domain;
 /// </summary>
 public static class MaquinaEstadosPedido
 {
-    /// <summary>Avance de la cadena al aceptar. <c>en_lote</c> es terminal para el alcance actual.</summary>
+    /// <summary>
+    /// Avance de la cadena al aceptar. Después de <c>en_lote</c> no se acepta: el pedido
+    /// sale del circuito de revisión y se concilia.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, string> EtapaSiguiente =
         new Dictionary<string, string>
         {
@@ -60,6 +65,15 @@ public static class MaquinaEstadosPedido
                 $"El pedido está en un estado terminal (\"{pedido.Estado}\"): no admite ninguna acción.");
         }
 
+        // En conciliación sólo se sincroniza o se rechaza; el circuito de revisión
+        // (enviar, aceptar, devolver, priorizar…) ya terminó.
+        if (EstadosPedido.EnConciliacion.Contains(pedido.Estado)
+            && accion is not (AccionPedido.Sincronizar or AccionPedido.NoAprobar))
+        {
+            throw new ErrorDominioPedido(
+                $"El pedido está en la conciliación del lote (\"{pedido.Estado}\"): sólo se puede sincronizar, rechazar o editar con permiso.");
+        }
+
         if (pedido.Novedad == Novedades.SinNovedad
             && accion is AccionPedido.Enviar or AccionPedido.Reenviar or AccionPedido.Aceptar)
         {
@@ -77,6 +91,8 @@ public static class MaquinaEstadosPedido
             AccionPedido.Reenviar => Reenviar(pedido, alcance, actor),
             AccionPedido.Priorizar a => Priorizar(pedido, alcance, actor, a.Motivo, true),
             AccionPedido.Despriorizar a => Priorizar(pedido, alcance, actor, a.Comentario, false),
+            AccionPedido.Sincronizar => Sincronizar(pedido, alcance, actor),
+            AccionPedido.NoAprobar a => NoAprobar(pedido, alcance, actor, a.Motivo),
             _ => throw new ErrorDominioPedido($"Acción no soportada: {accion.GetType().Name}"),
         };
     }
@@ -139,13 +155,23 @@ public static class MaquinaEstadosPedido
     /// <summary>
     /// ¿El actor puede editar? Un borrador, quien puede cargar pedidos; un devuelto, su
     /// propietario actual, y si volvió al primer nivel también Administrativo o Secretaría
-    /// [BR-designaciones-008]. El ámbito lo verifica <see cref="AlcanzaAmbito"/>.
+    /// [BR-designaciones-008]. Además, con <c>designaciones.editar</c>, un pedido en lote o
+    /// rechazado en la conciliación que todavía no se escribió sobre las designaciones. El
+    /// ámbito lo valida <see cref="AlcanzaAmbito"/>.
     /// </summary>
     public static bool PuedeEditar(Pedido pedido, ActorContexto actor)
     {
         if (pedido.EsTerminal)
         {
             return false;
+        }
+
+        if (EstadosPedido.EnConciliacion.Contains(pedido.Estado))
+        {
+            // Un pedido heredado del circuito anterior ya se materializó al aceptar
+            // Decanato: editarlo dejaría al pedido distinto de lo que se escribió.
+            return pedido.MaterializadoEn is null
+                && actor.TienePermiso(Permisos.DesignacionesEditar);
         }
 
         var esBorradorDeCargador =
@@ -169,6 +195,85 @@ public static class MaquinaEstadosPedido
     public static bool PuedeEliminar(Pedido pedido, ActorContexto actor) =>
         pedido.Estado == EstadosPedido.Borrador
         && (actor.Tiene(RolesCircuito.JefeCatedra) || EsCargadorDepartamental(actor));
+
+    /// <summary>
+    /// ¿El actor puede conciliar este pedido? Está en lote, el actor tiene
+    /// <c>designaciones.conciliar</c> y alcanza su ámbito.
+    /// </summary>
+    public static bool PuedeConciliar(Pedido pedido, AlcancePedido alcance, ActorContexto actor) =>
+        pedido.Estado == EstadosPedido.EnLote
+        && actor.TienePermiso(Permisos.DesignacionesConciliar)
+        && AlcanzaAmbito(alcance, actor);
+
+    /// <summary>
+    /// Con qué rol se registra en el historial una acción que se autoriza por permiso
+    /// (conciliar o editar después del circuito): el rol de circuito de mayor alcance
+    /// que tenga el actor, porque el historial registra un rol, no un permiso.
+    /// </summary>
+    public static string RolActuantePorPermiso(ActorContexto actor)
+    {
+        string[] enOrdenDeAlcance =
+        [
+            RolesCircuito.Secretaria,
+            RolesCircuito.Administrativo,
+            RolesCircuito.Decanato,
+            RolesCircuito.CoordinadorCarrera,
+            RolesCircuito.JefeCatedra,
+        ];
+
+        return Array.Find(enOrdenDeAlcance, actor.Tiene)
+            ?? throw new ErrorDominioPedido(
+                "El actor no tiene ningún rol de sistema que participe del circuito.");
+    }
+
+    private static TransicionPedido Sincronizar(
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor)
+    {
+        GuardarConciliador(pedido, alcance, actor);
+
+        return new TransicionPedido(
+            EstadosPedido.Aprobado,
+            AccionesHistorial.Sincronizar,
+            RolActuantePorPermiso(actor));
+    }
+
+    private static TransicionPedido NoAprobar(
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor, string motivo)
+    {
+        GuardarConciliador(pedido, alcance, actor);
+        var texto = RequerirTexto(motivo, "El rechazo en la conciliación exige un motivo obligatorio.");
+
+        if (pedido.MaterializadoEn is not null)
+        {
+            throw new ErrorDominioPedido(
+                "El pedido ya se escribió sobre las designaciones al aceptarlo Decanato: no se puede rechazar en la conciliación.");
+        }
+
+        return new TransicionPedido(
+            EstadosPedido.NoAprobado,
+            AccionesHistorial.NoAprobar,
+            RolActuantePorPermiso(actor),
+            Comentario: texto);
+    }
+
+    private static void GuardarConciliador(Pedido pedido, AlcancePedido alcance, ActorContexto actor)
+    {
+        if (pedido.Estado != EstadosPedido.EnLote)
+        {
+            throw new ErrorDominioPedido(
+                $"Sólo se concilia un pedido en lote (estado actual: \"{pedido.Estado}\").");
+        }
+
+        if (!actor.TienePermiso(Permisos.DesignacionesConciliar))
+        {
+            throw new ErrorDominioPedido("Conciliar el lote requiere el permiso designaciones.conciliar.");
+        }
+
+        if (!AlcanzaAmbito(alcance, actor))
+        {
+            throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
+        }
+    }
 
     private static bool EsEtapaDeRevision(string estado) =>
         RolesCircuito.RolPorEtapa.ContainsKey(estado);

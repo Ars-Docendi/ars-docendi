@@ -31,7 +31,8 @@ public sealed record TareaDto(
     Guid? ProyectoId,
     Guid? TareaPadreId,
     IReadOnlyList<Guid> TareasRelacionadasIds,
-    uint Version);
+    uint Version,
+    bool AvanceCalculado);
 
 /// <summary><c>AdmiteTareas</c> sale del catálogo de estados: un proyecto que la admite recibe tareas nuevas y genera cuadro en la pantalla inicial.</summary>
 public sealed record ProyectoTareasDto(
@@ -79,6 +80,9 @@ public sealed record EditarTareaRequest(
 public sealed record CambiarEstadoTareaRequest(string Estado, string? Comentario, string? Solucion, uint? Version = null);
 
 public sealed record EditarAvanceRequest(int PorcentajeAvance, uint? Version = null);
+
+/// <summary><c>Version</c> es la de la tarea que se vincula: es la que cambia de padre.</summary>
+public sealed record VincularHijaRequest(Guid TareaId, uint? Version = null);
 
 public sealed record ComentarTareaRequest(string Texto);
 

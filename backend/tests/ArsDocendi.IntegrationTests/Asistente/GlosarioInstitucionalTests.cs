@@ -134,11 +134,11 @@ public sealed partial class GlosarioInstitucionalTests(PostgresFixture postgres)
     // ------------------------------------------------------------- valores
 
     [Fact]
-    public async Task Aprobado_sobre_el_estado_falla_porque_no_esta_en_el_CHECK()
+    public async Task Un_estado_que_no_esta_en_el_CHECK_falla()
     {
-        var roto = Termino("aprobado de mentira", columna: Estado, valores: ["aprobado"]);
+        var roto = Termino("archivado de mentira", columna: Estado, valores: ["archivado"]);
 
-        await AssertFallaAsync(roto, "aprobado de mentira", Estado, "CHECK", valor: "aprobado");
+        await AssertFallaAsync(roto, "archivado de mentira", Estado, "CHECK", valor: "archivado");
     }
 
     [Fact]

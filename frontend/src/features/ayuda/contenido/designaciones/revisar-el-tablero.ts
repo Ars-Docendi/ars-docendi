@@ -29,7 +29,7 @@ export const revisarElTablero: ArticuloAyuda = {
       titulo: "Abrí Revisión",
       etiquetaIndice: "Abrir Revisión",
       cuerpo:
-        "En el menú, grupo Designaciones, elegí Revisión. El título aclara el alcance: «Pedidos en tu ámbito», seguido de tu carrera o del departamento. La pantalla abre en la pestaña de tu propia área (por ejemplo, En Coordinación para el Coordinador) o en Todos si tu rol no tiene un área propia.",
+        "En el menú, grupo Designaciones, elegí Revisión. El título aclara el alcance: «Pedidos en tu ámbito», seguido de tu carrera o del departamento. La pantalla abre en la pestaña de tu propia área (por ejemplo, En Coordinación para el Coordinador); Secretaría Académica abre en Finalizados, donde descarga el lote, y si tu rol no tiene un área propia abre en Todos.",
       captura: {
         src: "/ayuda/designaciones/revisar-el-tablero-paso-1.webp",
         alt: "Revisión de un Coordinador con las pestañas y el contador de cada una.",

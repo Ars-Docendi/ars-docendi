@@ -35,6 +35,9 @@
 #   BACKUP_RETENTION_DAYS             default 7, entero positivo
 #   MICROSOFT_LOGIN_ENABLED MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET
 #                                     ingreso con Microsoft (default apagado; en prod obligatorio)
+#   GUARANI_URL_BASE guarani_user guarani_pass
+#   GUARANI_RUTA_PERIODOS_LECTIVOS GUARANI_RUTA_COMISIONES
+#                                     sólo prod: integración Guaraní (vacía → importación 503)
 #   ADMIN_INICIAL_UPN ADMIN_INICIAL_NOMBRE ADMIN_INICIAL_APELLIDO ADMIN_INICIAL_DOCUMENTO
 #                                     sólo prod: administrador inicial que crea --migrate
 #   SELLADO_CLAVE SELLADO_CLAVE_2     claves HMAC base64 de la cadena de sellos, versiones 1 y 2
