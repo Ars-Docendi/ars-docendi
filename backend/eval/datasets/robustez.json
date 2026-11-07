@@ -108,6 +108,18 @@
       "origen": "cap-040",
       "clase": "parcial",
       "pregunta": "dias y horarios de Ledesma"
+    },
+    {
+      "id": "rob-019",
+      "origen": "cap-051",
+      "clase": "coloquial",
+      "pregunta": "che, ¿qué pedidos de aula siguen sin respuesta?"
+    },
+    {
+      "id": "rob-020",
+      "origen": "cap-053",
+      "clase": "sin_tildes",
+      "pregunta": "Cuantas solicitudes de aula se rechazaron por materia?"
     }
   ]
 }

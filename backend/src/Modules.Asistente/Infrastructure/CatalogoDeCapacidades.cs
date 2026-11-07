@@ -28,6 +28,10 @@ internal sealed class CatalogoDeCapacidades(
     private const int MaximoDeEjemplos = 6;
 
     private const string EsquemaDeComisiones = "comisiones.";
+    private const string EsquemaDeAulas = "aulas.";
+
+    /// <summary>Cuántos ejemplos de aulas se suman como mucho, para quien puede preguntarlas.</summary>
+    private const int MaximoDeEjemplosDeAulas = 1;
 
     /// <summary>Cuántos ejemplos de comisiones se suman como mucho, para quien puede preguntarlas.</summary>
     private const int MaximoDeEjemplosDeComisiones = 2;
@@ -47,12 +51,12 @@ internal sealed class CatalogoDeCapacidades(
             // Same gate as the examples and the presentation: the GRANT is common to both read
             // roles, but the areas listed (and counted, and described by their comments) must not
             // announce comisiones to an actor whose policy returns nothing.
-            perfil.VeComisiones
-                ? resuelto.Cubre
-                : [.. resuelto.Cubre.Where(area => !area.Nombre.StartsWith(EsquemaDeComisiones, StringComparison.Ordinal))],
+            [.. resuelto.Cubre.Where(area =>
+                (perfil.VeComisiones || !area.Nombre.StartsWith(EsquemaDeComisiones, StringComparison.Ordinal))
+                && (VeAulas(perfil) || !area.Nombre.StartsWith(EsquemaDeAulas, StringComparison.Ordinal)))],
             // Fuera de la caché, como la presentación: el GRANT de comisiones es de los dos roles de
             // lectura, pero ofrecer sus preguntas depende del permiso vivo del actor.
-            perfil.VeComisiones ? ConComisiones(resuelto) : resuelto.Ejemplos,
+            ConEjemplosDeDominio(resuelto, perfil),
             PoliticaDeAbstencion.LimitesDelAsistente,
             PoliticaDeAbstencion.TextoDeAlcance(perfil.EsGlobal),
             // Fuera de la caché a propósito: lo cacheado se indexa por rol de lectura —dos
@@ -96,12 +100,29 @@ internal sealed class CatalogoDeCapacidades(
         };
     }
 
-    /// <summary>Los ejemplos de comisiones ocupan el final de la lista sin pasar del máximo.</summary>
-    private static IReadOnlyList<string> ConComisiones(Resuelto resuelto) =>
-    [
-        .. resuelto.Ejemplos.Take(MaximoDeEjemplos - resuelto.EjemplosDeComisiones.Count),
-        .. resuelto.EjemplosDeComisiones,
-    ];
+    /// <summary>Whether the actor holds either aulas permission (all requests or their own).</summary>
+    private static bool VeAulas(PerfilDelActor perfil) =>
+        perfil.VeSolicitudesDeAula || perfil.VeSolicitudesPropias;
+
+    /// <summary>
+    /// The domain examples take the end of the list without passing the maximum, each only for
+    /// actors who hold the live permission.
+    /// </summary>
+    private static IReadOnlyList<string> ConEjemplosDeDominio(Resuelto resuelto, PerfilDelActor perfil)
+    {
+        var deDominio = new List<string>();
+        if (perfil.VeComisiones)
+        {
+            deDominio.AddRange(resuelto.EjemplosDeComisiones);
+        }
+
+        if (VeAulas(perfil))
+        {
+            deDominio.AddRange(resuelto.EjemplosDeAulas);
+        }
+
+        return [.. resuelto.Ejemplos.Take(MaximoDeEjemplos - deDominio.Count), .. deDominio];
+    }
 
     private Task<Resuelto> ResolverAsync(Guid actor, bool conDatosPersonales, CancellationToken ct) =>
         cache.ObtenerAsync(conDatosPersonales, () => LeerAsync(actor, conDatosPersonales, ct), ct);
@@ -123,15 +144,22 @@ internal sealed class CatalogoDeCapacidades(
 
         // Los ejemplos de comisiones se eligen aparte: nunca entran en la lista general, que es igual
         // para todos los actores de un rol de lectura.
-        var esDeComisiones = ejemplos.Catalogo.ToLookup(
-            e => DetectorDeDominios.Detectar(e.Sql).Dominios.HasFlag(DominioConsultado.Comisiones));
-        var deComisiones = esDeComisiones[true].ToList();
-        var generales = esDeComisiones[false].ToList();
+        var porDominio = ejemplos.Catalogo.ToLookup(e =>
+        {
+            var dominios = DetectorDeDominios.Detectar(e.Sql).Dominios;
+            return dominios.HasFlag(DominioConsultado.Comisiones) ? DominioConsultado.Comisiones
+                : dominios.HasFlag(DominioConsultado.Aulas) ? DominioConsultado.Aulas
+                : DominioConsultado.Ninguno;
+        });
 
         return new Resuelto(
             cubre,
-            await ElegirEjemplosAsync(conexion, actor, generales, MaximoDeEjemplos, ct),
-            await ElegirEjemplosAsync(conexion, actor, deComisiones, MaximoDeEjemplosDeComisiones, ct));
+            await ElegirEjemplosAsync(
+                conexion, actor, [.. porDominio[DominioConsultado.Ninguno]], MaximoDeEjemplos, ct),
+            await ElegirEjemplosAsync(
+                conexion, actor, [.. porDominio[DominioConsultado.Comisiones]], MaximoDeEjemplosDeComisiones, ct),
+            await ElegirEjemplosAsync(
+                conexion, actor, [.. porDominio[DominioConsultado.Aulas]], MaximoDeEjemplosDeAulas, ct));
     }
 
     /// <summary>Elige hasta <paramref name="maximo"/> ejemplos que el actor <b>puede ejecutar</b>.</summary>
@@ -212,7 +240,8 @@ internal sealed class CatalogoDeCapacidades(
     internal sealed record Resuelto(
         IReadOnlyList<AreaCubierta> Cubre,
         IReadOnlyList<string> Ejemplos,
-        IReadOnlyList<string> EjemplosDeComisiones);
+        IReadOnlyList<string> EjemplosDeComisiones,
+        IReadOnlyList<string> EjemplosDeAulas);
 }
 
 /// <summary>Guarda lo que cuesta leer del catálogo de PostgreSQL, por rol.</summary>

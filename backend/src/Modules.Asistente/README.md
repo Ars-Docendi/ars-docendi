@@ -551,13 +551,18 @@ los dos roles de lectura tienen el `GRANT`, pero el catálogo solo las ofrece a 
 (los que `DetectorDeDominios` ubica en ese dominio) se eligen aparte y se suman al final
 de la lista, sin pasar del máximo.
 
+Las áreas, los ejemplos y la presentación de **aulas** siguen el mismo criterio con los
+permisos vivos `aulas.aprobar` (`VeSolicitudesDeAula`: todas las solicitudes) y
+`aulas.solicitar` (`VeSolicitudesPropias`: «tus solicitudes»); nadie más las ve anunciadas.
+
 ### El alcance se evalúa por dominio
 
 `DetectorDeDominios.Detectar(sql)` (por tokens) devuelve las tablas calificadas y los
 dominios que toca la consulta generada; de ahí salen la cobertura de portal y
 `PoliticaDeAbstencion.AlcanzaTodo(perfil, dominios)`. Designaciones exige ámbito global y
 `designaciones.ver`; portal agrega `portal.ver_trayectoria_ajena`; comisiones exige
-solamente `comisiones.ver` (sin ámbito, igual que la policy). Sin dominio (solo catálogos
+solamente `comisiones.ver` (sin ámbito, igual que la policy); aulas exige `aulas.aprobar`
+(quien sólo solicita ve las suyas y recibe el aviso de alcance). Sin dominio (solo catálogos
 de identity) vale la regla de designaciones; un dominio desconocido nunca alcanza todo.
 Si una consulta de comisiones vuelve vacía, `IConsultorDeCobertura.ObtenerPeriodosImportadosAsync`
 suma los períodos que el actor ve importados (falla en silencio).
@@ -1256,6 +1261,11 @@ conceden a los dos roles (`001_asistente_grants.sql`, columna por columna; `sga_
 queda denegada). La RLS (`ENABLE`, predicado `comisiones.ver` sin ámbito) y los `COMMENT ON`
 son migraciones de Designaciones, que es el dueño del schema; el `GRANT` corre después.
 Ver BR-asistente-010.
+
+**Lectura de `aulas`.** La única tabla del schema, `aulas.solicitudes_reserva`, se concede
+entera a los dos roles (`001_asistente_grants.sql`); la RLS (`ENABLE`, `aulas.aprobar` todas /
+`aulas.solicitar` las propias) y los `COMMENT ON` son migraciones de Aulas
+(`RlsAsistenteSolicitudesAulas`, `ComentariosAsistenteSolicitudesAulas`). Ver BR-asistente-011.
 
 El DDL vive en `database/asistente/*.sql` y se embebe como recurso de **este**
 assembly, igual que `database/designaciones/*.sql` en su módulo.

@@ -9,9 +9,10 @@ internal enum DominioConsultado
     Designaciones = 1,
     Portal = 2,
     Comisiones = 4,
+    Aulas = 8,
 
     /// <summary>Un schema habilitado que este detector no sabe evaluar: nunca se asume alcance total.</summary>
-    Desconocido = 8,
+    Desconocido = 16,
 }
 
 /// <summary>Las tablas que una consulta nombra y los dominios a los que pertenecen.</summary>
@@ -37,6 +38,7 @@ internal static class DetectorDeDominios
             ["designaciones"] = DominioConsultado.Designaciones,
             ["portal"] = DominioConsultado.Portal,
             ["comisiones"] = DominioConsultado.Comisiones,
+            ["aulas"] = DominioConsultado.Aulas,
         };
 
     public static readonly TablasDeLaConsulta Ninguna = new([], DominioConsultado.Ninguno);

@@ -942,6 +942,70 @@
           "motivo": "Texto libre de Guaraní que nombra un aula, no una persona. La protección de comisiones es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
         }
       ]
+    },
+    {
+      "schema": "aulas",
+      "tabla": "solicitudes_reserva",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "docente_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "dia",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horario_desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horario_hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "cantidad_alumnos_aprox",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "comision",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "estado",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "aula_asignada",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "motivo_rechazo",
+          "clasificacion": "sensible-texto",
+          "motivo": "Texto libre que escribe quien rechaza o cancela una solicitud: puede nombrar personas o dar razones que no admiten enmascarado por reglas. El usuario lo ve en la tabla de resultados, pero no viaja al modelo."
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "motivo_cancelacion",
+          "clasificacion": "sensible-texto",
+          "motivo": "Texto libre que escribe quien rechaza o cancela una solicitud: puede nombrar personas o dar razones que no admiten enmascarado por reglas. El usuario lo ve en la tabla de resultados, pero no viaja al modelo."
+        },
+        {
+          "columna": "rol_solicitante",
+          "clasificacion": "publica"
+        }
+      ]
     }
   ]
 }

@@ -382,6 +382,48 @@
       "actor": "global",
       "sql_referencia": null,
       "motivos_aceptables": ["no_cubierto"]
+    },
+    {
+      "id": "cap-051",
+      "pregunta": "¿Qué solicitudes de aula están pendientes?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT s.dia, s.horario_desde, s.horario_hasta, m.name AS materia, s.comision, p.apellido, p.nombre FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id JOIN identity.personas p ON p.id = s.docente_id WHERE s.estado = 'pendiente' ORDER BY s.dia, s.horario_desde, p.apellido"
+    },
+    {
+      "id": "cap-052",
+      "pregunta": "¿Qué aula se asignó a las reservas aprobadas del 17 de marzo de 2026?",
+      "categoria": "filtro_temporal",
+      "actor": "global",
+      "sql_referencia": "SELECT s.aula_asignada, s.horario_desde, s.horario_hasta, m.name AS materia FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE s.estado = 'aprobada' AND s.dia = DATE '2026-03-17' ORDER BY s.horario_desde"
+    },
+    {
+      "id": "cap-053",
+      "pregunta": "¿Cuántas solicitudes de aula se rechazaron por cada materia?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT m.name AS materia, count(*) AS cantidad FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE s.estado = 'rechazada' GROUP BY m.name ORDER BY m.name"
+    },
+    {
+      "id": "cap-054",
+      "pregunta": "¿Qué solicitudes de aula hice yo y en qué estado están?",
+      "categoria": "consulta_simple",
+      "actor": "materia",
+      "sql_referencia": "SELECT s.dia, s.horario_desde, s.horario_hasta, m.name AS materia, s.comision, s.estado, s.aula_asignada FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id ORDER BY s.dia, s.horario_desde"
+    },
+    {
+      "id": "cap-055",
+      "pregunta": "¿Cuántas reservas de aula están pendientes, aprobadas, rechazadas y canceladas?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT s.estado, count(*) AS cantidad FROM aulas.solicitudes_reserva s GROUP BY s.estado ORDER BY s.estado"
+    },
+    {
+      "id": "cap-056",
+      "pregunta": "¿Qué solicitudes de aula se cancelaron y con qué motivo?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT s.dia, m.name AS materia, s.comision, s.motivo_cancelacion FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE s.estado = 'cancelada' ORDER BY s.dia, m.name"
     }
   ]
 }

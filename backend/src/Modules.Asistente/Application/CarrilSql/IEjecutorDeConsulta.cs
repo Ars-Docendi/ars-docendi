@@ -26,7 +26,9 @@ public sealed record PerfilDelActor(
     bool AlcanzaDesignaciones = false,
     bool VeTrayectoriaAjena = false,
     bool VeDesignaciones = false,
-    bool VeComisiones = false);
+    bool VeComisiones = false,
+    bool VeSolicitudesDeAula = false,
+    bool VeSolicitudesPropias = false);
 
 /// <summary>Resuelve el alcance y el acceso a datos personales del actor.</summary>
 public interface IPerfilDelActor

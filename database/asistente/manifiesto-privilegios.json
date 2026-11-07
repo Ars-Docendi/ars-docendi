@@ -47,8 +47,8 @@
     },
     {
       "nombre": "aulas",
-      "estado": "denegado",
-      "motivo": "Las solicitudes de reserva de aulas: quién pidió qué aula y por qué, con motivos de cancelación en texto libre que no admite enmascarado por columna. Ninguna pregunta del catálogo lo necesita. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+      "estado": "expuesto",
+      "motivo": "Se concede la única tabla del schema, `solicitudes_reserva`: responde qué solicitudes de aula hay, en qué estado, para qué fecha y materia y con qué aula asignada. No hay catálogo de aulas, así que no responde qué aula está libre ni qué capacidad tiene. Conceder es seguro porque la frontera la sostiene el motor: GRANT por columna contra este manifiesto, RLS con el predicado `aulas.aprobar` (todas) o `aulas.solicitar` y solicitante propio, igual que la pantalla de Aulas, y tests que fallan si cualquiera de las dos se degrada (AGENTS.md, regla 11)."
     },
     {
       "nombre": "notificaciones",
@@ -478,6 +478,14 @@
       "columnas_denegadas": []
     },
     {
+      "schema": "aulas",
+      "tabla": "__EFMigrationsHistory",
+      "estado": "denegada-explicita",
+      "motivo": "Historial de migraciones propio del schema. Tabla de control del motor de migraciones. Es fontanería del framework, no dato de dominio: ninguna pregunta del alcance la necesita, y exponerla filtra el estado interno del versionado del esquema. La detectó el test de manifiesto al exponer el schema aulas.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
       "schema": "designaciones",
       "tabla": "__EFMigrationsHistory",
       "estado": "denegada-explicita",
@@ -785,6 +793,46 @@
       "estado": "denegada-explicita",
       "motivo": "Registro operativo de cada importación desde Guaraní: quién la lanzó (usuario_id), cuándo, con qué resultado y causa de falla. Nombra a una persona por su actuación y no responde ninguna pregunta de catálogo; qué períodos hay importados se deduce de sga_comisiones. Denegada entera y no columna por columna, para que reabrirla exija editar esta entrada.",
       "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "aulas",
+      "tabla": "solicitudes_reserva",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "docente_id",
+          "dia",
+          "horario_desde",
+          "horario_hasta",
+          "cantidad_alumnos_aprox",
+          "materia_id",
+          "comision",
+          "estado",
+          "aula_asignada",
+          "motivo_rechazo",
+          "created_at",
+          "motivo_cancelacion",
+          "rol_solicitante"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "docente_id",
+          "dia",
+          "horario_desde",
+          "horario_hasta",
+          "cantidad_alumnos_aprox",
+          "materia_id",
+          "comision",
+          "estado",
+          "aula_asignada",
+          "motivo_rechazo",
+          "created_at",
+          "motivo_cancelacion",
+          "rol_solicitante"
+        ]
+      },
       "columnas_denegadas": []
     }
   ]

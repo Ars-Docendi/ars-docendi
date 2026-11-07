@@ -48,6 +48,7 @@ BEGIN
   EXECUTE format('GRANT USAGE ON SCHEMA designaciones TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT USAGE ON SCHEMA portal TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT USAGE ON SCHEMA comisiones TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT USAGE ON SCHEMA aulas TO %I, %I', rol_basico, rol_pii);
 
   -- El schema audit queda FUERA DE ALCANCE, entero. change_log.old_row y
   -- change_log.new_row guardan la fila completa en JSON: cualquier dato personal
@@ -200,5 +201,20 @@ BEGIN
   EXECUTE format('GRANT SELECT (comision_guarani_id, carrera_codigo, carrera_nombre, carrera_id) ON comisiones.sga_comision_carreras TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (comision_guarani_id, orden, nombre, responsabilidad, persona_id) ON comisiones.sga_comision_docentes TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (comision_guarani_id, dia, desde, hasta, aula) ON comisiones.sga_comision_horarios TO %I, %I', rol_basico, rol_pii);
+
+  -- ------------------------------------------------------------------
+  -- aulas
+  -- ------------------------------------------------------------------
+  -- UNA SOLA TABLA, la única que tiene el schema: las solicitudes de reserva de aula.
+  -- Se conceden TODAS las columnas a los dos roles: ninguna es personal (quién pidió se
+  -- expresa con docente_id, que se une con identity.personas bajo el GRANT de esa
+  -- tabla). motivo_rechazo y motivo_cancelacion son texto libre del trámite y se
+  -- clasifican `sensible-texto` en el manifiesto de sensibilidad: el usuario las ve en
+  -- la tabla de resultados y no viajan al modelo.
+  --
+  -- CORRE DESPUÉS DEL RLS (RlsAsistenteSolicitudes, en la cadena de Aulas): conceder
+  -- antes abriría todas las solicitudes en la ventana entre los dos merges. El predicado
+  -- espeja la pantalla: aulas.aprobar ve todas, aulas.solicitar sólo las propias.
+  EXECUTE format('GRANT SELECT (id, docente_id, dia, horario_desde, horario_hasta, cantidad_alumnos_aprox, materia_id, comision, estado, aula_asignada, motivo_rechazo, created_at, motivo_cancelacion, rol_solicitante) ON aulas.solicitudes_reserva TO %I, %I', rol_basico, rol_pii);
 END
 $asistente_grants$;

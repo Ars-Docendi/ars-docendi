@@ -13,7 +13,8 @@ internal static class PoliticaDeAbstencion
     /// Se evalúa por dominio tocado y se exige TODO lo que exige cada uno. Designaciones: ámbito
     /// global y permiso. Portal: lo anterior más el permiso de trayectoria ajena. Comisiones: sólo
     /// <c>comisiones.ver</c>, sin ámbito, porque la policy tampoco lo mira: un jefe de cátedra ve
-    /// todas las comisiones y no se le puede decir «fuera de tu alcance» sobre datos que ve. Una
+    /// todas las comisiones y no se le puede decir «fuera de tu alcance» sobre datos que ve. Aulas: sólo <c>aulas.aprobar</c> ve todas las solicitudes; quien sólo solicita ve las suyas y
+    /// nunca se le dice «no hay» como hecho del Departamento. Una
     /// consulta que sólo toca catálogos de identity conserva la regla de designaciones. Un dominio
     /// desconocido nunca alcanza todo.
     /// </remarks>
@@ -41,6 +42,14 @@ internal static class PoliticaDeAbstencion
         if (dominios.HasFlag(DominioConsultado.Comisiones))
         {
             alcanza &= perfil.VeComisiones;
+        }
+
+        if (dominios.HasFlag(DominioConsultado.Aulas))
+        {
+            // Only aulas.aprobar sees every request. aulas.solicitar sees the actor's own, so for that
+            // actor zero rows (or any rows) say nothing about the Departamento: they get the scope
+            // notice, never "no hay" as a fact. Without either permission the policy returns nothing.
+            alcanza &= perfil.VeSolicitudesDeAula;
         }
 
         return alcanza;

@@ -225,6 +225,113 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         }
     }
 
+    // --------------------------------------------------------------------- aulas
+
+    // The aulas boundary mirrors the Aulas screen: aulas.aprobar sees every request, aulas.solicitar
+    // sees only the actor's own. No scope by materia or carrera.
+
+    [Fact]
+    public async Task Aulas_esta_habilitada_sin_FORCE_y_con_una_sola_policy_de_lectura()
+    {
+        var estado = await LeerFilasAsync(
+            """
+            SELECT c.relrowsecurity || '|' || c.relforcerowsecurity || '|'
+                   || (SELECT count(*) FROM pg_policies p
+                        WHERE p.schemaname = 'aulas' AND p.tablename = 'solicitudes_reserva'
+                          AND p.cmd = 'SELECT')
+              FROM pg_class c
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'aulas' AND c.relname = 'solicitudes_reserva'
+            """);
+
+        Assert.Equal(["true|false|1"], estado);
+    }
+
+    [Fact]
+    public async Task Quien_aprueba_ve_todas_las_solicitudes_y_quien_solicita_solo_las_suyas()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+
+        var delDueno = await EscalarAsync<long>("SELECT count(*) FROM aulas.solicitudes_reserva");
+        var delJefe = await EscalarAsync<long>(
+            """
+            SELECT count(*) FROM aulas.solicitudes_reserva s
+              JOIN identity.users u ON u.persona_id = s.docente_id
+             WHERE u.id = @actor
+            """, ("actor", Jefe));
+
+        // The expectation is built here, so the assertion holds for any seed: the jefe owns some
+        // requests and not all of them.
+        Assert.True(delJefe > 0 && delJefe < delDueno);
+
+        Assert.True(await TienePermisoAsync(Secretaria, Permisos.AulasAprobar));
+        Assert.Equal(delDueno, await ContarComoActorAsync(Secretaria, "aulas.solicitudes_reserva"));
+
+        Assert.True(await TienePermisoAsync(Jefe, Permisos.AulasSolicitar));
+        Assert.False(await TienePermisoAsync(Jefe, Permisos.AulasAprobar));
+        Assert.Equal(delJefe, await ContarComoActorAsync(Jefe, "aulas.solicitudes_reserva"));
+    }
+
+    [Fact]
+    public async Task Sin_ningun_permiso_de_aulas_no_hay_solicitud_visible_y_la_consulta_no_falla()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+
+        Assert.False(await TienePermisoAsync(Coordinador, Permisos.AulasAprobar));
+        Assert.False(await TienePermisoAsync(Coordinador, Permisos.AulasSolicitar));
+        Assert.Equal(0, await ContarComoActorAsync(Coordinador, "aulas.solicitudes_reserva"));
+
+        // Without an actor fixed there is nothing visible either.
+        await using var conexion = await AbrirConexionComoAsistenteAsync(false);
+        await using var comando = new NpgsqlCommand(
+            "SELECT count(*) FROM aulas.solicitudes_reserva", conexion);
+        Assert.Equal(0L, await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Quien_solicita_sin_persona_vinculada_no_ve_ninguna_solicitud()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+        await EjecutarAsync(
+            "UPDATE identity.users SET persona_id = NULL WHERE id = @actor", ("actor", Jefe));
+
+        // docente_id = NULL is not true: the policy fails closed instead of matching everything.
+        Assert.Equal(0, await ContarComoActorAsync(Jefe, "aulas.solicitudes_reserva"));
+    }
+
+    [Fact]
+    public async Task El_rol_dueno_sigue_viendo_todas_las_solicitudes_de_aula_sin_fijar_actor()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+        var duenoDePrueba = $"app_t{Guid.NewGuid():N}"[..20];
+        await EjecutarAsync(
+            $"""
+            CREATE ROLE "{duenoDePrueba}" WITH LOGIN PASSWORD 'dueno-de-prueba' NOSUPERUSER NOBYPASSRLS;
+            GRANT USAGE, CREATE ON SCHEMA aulas TO "{duenoDePrueba}";
+            GRANT USAGE ON SCHEMA identity TO "{duenoDePrueba}";
+            ALTER TABLE aulas.solicitudes_reserva OWNER TO "{duenoDePrueba}";
+            """);
+
+        var cadena = new NpgsqlConnectionStringBuilder(Cadena)
+        {
+            Username = duenoDePrueba,
+            Password = "dueno-de-prueba",
+            Pooling = false,
+        }.ConnectionString;
+
+        await using var conexion = new NpgsqlConnection(cadena);
+        await conexion.OpenAsync(TestContext.Current.CancellationToken);
+        await using var comando = new NpgsqlCommand(
+            "SELECT count(*) FROM aulas.solicitudes_reserva", conexion);
+
+        // The Aulas screen connects as the owner: ENABLE (not FORCE) must keep exempting it.
+        Assert.True((long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))! > 1);
+    }
+
     // ----------------------------------------------------------------- no regresión
 
     [Fact]
@@ -329,6 +436,41 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
             """,
             ("materia", MateriaIngenieriaDeSoftware),
             ("carrera", CarreraInformatica));
+    }
+
+    /// <summary>
+    /// Four requests: two by the jefe's persona and two by the coordinator's. Permissions are set
+    /// explicitly (approve for Secretaría, request for the jefe, nothing for anyone else) so the
+    /// test does not depend on the production role matrix. Inserted as the owner.
+    /// </summary>
+    private async Task SembrarSolicitudesDeAulaAsync()
+    {
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code IN ('aulas.aprobar', 'aulas.solicitar');
+
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT ur.role_id, p.id
+              FROM identity.user_roles ur, identity.permisos p
+             WHERE (ur.user_id = @secretaria AND p.code = 'aulas.aprobar')
+                OR (ur.user_id = @jefe AND p.code = 'aulas.solicitar')
+            ON CONFLICT DO NOTHING;
+
+            INSERT INTO aulas.solicitudes_reserva
+                (docente_id, dia, horario_desde, horario_hasta, cantidad_alumnos_aprox, materia_id,
+                 comision, estado, aula_asignada)
+            SELECT u.persona_id, DATE '2026-03-20', '18:00', '21:00', 30, @materia, '01',
+                   x.estado, CASE WHEN x.estado = 'aprobada' THEN 'Aula 101' END
+              FROM identity.users u
+             CROSS JOIN (VALUES ('pendiente'), ('aprobada')) AS x(estado)
+             WHERE u.id IN (@jefe, @coordinador);
+            """,
+            ("secretaria", Secretaria),
+            ("jefe", Jefe),
+            ("coordinador", Coordinador),
+            ("materia", MateriaIngenieriaDeSoftware));
     }
 
     private async Task CrearDuenoNoSuperusuarioAsync(string rol)

@@ -126,6 +126,21 @@
       "pregunta": "¿Qué docentes figuran en una comisión de Guaraní de una materia donde no tienen designación vigente?",
       "categoria": "cruce_de_tablas",
       "sql": "SELECT DISTINCT d.nombre AS docente, c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id WHERE d.persona_id IS NOT NULL AND c.materia_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM designaciones.designaciones x WHERE x.persona_id = d.persona_id AND x.materia_id = c.materia_id AND x.vigente_hasta IS NULL) ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, d.nombre"
+    },
+    {
+      "pregunta": "¿Qué aulas se asignaron a las reservas aprobadas de Sistemas Operativos?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT s.dia, s.horario_desde, s.horario_hasta, s.aula_asignada FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE m.name = 'Sistemas Operativos' AND s.estado = 'aprobada' ORDER BY s.dia, s.horario_desde"
+    },
+    {
+      "pregunta": "¿Qué reservas de aula se rechazaron y por qué motivo?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT s.dia, m.name AS materia, s.comision, s.motivo_rechazo FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE s.estado = 'rechazada' ORDER BY s.dia, m.name"
+    },
+    {
+      "pregunta": "¿Qué docentes hicieron más pedidos de reserva y cuántos?",
+      "categoria": "agregacion",
+      "sql": "SELECT p.apellido, p.nombre, count(*) AS cantidad FROM aulas.solicitudes_reserva s JOIN identity.personas p ON p.id = s.docente_id GROUP BY p.apellido, p.nombre ORDER BY cantidad DESC, p.apellido, p.nombre"
     }
   ]
 }

@@ -38,6 +38,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     /// caso multirol que el seed compartido dejó de traer.
     /// </summary>
     private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
+    private static readonly Guid RolJefe = Guid.Parse("a1000000-0000-4000-8000-000000000002");
 
     private static readonly string[] ColumnasPersonales =
         ["documento", "cuil", "fecha_nacimiento", "telefono", "upn"];
@@ -84,11 +85,13 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var conPii = await catalogo.ObtenerAsync(Secretaria, ct);
         var sinPii = await catalogo.ObtenerAsync(Coordinador, ct);
 
-        Assert.True(conPii.Columnas > sinPii.Columnas,
-            $"Con datos personales: {conPii.Columnas}; sin: {sinPii.Columnas}.");
+        // Aulas is announced by the live permission (Secretaría approves, the coordinator holds
+        // neither), not by the read role: leave it out so only the PII difference is measured.
+        Assert.True(ColumnasSinAulas(conPii) > ColumnasSinAulas(sinPii),
+            $"Con datos personales: {ColumnasSinAulas(conPii)}; sin: {ColumnasSinAulas(sinPii)}.");
 
         // Cinco columnas exactamente: documento, cuil, fecha_nacimiento, telefono y upn.
-        Assert.Equal(5, conPii.Columnas - sinPii.Columnas);
+        Assert.Equal(5, ColumnasSinAulas(conPii) - ColumnasSinAulas(sinPii));
     }
 
     [Fact]
@@ -106,9 +109,12 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var legibles = await LectorDeCatalogo.LeerColumnasAsync(
             conexion, TestContext.Current.CancellationToken);
 
-        Assert.Equal(legibles.Count, puede.Columnas);
+        // The coordinator holds no aulas permission, so the catalog leaves aulas out even though the
+        // read role holds the GRANT (same gate as comisiones, by the live permission).
+        var sinAulas = legibles.Where(c => c.Esquema != "aulas").ToList();
+        Assert.Equal(sinAulas.Count, puede.Columnas);
         Assert.Equal(
-            legibles.Select(c => $"{c.Esquema}.{c.Tabla}").Distinct().Count(),
+            sinAulas.Select(c => $"{c.Esquema}.{c.Tabla}").Distinct().Count(),
             puede.Tablas);
     }
 
@@ -172,7 +178,8 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var deMateria = await catalogo.ObtenerAsync(Jefe, ct);
         var global = await catalogo.ObtenerAsync(Secretaria, ct);
 
-        Assert.Equal(deCarrera.Columnas, deMateria.Columnas);
+        // Aulas follows the live permission (the jefe requests, the coordinator does not), not scope.
+        Assert.Equal(ColumnasSinAulas(deCarrera), ColumnasSinAulas(deMateria));
         Assert.Equal(deCarrera.Alcance, deMateria.Alcance);
         Assert.NotEqual(global.Alcance, deCarrera.Alcance);
     }
@@ -230,13 +237,14 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             deDocente.Cubre,
             deJefe.Cubre.Where(area => !area.Nombre.StartsWith("comisiones.", StringComparison.Ordinal)));
 
-        // Same for the examples: the general ones are the same for both.
+        // Same for the examples: the general ones are the same for both (domain examples take the
+        // tail of the list, so compare only the leading general ones).
         Assert.Equal(
             deDocente.Ejemplos.Where(EsDeComisiones),
             []);
         Assert.Equal(
-            deDocente.Ejemplos.Take(4),
-            deJefe.Ejemplos.Where(ejemplo => !EsDeComisiones(ejemplo)).Take(4));
+            deDocente.Ejemplos.Where(ejemplo => !EsDeAulas(ejemplo)).Take(3),
+            deJefe.Ejemplos.Where(ejemplo => !EsDeComisiones(ejemplo) && !EsDeAulas(ejemplo)).Take(3));
     }
 
     // ------------------------------------------------------ la meta-pregunta
@@ -385,6 +393,62 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             Assert.DoesNotContain(prohibida, texto, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    // ------------------------------------------------------------------ aulas
+
+    [Fact]
+    public async Task Las_solicitudes_de_aula_se_anuncian_segun_el_permiso_vivo_y_dicen_de_quien_son()
+    {
+        // Both read roles hold the GRANT; only the live permissions tell who sees what. The approver
+        // is told about all requests, who only requests about their own, anyone else nothing.
+        await SembrarAsync();
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code IN ('aulas.aprobar', 'aulas.solicitar');
+
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT @secretaria, p.id FROM identity.permisos p WHERE p.code = 'aulas.aprobar'
+            UNION ALL
+            SELECT @jefe, p.id FROM identity.permisos p WHERE p.code = 'aulas.solicitar';
+            """,
+            ("secretaria", RolSecretaria), ("jefe", RolJefe));
+        var ct = TestContext.Current.CancellationToken;
+        var catalogo = Catalogo();
+
+        var aprueba = await catalogo.ObtenerAsync(Secretaria, ct);
+        var solicita = await catalogo.ObtenerAsync(Jefe, ct);
+        var ninguno = await catalogo.ObtenerAsync(Coordinador, ct);
+
+        Assert.Contains("solicitudes de reserva de aula, con su estado", aprueba.Presentacion, StringComparison.Ordinal);
+        Assert.Contains(aprueba.Cubre, area => area.Nombre == "aulas.solicitudes_reserva");
+        Assert.Contains(aprueba.Ejemplos, EsDeAulas);
+
+        Assert.Contains("tus solicitudes de reserva de aula", solicita.Presentacion, StringComparison.Ordinal);
+        Assert.DoesNotContain("solicitudes de reserva de aula, con su estado", solicita.Presentacion, StringComparison.Ordinal);
+        Assert.Contains(solicita.Cubre, area => area.Nombre == "aulas.solicitudes_reserva");
+
+        Assert.DoesNotContain("reserva de aula", ninguno.Presentacion, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(ninguno.Ejemplos, EsDeAulas);
+        Assert.DoesNotContain(ninguno.Cubre, area => area.Nombre.StartsWith("aulas.", StringComparison.Ordinal));
+
+        // Nothing announced as answerable that the schema cannot answer.
+        foreach (var prohibida in new[] { "libres", "capacidad", "disponibilidad" })
+        {
+            Assert.DoesNotContain(prohibida, aprueba.Presentacion, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private static int ColumnasSinAulas(CapacidadesDelActor capacidades) =>
+        capacidades.Cubre
+            .Where(area => !area.Nombre.StartsWith("aulas.", StringComparison.Ordinal))
+            .Sum(area => area.Columnas);
+
+    private static bool EsDeAulas(string pregunta) =>
+        new SelectorDeEjemplos().Catalogo.Any(ejemplo =>
+            ejemplo.Pregunta == pregunta
+            && DetectorDeDominios.Detectar(ejemplo.Sql).Dominios.HasFlag(DominioConsultado.Aulas));
 
     private static bool EsDeComisiones(string pregunta) =>
         new SelectorDeEjemplos().Catalogo.Any(ejemplo =>

@@ -228,6 +228,7 @@ public sealed class GeneradorDeFixture
         EscribirPedidos(sql);
         EscribirPortal(sql);
         EscribirComisiones(sql);
+        EscribirSolicitudesDeAula(sql);
 
         if (_conSuplementoCompuesto)
         {
@@ -457,6 +458,7 @@ public sealed class GeneradorDeFixture
 
         EscribirPermisoDePortal(sql);
         EscribirPermisoDeComisiones(sql);
+        EscribirPermisosDeAulas(sql);
     }
 
     /// <summary>
@@ -514,6 +516,81 @@ public sealed class GeneradorDeFixture
         ON CONFLICT DO NOTHING;
 
         """);
+
+    /// <summary>
+    /// Grants <c>aulas.aprobar</c> to the global role and <c>aulas.solicitar</c> to the jefe de
+    /// cátedra role.
+    /// </summary>
+    /// <remarks>
+    /// <b>WITHOUT THIS AN AULAS ITEM PASSES WITHOUT HAVING READ ANYTHING</b>: the policy needs one of
+    /// the two permissions, and the reference runs with the same actor, so both sides would agree on
+    /// an empty list. The grant is split on purpose: the global actor sees every request, the
+    /// materia actor (a jefe de cátedra whose persona owns some requests) sees only its own, and the
+    /// carrera actor and the docente hold neither. That is what makes the scope measurable.
+    /// </remarks>
+    private static void EscribirPermisosDeAulas(StringBuilder sql) => sql.Append(
+        """
+
+        INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+        SELECT r.id, p.id
+          FROM identity.roles r
+          CROSS JOIN identity.permisos p
+         WHERE (r.id = 'a1000000-0000-4000-8000-000000000004' AND p.code = 'aulas.aprobar')
+            OR (r.id = 'a1000000-0000-4000-8000-000000000002' AND p.code = 'aulas.solicitar')
+        ON CONFLICT DO NOTHING;
+
+        """);
+
+    /// <summary>
+    /// Request ids: prefix <c>1</c> like perfiles and importaciones, in a range (800+) they never use.
+    /// </summary>
+    private static string IdDeSolicitudDeAula(int indice) => Identificador('1', 800 + indice);
+
+    /// <summary>
+    /// Twelve reservation requests: three pending, four approved (two on the same date), three
+    /// rejected with a motivo, and two cancelled (one by an approver with a motivo, one by the
+    /// docente without). Persona 2 is the jefe de cátedra actor of the evaluation; the other
+    /// requesters are docentes, so the global actor sees twelve and the jefe sees four.
+    /// </summary>
+    private static void EscribirSolicitudesDeAula(StringBuilder sql)
+    {
+        // (persona, materia, día desde el ancla, desde, hasta, alumnos, comisión, estado, aula,
+        //  motivo de rechazo, motivo de cancelación, rol)
+        (int Persona, int Materia, int Dia, string Desde, string Hasta, int Alumnos, string Comision,
+            string Estado, string? Aula, string? Rechazo, string? Cancelacion, string Rol)[] solicitudes =
+        [
+            (2, 0, 10, "18:00", "21:00", 40, "01", "pendiente", null, null, null, "jefe_catedra"),
+            (2, 1, 12, "09:00", "12:00", 25, "02", "aprobada", "Aula 101", null, null, "jefe_catedra"),
+            (2, 0, 14, "14:00", "17:00", 30, "01", "rechazada", null, "No hay aula disponible en ese horario", null, "jefe_catedra"),
+            (5, 0, 10, "18:00", "21:00", 60, "01", "pendiente", null, null, null, "docente"),
+            (5, 2, 15, "08:00", "11:00", 35, "01", "aprobada", "Laboratorio 3", null, null, "docente"),
+            (9, 2, 15, "19:00", "22:00", 50, "02", "aprobada", "Aula 205", null, null, "docente"),
+            (9, 3, 20, "10:00", "13:00", 20, "01", "rechazada", null, "El examen ya tiene aula asignada", null, "docente"),
+            (14, 3, 21, "18:00", "20:00", 45, "01", "cancelada", null, null, "Se suspendió la mesa de examen", "docente"),
+            (14, 4, 22, "09:00", "11:00", 15, "01", "cancelada", null, null, null, "docente"),
+            (5, 4, 24, "16:00", "19:00", 70, "02", "pendiente", null, null, null, "docente"),
+            (2, 4, 25, "18:00", "21:00", 55, "01", "aprobada", "Aula 101", null, null, "jefe_catedra"),
+            (9, 0, 30, "14:00", "16:00", 30, "01", "rechazada", null, "Faltan datos de la comisión", null, "docente"),
+        ];
+
+        static string Texto(string? valor) => valor is null ? "NULL" : $"'{Escapar(valor)}'";
+
+        var filas = solicitudes.Select((s, indice) =>
+            $"    ('{IdDeSolicitudDeAula(indice)}', '{IdDePersona(s.Persona)}', "
+            + $"DATE '{Ancla.AddDays(s.Dia):yyyy-MM-dd}', TIME '{s.Desde}', TIME '{s.Hasta}', "
+            + $"{s.Alumnos}, '{IdDeMateria(s.Materia)}', '{s.Comision}', '{s.Estado}', "
+            + $"{Texto(s.Aula)}, {Texto(s.Rechazo)}, "
+            + $"TIMESTAMPTZ '{Ancla.AddDays(s.Dia - 7):yyyy-MM-dd} 12:00:00+00', "
+            + $"{Texto(s.Cancelacion)}, '{s.Rol}')");
+
+        sql.Append(
+            "\nINSERT INTO aulas.solicitudes_reserva "
+            + "(id, docente_id, dia, horario_desde, horario_hasta, cantidad_alumnos_aprox, materia_id, "
+            + "comision, estado, aula_asignada, motivo_rechazo, created_at, motivo_cancelacion, "
+            + "rol_solicitante) VALUES\n");
+        sql.Append(string.Join(",\n", filas));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+    }
 
     private static void EscribirPeriodos(StringBuilder sql)
     {

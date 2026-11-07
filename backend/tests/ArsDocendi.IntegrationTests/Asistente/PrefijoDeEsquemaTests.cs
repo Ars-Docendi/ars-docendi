@@ -108,6 +108,35 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task El_prefijo_trae_los_hechos_de_aulas_que_el_modelo_no_puede_inferir(
+        bool conDatosPersonales)
+    {
+        var prefijo = (await PrefijoAsync(conDatosPersonales)).Prefijo;
+
+        // These are SOLICITUDES, not the aula where a comisión is taught (that is Guaraní's horarios);
+        // there is no aula catalog; aula_asignada exists only when approved.
+        Assert.Contains("aulas.solicitudes_reserva", prefijo, StringComparison.Ordinal);
+        Assert.Contains("NO es el aula en que se dicta una comisión", prefijo, StringComparison.Ordinal);
+        Assert.Contains("No hay catálogo de aulas", prefijo, StringComparison.Ordinal);
+        Assert.Contains("Sólo existe cuando estado es aprobada", prefijo, StringComparison.Ordinal);
+        Assert.Contains(
+            "aulas.solicitudes_reserva.docente_id referencia a identity.personas.id",
+            prefijo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Ninguna_lista_de_valores_cerrados_lee_filas_de_aulas()
+    {
+        // Same reason as comisiones: the prompt connection has no actor, so the policy would hide
+        // the rows, and a prompt shared by every actor must not carry values of a protected table.
+        Assert.DoesNotContain(
+            LectorDeValoresDeCatalogo.Declaradas(conGlosario: true),
+            columna => columna.Esquema == "aulas");
+    }
+
     [Fact]
     public void Ninguna_lista_de_valores_cerrados_lee_filas_de_comisiones()
     {

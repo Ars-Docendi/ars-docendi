@@ -358,6 +358,39 @@ public sealed class AbstencionYRedaccionTests
             PoliticaDeAbstencion.AlcanzaTodo(perfil, Enum.Parse<DominioConsultado>(dominios)));
     }
 
+    [Theory]
+    // Only aulas.aprobar sees every request, whatever the scope.
+    [InlineData(false, true, false, "Aulas", true)]
+    // aulas.solicitar sees the actor's own requests: never "there are none" as a fact.
+    [InlineData(false, false, true, "Aulas", false)]
+    [InlineData(true, false, true, "Aulas", false)]
+    // Neither permission: the policy returns nothing, so zero rows says nothing either.
+    [InlineData(true, false, false, "Aulas", false)]
+    // Aulas plus designaciones needs both rules: the approver permission does not make up for scope.
+    [InlineData(false, true, false, "Aulas, Designaciones", false)]
+    [InlineData(true, true, false, "Aulas, Designaciones", true)]
+    [InlineData(true, false, true, "Aulas, Designaciones", false)]
+    public void El_alcance_total_de_aulas_exige_aprobar_y_quien_solo_solicita_no_lo_alcanza(
+        bool esGlobal, bool veSolicitudesDeAula, bool veSolicitudesPropias, string dominios, bool alcanzaTodo)
+    {
+        var perfil = new PerfilDelActor(
+            esGlobal, VeDatosPersonales: esGlobal, AlcanzaDesignaciones: esGlobal,
+            VeSolicitudesDeAula: veSolicitudesDeAula, VeSolicitudesPropias: veSolicitudesPropias);
+
+        Assert.Equal(
+            alcanzaTodo,
+            PoliticaDeAbstencion.AlcanzaTodo(perfil, Enum.Parse<DominioConsultado>(dominios)));
+    }
+
+    [Theory]
+    [InlineData("SELECT * FROM aulas.solicitudes_reserva", "Aulas")]
+    [InlineData("SELECT 1 FROM identity.materias m -- aulas.solicitudes_reserva", "Ninguno")]
+    [InlineData("SELECT s.id FROM aulas.solicitudes_reserva s JOIN comisiones.sga_comisiones c ON c.nombre = s.comision", "Comisiones, Aulas")]
+    public void El_detector_reconoce_aulas_solo_cuando_la_consulta_toca_la_tabla(string sql, string esperado) =>
+        Assert.Equal(
+            Enum.Parse<DominioConsultado>(esperado),
+            DetectorDeDominios.Detectar(sql).Dominios);
+
     // ------------------------------------------------------------------ apoyo
 
     private static ResultadoDeConsulta Resultado(

@@ -44,6 +44,7 @@ internal static class EtiquetasDeAreas
         ("comisiones.sga_comision_carreras", "comisiones y horarios"),
         ("comisiones.sga_comision_docentes", "comisiones y horarios"),
         ("comisiones.sga_comision_horarios", "comisiones y horarios"),
+        ("aulas.solicitudes_reserva", "solicitudes de reserva de aula"),
     ];
 
     /// <summary>

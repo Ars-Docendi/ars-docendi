@@ -212,6 +212,11 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
             "UPDATE comisiones.sga_comisiones SET nombre = 'x'",
             "DELETE FROM comisiones.sga_comisiones",
             "TRUNCATE comisiones.sga_comision_docentes",
+            "UPDATE aulas.solicitudes_reserva SET estado = 'aprobada'",
+            "DELETE FROM aulas.solicitudes_reserva",
+            "INSERT INTO aulas.solicitudes_reserva (docente_id, dia, horario_desde, horario_hasta, "
+                + "cantidad_alumnos_aprox, materia_id, comision) "
+                + "SELECT id, DATE '2026-03-20', '08:00', '09:00', 1, id, '01' FROM identity.personas LIMIT 1",
             "INSERT INTO comisiones.sga_comision_horarios (comision_guarani_id, asignacion_guarani_id, dia, desde, hasta) "
                 + "VALUES ('C1', 'A1', 1, '08:00', '09:00')",
         ];
