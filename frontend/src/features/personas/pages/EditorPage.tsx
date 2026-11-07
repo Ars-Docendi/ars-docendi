@@ -11,7 +11,9 @@ import { PanelPestana, Pestanas } from "../../../shared/ui/Pestanas";
 
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { MembresiasSelector } from "../../../shared/ui/MembresiasSelector";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import {
   verificarDocumento,
   type CatalogosPersonas,
@@ -72,6 +74,7 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   const navegar = useNavigate();
   const { administrar, administrarPortal } = usePermisosPersonas();
   const guardar = useGuardarPersona(personaId);
+  const telefono = usePantallaTelefono();
   // Las dos pestañas son vistas de un mismo formulario: cambiar de una a otra reemplaza la
   // entrada del historial, así Atrás sale del formulario en lugar de recorrer pestañas.
   const [pestana, setPestana] = usePestanaURL(PESTANAS, "personales", { reemplazar: true });
@@ -144,6 +147,17 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
     visible ? (
       <span className="adoc-personas-marca-error" aria-label="con datos incompletos" />
     ) : null;
+
+  const botonesPie = (
+    <>
+      <Button variant="secondary" onClick={() => navegar(volver.ruta)}>
+        Cancelar
+      </Button>
+      <Button variant="primary" loading={guardar.isPending} onClick={enviar}>
+        {personaId ? "Guardar cambios" : "Crear persona"}
+      </Button>
+    </>
+  );
 
   return (
     <div className="adoc-personas">
@@ -271,18 +285,11 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
         </PanelPestana>
       )}
 
-      <div className="adoc-personas-pie">
-        {soloLectura ? null : (
-          <>
-            <Button variant="secondary" onClick={() => navegar(volver.ruta)}>
-              Cancelar
-            </Button>
-            <Button variant="primary" loading={guardar.isPending} onClick={enviar}>
-              {personaId ? "Guardar cambios" : "Crear persona"}
-            </Button>
-          </>
-        )}
-      </div>
+      {soloLectura ? null : telefono ? (
+        <BarraAccionesFija>{botonesPie}</BarraAccionesFija>
+      ) : (
+        <div className="adoc-personas-pie">{botonesPie}</div>
+      )}
     </div>
   );
 }

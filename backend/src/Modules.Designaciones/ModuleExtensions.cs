@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Modules.Designaciones.Contracts.Administracion;
+using Modules.Designaciones.Contracts.Queries;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Infrastructure.Guarani;
 using Modules.Designaciones.Repositories;
@@ -19,7 +20,7 @@ public static class ModuleExtensions
     public static IServiceCollection AddDesignacionesModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<DesignacionesDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
@@ -54,6 +55,7 @@ public static class ModuleExtensions
         services.AddScoped<ServicioPeriodos>();
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
+        services.AddScoped<IDesignacionesQueries, ServicioConsultasDesignaciones>();
         services.AddHostedService<LimpiezaComandosIdempotentes>();
 
         // Guaraní: sin configuración completa la integración queda deshabilitada (503) y el Host arranca igual.

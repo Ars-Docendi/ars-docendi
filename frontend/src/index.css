@@ -2,13 +2,20 @@
   /* Scales the whole UI up for 1080p / 40+ legibility. Viewport-pinned
      containers (.adoc-app, .login-page, lib overlay stages) divide by this
      so the app still fits exactly one screen height — no body scroll. */
-  --ui-zoom: 1.125;
+  --ui-zoom: 1;
   zoom: var(--ui-zoom);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
   font-size: var(--text-body-size);
   line-height: 1.5;
   color: var(--color-text-primary);
   background: var(--color-bg-canvas);
+}
+
+/* Phones and tablets use the real CSS width; the 1.125 scale only pays off on desktop. */
+@media (min-width: 1024px) {
+  :root {
+    --ui-zoom: 1.125;
+  }
 }
 
 * {
@@ -59,7 +66,7 @@ a {
    visible real. `overscroll-behavior` evita que el scroll del cuerpo del
    diálogo arrastre la página de atrás.
 
-   Registrado como TD-010: corresponde subirlo a ui-lib.
+   Registrado como TD-032: corresponde subirlo a ui-lib.
    ============================================================ */
 @supports (height: 100dvh) {
   .adoc-modal-stage,
@@ -70,4 +77,13 @@ a {
 .adoc-modal > .body,
 .adoc-drawer > .body {
   overscroll-behavior: contain;
+}
+
+/* Below 560 px fields use 16 px text so iOS Safari does not zoom the page on focus. */
+@media (max-width: 559px) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

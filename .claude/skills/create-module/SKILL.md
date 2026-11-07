@@ -108,7 +108,7 @@ frontend/src/features/<x>/
 
 - Crear `docs/architecture/domains/<x>.md` desde `_template.md`.
 - Llenar Purpose, Roles, Bounded context, dependencies.
-- Agregar entrada al edge registry en `dependency-graph.md` si tiene dependencias cross-module.
+- Agregar la fila del proyecto nuevo —y de cada arista que traiga— a `backend/manifiesto-de-aristas.json`, en el mismo PR. Un proyecto sin clasificar pone el CI en rojo; si nadie lo referencia todavía, va con estado `huerfano` y motivo escrito.
 
 ### 11. Crear `docs/business-rules/<x>.md` (si tendrá BRs)
 
@@ -138,7 +138,7 @@ Branch `feature/<x>`. Ver [open-pr.md](../../../docs/workflows/open-pr.md).
 - **Sin código** en `Modules.<X>.Contracts` — solo DTOs, interfaces, tokens.
 - **Endpoint `/api/<x>/ping`** es obligatorio.
 - **`ModuleExtensions.cs`** debe existir aunque al principio registre poco.
-- Documentar en `dependency-graph.md` cualquier edge nuevo cross-module.
+- Registrar en `backend/manifiesto-de-aristas.json` cualquier arista nueva cross-module, con su motivo.
 
 ## Arguments
 

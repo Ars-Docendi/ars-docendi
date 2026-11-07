@@ -1,14 +1,17 @@
 import { useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import { LanzadorAsistente } from "../features/asistente";
 import {
   CampanaSidebar,
   CampanaTopBar,
-} from "../features/notificaciones/components/CampanaNotificaciones";
-import { PanelNotificaciones } from "../features/notificaciones/components/PanelNotificaciones";
-import { useCantidadNoLeidas } from "../features/notificaciones/hooks/useNotificaciones";
-import { rutaDeEntidad } from "../features/notificaciones/presentacion";
-import type { Notificacion } from "../features/notificaciones/types";
+  PanelNotificaciones,
+  rutaDeEntidad,
+  useCantidadNoLeidas,
+  type Notificacion,
+  useAbrirDesdePush,
+  useSincronizarPush,
+} from "../features/notificaciones";
 import { useCurrentUser, type CurrentUser } from "../shared/auth/useCurrentUser";
 import { GestorDeNavegacion } from "../shared/navegacion/GestorDeNavegacion";
 import { ID_CONTENIDO } from "../shared/navegacion/pagina";
@@ -113,6 +116,9 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
   // Las notificaciones se ven por perfil: el rol activo es parte de toda clave.
   const rol = user.roleCode;
   const { data: cantidad } = useCantidadNoLeidas(rol);
+  // Un dispositivo es de quien tiene la sesión: se re-registra al cargar y al cambiar de usuario.
+  useSincronizarPush(user.id);
+  useAbrirDesdePush();
 
   const alternarNotificaciones = () => setNotifAbierta((abierta) => !abierta);
   // El panel se cierra cuando la página realmente cambia (lo hace él mismo al ver `rutaActual`),
@@ -143,15 +149,22 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
     />
   );
 
+  const lanzador = <LanzadorAsistente />;
+
   return (
     <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
       <EnlaceSaltar />
-      <TopBar user={user} campana={angosta ? campana : undefined} />
+      <TopBar
+        user={user}
+        campana={angosta ? campana : undefined}
+        lanzador={angosta ? lanzador : undefined}
+      />
       <Sidebar
         collapsed={colapsado}
         onToggleCollapse={alternarColapsada}
         user={user}
         campana={angosta ? undefined : campana}
+        lanzador={angosta ? undefined : <LanzadorAsistente colapsado={colapsado} />}
       />
       <main className="adoc-main" id={ID_CONTENIDO} tabIndex={-1}>
         <Outlet />
@@ -165,6 +178,7 @@ function ShellAutenticado({ user, colapsado, alternarColapsada }: ShellAutentica
         triggerRef={campanaRef}
         desplazamiento={angosta ? 0 : colapsado ? ANCHO_BARRA.colapsada : ANCHO_BARRA.expandida}
         rol={rol}
+        permisos={user.permissions}
         rutaActual={pathname}
         onNavegar={irANotificacion}
       />

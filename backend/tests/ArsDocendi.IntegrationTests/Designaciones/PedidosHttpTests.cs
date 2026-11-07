@@ -294,11 +294,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
 
     private async Task EjecutarSeedAsync(CancellationToken ct, bool sellar = true)
     {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
+        await SembrarAsync(ct);
         if (!sellar) return;
         // Como en un despliegue: tras sembrar, el historial se sella antes de exportar.
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);

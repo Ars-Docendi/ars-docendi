@@ -13,6 +13,8 @@ public sealed class NotificacionesDbContext(DbContextOptions<NotificacionesDbCon
     public const string Schema = "notificaciones";
 
     public DbSet<Notificacion> Notificaciones => Set<Notificacion>();
+    public DbSet<SuscripcionPush> SuscripcionesPush => Set<SuscripcionPush>();
+    public DbSet<PreferenciaPush> PreferenciasPush => Set<PreferenciaPush>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,6 +37,31 @@ public sealed class NotificacionesDbContext(DbContextOptions<NotificacionesDbCon
             e.Property(x => x.CreadaEn).HasColumnName("creada_en");
 
             e.HasIndex(x => new { x.DestinatarioUsuarioId, x.LeidaEn, x.CreadaEn });
+        });
+
+        modelBuilder.Entity<SuscripcionPush>(e =>
+        {
+            e.ToTable("suscripciones_push", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UsuarioId).HasColumnName("usuario_id");
+            e.Property(x => x.Endpoint).HasColumnName("endpoint");
+            e.Property(x => x.P256dh).HasColumnName("p256dh");
+            e.Property(x => x.Auth).HasColumnName("auth");
+            e.Property(x => x.CreadaEn).HasColumnName("creada_en");
+
+            e.HasIndex(x => x.Endpoint).IsUnique();
+            e.HasIndex(x => x.UsuarioId);
+        });
+
+        modelBuilder.Entity<PreferenciaPush>(e =>
+        {
+            e.ToTable("preferencias_push", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => new { x.UsuarioId, x.Modulo });
+            e.Property(x => x.UsuarioId).HasColumnName("usuario_id");
+            e.Property(x => x.Modulo).HasColumnName("modulo");
+            e.Property(x => x.Habilitado).HasColumnName("habilitado");
+            e.Property(x => x.ActualizadaEn).HasColumnName("actualizada_en");
         });
 
         base.OnModelCreating(modelBuilder);

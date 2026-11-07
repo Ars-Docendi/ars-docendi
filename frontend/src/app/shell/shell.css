@@ -343,7 +343,47 @@ a.adoc-sidebar-help {
 .adoc-app.collapsed .adoc-sidebar-bell .pildora {
   display: none;
 }
-/* Tooltip "Notificaciones" (sólo con la barra colapsada), a la derecha y con 300 ms de demora. */
+/* ====================== LANZADOR DEL ASISTENTE ============== */
+/* En la barra lateral deja la pastilla de la barra superior y toma la fila de la campana; el
+   acento en ícono y texto lo sigue distinguiendo como el acceso al asistente. */
+.adoc-sidebar-foot .adoc-asistente-lanzador {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+  width: calc(100% + var(--space-4) * 2);
+  height: auto;
+  margin: 0 calc(var(--space-4) * -1) var(--space-2);
+  padding: 8px 16px 8px 17px;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--accent-700);
+  font-weight: var(--weight-medium);
+  text-align: left;
+}
+.adoc-sidebar-foot .adoc-asistente-lanzador:hover {
+  background: var(--accent-100);
+}
+.adoc-sidebar-foot .adoc-asistente-lanzador:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+.adoc-sidebar-foot .adoc-asistente-lanzador .ico {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.adoc-app.collapsed .adoc-sidebar-foot .adoc-asistente-lanzador {
+  justify-content: center;
+  padding: var(--space-2);
+  margin-inline: calc(var(--space-2) * -1);
+  width: calc(100% + var(--space-2) * 2);
+}
+
+/* Tooltip de la campana y del lanzador (sólo con la barra colapsada), a la derecha y con 300 ms de demora. */
+.adoc-sidebar-foot .adoc-asistente-lanzador[data-tooltip]::after,
 .adoc-sidebar-bell[data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -361,6 +401,8 @@ a.adoc-sidebar-help {
   opacity: 0;
   z-index: var(--z-overlay);
 }
+.adoc-sidebar-foot .adoc-asistente-lanzador[data-tooltip]:hover::after,
+.adoc-sidebar-foot .adoc-asistente-lanzador[data-tooltip]:focus-visible::after,
 .adoc-sidebar-bell[data-tooltip]:hover::after,
 .adoc-sidebar-bell[data-tooltip]:focus-visible::after {
   opacity: 1;
@@ -562,6 +604,11 @@ a.adoc-sidebar-help {
 }
 .adoc-drawer.adoc-nav-drawer .body {
   padding: var(--space-2) 0;
+}
+/* The highlighted item must not touch the panel border. */
+.adoc-nav-drawer .body a,
+.adoc-nav-drawer .body .adoc-sidebar-help {
+  margin-right: var(--space-2);
 }
 /* Centro de ayuda al final del panel, separado como en el pie de la barra. */
 .adoc-nav-drawer-pie {

@@ -177,7 +177,7 @@ Las tablas muestran sus acciones como **botones de texto** en la columna Accione
 
 Las cinco grillas (Mis pedidos, Revisión, Períodos, Usuarios y Docentes) comparten el mismo comportamiento (change `grillas-unificadas`):
 
-- **Sin paginación**: se ven todas las filas que cumplen los filtros; el meta muestra el total. Filtrar por encabezado y las pestañas de Revisión son la forma de acotar.
+- **Sin paginación**: se ven todas las filas que cumplen los filtros; el meta muestra el total. Filtrar por encabezado y las pestañas de Revisión son la forma de acotar. Excepción solo de teléfono (< 560 px): las tarjetas paginan de a 20, porque una lista de cientos de tarjetas es inmanejable; tablets y escritorio no cambian (change `experiencia-movil-tablas`).
 - **Scroll dentro de la tabla**: la tabla ocupa el alto disponible (`Table.Root maxHeight`), scrollea en vertical y en horizontal por dentro, y la página no scrollea. Ninguna columna queda cortada.
 - **Encabezado fijo** mientras se scrollea, con sus filtros a mano.
 - **Textos largos recortados**: las columnas de texto variable (Docente, Cátedra, Tipo, Nombre, Email) reservan un ancho mínimo, usan el espacio que haya y, si no alcanza, se recortan con "…" y muestran el texto completo en un tooltip al pasar el mouse (`shared/ui/TextoRecortado`). Fechas y acciones van en una línea.
@@ -191,6 +191,16 @@ Las tablas de **Usuarios** y **Docentes** ofrecen un control compacto de filtro 
 - **Docentes**: Apellido y Nombre, Documento y Legajo admiten búsqueda; Rol, Ámbitos, Asignaciones, Cuenta y Estado admiten filtro. Ordenan Apellido y Nombre, Documento, Legajo, Cuenta y Estado. Rol, Ámbitos y Asignaciones no ordenan porque muestran colecciones o resúmenes.
 - La columna Acciones no ofrece filtro ni orden. El orden alterna ascendente, descendente y sin orden manual; al quitarlo se conserva el orden predeterminado de la lista.
 - _Mis pedidos_, _Revisión_ y _Períodos_ aplican el mismo patrón por encabezado: botón de embudo accesible, menú fuera del scroll, Escape/clic fuera, indicador de filtro activo y `aria-sort` en columnas ordenables. Los filtros generales que no representan columnas visibles permanecen en `FiltrosLista`; no se crean columnas ficticias ni se duplican controles.
+
+## Teléfono
+
+- Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
+- **Mis pedidos, Revisión y Períodos**: tarjetas con el docente (o el nombre del período) como enlace, línea mono de datos, insignias de estado y prioridad. Las tarjetas de Mis pedidos muestran «⋯» con Editar y Eliminar cuando el pedido los permite; Revisión no lleva «⋯», porque la fila solo abre el detalle; Períodos abre su modal de edición al tocar la tarjeta y reúne Editar y Eliminar en «⋯».
+- **Pestañas**: las áreas de Revisión son una tira deslizable con su cantidad. En Tareas, Pendientes / Terminadas / Todas reemplazan al selector; el escritorio conserva el selector.
+- **Filtros**: «Filtros (n)» abre una hoja inferior con todos los grupos, «Limpiar» y «Ver N resultados» en vivo; chips quitables y «Limpiar filtros»; selector nativo «Ordenar por» y búsqueda arriba. Los filtros por encabezado de la tabla no se muestran en las tarjetas.
+- **Paginación**: 20 tarjetas por página; excepción solo de teléfono a «Sin paginación» (ver _Patrón transversal — grillas_).
+- **Tareas**: la tarjeta conserva el tinte del semáforo (por vencer / vencida).
+- **Detalle** (pedido, tarea, proyecto): las acciones principales quedan en una barra fija al pie.
 
 ## Referencias
 

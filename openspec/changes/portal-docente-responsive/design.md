@@ -74,7 +74,7 @@ _Alternativa_: conservar el `RoleBadge` al pie. Se descartó porque en 200 px co
 - [Personas hereda los ajustes de `portal.css`] → Se verifica también el editor de Personas a 375 px.
 - [Tres changes en curso (`centro-de-ayuda`, `rediseno-pantalla-ingreso` y este) modifican el mismo requisito de `barra-superior`, y el que se archive último pisa a los demás] → El delta de este change parte del texto de los otros dos y lo reemplaza con D9. `rediseno-pantalla-ingreso` y `centro-de-ayuda` se archivan antes que este, para que este quede último.
 
-- [Los escenarios de `Modal` y `Drawer` de la librería, y `.adoc-app`, miden `100vh`, que en el navegador móvil no descuenta la barra de direcciones ni el teclado: el pie con "Guardar" quedaba fuera de lo visible y el overlay bloquea el scroll de la página] → Se usa `100dvh` (override en `index.css`, registrado como TD-010 para subirlo a ui-lib). La emulación de escritorio no tiene barra de direcciones, así que esto sólo se confirma en un teléfono real.
+- [Los escenarios de `Modal` y `Drawer` de la librería, y `.adoc-app`, miden `100vh`, que en el navegador móvil no descuenta la barra de direcciones ni el teclado: el pie con "Guardar" quedaba fuera de lo visible y el overlay bloquea el scroll de la página] → Se usa `100dvh` (override en `index.css`, registrado como TD-032 para subirlo a ui-lib). La emulación de escritorio no tiene barra de direcciones, así que esto sólo se confirma en un teléfono real.
 
 ## Migration Plan
 

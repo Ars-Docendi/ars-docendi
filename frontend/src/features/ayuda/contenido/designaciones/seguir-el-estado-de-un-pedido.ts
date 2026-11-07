@@ -98,6 +98,11 @@ export const seguirElEstadoDeUnPedido: ArticuloAyuda = {
       respuesta:
         "Cada persona ve los pedidos de su ámbito. Un Jefe de Cátedra ve los de sus materias; un Coordinador, los de su carrera.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px Mis pedidos se muestra como tarjetas: tocá una para abrir el pedido, con su estado y fechas a la vista. El botón «Filtros (n)» abre una hoja con los filtros («Limpiar» y «Ver N resultados»), lo aplicado queda como chips con «Limpiar filtros», y el orden se elige en «Ordenar por». La lista pagina de a 20 tarjetas. En el detalle del pedido, Editar y Eliminar, cuando corresponden, quedan fijas en una barra al pie de la pantalla.",
+    },
   ],
   relacionados: [
     "designaciones/editar-un-pedido",

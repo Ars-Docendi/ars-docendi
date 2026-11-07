@@ -28,6 +28,10 @@ yarn.lock
 # Auto-generated docs indexes
 docs/**/_index.md
 
+# Los reportes de los ejes los escribe el evaluador en cada corrida: formatearlos
+# a mano se deshace sola la vez siguiente.
+backend/eval/reportes
+
 # Generated TypeScript build info
 *.tsbuildinfo
 

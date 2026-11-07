@@ -86,6 +86,21 @@ export function comprobarGit(raiz, base, actual, corte) {
       if (actual.clasificados[ruta] !== motivo)
         throw new Error(`Clasificación histórica alterada: ${ruta}`);
     }
+    // El runtime exige que lo aplicado sea un prefijo exacto. Una adición con
+    // fecha anterior también rompe ese contrato, aunque no cambie ningún byte histórico.
+    const idsPublicados = new Set(inventario.migraciones.map(({ id }) => id));
+    const ultimosPorContexto = new Map();
+    for (const { contexto, id } of inventario.migraciones) {
+      if (!ultimosPorContexto.has(contexto) || id > ultimosPorContexto.get(contexto))
+        ultimosPorContexto.set(contexto, id);
+    }
+    for (const { contexto, id } of inventariar(raiz, actual.clasificados).migraciones) {
+      const ultimo = ultimosPorContexto.get(contexto);
+      if (!idsPublicados.has(id) && ultimo && id <= ultimo)
+        throw new Error(
+          `${id}: debe ser posterior al historial publicado de ${contexto} (${ultimo})`,
+        );
+    }
     return confiable;
   } finally {
     rmSync(temporal, { recursive: true, force: true });

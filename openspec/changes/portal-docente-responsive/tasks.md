@@ -33,7 +33,7 @@
 ## 5. Ajustes tras probar en el teléfono
 
 - [x] 5.1 Ocultar también el rol dentro del `RoleBadge` debajo de 768 px. Verificar a 360 px con el rol "Administrador del sistema" que la barra entra y que el menú de usuario abre dentro de la pantalla.
-- [x] 5.2 Usar `100dvh` en los escenarios de `Modal` y `Drawer` (override en `index.css`, TD-010) y en `.adoc-app`, para que el pie con "Guardar" no quede fuera del alto visible del navegador móvil. Verificar a 375 × 560 que el cuerpo del diálogo scrollea hasta el final con "Guardar" visible.
+- [x] 5.2 Usar `100dvh` en los escenarios de `Modal` y `Drawer` (override en `index.css`, TD-032) y en `.adoc-app`, para que el pie con "Guardar" no quede fuera del alto visible del navegador móvil. Verificar a 375 × 560 que el cuerpo del diálogo scrollea hasta el final con "Guardar" visible.
 
 - [x] 5.3 Quitar la línea "Ingeniería · UNLaM" de la barra superior en todos los anchos, con su CSS, y la mención en el artículo de ayuda "Cómo recorrer la pantalla". Verificar a 1280 y 360 px.
 

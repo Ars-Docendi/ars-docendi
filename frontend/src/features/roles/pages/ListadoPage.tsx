@@ -7,6 +7,7 @@ import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
 
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { ListaRolesMovil } from "../components/ListaRolesMovil";
 import { TablaRoles } from "../components/TablaRoles";
 import { mensajeConflictoRol } from "../erroresRol";
 import {
@@ -20,6 +21,7 @@ import { useCatalogoPermisos, useRoles } from "../hooks/useRoles";
 import type { RolMock } from "../models";
 import "../roles.css";
 import { Modal } from "../../../shared/ui/Modal";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 
 export function ListadoPage() {
   const navegar = useNavigate();
@@ -32,6 +34,7 @@ export function ListadoPage() {
   const catalogo = useCatalogoPermisos();
   const [filtros, setFiltros] = useFiltrosURL(FILTROS_VACIOS);
   const [orden, setOrden] = useOrdenURL(COLUMNAS_ORDEN_ROLES);
+  const telefono = usePantallaTelefono();
   const [aConfirmar, setAConfirmar] = useState<RolMock | null>(null);
 
   const roles = useMemo(() => consulta.data ?? [], [consulta.data]);
@@ -47,6 +50,16 @@ export function ListadoPage() {
     visibles.length === roles.length
       ? `${roles.length} roles`
       : `${visibles.length} de ${roles.length} roles`;
+
+  const totalPermisos = catalogo.data?.length ?? 0;
+  const abrirRol = (rol: RolMock) => abrir(`/roles/${rol.id}`);
+  const pedirCambioEstado = administrar
+    ? (rol: RolMock) => {
+        cambiarEstado.reset();
+        setAConfirmar(rol);
+      }
+    : undefined;
+  const textoAbrir = administrar || editarPermisos ? "Editar" : "Ver";
 
   return (
     <>
@@ -70,24 +83,30 @@ export function ListadoPage() {
       )}
       {consulta.isLoading || catalogo.isLoading ? (
         <p role="status">Cargando roles…</p>
+      ) : telefono ? (
+        <ListaRolesMovil
+          todos={roles}
+          roles={visibles}
+          totalPermisos={totalPermisos}
+          filtros={filtros}
+          orden={orden}
+          onFiltrosChange={setFiltros}
+          onOrdenChange={setOrden}
+          onAbrir={abrirRol}
+          onCambiarEstado={pedirCambioEstado}
+          textoAbrir={textoAbrir}
+        />
       ) : (
         <TablaRoles
           roles={visibles}
-          totalPermisos={catalogo.data?.length ?? 0}
+          totalPermisos={totalPermisos}
           filtros={filtros}
           orden={orden}
           onFiltrosChange={setFiltros}
           onOrdenar={(columna) => setOrden(siguienteOrden(orden, columna))}
-          onAbrir={(rol) => abrir(`/roles/${rol.id}`)}
-          onCambiarEstado={
-            administrar
-              ? (rol) => {
-                  cambiarEstado.reset();
-                  setAConfirmar(rol);
-                }
-              : undefined
-          }
-          textoAbrir={administrar || editarPermisos ? "Editar" : "Ver"}
+          onAbrir={abrirRol}
+          onCambiarEstado={pedirCambioEstado}
+          textoAbrir={textoAbrir}
         />
       )}
 

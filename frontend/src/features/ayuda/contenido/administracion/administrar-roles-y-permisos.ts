@@ -97,6 +97,11 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
       respuesta:
         "Porque ya hay personas con ese rol asignado. Revisá sus roles en Personas antes de cambiar el ámbito.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px la lista de roles se muestra como tarjetas, con el menú «⋯» para las acciones de cada rol. Los filtros se reúnen en el botón «Filtros (n)» (hoja con «Limpiar» y «Ver N resultados») y el orden se elige en «Ordenar por». En tablets la tabla se mantiene.",
+    },
   ],
   relacionados: [
     "primeros-pasos/permisos-y-pantallas-visibles",

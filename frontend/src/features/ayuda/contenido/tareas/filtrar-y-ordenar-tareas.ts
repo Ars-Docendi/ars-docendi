@@ -68,6 +68,11 @@ export const filtrarYOrdenarTareas: ArticuloAyuda = {
       respuesta:
         "No. Se reinician al volver a abrir Tareas, que siempre empieza en Pendientes y en Todas.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px el selector Pendientes, Terminadas y Todas pasa a ser una tira de pestañas con la cantidad de cada una, que se desliza con el dedo. Los demás filtros se reúnen en el botón «Filtros (n)», que abre una hoja con «Limpiar» y «Ver N resultados»; lo aplicado queda como chips con «Limpiar filtros». El orden se elige en «Ordenar por» y la búsqueda está arriba de la lista.",
+    },
   ],
   relacionados: ["tareas/entender-el-listado-de-tareas", "tareas/abrir-una-tarea"],
 };

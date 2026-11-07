@@ -10,7 +10,9 @@ import {
   propagarVolver,
   type DestinoVolver,
 } from "../../../shared/navegacion/volver";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { EstadoTareaBadge } from "../components/EstadoTareaBadge";
 import { AccionesEstadoTarea } from "../components/AccionesEstadoTarea";
 import { ComentariosTarea } from "../components/ComentariosTarea";
@@ -201,6 +203,7 @@ function DetalleCargado({
   enviandoRelacion,
 }: DetalleCargadoProps) {
   const resaltada = useResaltado(tarea.id);
+  const telefono = usePantallaTelefono();
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
   const [versionEditar, setVersionEditar] = useState(tarea.version);
   const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
@@ -213,6 +216,32 @@ function DetalleCargado({
   const proyecto = tarea.proyectoId ? proyectos.find((p) => p.id === tarea.proyectoId) : undefined;
   const padre = tarea.tareaPadreId ? todas.find((t) => t.id === tarea.tareaPadreId) : undefined;
 
+  const acciones = (
+    <>
+      {puedeEditar && (
+        <Button
+          variant="secondary"
+          leadingIcon={<IconoSquarePen />}
+          onClick={() => {
+            setVersionEditar(tarea.version);
+            setModalEditarAbierto(true);
+          }}
+        >
+          Editar
+        </Button>
+      )}
+      {puedeCancelar && (
+        <Button
+          variant="destructive"
+          leadingIcon={<IconoBan />}
+          onClick={() => setModalCancelarAbierto(true)}
+        >
+          Cancelar
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <>
       <PageHeader
@@ -221,27 +250,7 @@ function DetalleCargado({
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <EnlaceVolver id="tarea-volver" destino={volver} />
-            {puedeEditar && (
-              <Button
-                variant="secondary"
-                leadingIcon={<IconoSquarePen />}
-                onClick={() => {
-                  setVersionEditar(tarea.version);
-                  setModalEditarAbierto(true);
-                }}
-              >
-                Editar
-              </Button>
-            )}
-            {puedeCancelar && (
-              <Button
-                variant="destructive"
-                leadingIcon={<IconoBan />}
-                onClick={() => setModalCancelarAbierto(true)}
-              >
-                Cancelar
-              </Button>
-            )}
+            {!telefono && acciones}
             <EstadoTareaBadge estado={tarea.estado} />
           </div>
         }
@@ -382,6 +391,10 @@ function DetalleCargado({
           </aside>
         </div>
       </div>
+
+      {telefono && (puedeEditar || puedeCancelar) && (
+        <BarraAccionesFija>{acciones}</BarraAccionesFija>
+      )}
 
       <ModalNuevaTarea
         open={modalEditarAbierto}

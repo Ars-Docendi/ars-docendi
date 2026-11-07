@@ -1,0 +1,110 @@
+/* Scroll region of the data tables (see ContenedorTabla.tsx). */
+.adoc-contenedor-tabla {
+  /* Focused cells scroll into view clear of the sticky first column and header. */
+  scroll-padding-inline-start: var(--ancho-col-fija, 0px);
+  scroll-padding-block-start: var(--alto-encabezado, 0px);
+}
+.adoc-contenedor-tabla:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+
+/* Sticky first column: opaque so scrolled content does not show through. */
+.adoc-contenedor-tabla table.adoc-table > thead > tr > :first-child,
+.adoc-contenedor-tabla table.adoc-table > tbody > tr > :first-child {
+  position: sticky;
+  left: 0;
+  background: var(--color-bg-raised, #fff);
+}
+.adoc-contenedor-tabla table.adoc-table > thead > tr > :first-child {
+  z-index: 3;
+  background: var(--color-bg-canvas);
+}
+.adoc-contenedor-tabla table.adoc-table > tbody > tr > :first-child {
+  z-index: 1;
+}
+.adoc-contenedor-tabla table.adoc-table > tbody > tr:hover > :first-child {
+  background: var(--color-bg-canvas);
+}
+.adoc-contenedor-tabla table.adoc-table > tbody > tr.selected > :first-child {
+  background: var(--accent-100);
+}
+/* A single-cell "empty" row spans every column: it must not stay pinned. */
+.adoc-contenedor-tabla table.adoc-table > tbody > tr > td.empty:first-child {
+  position: static;
+}
+
+/* Right-edge shadow while more columns remain; first-column shadow once scrolled sideways. */
+.adoc-contenedor-tabla-marco {
+  position: relative;
+}
+.adoc-contenedor-tabla-marco[data-desborde]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  background: linear-gradient(to left, rgb(0 0 0 / 14%), transparent);
+  pointer-events: none;
+  z-index: 4;
+}
+.adoc-contenedor-tabla-marco[data-desplazada] table.adoc-table > thead > tr > :first-child,
+.adoc-contenedor-tabla-marco[data-desplazada] table.adoc-table > tbody > tr > :first-child {
+  box-shadow: 6px 0 6px -6px rgb(0 0 0 / 20%);
+}
+
+/* Column resize handles, phones only (see ColumnasAjustables.tsx). Every header cell but the
+   pinned first one (already sticky, so already a containing block) anchors its handle, without a
+   stacking context of its own: a positioned cell with a z-index (a caller's `position: sticky;
+   top: 0` header) would cover the half of the previous cell's handle that straddles the border. */
+.adoc-contenedor-tabla table.adoc-tabla-ajustable > thead > tr > th:not(:first-child) {
+  position: relative;
+  z-index: auto;
+}
+/* Once a width is set the columns follow it exactly and long values wrap instead of widening. */
+.adoc-contenedor-tabla table.adoc-table.adoc-tabla-ajustable--con-anchos {
+  table-layout: fixed;
+  min-width: 0;
+}
+.adoc-contenedor-tabla table.adoc-tabla-ajustable--con-anchos :is(th, td) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* Straddles the column border; under the pinned first header cell (z-index 3) when scrolled. */
+.adoc-ajustar-columna {
+  position: absolute;
+  top: 0;
+  right: -14px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: col-resize;
+  touch-action: none;
+}
+.adoc-tabla-ajustable th:last-child > .adoc-ajustar-columna {
+  right: 0;
+  width: 20px;
+  justify-content: flex-end;
+}
+.adoc-ajustar-columna::after {
+  content: "";
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--color-border-strong);
+}
+.adoc-ajustar-columna:hover::after,
+.adoc-ajustar-columna:focus-visible::after {
+  background: var(--color-accent);
+}
+.adoc-ajustar-columna:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}

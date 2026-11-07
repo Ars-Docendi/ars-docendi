@@ -8,14 +8,21 @@ export default defineConfig({
   server: {
     port: 5173,
     // Mismo origen que los despliegues: la cookie de sesión y el retorno del
-    // ingreso con Microsoft pasan por /api sin CORS. Se conserva el Host para que
-    // el backend arme la URL de retorno con el origen de Vite.
+    // ingreso con Microsoft pasan por /api sin CORS. Se conserva el Host (sin
+    // changeOrigin) para que el backend arme la URL de retorno con el origen de
+    // Vite. VITE_API_PROXY_TARGET mueve el destino a un backend en otro puerto
+    // sin tocar este archivo.
     proxy: {
-      "/api": { target: "http://localhost:5000" },
+      "/api": { target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:5000" },
     },
   },
   test: {
     environment: "jsdom",
+    // Cada worker mantiene su propio DOM. Acotar la concurrencia evita que las
+    // interacciones agoten sus plazos al competir por CPU en runners pequeños.
+    maxWorkers: 2,
+    // Los flujos con varios pasos de usuario no son mediciones de rendimiento.
+    testTimeout: 10_000,
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,

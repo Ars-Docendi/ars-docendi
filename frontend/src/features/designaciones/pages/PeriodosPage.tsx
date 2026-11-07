@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Button } from "@ars-docendi/ui";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { ListaPeriodosMovil } from "../components/ListaPeriodosMovil";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { TablaPeriodos } from "../components/TablaPeriodos";
 import { ModalPeriodo } from "../components/ModalPeriodo";
 import { mensajeProblema } from "../../../shared/api/problemDetails";
@@ -13,6 +15,7 @@ import type { PeriodoDesignacion } from "../types";
 export function PeriodosPage() {
   const remoto = usePeriodos();
   const periodos = remoto.consulta.data ?? [];
+  const telefono = usePantallaTelefono();
 
   const [modalPeriodoAbierto, setModalPeriodoAbierto] = useState(false);
   const [periodoEditando, setPeriodoEditando] = useState<PeriodoDesignacion | undefined>();
@@ -112,7 +115,15 @@ export function PeriodosPage() {
         }
       />
 
-      <TablaPeriodos periodos={periodos} onEditar={handleEditar} onEliminar={handleEliminar} />
+      {telefono ? (
+        <ListaPeriodosMovil
+          periodos={periodos}
+          onEditar={handleEditar}
+          onEliminar={handleEliminar}
+        />
+      ) : (
+        <TablaPeriodos periodos={periodos} onEditar={handleEditar} onEliminar={handleEliminar} />
+      )}
 
       <ModalPeriodo
         key={clavModal}

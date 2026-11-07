@@ -141,6 +141,11 @@ del evento de PR o el SHA anterior del push, con checkout de historia completa.
 Los SQL y wrappers históricos se comparan con bytes de ese commit confiable,
 no con hashes editables por el PR. También quedan protegidas las migraciones
 incrementales ya publicadas aunque no se regenere el manifiesto global.
+Las adiciones deben tener un ID posterior al último publicado **del mismo
+contexto**: intercalar un ID rompe el prefijo que valida el preflight en las
+bases existentes. El check con `--base-ref` también rechaza esa intercalación;
+el directorio del recurso SQL no determina el historial (por ejemplo, `audit/`
+puede pertenecer a Identity).
 Los `*ModelSnapshot.cs` representan el estado EF actual y pueden evolucionar;
 no son operaciones históricas inmutables. Los `.Designer.cs` históricos sí se
 protegen. Editar/eliminar un archivo protegido, retirar su entrada o cambiar su
@@ -169,3 +174,54 @@ dotnet run --project backend/src/ArsDocendi.Host -- --migrate
 La reejecución sólo es no-op para historia compatible. `Down` del baseline falla
 explícitamente: recuperar un backup en un destino aislado y una versión
 compatible, no borrar el schema para recuperar una instancia persistente.
+
+## Integración de incrementales del Asistente
+
+La rama del asistente traía migraciones con IDs anteriores al baseline consolidado
+(agosto–septiembre de 2026). Como nunca se aplicaron sobre una base del corte de
+alpha, se integraron como incrementales **posteriores** al último ID de develop,
+con el nombre que genera `scaffold.mjs` (`<id>_<Nombre><Contexto>`) y el SQL
+adaptado al modelo académico canónico:
+
+| Contexto      | IDs                               | Contenido                                                                                                                         |
+| ------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Identity      | `20261103000000`–`20261103000800` | Permisos del asistente, funciones de alcance del actor, comentarios para el prompt, `unaccent`                                    |
+| Identity      | `20261103000900`                  | `audit.safe_snapshot` conserva `deleted_at` de `identity.user_roles` (la versión publicada nombraba `revocado_at`, que no existe) |
+| Identity      | `20261103001000`                  | Permiso de revisión de calidad del asistente, sin asignaciones iniciales                                                          |
+| Designaciones | `20261103001100`–`20261103001400` | RLS del asistente, comentarios y la función `identity.asistente_alcanza_a` (lee `designaciones`)                                  |
+| Portal        | `20261020001500`–`20261020001700` | RLS del asistente, comentarios y RLS por ámbito                                                                                   |
+
+El 2026-11-03 el autor autorizó excepcionalmente renumerar las migraciones
+exclusivas del PR 40, aplicadas sólo en su preview, y reconstruir explícitamente
+`pr-40`. El merge de develop había intercalado migraciones en Identity y
+Designaciones: los 15 incrementales conservados pasan a los IDs de noviembre
+de la tabla, posteriores a `20261102000906` de Identity y `20261028033141` de
+Designaciones. Esto incluye `AuditBusquedaIdentity`: su SQL vive en `audit/`,
+pero se registra en Identity. Portal conserva sus IDs.
+
+Se retira `20261020000600_PermisoUsuariosVerDecanatoIdentity`: develop ya asigna
+`personas.ver` a Decanato en `PermisosPersonasIdentity` y después elimina
+`usuarios.ver` en `RetirarPermisosUsuariosDocentesIdentity`. El Asistente usa
+`personas.ver`; no se recrean permisos retirados ni se vuelven a conceder
+asignaciones que un administrador haya revocado.
+
+Una base con los IDs anteriores de esta rama queda incompatible deliberadamente.
+La recuperación queda a cargo del operador mediante el reset manual de `pr-40`,
+separado del deploy ordinario, con las imágenes corregidas disponibles y conservando backups según
+el [procedimiento de operación](../docs/operations/migrations-persistence.md).
+No se modifica el historial de staging ni de producción, ni el manifiesto
+protegido. Los changes archivados conservan los IDs originales como evidencia.
+
+- Cada historial aplica recursos de sus schemas; Identity incluye `audit`.
+  `identity.asistente_alcanza_a`
+  vive en `database/designaciones/` porque su cuerpo `LANGUAGE sql` referencia
+  `designaciones.designaciones` y se parsea al crearse: la cadena de Identity
+  corre antes de que ese schema exista.
+- `portal.perfiles.persona_id` sigue siendo una referencia lógica: la FK que
+  agregaba el asistente no se integró. El lector de catálogo del asistente
+  declara esa referencia aparte para el prompt.
+- `database/asistente/*.sql` no tiene historial EF: lo aplica `MigradorAsistente`,
+  que converge y registra una huella de sus scripts y roles en
+  `asistente.version_aplicada`. Por eso esos archivos figuran en
+  `clasificados` del manifiesto y el contexto `asistente` informa una única
+  versión disponible a `--estado-migraciones`/`--script-migraciones`.

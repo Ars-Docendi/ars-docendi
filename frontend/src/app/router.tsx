@@ -11,7 +11,14 @@ import { routes as portalRoutes } from "../features/portal/routes";
 import { routes as tareasRoutes } from "../features/tareas/routes";
 import { routes as personasRoutes, redireccionesAnteriores } from "../features/personas/routes";
 import { routes as rolesRoutes } from "../features/roles/routes";
-import { routes as sistemaRoutes } from "../features/sistema/routes";
+import { routes as asistenteRoutes } from "../features/asistente/routes";
+import {
+  PanelAdministracionAsistente,
+  PanelDeCalidad,
+  PanelModeloDelAsistente,
+  useCalidadEnAlza,
+} from "../features/asistente";
+import { crearRutas as crearRutasSistema } from "../features/sistema/routes";
 import { routes as ayudaRoutes } from "../features/ayuda/routes";
 
 export const router = createBrowserRouter([
@@ -39,7 +46,13 @@ export const router = createBrowserRouter([
               personasRoutes,
               ...redireccionesAnteriores,
               rolesRoutes,
-              ...sistemaRoutes,
+              ...crearRutasSistema({
+                PanelAsistente: PanelAdministracionAsistente,
+                PanelModelo: PanelModeloDelAsistente,
+                PanelCalidad: PanelDeCalidad,
+                useCalidadEnAlza,
+              }),
+              asistenteRoutes,
               ayudaRoutes,
               { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
               { path: "*", element: <PaginaNoEncontrada /> },

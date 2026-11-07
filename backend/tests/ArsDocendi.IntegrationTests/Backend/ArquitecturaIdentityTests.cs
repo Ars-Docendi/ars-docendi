@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using ArsDocendi.IntegrationTests.Infraestructura;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
@@ -7,11 +8,16 @@ public sealed class ArquitecturaIdentityTests
     [Fact]
     public void Proyectos_de_modulo_no_referencian_internals_de_otro_modulo()
     {
-        var raiz = BuscarRaizRepositorio();
+        var raiz = RaizRepositorio.Ruta();
         var proyectos = Directory.EnumerateFiles(
                 Path.Combine(raiz, "backend", "src"), "Modules.*.csproj", SearchOption.AllDirectories)
-            .Where(ruta => !ruta.Contains(".Contracts", StringComparison.Ordinal));
+            .Where(ruta => !ruta.Contains(".Contracts", StringComparison.Ordinal))
+            .ToArray();
         var infracciones = new List<string>();
+
+        // Los seis módulos internos, Asistente y Notificaciones incluidos. Si el glob dejara de
+        // alcanzar alguno, el test pasaría sin haberlo mirado.
+        Assert.Contains(proyectos, ruta => ruta.EndsWith("Modules.Asistente.csproj", StringComparison.Ordinal));
 
         foreach (var proyecto in proyectos)
         {
