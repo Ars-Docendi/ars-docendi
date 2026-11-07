@@ -10,6 +10,10 @@ El sistema SHALL derivar qué dominios tocó la consulta de la **misma** detecci
 
 Ante un dominio que no reconoce, el sistema MUST NOT concluir que el actor alcanza todo.
 
+Una consulta que toca sólo tablas de comisiones, más los catálogos de identity, SHALL considerarse que alcanza todo si y sólo si el actor tiene `comisiones.ver`, sin conjugar ámbito.
+
+Una consulta que toca comisiones y designaciones SHALL considerarse que alcanza todo sólo si el actor cumple además la regla de designaciones.
+
 #### Scenario: Un actor global sin el permiso de portal no afirma inexistencia
 
 - **GIVEN** un actor de ámbito global con `designaciones.ver` y sin `portal.ver_trayectoria_ajena`
@@ -27,3 +31,21 @@ Ante un dominio que no reconoce, el sistema MUST NOT concluir que el actor alcan
 - **GIVEN** un actor de ámbito global con `designaciones.ver` y sin el permiso de portal
 - **WHEN** pregunta algo que sólo toca designaciones e identity
 - **THEN** un resultado vacío puede presentarse como que no hay registros
+
+#### Scenario: Un actor global sin comisiones.ver no alcanza todo
+
+- **GIVEN** un actor de ámbito global que no tiene `comisiones.ver`
+- **WHEN** una consulta que sólo toca comisiones devuelve cero filas
+- **THEN** el texto reconoce el límite de alcance y no afirma que no haya registros
+
+#### Scenario: Una consulta sólo de comisiones no depende del ámbito de designaciones
+
+- **GIVEN** un jefe de cátedra, que tiene `comisiones.ver` y no alcanza todas las designaciones
+- **WHEN** una consulta que sólo toca comisiones devuelve cero filas
+- **THEN** el texto puede decir que no hay registros que coincidan
+
+#### Scenario: No se gasta el reintento donde no puede ayudar
+
+- **GIVEN** un resultado vacío de un actor que no alcanza todo lo que la consulta tocó
+- **WHEN** el sistema decide si reintenta la generación
+- **THEN** no reintenta

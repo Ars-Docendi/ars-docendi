@@ -3,10 +3,10 @@
 > **No bloquea el merge del código: bloquea CONCEDER el permiso.** La máquina se
 > puede desplegar apagada, y apagada no expone nada más que el perfil propio.
 
-- [ ] 0.1 Obtener de Secretaría Académica la finalidad escrita del acceso, con los cuatro casos de uso del catálogo sobre la mesa (ARS-90)
-- [ ] 0.2 Decirle a Secretaría, en esa misma conversación, que **contar y enumerar no se pueden separar**: quien pueda preguntar cuántos, puede preguntar quiénes
-- [ ] 0.3 Acordar quién puede otorgar `portal.ver_trayectoria_ajena` y bajo qué criterio, que es la regla de control real (`BR-portal-002`)
-- [ ] 0.4 Verificar las citas de la Ley 25.326 contra el texto vigente, y consultar con el área legal la inscripción del banco de datos ante la AAIP
+- [x] 0.1 Obtener de Secretaría Académica la finalidad escrita del acceso, con los cuatro casos de uso del catálogo sobre la mesa (ARS-90) — **Reemplazada el 2026-11-06:** la decisión la toma el equipo, no Secretaría. Se registra en el change futuro `asistente-portal-jefe-catedra`.
+- [x] 0.2 Decirle a Secretaría, en esa misma conversación, que **contar y enumerar no se pueden separar**: quien pueda preguntar cuántos, puede preguntar quiénes — **Reemplazada el 2026-11-06:** la decisión la toma el equipo, no Secretaría. Se registra en el change futuro `asistente-portal-jefe-catedra`.
+- [x] 0.3 Acordar quién puede otorgar `portal.ver_trayectoria_ajena` y bajo qué criterio, que es la regla de control real (`BR-portal-002`) — **Reemplazada el 2026-11-06:** la decisión la toma el equipo, no Secretaría. Se registra en el change futuro `asistente-portal-jefe-catedra`.
+- [x] 0.4 Verificar las citas de la Ley 25.326 contra el texto vigente, y consultar con el área legal la inscripción del banco de datos ante la AAIP — **NO HECHA: pasa al change futuro `asistente-portal-jefe-catedra`** (2026-11-06).
 
 ## 1. Higiene previa — vale por sí sola aunque el gate diga que no
 

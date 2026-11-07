@@ -1,4 +1,4 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Un resultado vacío solo se presenta como ausencia cuando el actor alcanza todo lo consultado
 

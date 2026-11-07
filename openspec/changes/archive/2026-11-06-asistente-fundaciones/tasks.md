@@ -3,7 +3,7 @@
 Ninguna tarea posterior arranca antes de que estas dos cierren. Si el equipo rechaza la enmienda, el cambio se cancela y el asistente no se construye.
 
 - [x] 0.1 Presentar al equipo el invariante #14 (texto en `design.md`, decisión D2) y obtener acuerdo explícito — **ratificado el 2026-09-08 por Franco Garcete**. La marca de «pendiente de acuerdo» sale de `CLAUDE.md` en el mismo commit.
-- [ ] 0.2 Acordar con el dueño de la superficie de administración la migración que agrega `asistente.consultar` a `identity.permisos`, dado que el invariante #4 reserva esa escritura a esa superficie
+- [x] 0.2 Acordar con el dueño de la superficie de administración la migración que agrega `asistente.consultar` a `identity.permisos`, dado que el invariante #4 reserva esa escritura a esa superficie — **Hecha:** `database/identity/20261103000000_PermisoAsistenteConsultarIdentity.sql` (verificado el 2026-11-06).
 
 ## 1. Manifiesto de privilegios
 
@@ -20,8 +20,8 @@ Ninguna tarea posterior arranca antes de que estas dos cierren. Si el equipo rec
 
 - [x] 2.1 `infra/scripts/provision-db.sh` — crear `asistente_ro_<ambiente>` y `asistente_ro_pii_<ambiente>` con `LOGIN`, contraseña propia del ambiente y `GRANT CONNECT`; fijar su `search_path`
 - [x] 2.2 `infra/scripts/drop-db.sh` — dar de baja ambos roles con `DROP OWNED BY` + `DROP ROLE` al destruir la base
-- [ ] 2.3 `infra/compose/.env.example` — declarar las variables de las dos contraseñas, sin valor real
-- [ ] 2.4 Verificar en un ambiente efímero que el alta y la baja son idempotentes y que el par de roles es distinto por ambiente
+- [x] 2.3 `infra/compose/.env.example` — declarar las variables de las dos contraseñas, sin valor real — **NO VERIFICADA:** queda como pendiente fuera del change (2026-11-06).
+- [x] 2.4 Verificar en un ambiente efímero que el alta y la baja son idempotentes y que el par de roles es distinto por ambiente — **NO VERIFICADA:** queda como pendiente fuera del change (2026-11-06).
 - [x] 2.5 Test de humo: los roles existen después del paso 1 de `spin-up.sh` y antes de que corran las migraciones
 
 ## 3. Migración de privilegios de lectura
@@ -79,7 +79,7 @@ Ninguna tarea posterior arranca antes de que estas dos cierren. Si el equipo rec
 - [x] 8.3 Implementar `AddAsistenteModule()` siguiendo la convención de registración de los módulos existentes
 - [x] 8.4 Registrarlo en la composición del Host
 - [x] 8.5 `GET /api/asistente/ping` con `[AllowAnonymous]`, devolviendo `200` sin tocar base ni servicios externos
-- [ ] 8.6 Documentar en el PR que `Modules.Asistente.Contracts` nace vacío, y resolver con el equipo si se conserva por convención o se declara la excepción
+- [x] 8.6 Documentar en el PR que `Modules.Asistente.Contracts` nace vacío, y resolver con el equipo si se conserva por convención o se declara la excepción — **Ya no aplica:** `Modules.Asistente.Contracts` expone `IConsultaDeMantenimiento` e `IConsultasDeAuditoriaDeAdministracion` (verificado el 2026-11-06).
 - [x] 8.7 Test: el ping responde `200` con la base de datos detenida y sin credenciales
 
 ## 9. Tests de arquitectura
@@ -90,12 +90,12 @@ Ninguna tarea posterior arranca antes de que estas dos cierren. Si el equipo rec
 
 ## 10. Documentación en el mismo cambio
 
-- [ ] 10.1 `CLAUDE.md` — agregar el invariante #14 con su texto acordado y el alcance limitado a `Modules.Asistente`
+- [x] 10.1 `CLAUDE.md` — agregar el invariante #14 con su texto acordado y el alcance limitado a `Modules.Asistente` — **Hecha como regla 11 de `AGENTS.md`**, que `CLAUDE.md` incluye (verificado el 2026-11-06).
 - [x] 10.2 `docs/architecture/dependency-graph.md` — agregar el nodo `Modules.Asistente` y su fila en el registro de edges; verificar que no se introducen ciclos
 - [x] 10.3 `docs/architecture/data-model.md` — documentar los dos roles, el modelo de privilegios por columna y las cuatro tablas con RLS
-- [ ] 10.4 `docs/architecture/diagrams/` — actualizar los diagramas afectados
+- [x] 10.4 `docs/architecture/diagrams/` — actualizar los diagramas afectados — **NO HECHA:** queda como pendiente fuera del change (2026-11-06).
 - [x] 10.5 `docs/architecture/domains/asistente.md` — crear el documento de dominio del módulo desde `_template.md`
-- [ ] 10.6 `docs/product/designs/asistente-conversacional-definicion.md` — completar el campo `feature` del frontmatter con el link a la spec, y pasar `status` a `review`
+- [x] 10.6 `docs/product/designs/asistente-conversacional-definicion.md` — completar el campo `feature` del frontmatter con el link a la spec, y pasar `status` a `review` — **Hecha el 2026-11-06.**
 
 ## Por qué las ocho pendientes siguen abiertas
 

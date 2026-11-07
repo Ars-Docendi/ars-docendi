@@ -1,3 +1,16 @@
+## RENAMED Requirements
+
+- FROM: `### Requirement: El perfil ajeno exige un permiso propio`
+- TO: `### Requirement: El perfil ajeno exige un permiso propio y estar dentro del ámbito`
+
+## REMOVED Requirements
+
+### Requirement: El ámbito no interviene en la visibilidad del portal
+
+**Reason**: Secretaría definió el alcance por rol; el permiso ahora se conjuga con el ámbito (`BR-portal-007`).
+
+**Migration**: la visibilidad la decide `identity.asistente_alcanza_a(persona)`; ver el requisito renombrado.
+
 ## MODIFIED Requirements
 
 ### Requirement: El perfil ajeno exige un permiso propio y estar dentro del ámbito
@@ -42,3 +55,21 @@ El permiso SHALL nacer concedido a ningún rol.
 - **GIVEN** un actor sin `portal.ver_trayectoria_ajena` y sin ninguna designación vigente
 - **WHEN** consulta su propio perfil
 - **THEN** lo ve
+
+#### Scenario: Sin el permiso no se ve la trayectoria ajena
+
+- **GIVEN** un actor de ámbito global sin `portal.ver_trayectoria_ajena`
+- **WHEN** consulta formación, certificaciones o experiencia del padrón
+- **THEN** no ve ninguna fila que no sea suya
+
+#### Scenario: Con el permiso se ve todo el padrón
+
+- **GIVEN** un actor de ámbito global con `portal.ver_trayectoria_ajena`
+- **WHEN** consulta las tablas de trayectoria
+- **THEN** ve las mismas filas que el dueño de las tablas
+
+#### Scenario: El permiso nace vacío
+
+- **GIVEN** una base recién migrada
+- **WHEN** se consulta qué roles tienen `portal.ver_trayectoria_ajena`
+- **THEN** no lo tiene ninguno
