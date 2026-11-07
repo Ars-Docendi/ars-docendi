@@ -612,6 +612,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("justificacion");
 
+                    b.Property<DateTimeOffset?>("MaterializadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("materializado_en");
+
                     b.Property<Guid>("MateriaId")
                         .HasColumnType("uuid")
                         .HasColumnName("materia_id");

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Field, FileUpload, Input, Textarea } from "@ars-docendi/ui";
 
+import { acceptDe, mensajeFormatoInvalido, mimeAdmitido } from "../../api/archivosApi";
 import type { DatosProyecto, Proyecto } from "../types";
 import { CampoPeriodo } from "./CampoPeriodo";
 import { MENSAJE_FALTA_ANIO, SIN_MES_SIN_ANIO, type MesSinAnio } from "./mesSinAnio";
@@ -114,9 +115,10 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
             onChange={(e) => setDatos({ ...datos, doi: e.target.value })}
           />
         </Field>
-        <Field label="Documento">
+        <Field label="Documento" error={errores.documento}>
           <FileUpload
-            accept="application/pdf,.pdf"
+            accept={acceptDe("documento_proyecto")}
+            error={Boolean(errores.documento)}
             title="Arrastrá el PDF o hacé clic para subirlo"
             files={
               datos.documento
@@ -125,7 +127,17 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
             }
             onFilesAdded={(archivos) => {
               const archivo = archivos[0];
-              if (archivo)
+              if (!archivo) return;
+              const errorFormato = mimeAdmitido("documento_proyecto", archivo)
+                ? undefined
+                : mensajeFormatoInvalido("documento_proyecto");
+              setErrores((prev) => {
+                const siguientes = { ...prev };
+                if (errorFormato) siguientes.documento = errorFormato;
+                else delete siguientes.documento;
+                return siguientes;
+              });
+              if (!errorFormato)
                 setDatos({
                   ...datos,
                   documento: { archivoId: "", nombre: archivo.name, archivo },

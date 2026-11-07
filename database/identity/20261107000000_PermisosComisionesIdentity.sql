@@ -1,16 +1,16 @@
--- 20261106120000_PermisosComisionesIdentity (Identity).
+-- 20261107000000_PermisosComisionesIdentity (Identity).
 -- No editar después de publicar: crear otra migración incremental.
 --
 -- Permisos de la pantalla de comisiones importadas desde Guaraní.
 -- `comisiones.ver`: consultar el snapshot. `comisiones.importar`: traer un
 -- período desde Guaraní, reservado a Secretaría Académica y al Administrador de
--- Sistemas. Ids -038/-039: -026 a -037 ya están en uso.
+-- Sistemas. Ids -041/-042: -026 a -040 ya están en uso.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000038', 'comisiones.ver',
+    ('b2000000-0000-4000-8000-000000000041', 'comisiones.ver',
      'Ver comisiones',
      'Consultar las comisiones importadas desde Guaraní.'),
-    ('b2000000-0000-4000-8000-000000000039', 'comisiones.importar',
+    ('b2000000-0000-4000-8000-000000000042', 'comisiones.importar',
      'Importar comisiones',
      'Actualizar desde Guaraní las comisiones de un período lectivo.')
 ON CONFLICT (code) DO UPDATE SET

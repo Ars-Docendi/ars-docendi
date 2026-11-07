@@ -182,6 +182,17 @@ conserva ID/inicio y actualiza cargo, dedicación, tres horas y origen; un Cambi
 posterior cierra/abre atómicamente sin retirar EXCLUDE. El criterio de vigente sigue
 siendo `vigente_hasta IS NULL`.
 
+Estados del pedido: `borrador`, `en_revision_coordinador`, `en_revision_secretaria`,
+`en_revision_decanato`, `devuelto`, `en_lote` (aceptado por Decanato, en el Excel y esperando la
+conciliación), `no_aprobado` (rechazado en la conciliación; sale del Excel y se puede editar para
+volver a `en_lote`), `aprobado` (sincronizado; terminal), `rechazado` y `cancelado`. Las acciones
+del historial suman `sincronizar` y `no_aprobar`. La designación se escribe al **sincronizar**,
+no al aceptar en Decanato. `pedidos.materializado_en` marca los pedidos `en_lote` anteriores a la
+conciliación, ya materializados al aceptar: sincronizarlos no vuelve a escribir la designación y
+no se pueden rechazar ni editar. `CHECK pedidos_materializado_coherente` lo admite sólo en
+`en_lote` o `aprobado`. La sincronización escribe además la membresía Docente de la persona en
+`identity.user_roles` (vía `IAdministracionIdentity`, en la misma transacción) si tiene usuario.
+
 Listado y detalle son consultas distintas: grilla sin documentos y con un resumen
 de hasta cuatro eventos reales por pedido (sin comentarios), detalle completo con
 orden `(created_at,id)`. Relectura administrativa por persona y resolución de

@@ -28,6 +28,8 @@ const VERBO_POR_ACCION: Record<AccionHistorial, AuditVerb> = {
   cancelar: "reject",
   priorizar: "update",
   despriorizar: "update",
+  sincronizar: "approve",
+  no_aprobar: "reject",
 };
 
 /** Etiqueta legible (en español) que se muestra junto al verbo. */
@@ -42,6 +44,8 @@ const ETIQUETA_POR_ACCION: Record<AccionHistorial, string> = {
   cancelar: "Canceló",
   priorizar: "Marcó prioritario",
   despriorizar: "Quitó prioridad",
+  sincronizar: "Sincronizó",
+  no_aprobar: "Rechazó en la conciliación",
 };
 
 /** Traduce una acción del historial a su `AuditVerb` de la lib. */
@@ -170,6 +174,12 @@ function detalleEtapa(
     case "devuelta":
       return "Devuelto para corrección";
     case "rechazada": {
+      if (pedido.estado === "no_aprobado") {
+        const rechazo = [...pedido.historial].reverse().find((h) => h.accion === "no_aprobar");
+        return rechazo
+          ? `Rechazado en conciliación · ${formatearFecha(rechazo.fecha)}`
+          : "Rechazado en conciliación";
+      }
       const evento = [...pedido.historial].reverse().find((h) => h.accion === "rechazar");
       return evento ? `Rechazó · ${formatearFecha(evento.fecha)}` : "Rechazó";
     }
@@ -182,7 +192,7 @@ function detalleEtapa(
         const verbo = evento.accion === "reenviar" ? "Reenvió" : "Envió";
         return `${verbo} · ${formatearFecha(evento.fecha)}`;
       }
-      if (etapa.rol === "En lote") return "En lote";
+      if (etapa.rol === "En lote") return pedido.estado === "aprobado" ? "Sincronizado" : "En lote";
       const evento = etapa.rolActor
         ? [...pedido.historial]
             .reverse()
@@ -219,7 +229,10 @@ export function derivarCadena(pedido: PedidoDesignacion, actor: ActorContexto): 
   } else if (pedido.estado === "devuelto") {
     activo = pedido.etapaRetorno ? indiceDeEstado(pedido.etapaRetorno) : 1;
     naturaleza = "devuelta";
-  } else if (pedido.estado === "en_lote") {
+  } else if (pedido.estado === "no_aprobado") {
+    activo = indiceDeEstado("en_lote"); // rechazado en la conciliación del lote
+    naturaleza = "rechazada";
+  } else if (pedido.estado === "en_lote" || pedido.estado === "aprobado") {
     activo = CADENA.length; // toda la cadena queda done
   } else {
     activo = indiceDeEstado(pedido.estado); // etapas de revisión

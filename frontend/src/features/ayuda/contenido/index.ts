@@ -25,6 +25,7 @@ import { revisarElTablero } from "./designaciones/revisar-el-tablero";
 import { resolverUnPedido } from "./designaciones/resolver-un-pedido";
 import { descargarElLoteDeFinalizados } from "./designaciones/descargar-el-lote-de-finalizados";
 import { gestionarPeriodos } from "./designaciones/gestionar-periodos";
+import { conciliarElLote } from "./designaciones/conciliar-el-lote";
 import { consultarLasComisiones } from "./designaciones/consultar-las-comisiones";
 import { administrarPersonas } from "./administracion/administrar-personas";
 import { administrarRolesYPermisos } from "./administracion/administrar-roles-y-permisos";
@@ -67,6 +68,7 @@ export const MODULOS: readonly ModuloAyuda[] = [
     permisos: [
       "designaciones.gestionar",
       "designaciones.revisar",
+      "designaciones.conciliar",
       "periodos.administrar",
       "comisiones.ver",
     ],
@@ -120,6 +122,7 @@ export const ARTICULOS: readonly ArticuloAyuda[] = [
   revisarElTablero,
   resolverUnPedido,
   descargarElLoteDeFinalizados,
+  conciliarElLote,
   gestionarPeriodos,
   consultarLasComisiones,
   // Configuración y sistema

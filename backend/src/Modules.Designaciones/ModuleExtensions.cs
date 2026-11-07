@@ -51,6 +51,7 @@ public static class ModuleExtensions
         services.AddScoped<ResolutorActor>();
         services.AddScoped<ServicioPedidos>();
         services.AddScoped<IServicioPedidosApi, ServicioPedidosApi>();
+        services.AddScoped<IServicioConciliacion, ServicioConciliacion>();
         services.AddScoped<IServicioLoteDesignaciones, ServicioLoteDesignaciones>();
         services.AddScoped<ServicioPeriodos>();
         services.AddScoped<ServicioCatalogosDesignaciones>();

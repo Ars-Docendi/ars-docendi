@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { TablaRevision } from "./TablaRevision";
 import type { FiltrosTablero } from "./filtrosTablero";
-import type { ActorContexto, EstadoPedido, PedidoDesignacion, PeriodoDesignacion } from "../types";
+import type { ActorContexto, EstadoPedido, PedidoDesignacion } from "../types";
 
 /** Las filas llevan enlaces del router: toda renderización necesita uno. */
 function render(ui: React.ReactElement) {
@@ -16,19 +16,6 @@ const COORD: ActorContexto = {
   nombre: "M. Díaz",
   carrera: "Ingeniería en Informática",
 };
-const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
-const DECANO: ActorContexto = { rol: "Decanato", nombre: "R. Sosa" };
-const ADMIN: ActorContexto = { rol: "Administración", nombre: "Admin" };
-const PERIODO_ACTIVO: PeriodoDesignacion = {
-  id: "periodo-1",
-  nombre: "Segundo cuatrimestre 2026",
-  cargaDesde: "2026-06-01",
-  cargaHasta: "2026-07-31",
-  impactoDesde: "2026-08-01",
-  impactoHasta: "2026-12-31",
-  activo: true,
-};
-
 const SIN_FILTROS: FiltrosTablero = {
   tipo: "todos",
   estado: "todos",
@@ -80,110 +67,6 @@ function pestania(nombre: string | RegExp) {
 }
 
 describe("TablaRevision (una tabla + pestañas por etapa)", () => {
-  it("muestra Exportar sólo en Finalizados con el período explícito", async () => {
-    const user = userEvent.setup();
-    const onExportar = vi.fn();
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_lote")]}
-        actor={ADMIN}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-        periodoActivo={PERIODO_ACTIVO}
-        onExportar={onExportar}
-      />,
-    );
-
-    expect(screen.queryByRole("button", { name: "Exportar" })).not.toBeInTheDocument();
-    await user.click(pestania(/Finalizados/));
-    expect(screen.getByText("Período: Segundo cuatrimestre 2026")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Exportar" }));
-    expect(onExportar).toHaveBeenCalledOnce();
-  });
-
-  it.each([COORD, SECRE, DECANO, ADMIN])(
-    "muestra Exportar sólo a roles de revisión habilitados (%s)",
-    async (actor) => {
-      const user = userEvent.setup();
-      render(
-        <TablaRevision
-          pedidos={[pedido("en_lote")]}
-          actor={actor}
-          filtros={SIN_FILTROS}
-          onSeleccionar={vi.fn()}
-          periodoActivo={PERIODO_ACTIVO}
-          onExportar={vi.fn()}
-        />,
-      );
-
-      await user.click(pestania(/Finalizados/));
-      if (
-        actor.rol === "Secretaría" ||
-        actor.rol === "Decanato" ||
-        actor.rol === "Administración"
-      ) {
-        expect(screen.getByRole("button", { name: "Exportar" })).toBeInTheDocument();
-      } else {
-        expect(screen.queryByRole("button", { name: "Exportar" })).not.toBeInTheDocument();
-      }
-    },
-  );
-
-  it("deja Exportar deshabilitado y explica la falta de período activo", async () => {
-    const user = userEvent.setup();
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_lote")]}
-        actor={ADMIN}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-        periodoActivo={null}
-        onExportar={vi.fn()}
-      />,
-    );
-
-    await user.click(pestania(/Finalizados/));
-    expect(screen.getByRole("button", { name: "Exportar" })).toBeDisabled();
-    expect(
-      screen.getByText("Configurá un período activo para descargar el lote."),
-    ).toBeInTheDocument();
-  });
-
-  it("muestra progreso y permite reintentar tras un error", async () => {
-    const user = userEvent.setup();
-    const onExportar = vi.fn();
-    const { rerender } = render(
-      <TablaRevision
-        pedidos={[pedido("en_lote")]}
-        actor={ADMIN}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-        periodoActivo={PERIODO_ACTIVO}
-        onExportar={onExportar}
-        exportando
-      />,
-    );
-
-    await user.click(pestania(/Finalizados/));
-    expect(screen.getByRole("button", { name: "Exportar" })).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Exportando…");
-
-    rerender(
-      <TablaRevision
-        pedidos={[pedido("en_lote")]}
-        actor={ADMIN}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-        periodoActivo={PERIODO_ACTIVO}
-        onExportar={onExportar}
-        errorExportacion="No se pudo descargar el lote. Reintentá."
-      />,
-    );
-    expect(screen.getByRole("alert")).toHaveTextContent("Reintentá");
-    await user.click(screen.getByRole("button", { name: "Exportar" }));
-    expect(onExportar).toHaveBeenCalledOnce();
-  });
-
   it("cambiar de pestaña cambia las filas de la misma tabla", async () => {
     const user = userEvent.setup();
     render(

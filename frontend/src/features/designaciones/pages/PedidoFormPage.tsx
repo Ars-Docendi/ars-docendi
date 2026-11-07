@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { InlineAlert } from "@ars-docendi/ui";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
@@ -18,6 +19,7 @@ import { erroresValidacionPedido } from "../api/erroresValidacionPedido";
 import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
+const RUTA_CONCILIACION = "/designaciones/conciliacion";
 
 /** Etiqueta corta del período a partir de su id. */
 function etiquetaPeriodo(periodoId: string, periodos: { id: string; nombre: string }[]): string {
@@ -45,7 +47,14 @@ export function PedidoFormPage() {
     origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_MIS_PEDIDOS
       ? origen.ruta
       : RUTA_MIS_PEDIDOS;
-  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : rutaMisPedidos;
+  // Editado desde Conciliación, vuelve ahí; desde cualquier otro lado, al detalle.
+  const desdeConciliacion = origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_CONCILIACION;
+  const rutaRetorno =
+    esEdicion && id
+      ? desdeConciliacion
+        ? origen.ruta
+        : `/designaciones/pedidos/${id}`
+      : rutaMisPedidos;
 
   // El formulario avisa si tiene cambios; tras guardar se sale sin preguntar.
   const [sucio, setSucio] = useState(false);
@@ -119,7 +128,14 @@ export function PedidoFormPage() {
       <Migas
         items={[
           { label: "Inicio", href: "/" },
-          { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
+          {
+            label: esEdicion
+              ? desdeConciliacion
+                ? "Conciliación"
+                : "Detalle del pedido"
+              : "Mis pedidos",
+            href: rutaRetorno,
+          },
           { label: esEdicion ? "Editar pedido" : "Nuevo pedido" },
         ]}
       />
@@ -159,7 +175,10 @@ export function PedidoFormPage() {
               ))}
             </ul>
           ) : (
-            "Ocurrió un error al guardar. Revisá los datos e intentá de nuevo."
+            mensajeProblema(
+              errorMutacion,
+              "Ocurrió un error al guardar. Revisá los datos e intentá de nuevo.",
+            )
           )}
         </InlineAlert>
       )}

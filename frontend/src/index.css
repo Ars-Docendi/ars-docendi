@@ -78,6 +78,15 @@ a {
 .adoc-drawer > .body {
   overscroll-behavior: contain;
 }
+/* `.adoc-modal .body` de la ui-lib es descendiente: también alcanza el `.body` de un
+   InlineAlert dentro del modal y le suma el relleno y el color del cuerpo del diálogo. */
+.adoc-modal .adoc-alert .body,
+.adoc-drawer .adoc-alert .body {
+  flex: none;
+  padding: 0;
+  overflow: visible;
+  color: currentColor;
+}
 
 /* Below 560 px fields use 16 px text so iOS Safari does not zoom the page on focus. */
 @media (max-width: 559px) {

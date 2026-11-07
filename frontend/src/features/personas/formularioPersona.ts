@@ -63,7 +63,26 @@ export function formularioVacio(): FormularioPersona {
   };
 }
 
-export function formularioDesde(p: Persona): FormularioPersona {
+/**
+ * Rol Docente en cada materia y carrera de las designaciones vigentes de una persona sin
+ * cuenta y sin roles: es lo que la conciliación le dejó listo para cuando tenga mail. El
+ * operador puede quitarlo antes de guardar; el backend guarda exactamente la lista enviada.
+ */
+export function membresiasSugeridas(p: Persona, catalogos: CatalogosPersonas): MembresiaFila[] {
+  const docente = catalogos.roles.find((r) => r.codigo === "docente");
+  if (p.tieneCuenta || p.membresias.length > 0 || !docente) return [];
+  const pares = new Map<string, MembresiaFila>();
+  for (const a of p.asignaciones)
+    pares.set(`${a.materiaId}|${a.carreraId}`, {
+      rolId: docente.id,
+      materiaId: a.materiaId,
+      carreraId: a.carreraId,
+    });
+  return [...pares.values()];
+}
+
+export function formularioDesde(p: Persona, catalogos?: CatalogosPersonas): FormularioPersona {
+  const sugeridas = catalogos ? membresiasSugeridas(p, catalogos) : [];
   return {
     datos: {
       nombre: p.nombre,
@@ -81,7 +100,9 @@ export function formularioDesde(p: Persona): FormularioPersona {
           materiaId: m.materiaId ?? "",
           carreraId: m.carreraId ?? "",
         }))
-      : [{ ...MEMBRESIA_VACIA }],
+      : sugeridas.length
+        ? sugeridas
+        : [{ ...MEMBRESIA_VACIA }],
     asignaciones: p.asignaciones.map((a) => ({
       materiaId: a.materiaId,
       carreraId: a.carreraId,

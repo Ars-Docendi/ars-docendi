@@ -1,4 +1,4 @@
--- 20261106120100_ComisionesGuaraniDesignaciones (Designaciones).
+-- 20261107000100_ComisionesGuaraniDesignaciones (Designaciones).
 -- No editar después de publicar: crear otra migración incremental.
 --
 -- Snapshot de comisiones importadas desde SIU-Guaraní (prefijo sga_: datos

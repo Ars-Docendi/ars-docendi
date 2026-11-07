@@ -103,6 +103,7 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
             e.Property(x => x.TipoBajaDetalle).HasColumnName("tipo_baja_detalle");
             e.Property(x => x.EtapaRetorno).HasColumnName("etapa_retorno");
             e.Property(x => x.PropietarioActual).HasColumnName("propietario_actual");
+            e.Property(x => x.MaterializadoEn).HasColumnName("materializado_en");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.Property(x => x.Version).IsRowVersion();
             e.Ignore(x => x.EsTerminal);

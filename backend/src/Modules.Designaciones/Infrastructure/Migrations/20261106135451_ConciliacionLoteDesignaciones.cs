@@ -5,12 +5,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Modules.Designaciones.Infrastructure.Migrations;
 
 [DbContext(typeof(DesignacionesDbContext))]
-[Migration("20261106120100_ComisionesGuaraniDesignaciones")]
-[RecursosMigracionSql("comisiones/20261106120100_ComisionesGuaraniDesignaciones.sql")]
-public sealed class ComisionesGuaraniDesignaciones : Migration
+[Migration("20261106135451_ConciliacionLoteDesignaciones")]
+[RecursosMigracionSql("designaciones/20261106135451_ConciliacionLoteDesignaciones.sql")]
+public sealed class ConciliacionLoteDesignaciones : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>
-        migrationBuilder.AplicarRecursosSql(typeof(ComisionesGuaraniDesignaciones));
+        migrationBuilder.AplicarRecursosSql(typeof(ConciliacionLoteDesignaciones));
 
     protected override void Down(MigrationBuilder migrationBuilder) =>
         throw new NotSupportedException("Recuperación explícita desde respaldo; no revertir DDL automáticamente.");

@@ -1,0 +1,34 @@
+/* Chip de novedad (Alta / Baja / Cambio): lo usan Revisión y Conciliación. */
+.adoc-novedad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 20px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+.adoc-novedad-chip svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+.adoc-novedad-chip.alta {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+.adoc-novedad-chip.cambio {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+.adoc-novedad-chip.baja {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+.adoc-novedad-chip.neutro {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+}
