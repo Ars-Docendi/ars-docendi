@@ -3,10 +3,12 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Modules.Designaciones.Contracts.Administracion;
 using Modules.Designaciones.Contracts.Queries;
 using Modules.Designaciones.Infrastructure;
+using Modules.Designaciones.Infrastructure.Guarani;
 using Modules.Designaciones.Repositories;
 using Modules.Designaciones.Services;
 using Modules.Designaciones.Services.Integridad;
@@ -56,6 +58,25 @@ public static class ModuleExtensions
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
         services.AddScoped<IDesignacionesQueries, ServicioConsultasDesignaciones>();
         services.AddHostedService<LimpiezaComandosIdempotentes>();
+
+        // Guaraní: sin configuración completa la integración queda deshabilitada (503) y el Host arranca igual.
+        services.AddOptions<OpcionesGuarani>()
+            .Bind(configuration.GetSection(OpcionesGuarani.Seccion))
+            .Configure<IHostEnvironment>((opciones, ambiente) =>
+            {
+                opciones.Usuario = configuration[OpcionesGuarani.VariableUsuario] ?? string.Empty;
+                opciones.Contrasena = configuration[OpcionesGuarani.VariableContrasena] ?? string.Empty;
+                opciones.ExigeCredenciales = !ambiente.IsDevelopment();
+            });
+        services.AddHttpClient<ClienteGuarani>((sp, http) =>
+        {
+            var opciones = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpcionesGuarani>>().Value;
+            if (Uri.TryCreate(opciones.UrlBase, UriKind.Absolute, out var url))
+                http.BaseAddress = new Uri(url.ToString().TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(Math.Max(1, opciones.TimeoutSegundos));
+        });
+        services.AddScoped<RepositorioComisiones>();
+        services.AddScoped<ServicioComisiones>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

@@ -44,6 +44,8 @@ public static class Permisos
     public const string PersonasVerAmbito = "personas.ver_ambito";
     public const string PersonasAdministrar = "personas.administrar";
     public const string PortalAdministrar = "portal.administrar";
+    public const string ComisionesVer = "comisiones.ver";
+    public const string ComisionesImportar = "comisiones.importar";
 
     /// <summary>
     /// Admisión al asistente conversacional. Se administra desde la membresía de
@@ -135,5 +137,7 @@ public static class Permisos
         TareasVer,
         TareasGestionar,
         ProyectosGestionar,
+        ComisionesVer,
+        ComisionesImportar,
     ];
 }

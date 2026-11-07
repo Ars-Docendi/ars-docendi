@@ -18,6 +18,7 @@ function tarea(id: string, titulo: string, estado: Tarea["estado"], fin: string)
     tipo: "academica",
     estado,
     porcentajeAvance: 0,
+    avanceCalculado: false,
     responsable: { id: "u1", nombre: "Ana", rol: "Docente" },
     creadoPor: { id: "u2", nombre: "Beto", rol: "Decanato" },
     comentarios: [],

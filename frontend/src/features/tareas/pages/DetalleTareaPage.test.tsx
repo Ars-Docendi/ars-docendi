@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Tarea } from "../types";
 import { DetalleTareaPage } from "./DetalleTareaPage";
@@ -19,6 +19,8 @@ function tarea(id: string, numero: number, extra: Partial<Tarea> = {}): Tarea {
     tipo: "academica",
     estado: "pendiente",
     porcentajeAvance: 0,
+
+    avanceCalculado: false,
     responsable: { id: "u1", nombre: "Ana", rol: "Docente" },
     creadoPor: { id: "u2", nombre: "Beto", rol: "Decanato" },
     comentarios: [],
@@ -28,7 +30,11 @@ function tarea(id: string, numero: number, extra: Partial<Tarea> = {}): Tarea {
   };
 }
 
-const TAREAS = [tarea("t1", 1), tarea("t2", 2, { tareaPadreId: "t1" })];
+const TAREAS = [
+  tarea("t1", 1),
+  tarea("t2", 2, { tareaPadreId: "t1" }),
+  tarea("t3", 3, { fechaInicio: "2026-03-01", fechaFin: "2026-03-20" }),
+];
 
 vi.mock("../../../shared/auth/useCurrentUser", () => ({
   useCurrentUser: () => ({
@@ -57,6 +63,8 @@ vi.mock("../hooks/useAccionesTarea", () => {
     useEditarAvance: mutacion,
     useEditarTarea: mutacion,
     useQuitarRelacion: mutacion,
+    useVincularHija: mutacion,
+    useDesvincularHija: mutacion,
   };
 });
 
@@ -73,6 +81,20 @@ function montar(entradas: Parameters<typeof createMemoryRouter>[1]) {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+describe("DetalleTareaPage — Vencimiento", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("una tarea que vence hoy no figura como vencida", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 2, 20, 22, 0));
+
+    montar({ initialEntries: ["/tareas/t3"] });
+
+    expect(screen.getByRole("img", { name: "Próximo a vencer" })).toBeInTheDocument();
+    expect(screen.queryByText("Vencido")).not.toBeInTheDocument();
+  });
+});
 
 describe("DetalleTareaPage — Volver", () => {
   it("con un link directo vuelve al listado sin salir de la app", async () => {

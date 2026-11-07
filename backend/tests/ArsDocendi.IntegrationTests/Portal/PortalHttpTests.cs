@@ -204,7 +204,12 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         //
         // Subió a 169 con conciliacion-designaciones: `GET /api/designaciones/conciliacion`,
         // `POST …/conciliacion/sincronizar` y `POST …/pedidos/{id}/no-aprobar`.
-        Assert.Equal(169, operaciones.Length);
+        //
+        // Up to 176 with importar-comisiones-guarani: five in ComisionesController (`GET
+        // /api/designaciones/comisiones`, `GET …/periodos`, `POST …/exportacion`, `GET
+        // …/guarani/periodos-lectivos`, `POST …/importaciones`) and two in TareasController
+        // (`POST /api/tareas/{id}/hijas`, `DELETE …/hijas/{hijaId}`).
+        Assert.Equal(176, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

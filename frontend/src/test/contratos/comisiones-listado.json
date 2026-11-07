@@ -1,0 +1,110 @@
+[
+  {
+    "id": "9003",
+    "nombre": "SA-0001",
+    "materia": {
+      "codigo": "03620",
+      "nombre": "Algoritmos y Estructuras de Datos",
+      "id": "70000000-0000-4000-8000-000000000102"
+    },
+    "carreras": [
+      {
+        "codigo": "IND",
+        "nombre": "INGENIERÍA INDUSTRIAL",
+        "id": "c0000000-0000-4000-8000-000000000202"
+      }
+    ],
+    "docentes": [
+      {
+        "nombre": "RUIZ GUSTAVO",
+        "responsabilidad": "Ingenieria",
+        "personaId": "d0000000-0000-4000-8000-000000000002"
+      }
+    ],
+    "horarios": [],
+    "modalidadCodigo": "E",
+    "modalidad": "Virtual - Sincrónico",
+    "ubicacion": "San Justo"
+  },
+  {
+    "id": "9001",
+    "nombre": "01-1234",
+    "materia": {
+      "codigo": "03500",
+      "nombre": "Ingeniería de Software",
+      "id": "70000000-0000-4000-8000-000000000101"
+    },
+    "carreras": [
+      {
+        "codigo": "INF",
+        "nombre": "INGENIERÍA EN INFORMÁTICA",
+        "id": "c0000000-0000-4000-8000-000000000201"
+      },
+      {
+        "codigo": "ZZZ",
+        "nombre": "CARRERA FICTICIA SIN CATÁLOGO",
+        "id": null
+      }
+    ],
+    "docentes": [
+      {
+        "nombre": "DOCENTE FICTICIO SIN ALTA",
+        "responsabilidad": "Titular",
+        "personaId": null
+      },
+      {
+        "nombre": "LOPEZ CARLA",
+        "responsabilidad": "Ingenieria",
+        "personaId": "d0000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "horarios": [
+      {
+        "asignacionId": "501",
+        "dia": 1,
+        "desde": "08:00",
+        "hasta": "12:00",
+        "aula": "Aula 101"
+      },
+      {
+        "asignacionId": "502",
+        "dia": 4,
+        "desde": "08:00",
+        "hasta": "10:00",
+        "aula": null
+      }
+    ],
+    "modalidadCodigo": "A",
+    "modalidad": "Presencial",
+    "ubicacion": "San Justo"
+  },
+  {
+    "id": "9002",
+    "nombre": "01-5678",
+    "materia": {
+      "codigo": "99999",
+      "nombre": "Materia sin catálogo",
+      "id": null
+    },
+    "carreras": [
+      {
+        "codigo": "INF",
+        "nombre": "INGENIERÍA EN INFORMÁTICA",
+        "id": "c0000000-0000-4000-8000-000000000201"
+      }
+    ],
+    "docentes": [],
+    "horarios": [
+      {
+        "asignacionId": "501",
+        "dia": 1,
+        "desde": "08:00",
+        "hasta": "12:00",
+        "aula": "Aula 101"
+      }
+    ],
+    "modalidadCodigo": "B1",
+    "modalidad": "Semi Presencial Sincronica",
+    "ubicacion": "San Justo"
+  }
+]

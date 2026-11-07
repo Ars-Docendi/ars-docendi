@@ -63,6 +63,9 @@ Sigue la convención RFC 7807 (Problem Details). Status codes habituales:
 - `409 Conflict` — colisión de estado (ej. designación ya aprobada)
 - `422 Unprocessable Entity` — viola una BR-\* de negocio
 - `500 Internal Server Error` — fallo no manejado (el detalle se loggea, no se expone)
+- `502 Bad Gateway` — un servicio externo (p. ej. Guaraní) respondió con error, rechazó las credenciales o devolvió datos inutilizables
+- `503 Service Unavailable` — la integración con un servicio externo no está configurada en ese ambiente
+- `504 Gateway Timeout` — un servicio externo no respondió dentro del tiempo de espera
 
 Las extensiones `code` y `errors` se incluyen cuando corresponden. Las excepciones inesperadas se registran con Serilog junto con `traceId`, pero la respuesta nunca publica stack traces ni datos sensibles.
 
@@ -174,23 +177,25 @@ Garantías de publicación, retención y borrado: spec [almacenamiento-adjuntos]
 
 Acceso por permiso del rol vigente (no por nombre de rol). `tareas.ver` lo tienen todos los roles de sistema; `tareas.gestionar`, Decanato, Secretaría Académica y Administrativo; `proyectos.gestionar`, Decanato y Secretaría Académica. Las reglas finas (autoridad creadora, Responsable, jerarquía de asignación) las aplica el servicio: violación de permiso → 403, de regla → 422, dato inválido → 400.
 
-| Método      | Path                                            | Permiso               | Descripción                                                                                                                    |
-| ----------- | ----------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| GET         | `/ping`                                         | (anónimo)             | Health check del módulo                                                                                                        |
-| GET         | `/`                                             | `tareas.ver`          | Listado de tareas (comentarios e historial vacíos)                                                                             |
-| GET         | `/{id}`                                         | `tareas.ver`          | Detalle: comentarios, historial y tareas relacionadas                                                                          |
-| POST        | `/`                                             | `tareas.gestionar`    | Crear tarea; con `tareaPadreId` es hija y hereda el Proyecto                                                                   |
-| PUT         | `/{id}`                                         | `tareas.gestionar`    | Editar campos (solo la autoridad creadora)                                                                                     |
-| POST        | `/{id}/estado`                                  | `tareas.ver`          | Cambiar estado (Responsable o autoridad creadora; Pausa exige comentario, Resuelta exige Solución)                             |
-| PATCH       | `/{id}/avance`                                  | `tareas.ver`          | % de avance 0-100 (Responsable o autoridad creadora)                                                                           |
-| POST        | `/{id}/comentarios`                             | `tareas.ver`          | Comentario interno                                                                                                             |
-| POST/DELETE | `/{id}/relaciones`, `/{id}/relaciones/{otraId}` | `tareas.ver`          | Relación simple bidireccional                                                                                                  |
-| GET         | `/candidatos[?para=proyecto&q=texto]`           | `tareas.gestionar`    | Usuarios asignables como Responsable según la jerarquía; `q` busca por nombre, apellido, usuario, legajo o documento (máx. 50) |
-| GET         | `/proyectos/estados`                            | `tareas.ver`          | Catálogo de estados de proyecto (código, nombre, verbo, inicial, admite tareas)                                                |
-| GET         | `/proyectos`, `/proyectos/{id}`                 | `tareas.ver`          | Proyectos de cualquier estado                                                                                                  |
-| POST        | `/proyectos`                                    | `proyectos.gestionar` | Crear proyecto (Responsable: Decanato o Secretaría Académica)                                                                  |
-| PUT         | `/proyectos/{id}`                               | `proyectos.gestionar` | Editar nombre, descripción, fechas y Responsable (el estado se cambia aparte); el Responsable se revalida solo si cambia       |
-| POST        | `/proyectos/{id}/estado`                        | `proyectos.gestionar` | Finalizar o cancelar un proyecto                                                                                               |
+| Método      | Path                                            | Permiso               | Descripción                                                                                                                                               |
+| ----------- | ----------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET         | `/ping`                                         | (anónimo)             | Health check del módulo                                                                                                                                   |
+| GET         | `/`                                             | `tareas.ver`          | Listado de tareas (comentarios e historial vacíos)                                                                                                        |
+| GET         | `/{id}`                                         | `tareas.ver`          | Detalle: comentarios, historial y tareas relacionadas                                                                                                     |
+| POST        | `/`                                             | `tareas.gestionar`    | Crear tarea; con `tareaPadreId` es hija y hereda el Proyecto                                                                                              |
+| PUT         | `/{id}`                                         | `tareas.gestionar`    | Editar campos (solo la autoridad creadora)                                                                                                                |
+| POST        | `/{id}/estado`                                  | `tareas.ver`          | Cambiar estado (Responsable o autoridad creadora; Pausa exige comentario, Resuelta exige Solución)                                                        |
+| PATCH       | `/{id}/avance`                                  | `tareas.ver`          | % de avance 0-100 (Responsable o autoridad creadora); `422` si la tarea tiene hijas no canceladas (`avanceCalculado`)                                     |
+| POST        | `/{id}/hijas`                                   | `tareas.gestionar`    | Vincular como hija una tarea existente (autoridad creadora del padre; `version` de la hija). `422` si tiene otro padre, está cancelada o crearía un ciclo |
+| DELETE      | `/{id}/hijas/{hijaId}?version=`                 | `tareas.gestionar`    | Desvincular una hija; conserva su Proyecto (autoridad creadora del padre)                                                                                 |
+| POST        | `/{id}/comentarios`                             | `tareas.ver`          | Comentario interno                                                                                                                                        |
+| POST/DELETE | `/{id}/relaciones`, `/{id}/relaciones/{otraId}` | `tareas.ver`          | Relación simple bidireccional                                                                                                                             |
+| GET         | `/candidatos[?para=proyecto&q=texto]`           | `tareas.gestionar`    | Usuarios asignables como Responsable según la jerarquía; `q` busca por nombre, apellido, usuario, legajo o documento (máx. 50)                            |
+| GET         | `/proyectos/estados`                            | `tareas.ver`          | Catálogo de estados de proyecto (código, nombre, verbo, inicial, admite tareas)                                                                           |
+| GET         | `/proyectos`, `/proyectos/{id}`                 | `tareas.ver`          | Proyectos de cualquier estado                                                                                                                             |
+| POST        | `/proyectos`                                    | `proyectos.gestionar` | Crear proyecto (Responsable: Decanato o Secretaría Académica)                                                                                             |
+| PUT         | `/proyectos/{id}`                               | `proyectos.gestionar` | Editar nombre, descripción, fechas y Responsable (el estado se cambia aparte); el Responsable se revalida solo si cambia                                  |
+| POST        | `/proyectos/{id}/estado`                        | `proyectos.gestionar` | Finalizar o cancelar un proyecto                                                                                                                          |
 
 Tarea y Proyecto exponen `version`: PUT y los cambios de estado o avance requieren la versión observada; una ausente responde `400` y una obsoleta `409 concurrency-conflict`. Reglas de jerarquía, herencia de Proyecto y visibilidad: spec [tareas-api](../../openspec/specs/tareas-api/spec.md).
 

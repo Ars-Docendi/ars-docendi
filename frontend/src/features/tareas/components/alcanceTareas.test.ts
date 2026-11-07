@@ -15,6 +15,8 @@ function tarea(id: string, creadoPorId: string, responsableId: string): Tarea {
     tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
+
+    avanceCalculado: false,
     responsable: { id: responsableId, nombre: "R", rol: "Docente" },
     creadoPor: { id: creadoPorId, nombre: "C", rol: "Decanato" },
     comentarios: [],

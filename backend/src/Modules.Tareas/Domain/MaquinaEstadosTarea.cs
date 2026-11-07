@@ -48,7 +48,7 @@ public static class MaquinaEstadosTarea
     /// Cancelar es exclusivo de la autoridad creadora y solo desde un estado no terminal.
     /// Cualquier otro destino lo mueve libremente el Responsable; desde un estado terminal
     /// (resuelta/cancelada) solo la autoridad creadora puede reabrir.
-    /// Pausa exige un comentario (queda en el hilo) y Resuelta exige la Solución.
+    /// Pausa exige un comentario (queda en el hilo) y Resuelta exige la Solución y completa el avance.
     /// </summary>
     public static void CambiarEstado(
         Tarea tarea, ActorTareas actor, EstadoTareaCatalogo actual, EstadoTareaCatalogo destinoEstado,
@@ -96,14 +96,28 @@ public static class MaquinaEstadosTarea
 
         tarea.EstadoId = destinoEstado.Id;
         Registrar(tarea, actor, AccionesHistorial.CambiarEstado, detalle, ahora);
+
+        if (destino == EstadosTarea.Resuelta && tarea.PorcentajeAvance != 100)
+        {
+            tarea.PorcentajeAvance = 100;
+            Registrar(tarea, actor, AccionesHistorial.EditarAvance, "100%", ahora);
+        }
     }
 
-    /// <summary>El % de avance (0-100) lo completa el Responsable, o la autoridad creadora.</summary>
-    public static void EditarAvance(Tarea tarea, ActorTareas actor, int porcentaje)
+    /// <summary>
+    /// El % de avance (0-100) lo completa el Responsable, o la autoridad creadora. Con hijas
+    /// no canceladas no se edita: es el promedio de ellas (<see cref="AplicarAvanceDeHijas"/>).
+    /// </summary>
+    public static void EditarAvance(Tarea tarea, ActorTareas actor, int porcentaje, bool tieneHijasVigentes)
     {
         if (!EsResponsable(tarea, actor) && !EsAutoridadCreadora(tarea, actor))
         {
             throw Prohibido("Solo el Responsable o la autoridad creadora editan el avance.");
+        }
+
+        if (tieneHijasVigentes)
+        {
+            throw Regla("El avance de una tarea con tareas hijas se calcula a partir de ellas.");
         }
 
         if (porcentaje is < 0 or > 100)
@@ -117,6 +131,16 @@ public static class MaquinaEstadosTarea
 
         tarea.PorcentajeAvance = (short)porcentaje;
         Registrar(tarea, actor, AccionesHistorial.EditarAvance, $"{porcentaje}%", DateTimeOffset.UtcNow);
+    }
+
+    /// <summary>Toma el promedio redondeado de las hijas vigentes; sin hijas vigentes el avance sigue siendo manual.</summary>
+    public static void AplicarAvanceDeHijas(Tarea tarea, ActorTareas actor, IReadOnlyCollection<short> avances)
+    {
+        if (avances.Count == 0) return;
+        var promedio = (short)Math.Round(avances.Average(a => (double)a), MidpointRounding.AwayFromZero);
+        if (promedio == tarea.PorcentajeAvance) return;
+        tarea.PorcentajeAvance = promedio;
+        Registrar(tarea, actor, AccionesHistorial.EditarAvance, $"{promedio}% (por sus tareas hijas)", DateTimeOffset.UtcNow);
     }
 
     public static ComentarioTarea NuevoComentario(Tarea tarea, ActorTareas actor, string texto, DateTimeOffset ahora) =>

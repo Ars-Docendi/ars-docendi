@@ -232,7 +232,7 @@ public sealed class TareasHttpTests(PostgresFixture postgres) : TareasHttpBase(p
 
         var resuelta = await Cambiar(responsable, ruta, new { estado = "resuelta", solucion = "Se resolvió" }, ct);
         Assert.Equal("Se resolvió", resuelta.Solucion);
-        Assert.Equal(60, resuelta.PorcentajeAvance);
+        Assert.Equal(100, resuelta.PorcentajeAvance);
 
         await Esperar(responsable.PostVersionadoAsync($"{ruta}/estado", new { estado = "en_curso" }, ct), HttpStatusCode.Forbidden);
         await Esperar(secretaria.PostVersionadoAsync($"{ruta}/estado", new { estado = "cancelada" }, ct), HttpStatusCode.Forbidden);

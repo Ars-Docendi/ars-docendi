@@ -1,0 +1,36 @@
+[
+  {
+    "anioAcademico": 2026,
+    "id": "sintetico-2026-2",
+    "nombre": "2do Cuatrimestre (ejemplo)",
+    "ultimaExitosa": {
+      "fecha": "2026-08-03T12:00:05+00:00",
+      "estado": "exitosa",
+      "causa": null,
+      "usuario": "Lucía Fernández"
+    },
+    "ultimoIntento": {
+      "fecha": "2026-08-03T12:00:05+00:00",
+      "estado": "exitosa",
+      "causa": null,
+      "usuario": "Lucía Fernández"
+    }
+  },
+  {
+    "anioAcademico": 2026,
+    "id": "152",
+    "nombre": "2do Cuatrimestre",
+    "ultimaExitosa": {
+      "fecha": "2026-11-02T21:01:20.754751+00:00",
+      "estado": "exitosa",
+      "causa": null,
+      "usuario": "Lucía Fernández"
+    },
+    "ultimoIntento": {
+      "fecha": "2026-11-02T21:01:20.754751+00:00",
+      "estado": "exitosa",
+      "causa": null,
+      "usuario": "Lucía Fernández"
+    }
+  }
+]
