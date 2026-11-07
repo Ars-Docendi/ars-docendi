@@ -25,8 +25,8 @@
 
 - [x] 4.1 Seed requests in `GeneradorDeFixture` (D6) and grant the two permissions to the evaluation roles. Verify: the fixture determinism test and the executable-references test
 - [x] 4.2 Add `cap-051` to `cap-056` and `rob-019`, `rob-020`; leave `cap-048`/`cap-049` unchanged (D5). Verify: `DatasetDeCapacidadTests`, `ReferenciasEjecutablesTests`
-- [ ] 4.3 Measure the longest request against the 3070 profile (one slot, 16,384): prefix plus request plus output ceiling fits (orchestrator, with the local server)
-- [ ] 4.4 Funded run: re-record the baselines, archive the previous ones, freeze the new ones (orchestrator)
+- [x] 4.3 Measure the longest request against the 3070 profile (one slot, 16,384): prefix plus request plus output ceiling fits (orchestrator, with the local server) — 2026-11-07: longest input 14,977 + 600 = 15,577 of 16,384 (807 margin), written in `modelo-local.md` §8
+- [x] 4.4 Funded run: re-record the baselines, archive the previous ones, freeze the new ones (orchestrator) — frozen live in dcec44d4; previous in `lineas-de-base/antes-de-aulas-y-portal/`
 
 ## 5. Documentation
 

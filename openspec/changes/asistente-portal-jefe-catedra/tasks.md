@@ -31,8 +31,8 @@
 
 - [x] 4.1 `GeneradorDeFixture`: grant the permission to the jefe/materia eval actor and seed portal data (skills with related terms, a posgrado, projects with DOI) for some docentes inside their materias and one outside. Verify: fixture determinism test; an item cannot pass without reading
 - [x] 4.2 Add about 5 capacidad items (D6) and 1 or 2 robustez variants; the outside-cátedra item excludes that docente. Verify: the dataset loads, disjointness with the examples holds
-- [ ] 4.3 ORCHESTRATOR: funded run, re-record baselines, archive the previous ones with the list of items that moved. Verify: regression gate compares again; `lineas-de-base/README.md` records the diff
-- [ ] 4.4 ORCHESTRATOR: measure the longest request against the 3070 profile (one slot, 16,384) after this change and `asistente-lee-aulas`; compare with 12,846 + 600. Verify: numbers written in `docs/architecture/modelo-local.md`; if over budget, compact comments, then examples
+- [x] 4.3 ORCHESTRATOR: funded run, re-record baselines, archive the previous ones with the list of items that moved. Verify: regression gate compares again; `lineas-de-base/README.md` records the diff — done in dcec44d4 together with asistente-lee-aulas
+- [x] 4.4 ORCHESTRATOR: measure the longest request against the 3070 profile (one slot, 16,384) after this change and `asistente-lee-aulas`; compare with 12,846 + 600. Verify: numbers written in `docs/architecture/modelo-local.md`; if over budget, compact comments, then examples — 15,577 of 16,384, fits; no compaction
 
 ## 5. Documentation
 

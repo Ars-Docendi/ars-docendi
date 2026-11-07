@@ -351,6 +351,18 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
 - **Cuánto creció.** El 2026-10-03 el pedido más largo era de 9,8k tokens. Ahora es de 12,8k: suman los schemas `portal` y `comisiones` (este último, ~6,9k caracteres de prefijo) y los ejemplos nuevos.
 - **Por qué no se compactó.** Hacía falta sólo si el pedido no entraba en 16.384, y entra.
 
+**Con aulas, proyectos del portal y enlaces (misma tarde).** Misma medición tras `asistente-lee-aulas`, `asistente-portal-jefe-catedra` y `asistente-enlaces-personas-y-aulas`, sobre 162 llamadas:
+
+| Medida                                   | Tokens |
+| ---------------------------------------- | ------ |
+| Pedido más largo (sólo entrada)          | 14.977 |
+| Mediana de entrada                       | 14.474 |
+| Salida más larga observada               | 600    |
+| Pedido más largo + techo de salida (600) | 15.577 |
+
+- **Sigue entrando en 1 slot de 16.384, pero con 807 tokens de margen.** Ninguna llamada se truncó por contexto. Una generación llegó al techo de 600 tokens de salida.
+- **El próximo dominio no entra sin compactar.** El prefijo creció ~2,1k tokens en una tarde. Antes de sumar otro schema hay que compactar comentarios y después ejemplos, o volver a medir con `EjemplosEnElPrefijo=false`.
+
 ### Pasos
 
 1. **Servidor.** Docker Desktop con WSL2 (Windows) o `nvidia-container-toolkit` (Linux), y driver NVIDIA reciente:
