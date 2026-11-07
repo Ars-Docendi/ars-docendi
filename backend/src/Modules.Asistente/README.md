@@ -545,6 +545,36 @@ vive en `CacheDeCapacidades`, indexado por **rol**: hay exactamente dos variante
 `Presentacion` queda **fuera** de esa caché, como el alcance: es del actor y no del rol de
 lectura, así que cachearla le devolvería a todos la del primero.
 
+Las áreas, los ejemplos y la presentación de **comisiones** tampoco se cachean por rol:
+los dos roles de lectura tienen el `GRANT`, pero el catálogo solo las ofrece a quien tiene
+`comisiones.ver` vivo (`PerfilDelActor.VeComisiones`). Los ejemplos de comisiones
+(los que `DetectorDeDominios` ubica en ese dominio) se eligen aparte y se suman al final
+de la lista, sin pasar del máximo.
+
+Las áreas, los ejemplos y la presentación de **aulas** siguen el mismo criterio con los
+permisos vivos `aulas.aprobar` (`VeSolicitudesDeAula`: todas las solicitudes) y
+`aulas.solicitar` (`VeSolicitudesPropias`: «tus solicitudes»); nadie más las ve anunciadas.
+
+### Portal para el jefe de cátedra
+
+Desde 2026-11-07 el rol `jefe_catedra` tiene `portal.ver_trayectoria_ajena` y `portal.proyectos`
+(sin `descripcion`) es legible. El alcance no cambió: el perfil propio y el de los docentes con
+designación vigente en sus materias. El asistente encuentra a quien escribió «Cálculo»; **no sabe
+qué requisitos tiene una materia**, y la cobertura (`CoberturaDelPortal`, que ahora declara también
+`proyectos`) dice cuántos cargaron el dato. El denominador de esa frase es el padrón, no la cátedra.
+
+### El alcance se evalúa por dominio
+
+`DetectorDeDominios.Detectar(sql)` (por tokens) devuelve las tablas calificadas y los
+dominios que toca la consulta generada; de ahí salen la cobertura de portal y
+`PoliticaDeAbstencion.AlcanzaTodo(perfil, dominios)`. Designaciones exige ámbito global y
+`designaciones.ver`; portal agrega `portal.ver_trayectoria_ajena`; comisiones exige
+solamente `comisiones.ver` (sin ámbito, igual que la policy); aulas exige `aulas.aprobar`
+(quien sólo solicita ve las suyas y recibe el aviso de alcance). Sin dominio (solo catálogos
+de identity) vale la regla de designaciones; un dominio desconocido nunca alcanza todo.
+Si una consulta de comisiones vuelve vacía, `IConsultorDeCobertura.ObtenerPeriodosImportadosAsync`
+suma los períodos que el actor ve importados (falla en silencio).
+
 ### La única lectura de rol del módulo
 
 `PresentacionPorRol` elige la línea con que el asistente se presenta —por qué cosas suele
@@ -641,18 +671,21 @@ falla: la métrica del asistente es corrección con abstención.
 
 ### Configuración del adaptador real
 
-| Variable                           | Default           | Qué decide                                                      |
-| ---------------------------------- | ----------------- | --------------------------------------------------------------- |
-| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                                     |
-| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado                   |
-| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                                      |
-| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta                             |
-| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español                             |
-| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento                       |
-| `Asistente__UrlDelProveedorLocal`  | vacío             | Servidor del modelo propio, terminada en `/v1`                  |
-| `Asistente__ContextoDelModelo`     | `0`               | `num_ctx` que pide `ollama`; 0 = el del servidor                |
-| `Asistente__ClaveMaestra`          | vacío             | Clave AES-GCM (32 bytes, base64) de las claves de API guardadas |
-| `Asistente__ClaveMaestraAnterior`  | vacío             | Sólo durante una rotación de la clave maestra                   |
+| Variable                                        | Default           | Qué decide                                                           |
+| ----------------------------------------------- | ----------------- | -------------------------------------------------------------------- |
+| `Asistente__Proveedor`                          | `simulado`        | Cuál adaptador se construye                                          |
+| `Asistente__ClaveDelProveedor`                  | vacío             | La credencial. Nunca en un archivo versionado                        |
+| `Asistente__Modelo`                             | `claude-sonnet-5` | Qué modelo                                                           |
+| `Asistente__EsfuerzoDeGeneracion`               | `medio`           | Deliberación al generar la consulta                                  |
+| `Asistente__EsfuerzoDeRedaccion`                | `bajo`            | Deliberación al redactar en español                                  |
+| `Asistente__EsfuerzoDeReescritura`              | `bajo`            | Deliberación al reescribir un seguimiento                            |
+| `Asistente__UrlDelProveedorLocal`               | vacío             | Servidor del modelo propio, terminada en `/v1`                       |
+| `Asistente__ContextoDelModelo`                  | `0`               | `num_ctx` que pide `ollama`; 0 = el del servidor                     |
+| `Asistente__TiempoDeVidaDisponibilidadSegundos` | `30`              | Cuánto se reutiliza la lectura de `GET /api/ps` (proveedor `ollama`) |
+| `Asistente__TiempoMaximoDeActivacionSegundos`   | `120`             | Tope de una precarga del modelo antes de darla por fallida           |
+| `Asistente__EnfriamientoDeActivacionSegundos`   | `30`              | Espera mínima entre el fin de una precarga y la siguiente            |
+| `Asistente__ClaveMaestra`                       | vacío             | Clave AES-GCM (32 bytes, base64) de las claves de API guardadas      |
+| `Asistente__ClaveMaestraAnterior`               | vacío             | Sólo durante una rotación de la clave maestra                        |
 
 **El proveedor `local`** (asistente-proveedor-local) habla con cualquier servidor
 OpenAI-compatible —vLLM, `llama-server`, SGLang— en `{UrlDelProveedorLocal}/chat/completions`.
@@ -1234,6 +1267,17 @@ propósito**: la fila de auditoría tiene que sobrevivir a que el propio dueño
 borre esa conversación (borrado permanente, sin papelera). Sin FK, un id que ya
 no existe sigue siendo una fila de auditoría perfectamente legible.
 
+**Lectura de `comisiones`.** Cuatro de las cinco tablas del snapshot de Guaraní se
+conceden a los dos roles (`011_asistente_grants_dominios.sql`, columna por columna; `sga_importaciones`
+queda denegada). La RLS (`ENABLE`, predicado `comisiones.ver` sin ámbito) y los `COMMENT ON`
+son migraciones de Designaciones, que es el dueño del schema; el `GRANT` corre después.
+Ver BR-asistente-010.
+
+**Lectura de `aulas`.** La única tabla del schema, `aulas.solicitudes_reserva`, se concede
+entera a los dos roles (`011_asistente_grants_dominios.sql`); la RLS (`ENABLE`, `aulas.aprobar` todas /
+`aulas.solicitar` las propias) y los `COMMENT ON` son migraciones de Aulas
+(`RlsAsistenteSolicitudesAulas`, `ComentariosAsistenteSolicitudesAulas`). Ver BR-asistente-011.
+
 El DDL vive en `database/asistente/*.sql` y se embebe como recurso de **este**
 assembly, igual que `database/designaciones/*.sql` en su módulo.
 `MigradorAsistente` lo ejecuta en el arranque `--migrate`, **último** de todos los
@@ -1259,7 +1303,9 @@ columna faltante hace reventar el `INSERT` del registro en cada turno, el escrit
 traga el fallo para no tumbar el servicio y el registro deja de guardar en silencio.
 
 Los archivos corren en orden y el orden importa: `001_asistente_grants.sql`
-concede la lectura; `002_asistente_registros.sql` crea el schema propio y se lo
+concede la lectura (está protegido en `database/migraciones-protegidas.json`: lo que se
+sume después, comisiones, aulas y `portal.proyectos`, va en
+`011_asistente_grants_dominios.sql`, que `MigradorAsistente` aplica justo después); `002_asistente_registros.sql` crea el schema propio y se lo
 revoca a los dos roles —para revocar un schema, primero tiene que existir—;
 `003_asistente_retroalimentacion.sql` crea la tabla de retroalimentación **después**,
 porque su clave primaria es una FK hacia `registro_analitico`; y

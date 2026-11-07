@@ -1,3 +1,5 @@
+import { rutaDetalleSolicitud } from "../../aulas/rutas";
+
 /** De un tipo de recurso a dónde se lo ve. EL BACKEND NO MANDA RUTAS. */
 export interface DestinoDelVinculo {
   /** A dónde navega. */
@@ -13,6 +15,16 @@ const DESTINOS: Record<string, DestinoDelVinculo> = {
     ruta: (id) => `/designaciones/pedidos/${id}`,
     sustantivo: "trámite",
   },
+  // `VinculosDePersonas.TipoDeLaPersona`: el Host sólo lo manda a quien puede abrir esa persona.
+  persona: {
+    ruta: (id) => `/personas/${id}`,
+    sustantivo: "perfil de",
+  },
+  // `VinculosDeAulas.TipoDeLaSolicitud`.
+  "solicitud-reserva-aula": {
+    ruta: rutaDetalleSolicitud,
+    sustantivo: "detalle de la solicitud",
+  },
 };
 
 /** El destino de un tipo, o `undefined` si este cliente no lo conoce. */
@@ -21,7 +33,7 @@ export function destinoDe(tipo: string): DestinoDelVinculo | undefined {
 }
 
 /** Los tipos de principal que este cliente sabe dibujar como ficha. */
-const TIPOS_CON_FICHA = new Set(["pedido-designacion"]);
+const TIPOS_CON_FICHA = new Set(["pedido-designacion", "persona"]);
 
 export function tipoConFicha(tipo: string): boolean {
   return TIPOS_CON_FICHA.has(tipo) && destinoDe(tipo) !== undefined;

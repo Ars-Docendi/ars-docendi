@@ -260,3 +260,80 @@ describe("«Repetir consulta»", () => {
     expect(within(screen.getByRole("log")).getAllByText(/¿cuántos docentes hay\?/)).toHaveLength(1);
   });
 });
+
+describe("Docentes y solicitudes de aulas", () => {
+  const DOCENTES: Partial<RespuestaDelAsistente> = {
+    respuesta: "Encontré 2 docentes.",
+    columnas: [
+      { nombre: "apellido", sensible: false },
+      { nombre: "nombre", sensible: false },
+    ],
+    filas: [
+      ["Lovelace", "Ada"],
+      ["Hopper", "Grace"],
+    ],
+  };
+
+  it("una lista enlaza cada nombre a su perfil y sugiere tocarlo", async () => {
+    const user = userEvent.setup();
+    montarRespuesta({
+      ...DOCENTES,
+      vinculos: [
+        { fila: 0, columna: 0, tipo: "persona", id: "p-1" },
+        { fila: 1, columna: 0, tipo: "persona", id: "p-2" },
+      ],
+    });
+
+    expect(screen.getByText("Tocá un nombre para ver su perfil")).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Ver el perfil de Hopper" }));
+    expect(screen.getByTestId("ubicacion")).toHaveTextContent("/personas/p-2");
+  });
+
+  it("sin vínculos los nombres son texto y no hay sugerencia", () => {
+    montarRespuesta({ ...DOCENTES, vinculos: [] });
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.queryByText("Tocá un nombre para ver su perfil")).toBeNull();
+  });
+
+  it("un único docente se muestra en su tarjeta, con «Ver perfil»", async () => {
+    const user = userEvent.setup();
+    montarRespuesta({
+      ...DOCENTES,
+      principal: {
+        tipo: "persona",
+        id: "p-1",
+        datos: {
+          apellido: "Lovelace",
+          nombre: "Ada",
+          email: "ada.lovelace@unlam.edu.ar",
+          designaciones: "Algoritmos · Titular · Ingeniería en Informática\nÁlgebra · Adjunto",
+        },
+      },
+    });
+
+    expect(screen.getByText("Lovelace, Ada")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ada.lovelace@unlam.edu.ar" })).toHaveAttribute(
+      "href",
+      "mailto:ada.lovelace@unlam.edu.ar",
+    );
+    expect(
+      screen.getByText("Algoritmos · Titular · Ingeniería en Informática"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: /Ver perfil/ }));
+    expect(screen.getByTestId("ubicacion")).toHaveTextContent("/personas/p-1");
+  });
+
+  it("el identificador de una solicitud enlaza a su detalle", async () => {
+    const user = userEvent.setup();
+    montarRespuesta({
+      respuesta: "Hay una solicitud.",
+      columnas: [{ nombre: "comision", sensible: false }],
+      filas: [["Comisión 02"]],
+      vinculos: [{ fila: 0, columna: 0, tipo: "solicitud-reserva-aula", id: "s-9" }],
+    });
+
+    await user.click(screen.getByRole("link", { name: /Ver el detalle de la solicitud/ }));
+    expect(screen.getByTestId("ubicacion")).toHaveTextContent("/aulas/solicitudes/s-9");
+  });
+});

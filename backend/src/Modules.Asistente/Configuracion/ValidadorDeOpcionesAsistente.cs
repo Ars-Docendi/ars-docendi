@@ -51,6 +51,9 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.MaximoDeTokensDeReescritura), o => o.MaximoDeTokensDeReescritura),
         (nameof(OpcionesAsistente.EsperaMaximaEnColaSegundos), o => o.EsperaMaximaEnColaSegundos),
         (nameof(OpcionesAsistente.MuestrasDelPlan), o => o.MuestrasDelPlan),
+        (nameof(OpcionesAsistente.TiempoDeVidaDisponibilidadSegundos), o => o.TiempoDeVidaDisponibilidadSegundos),
+        (nameof(OpcionesAsistente.TiempoMaximoDeActivacionSegundos), o => o.TiempoMaximoDeActivacionSegundos),
+        (nameof(OpcionesAsistente.EnfriamientoDeActivacionSegundos), o => o.EnfriamientoDeActivacionSegundos),
     ];
 
     /// <summary>La única donde el cero es sensato y el negativo no.</summary>

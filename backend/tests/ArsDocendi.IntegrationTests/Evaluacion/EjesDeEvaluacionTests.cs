@@ -367,6 +367,106 @@ public sealed class EjesDeEvaluacionTests
         Assert.Null(LineaDeBase.Cargar(Path.Combine(Path.GetTempPath(), "no-existe-jamas.json")));
     }
 
+    // ------------------------------------------- ítems inestables en vivo
+
+    private static readonly Dictionary<string, string> Inestables = new(StringComparer.Ordinal)
+    {
+        ["i1"] = "oscila en vivo sin cambios de código",
+    };
+
+    [Fact]
+    public void Un_item_inestable_que_pasa_a_fallar_no_rompe_el_gate_y_se_informa_como_oscilacion()
+    {
+        var linea = Linea(("i1", DesenlaceDeItem.TraduccionCorrecta));
+        var reporte = Reporte(("i1", DesenlaceDeItem.AbstencionSobreloFactible));
+
+        var veredicto = GateDeRegresion.Comparar(reporte, linea, Inestables);
+
+        Assert.True(veredicto.Pasa);
+        Assert.Empty(veredicto.Regresiones);
+        Assert.Contains(veredicto.Tolerados, t => t.Contains("i1", StringComparison.Ordinal));
+
+        var texto = veredicto.Renderizar();
+        Assert.Contains("Oscilaciones conocidas", texto, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1 tolerada", texto, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Un_item_no_listado_que_pasa_a_fallar_sigue_rompiendo_el_gate_aunque_haya_inestables()
+    {
+        var linea = Linea(
+            ("i1", DesenlaceDeItem.TraduccionCorrecta),
+            ("i2", DesenlaceDeItem.TraduccionCorrecta));
+        var reporte = Reporte(
+            ("i1", DesenlaceDeItem.AbstencionSobreloFactible),
+            ("i2", DesenlaceDeItem.TraduccionIncorrecta));
+
+        var veredicto = GateDeRegresion.Comparar(reporte, linea, Inestables);
+
+        Assert.False(veredicto.Pasa);
+        Assert.Single(veredicto.Regresiones);
+        Assert.Contains("i2", veredicto.Regresiones[0], StringComparison.Ordinal);
+        Assert.Single(veredicto.Tolerados);
+    }
+
+    [Fact]
+    public void Un_id_inestable_que_no_esta_en_la_linea_de_base_falla_en_voz_alta()
+    {
+        // La lista no puede pudrirse en silencio: un id renombrado o borrado dejaría de
+        // tolerar lo que se quería tolerar y nadie se enteraría.
+        var linea = Linea(("i1", DesenlaceDeItem.TraduccionCorrecta));
+        var reporte = Reporte(("i1", DesenlaceDeItem.TraduccionCorrecta));
+        var inestables = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["fantasma"] = "no existe",
+        };
+
+        var error = Assert.Throws<InvalidOperationException>(
+            () => GateDeRegresion.Comparar(reporte, linea, inestables));
+
+        Assert.Contains("fantasma", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Las_inestables_se_cargan_por_eje_y_exigen_un_motivo()
+    {
+        var ruta = Path.Combine(Path.GetTempPath(), $"inestables-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(ruta, """{ "capacidad": { "i1": "oscila" }, "dialogo": { "d#2": " " } }""");
+
+            Assert.Throws<InvalidOperationException>(() => ItemsInestables.Cargar(ruta));
+
+            File.WriteAllText(ruta, """{ "capacidad": { "i1": "oscila" } }""");
+            var cargadas = ItemsInestables.Cargar(ruta);
+
+            Assert.Equal("oscila", cargadas["capacidad"]["i1"]);
+            Assert.Empty(ItemsInestables.DelEje(cargadas, "robustez"));
+        }
+        finally
+        {
+            File.Delete(ruta);
+        }
+    }
+
+    [Fact]
+    public void El_archivo_versionado_de_inestables_no_tiene_ids_que_no_esten_en_las_lineas_de_base()
+    {
+        var ruta = Path.Combine(RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", "inestables.json");
+        var cargadas = ItemsInestables.Cargar(ruta);
+
+        foreach (var (eje, ids) in cargadas)
+        {
+            var linea = LineaDeBase.Cargar(Path.Combine(
+                Path.GetDirectoryName(ruta)!, $"{eje}.json"));
+            Assert.NotNull(linea);
+            foreach (var id in ids.Keys)
+            {
+                Assert.True(linea!.Items.ContainsKey(id), $"{eje}: «{id}» no está en la línea de base.");
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static string Ruta(string archivo) =>

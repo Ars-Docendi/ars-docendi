@@ -58,7 +58,8 @@ internal static class BuscadorDeVinculos
                     && destinos.TryGetValue(texto, out var destino))
                 {
                     vinculos.Add(
-                        new VinculoDelResultado(fila, columna, destino.Tipo, destino.Id));
+                        new VinculoDelResultado(
+                            fila, columna, destino.Tipo, destino.Id, destino.EsClave));
                 }
             }
         }
@@ -70,6 +71,14 @@ internal static class BuscadorDeVinculos
     private static bool EsCandidato(object? valor, out string texto)
     {
         texto = string.Empty;
+
+        // Npgsql materializes a uuid column as a Guid, not as text: the key columns that carry a
+        // persona or an aula request (asistente-enlaces-personas-y-aulas) arrive this way.
+        if (valor is Guid identificador)
+        {
+            texto = identificador.ToString("D");
+            return true;
+        }
 
         if (valor is not string crudo)
         {

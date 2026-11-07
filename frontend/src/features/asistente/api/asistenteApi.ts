@@ -3,6 +3,7 @@ import { AxiosError, type AxiosResponse } from "axios";
 import { apiClient } from "../../../shared/api/client";
 import type {
   CapacidadesDelAsistente,
+  DisponibilidadDelModelo,
   RazonDeRetroalimentacion,
   ReferenciaDeMencion,
   RespuestaDelAsistente,
@@ -188,4 +189,20 @@ export interface PedidoDeRetroalimentacion {
  */
 export async function enviarRetroalimentacion(pedido: PedidoDeRetroalimentacion): Promise<void> {
   await apiClient.post("/api/asistente/retroalimentacion", pedido);
+}
+
+/** Si el modelo propio está cargado, para avisar antes de que el primer turno espere. */
+export async function obtenerDisponibilidadDelModelo(): Promise<DisponibilidadDelModelo> {
+  const { data } = await apiClient.get<DisponibilidadDelModelo>(
+    "/api/asistente/modelo/disponibilidad",
+  );
+  return data;
+}
+
+/** Pide cargar el modelo. Responde 202 enseguida con el estado; la carga sigue en el servidor. */
+export async function activarModelo(): Promise<DisponibilidadDelModelo> {
+  const { data } = await apiClient.post<DisponibilidadDelModelo>(
+    "/api/asistente/modelo/activacion",
+  );
+  return data;
 }

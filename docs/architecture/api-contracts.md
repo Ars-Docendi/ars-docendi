@@ -339,7 +339,7 @@ Que una fila esté en `filas[]` **no implica** que traiga vínculo. Las filas la
 - Las apariciones vienen en orden y **sin superponerse**. `tipo` e `id` son los de `vinculos[]`; un cliente que no reconoce el `tipo` no pinta el enlace.
 - Un turno restaurado del historial no las trae: el historial no persiste el texto.
 
-**`principal`** es el elemento sobre el que trata la respuesta, con una ficha armada por el módulo dueño. Hay principal cuando el resultado tiene **exactamente una fila y esa fila tiene exactamente un vínculo**, y el módulo entregó la ficha: es una regla determinista, no una decisión del modelo. Si el módulo no la entrega (el actor no alcanza el trámite, el proveedor falló, no hay adaptador), `principal` es `null` y la respuesta se muestra como si no existiera la ficha; un fallo se registra como advertencia y **nunca** tumba el turno.
+**`principal`** es el elemento sobre el que trata la respuesta, con una ficha armada por el módulo dueño. Hay principal cuando el resultado tiene **exactamente una fila y esa fila tiene exactamente un vínculo**, y el módulo entregó la ficha: es una regla determinista, no una decisión del modelo. También hay principal cuando **todas** las filas apuntan a la misma persona (tipo `persona`, un docente con varias designaciones); sus `datos` son `apellido`, `nombre`, `email` (correo institucional = UPN; sólo si existe) y `designaciones` (líneas «materia · cargo · carrera» separadas por salto de línea, sólo las del ámbito del actor), autorizados como `GET /api/administracion/personas/{id}` (`personas.ver`, o `personas.ver_ambito` y la persona designada en sus materias de jefatura). Los tipos de `vinculos[]` son `pedido-designacion`, `persona` y `solicitud-reserva-aula` (este último sólo para `aulas.aprobar` o la solicitud propia con `aulas.solicitar`); para `persona` y `solicitud-reserva-aula` el identificador interno no viaja como columna: el vínculo se ubica en la primera celda de texto de la fila. Si el módulo no la entrega (el actor no alcanza el trámite, el proveedor falló, no hay adaptador), `principal` es `null` y la respuesta se muestra como si no existiera la ficha; un fallo se registra como advertencia y **nunca** tumba el turno.
 
 ```json
 {
@@ -398,6 +398,14 @@ Devuelve `cubre[]` con sus conteos, `tablas`, `columnas`, `ejemplos[]`, `noPuede
 Se deriva de los **GRANT efectivos** del rol con el que el actor consulta y **nunca del payload del prompt**: el prefijo trae el esquema entero, columnas personales incluidas, así que un catálogo derivado de ahí ofrecería preguntas sobre columnas que el rol no puede leer.
 
 Cada ejemplo se valida con `EXPLAIN` contra los privilegios del actor antes de ofrecerse. Cuesta cero tokens, así que sigue respondiendo con el proveedor caído.
+
+#### `GET /api/asistente/modelo/disponibilidad` y `POST /api/asistente/modelo/activacion`
+
+Ambos con `asistente.consultar` (`asistente-modelo-en-reposo`). Responden `{ "estado": "no_aplica" | "listo" | "en_reposo" | "activando" | "desconocido", "ultimaActivacionFallida": boolean }`, sin nombre de modelo, URL ni nada de otros inquilinos de la GPU.
+
+- `GET .../disponibilidad`: si el modelo con que respondería un turno está cargado en Ollama (`GET /api/ps`). Sólo el proveedor `ollama` (también por selección en caliente) tiene estado; `local`, nube y `simulado` responden `no_aplica` sin salir a ninguna red. `desconocido` cubre toda falla de consulta (404 de la ruta, 401, 429, timeout de 3 s) y el cliente no muestra nada. La lectura se reutiliza `Asistente__TiempoDeVidaDisponibilidadSegundos` (30 s) con un solo pedido en vuelo por ambiente.
+- `POST .../activacion` (sin cuerpo): precarga el modelo con `POST /api/generate` (sólo `model` y el mismo `num_ctx` que los turnos). Responde `202` con el estado del momento y no espera a la carga: una sola por ambiente aunque lleguen muchos pedidos, con un enfriamiento de `Asistente__EnfriamientoDeActivacionSegundos` (30 s) y un tope de `Asistente__TiempoMaximoDeActivacionSegundos` (120 s). Si ya está `listo` o no aplica, no contacta a Ollama. No consume cupo ni cuenta para el techo, el breaker ni la compuerta.
+- `403` sin `asistente.consultar`.
 
 #### `POST /api/asistente/retroalimentacion`
 

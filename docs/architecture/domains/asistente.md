@@ -53,14 +53,108 @@ declaradas?»— y con el cruce hacia designaciones, que es lo que vuelve la res
 accionable: «¿qué docentes de Ingeniería de Software declararon experiencia en
 industria?».
 
-### Las seis tablas, derivadas de las preguntas
+### Las siete tablas, derivadas de las preguntas
 
 `perfiles` · `habilidades` · `docente_habilidades` · `educaciones` ·
-`certificaciones` · `experiencias`
+`certificaciones` · `experiencias` · `proyectos` (sin `descripcion`)
 
-**Ninguna pregunta del catálogo necesita `cvs`, `proyectos` ni
-`proyecto_documentos`.** Quedan fuera del alcance hasta que exista una pregunta que
-las pida: son tres tablas de prefijo que nadie está usando.
+**Ninguna pregunta del catálogo necesita `cvs` ni `proyecto_documentos`.** Quedan fuera
+del alcance hasta que exista una pregunta que las pida. `proyectos` entró el 2026-11-07
+para el caso del jefe de cátedra que busca quién puede dictar una materia: el asistente
+encuentra a quien escribió «Cálculo» o declaró un proyecto afín, no a quien «cumple los
+requisitos» de la materia, porque ese perfil requerido no existe.
+
+### Comisiones de Guaraní — la familia de `asistente-lee-comisiones`
+
+Lo que el Departamento pregunta cada cuatrimestre y la pantalla de Comisiones ya
+muestra: qué comisiones tiene un docente, en qué días, horarios y aulas; quién dicta
+la comisión 02 de una materia y con qué responsabilidad; cuántas comisiones carga
+cada docente; qué comisiones son de noche o de sábado; y los cruces con
+designaciones (quién dicta sin designación vigente en esa materia, y al revés).
+
+Cuatro tablas, derivadas de esas preguntas: `sga_comisiones` · `sga_comision_carreras`
+· `sga_comision_docentes` · `sga_comision_horarios`. **`sga_importaciones` sigue
+denegada**: es el registro operativo de cada importación y nombra a quien la hizo.
+
+| Se puede preguntar                                       | No se puede preguntar (abstención)                           |
+| -------------------------------------------------------- | ------------------------------------------------------------ |
+| Comisiones, días, horarios y aulas de un docente         | Qué aulas están libres (`aula` es texto libre, sin catálogo) |
+| Docentes de una comisión numerada y su responsabilidad   | Capacidad o inventario de un aula                            |
+| Conteo de comisiones por docente                         | Quién importó un período (el registro está denegado)         |
+| Turno noche o sábados; comisiones de «este cuatrimestre» | Clases efectivamente dictadas (una comisión no es una clase) |
+| Cruces con designaciones, en los dos sentidos            |                                                              |
+
+**Reglas que el modelo aprende de los comentarios** (no de listas de valores, porque la
+conexión que arma el prefijo no tiene actor y la RLS le devolvería cero filas):
+
+- El snapshot **acumula varios períodos**. «Este cuatrimestre» sin más datos se
+  responde con el `anio_academico` más reciente, agrupado y nombrando cada
+  `periodo_lectivo_nombre`; nunca se elige uno ni se mezclan.
+- `aula` y `responsabilidad` son texto libre: se comparan con `ILIKE`.
+- `dia` es 1 a 7 con lunes = 1 (sábado = 6). Turnos por `desde`: mañana antes de las
+  12:00, tarde de 12:00 a 17:59, noche desde las 18:00.
+- Un vínculo nulo (`materia_id`, `carrera_id`, `persona_id`) significa «no existe en
+  el sistema»; el nombre del docente se concede igual (clasificado `publica`) para
+  que el docente sin persona no desaparezca de las respuestas.
+- «Quién dicta X» sigue respondiéndose por **designaciones** salvo que la pregunta
+  nombre comisión, horario, aula, día, turno, cuatrimestre o período.
+
+**Frontera.** Es la excepción de la regla 11 de AGENTS.md y la sostiene el motor:
+`GRANT` por columna contra `manifiesto-privilegios.json`, RLS `ENABLE` (no `FORCE`)
+con el predicado `comisiones.ver` **sin ámbito** —igual que la pantalla—, y los tests
+`RlsAlcanceTests`, `PrivilegiosLecturaTests` y los de manifiesto. Un jefe de cátedra
+o coordinador ve por el asistente comisiones fuera de su materia o carrera, como en la
+pantalla (BR-asistente-010).
+
+**Prefijo.** Medido sobre el esquema real de las tablas migradas (ambos roles): el
+prefijo pasa de ≈32 700 a ≈39 600 caracteres, +6 900 caracteres (≈ +2 000 tokens a
+~3,4 caracteres por token, dentro de la estimación de +1,5 k a +2,5 k). Es una
+estimación por caracteres: la medición contra el perfil local de 16 384 tokens (3070)
+y el techo de salida queda en la tarea 5.4 de `asistente-lee-comisiones`.
+
+### Solicitudes de reserva de aula — la familia de `asistente-lee-aulas`
+
+Lo que la pantalla de Aulas ya muestra: qué solicitudes están pendientes, qué aula se
+asignó a una reserva aprobada en una fecha, cuántas se rechazaron por materia, en qué
+estado están las solicitudes propias (jefe de cátedra) y cuántas hay por estado.
+
+Una sola tabla, `aulas.solicitudes_reserva`, con **todas** sus columnas concedidas.
+`motivo_rechazo` y `motivo_cancelacion` son `sensible-texto`: el usuario las ve en la
+tabla de resultados y no viajan al modelo. `aulas.__EFMigrationsHistory` queda denegada.
+
+| Se puede preguntar                                         | No se puede preguntar (abstención)                          |
+| ---------------------------------------------------------- | ----------------------------------------------------------- |
+| Solicitudes pendientes, aprobadas, rechazadas, canceladas  | Qué aulas están libres (no hay catálogo de aulas)           |
+| Aula asignada a una reserva aprobada, por fecha o materia  | Capacidad de un aula                                        |
+| Rechazos por materia; solicitudes por estado o por docente | En qué aula se dicta una comisión (eso es Guaraní, abajo)   |
+| Mis solicitudes (actor que sólo solicita)                  | Solicitudes ajenas, para quien sólo tiene `aulas.solicitar` |
+
+**Dos tablas con la palabra «aula», dos preguntas distintas.** «En qué aula se dicta X»
+y «aula de la comisión» siguen yendo a `comisiones.sga_comision_horarios`;
+`solicitudes_reserva` se usa sólo cuando la pregunta dice reserva, solicitud o pedido de
+aula, o un estado de pedido. La distinción vive en el `COMMENT ON` de la tabla y en los
+ejemplos, no en código.
+
+**Reglas que el modelo aprende de los comentarios.** `dia` es la fecha para la que se
+pide el aula (no un día de la semana); `aula_asignada` es texto libre y sólo existe si
+la solicitud está aprobada; `motivo_rechazo` sólo si está rechazada; `motivo_cancelacion`
+sólo cuando un aprobador cancela (nulo si el docente cancela su pendiente).
+
+**Frontera.** `GRANT` por columna, RLS `ENABLE` (no `FORCE`) con una policy `FOR SELECT`:
+`aulas.aprobar` ve todas; `aulas.solicitar` ve sólo las propias
+(`docente_id = identity.asistente_persona()`). Sin permiso, sin persona o sin actor no
+hay filas. La pantalla de Aulas, que conecta como dueño, no se ve afectada (BR-asistente-011).
+
+**Abstención.** «Cero filas significa que no hay» vale sólo con `aulas.aprobar`
+(`PerfilDelActor.VeSolicitudesDeAula`). Quien sólo solicita
+(`VeSolicitudesPropias`) recibe el aviso de alcance, nunca «no hay» como hecho del
+Departamento. El catálogo anuncia «las solicitudes de reserva de aula» a los aprobadores
+y «tus solicitudes de reserva de aula» a los solicitantes.
+
+**Prefijo.** Medido sobre el esquema real (ambos roles): pasa de 39 781 a 42 854
+caracteres en el rol básico (+3 073, +7,7 %) y de 40 164 a 43 237 en el rol PII
+(≈ +900 tokens a ~3,4 caracteres por token). La medición contra el perfil local de
+16 384 tokens (3070) queda para la corrida con el servidor local.
 
 ### Lo que NO debe contestar
 
@@ -122,9 +216,9 @@ El asistente no tiene ninguna rama de código que decida qué puede ver quién.
   PostgreSQL con privilegios enumerados columna por columna. No hay ninguna entidad
   canónica acá.
 
-  De `portal` se conceden **seis de las diez tablas**, y su predicado de RLS no
-  conjuga el ámbito sino un permiso propio, `portal.ver_trayectoria_ajena`, que nace
-  concedido a nadie. El detalle está en [data-model](../data-model.md) y las reglas
+  De `portal` se conceden **siete de las diez tablas**, y su predicado de RLS conjuga el
+  ámbito con un permiso propio, `portal.ver_trayectoria_ajena`, que desde 2026-11-07
+  tiene sólo el rol `jefe_catedra`. El detalle está en [data-model](../data-model.md) y las reglas
   que lo gobiernan en [`business-rules/portal.md`](../../business-rules/portal.md).
 
 ## Entidades principales
@@ -163,6 +257,8 @@ o se declara la excepción.
 | POST   | `/api/asistente/consultas`                                       | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                      |
 | GET    | `/api/asistente/menciones`                                       | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para «@»/«#»             |
 | GET    | `/api/asistente/capacidades`                                     | `asistente.consultar`            | Qué puede hacer el asistente para este actor                           |
+| GET    | `/api/asistente/modelo/disponibilidad`                           | `asistente.consultar`            | Si el modelo propio (`ollama`) está cargado: `listo`, `en_reposo`, …   |
+| POST   | `/api/asistente/modelo/activacion`                               | `asistente.consultar`            | Pide precargar el modelo; `202`, una sola carga por ambiente           |
 | POST   | `/api/asistente/retroalimentacion`                               | `asistente.consultar`            | Califica un turno respondido (thumbs + razón), por posesión del token  |
 | GET    | `/api/asistente/historial`                                       | `asistente.consultar`            | Lista y busca las conversaciones propias                               |
 | GET    | `/api/asistente/historial/{id}`                                  | `asistente.consultar`            | El detalle de una conversación propia                                  |
@@ -405,6 +501,22 @@ dice «no encontré nada en tu alcance», nunca «no hay».
 Un resultado vacío se resuelve **sin llamar al modelo**. Con cero filas no hay nada
 que narrar, así que la distinción queda garantizada por código y no por una
 instrucción del prompt.
+
+**El alcance se evalúa por dominio consultado**, no con un booleano del turno.
+`DetectorDeDominios` (tokens, no subcadenas: un alias o un comentario no cuentan)
+mapea las tablas de la consulta generada a dominios y esa misma detección alimenta la
+cobertura de portal. `PoliticaDeAbstencion.AlcanzaTodo(perfil, dominios)` exige lo de
+cada dominio tocado: designaciones, ámbito global y `designaciones.ver`; portal, lo
+anterior más `portal.ver_trayectoria_ajena`; comisiones, **sólo** `comisiones.ver`
+(un jefe de cátedra con el permiso sí alcanza todo en una consulta de sólo
+comisiones). Una consulta que sólo toca catálogos de identity conserva la regla de
+designaciones, y un dominio desconocido nunca alcanza todo. Un cruce de comisiones con
+designaciones lleva el límite de ámbito aunque devuelva filas: el anti-join puede dar
+falsos positivos precisamente porque el lado de designaciones llega recortado.
+
+Un resultado vacío de comisiones agrega los períodos importados que ve el actor
+(«los períodos importados son: …»), porque el cero también puede ser «ese período
+nunca se importó». Una falla de esa búsqueda omite la frase, no el turno.
 
 Restricción dura: ninguna respuesta declara cuántas filas quedaron afuera. El
 indicador de truncado es un booleano y no un número.
@@ -839,6 +951,17 @@ consulta.
 registrando convierte la observabilidad en una fuente de indisponibilidad. Es la
 decisión inversa a la del enmascarador, y a propósito: ahí un fallo silencioso filtra
 datos, acá un fallo ruidoso niega un servicio que funciona.
+
+## El modelo en reposo (`asistente-modelo-en-reposo`)
+
+Con el proveedor `ollama`, la GPU compartida descarga el modelo tras `OLLAMA_KEEP_ALIVE` de ocio, al recrear Ollama o cuando otro inquilino carga uno distinto; el primer turno paga la carga sin explicación. `CargaDelModelo` (singleton, `Infrastructure/`) lo detecta con `GET /api/ps` —comparando el modelo y, si Ollama lo informa, el contexto con el que está cargado— y lo precarga con `POST /api/generate`. Reglas:
+
+- El estado sale de la identidad que resolvería el turno (`ResolutorDelProveedor`), no de la configuración: una selección en caliente sobre `ollama` cuenta. Otros proveedores: `no_aplica`.
+- Lectura cacheada 30 s con un solo pedido en vuelo; un turno exitoso la marca `listo` sin gastar `/api/ps`. Sin la ruta en Traefik, `desconocido` y el chat no muestra nada.
+- Cualquier actor con `asistente.consultar` puede activar; una carga por ambiente, enfriamiento de 30 s, fuera de la cadena del turno (sin cupo, techo, breaker ni compuerta). Se activa sólo el modelo de generación: `ModeloDeRedaccion` no se usa en ningún ambiente.
+- El log de cada carga lleva modelo y desenlace, nunca actor, URL ni cuerpo; no es un evento de auditoría porque no cambia datos.
+
+El aviso en el chat (`AvisoDeModeloEnReposo`) y su sondeo están en el [design spec](../../product/designs/asistente-conversacional-design-spec.md).
 
 ## La superficie de usuario
 

@@ -23,6 +23,17 @@ public sealed class CierreDelTurnoTests
     }
 
     [Fact]
+    public void Una_consulta_de_comisiones_nombra_comisiones_como_origen()
+    {
+        // The schema is enabled through its labelled tables: without them the origin would be lost.
+        Assert.Equal(
+            ["comisiones", "identity"],
+            OrigenesDeLosDatos.De(
+                "SELECT c.nombre FROM comisiones.sga_comisiones c "
+                + "JOIN identity.materias m ON m.id = c.materia_id"));
+    }
+
+    [Fact]
     public void Los_origenes_salen_sin_repetir_y_en_orden_estable_aunque_cambie_el_orden_de_la_consulta()
     {
         const string unaVez =

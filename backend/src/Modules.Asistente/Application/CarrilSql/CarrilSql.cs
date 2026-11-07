@@ -238,7 +238,7 @@ public sealed class CarrilSql(
         // EL ALCANCE ES DEL TURNO, NO DEL ACTOR, y por eso se calcula acá: recién con la consulta
         // generada se sabe qué dominios tocó.
         var alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(
-            perfil, CoberturaDelPortal.TablasQueToca(generacion.Sql).Count > 0);
+            perfil, DetectorDeDominios.Detectar(generacion.Sql).Dominios);
 
         if (resultado.EstaVacio
             && generador.ReintentaConsultaVacia
@@ -251,7 +251,7 @@ public sealed class CarrilSql(
             // El reintento pudo cambiar la consulta, y con ella los dominios que toca: una segunda
             // generación que agrega portal cambia el alcance del turno.
             alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(
-                perfil, CoberturaDelPortal.TablasQueToca(generacion.Sql).Count > 0);
+                perfil, DetectorDeDominios.Detectar(generacion.Sql).Dominios);
         }
 
         if (resultado.EstaVacio)
@@ -260,7 +260,8 @@ public sealed class CarrilSql(
             // nulo acá abajo, los bindings tampoco se anotan — no hay ninguna
             // consulta que un seguimiento pueda editar o anidar.
             return Vacio(
-                generacion, aMostrar, perfil, alcanzaTodo, await CoberturaAsync(generacion, actor, ct));
+                generacion, aMostrar, perfil, alcanzaTodo, await CoberturaAsync(generacion, actor, ct),
+                await PeriodosImportadosAsync(generacion, actor, ct));
         }
 
         // Validó y trajo filas: recién ahora la traducción vale como para que otro la reutilice
@@ -429,6 +430,30 @@ public sealed class CarrilSql(
         }
     }
 
+    /// <summary>
+    /// Los períodos importados, sólo cuando la consulta tocó comisiones. Si la búsqueda falla se
+    /// responde sin esa frase: es una aclaración, no la respuesta.
+    /// </summary>
+    private async Task<IReadOnlyList<string>?> PeriodosImportadosAsync(
+        GeneracionDeSql generacion, Guid actor, CancellationToken ct)
+    {
+        if (!DetectorDeDominios.Detectar(generacion.Sql).Dominios.HasFlag(DominioConsultado.Comisiones))
+        {
+            return null;
+        }
+
+        try
+        {
+            return await cobertura.ObtenerPeriodosImportadosAsync(actor, ct);
+        }
+        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
+        {
+            log.LogWarning(
+                excepcion, "No se pudieron leer los períodos importados; se responde sin ellos.");
+            return null;
+        }
+    }
+
     private async Task<ResultadoDelTurno> RedactadoAsync(
         string mensaje,
         GeneracionDeSql generacion,
@@ -449,7 +474,9 @@ public sealed class CarrilSql(
                 ? ModoDeEnmascarado.SoloTextoLibre
                 : ModoDeEnmascarado.Todo);
         var texto = await redactor.RedactarAsync(
-            mensaje, paraElModelo, alcanzaTodo, cobertura, ct);
+            mensaje, paraElModelo, alcanzaTodo, cobertura, ct,
+            hayTextoLibreOculto: paraElModelo.Columnas.Count < resultado.Columnas.Count,
+            comoSeBusco: generacion.Razonamiento);
 
         return new ResultadoDelTurno(
             EstadoDelTurno.Respondida,
@@ -479,10 +506,11 @@ public sealed class CarrilSql(
         string? aMostrar,
         PerfilDelActor perfil,
         bool alcanzaTodo,
-        IReadOnlyList<CoberturaDeUnDato> cobertura) =>
+        IReadOnlyList<CoberturaDeUnDato> cobertura,
+        IReadOnlyList<string>? periodosImportados) =>
         new(EstadoDelTurno.Respondida,
             PoliticaDeAbstencion.TextoDeResultadoVacio(
-                alcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura)),
+                alcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura), periodosImportados),
             // El razonamiento se escribió ANTES de ejecutar, así que puede estar prometiendo filas
             // que no salieron.
             PoliticaDeAbstencion.RazonamientoDeResultadoVacio(generacion.Razonamiento),

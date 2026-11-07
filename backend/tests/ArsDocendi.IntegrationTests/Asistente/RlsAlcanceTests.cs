@@ -146,6 +146,192 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         Assert.Equal(0, ajenasVisibles);
     }
 
+    // ------------------------------------------------------------------ comisiones
+
+    // Comisiones is a permission-only boundary (no scope): the Comisiones screen shows every
+    // comisión to anyone holding comisiones.ver, and the assistant must know neither more nor less.
+
+    private static readonly string[] Comisiones =
+    [
+        "sga_comisiones", "sga_comision_carreras", "sga_comision_docentes", "sga_comision_horarios",
+    ];
+
+    [Fact]
+    public async Task Un_actor_con_comisiones_ver_ve_toda_comision_sea_cual_sea_su_ambito()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        Assert.True(await TienePermisoAsync(Coordinador, Permisos.ComisionesVer));
+        Assert.True(await TienePermisoAsync(Jefe, Permisos.ComisionesVer));
+
+        foreach (var tabla in Comisiones)
+        {
+            var delDueno = await EscalarAsync<long>($"SELECT count(*) FROM comisiones.{tabla}");
+            Assert.True(delDueno > 0, $"el seed de la prueba no dejó filas en {tabla}");
+
+            // The coordinator has carrera scope and the jefe materia scope; both see the full table,
+            // including the comisión whose materia is not matched to any materia of the system.
+            Assert.Equal(delDueno, await EscalarComoActorAsync<long>(
+                Coordinador, $"SELECT count(*) FROM comisiones.{tabla}"));
+            Assert.Equal(delDueno, await EscalarComoActorAsync<long>(
+                Jefe, $"SELECT count(*) FROM comisiones.{tabla}"));
+        }
+    }
+
+    [Fact]
+    public async Task Un_actor_sin_comisiones_ver_no_ve_ninguna_comision_y_la_consulta_no_falla()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        // The docente has scope over a materia that has a comisión, but no comisiones.ver.
+        Assert.False(await TienePermisoAsync(Docente, Permisos.ComisionesVer));
+
+        foreach (var tabla in Comisiones)
+        {
+            Assert.Equal(0, await ContarComoActorAsync(Docente, $"comisiones.{tabla}"));
+        }
+    }
+
+    [Fact]
+    public async Task Sin_actor_fijado_no_hay_ninguna_comision_visible()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        await using var conexion = await AbrirConexionComoAsistenteAsync(false);
+        foreach (var tabla in Comisiones)
+        {
+            await using var comando = new NpgsqlCommand(
+                $"SELECT count(*) FROM comisiones.{tabla}", conexion);
+            Assert.Equal(0L, await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+        }
+    }
+
+    [Fact]
+    public async Task Cada_policy_de_comisiones_nombra_al_actor_sin_apoyarse_en_la_de_otra_tabla()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+
+        // With the parent table's RLS off, a child that only inherited visibility from it would
+        // open up. Each child must still return nothing to an actor without the permission.
+        await EjecutarAsync("ALTER TABLE comisiones.sga_comisiones DISABLE ROW LEVEL SECURITY");
+
+        foreach (var hija in Comisiones.Skip(1))
+        {
+            Assert.Equal(0, await ContarComoActorAsync(Docente, $"comisiones.{hija}"));
+        }
+    }
+
+    // --------------------------------------------------------------------- aulas
+
+    // The aulas boundary mirrors the Aulas screen: aulas.aprobar sees every request, aulas.solicitar
+    // sees only the actor's own. No scope by materia or carrera.
+
+    [Fact]
+    public async Task Aulas_esta_habilitada_sin_FORCE_y_con_una_sola_policy_de_lectura()
+    {
+        var estado = await LeerFilasAsync(
+            """
+            SELECT c.relrowsecurity || '|' || c.relforcerowsecurity || '|'
+                   || (SELECT count(*) FROM pg_policies p
+                        WHERE p.schemaname = 'aulas' AND p.tablename = 'solicitudes_reserva'
+                          AND p.cmd = 'SELECT')
+              FROM pg_class c
+              JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'aulas' AND c.relname = 'solicitudes_reserva'
+            """);
+
+        Assert.Equal(["true|false|1"], estado);
+    }
+
+    [Fact]
+    public async Task Quien_aprueba_ve_todas_las_solicitudes_y_quien_solicita_solo_las_suyas()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+
+        var delDueno = await EscalarAsync<long>("SELECT count(*) FROM aulas.solicitudes_reserva");
+        var delJefe = await EscalarAsync<long>(
+            """
+            SELECT count(*) FROM aulas.solicitudes_reserva s
+              JOIN identity.users u ON u.persona_id = s.docente_id
+             WHERE u.id = @actor
+            """, ("actor", Jefe));
+
+        // The expectation is built here, so the assertion holds for any seed: the jefe owns some
+        // requests and not all of them.
+        Assert.True(delJefe > 0 && delJefe < delDueno);
+
+        Assert.True(await TienePermisoAsync(Secretaria, Permisos.AulasAprobar));
+        Assert.Equal(delDueno, await ContarComoActorAsync(Secretaria, "aulas.solicitudes_reserva"));
+
+        Assert.True(await TienePermisoAsync(Jefe, Permisos.AulasSolicitar));
+        Assert.False(await TienePermisoAsync(Jefe, Permisos.AulasAprobar));
+        Assert.Equal(delJefe, await ContarComoActorAsync(Jefe, "aulas.solicitudes_reserva"));
+    }
+
+    [Fact]
+    public async Task Sin_ningun_permiso_de_aulas_no_hay_solicitud_visible_y_la_consulta_no_falla()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+
+        Assert.False(await TienePermisoAsync(Coordinador, Permisos.AulasAprobar));
+        Assert.False(await TienePermisoAsync(Coordinador, Permisos.AulasSolicitar));
+        Assert.Equal(0, await ContarComoActorAsync(Coordinador, "aulas.solicitudes_reserva"));
+
+        // Without an actor fixed there is nothing visible either.
+        await using var conexion = await AbrirConexionComoAsistenteAsync(false);
+        await using var comando = new NpgsqlCommand(
+            "SELECT count(*) FROM aulas.solicitudes_reserva", conexion);
+        Assert.Equal(0L, await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Quien_solicita_sin_persona_vinculada_no_ve_ninguna_solicitud()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+        await EjecutarAsync(
+            "UPDATE identity.users SET persona_id = NULL WHERE id = @actor", ("actor", Jefe));
+
+        // docente_id = NULL is not true: the policy fails closed instead of matching everything.
+        Assert.Equal(0, await ContarComoActorAsync(Jefe, "aulas.solicitudes_reserva"));
+    }
+
+    [Fact]
+    public async Task El_rol_dueno_sigue_viendo_todas_las_solicitudes_de_aula_sin_fijar_actor()
+    {
+        await SembrarAsync();
+        await SembrarSolicitudesDeAulaAsync();
+        var duenoDePrueba = $"app_t{Guid.NewGuid():N}"[..20];
+        await EjecutarAsync(
+            $"""
+            CREATE ROLE "{duenoDePrueba}" WITH LOGIN PASSWORD 'dueno-de-prueba' NOSUPERUSER NOBYPASSRLS;
+            GRANT USAGE, CREATE ON SCHEMA aulas TO "{duenoDePrueba}";
+            GRANT USAGE ON SCHEMA identity TO "{duenoDePrueba}";
+            ALTER TABLE aulas.solicitudes_reserva OWNER TO "{duenoDePrueba}";
+            """);
+
+        var cadena = new NpgsqlConnectionStringBuilder(Cadena)
+        {
+            Username = duenoDePrueba,
+            Password = "dueno-de-prueba",
+            Pooling = false,
+        }.ConnectionString;
+
+        await using var conexion = new NpgsqlConnection(cadena);
+        await conexion.OpenAsync(TestContext.Current.CancellationToken);
+        await using var comando = new NpgsqlCommand(
+            "SELECT count(*) FROM aulas.solicitudes_reserva", conexion);
+
+        // The Aulas screen connects as the owner: ENABLE (not FORCE) must keep exempting it.
+        Assert.True((long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))! > 1);
+    }
+
     // ----------------------------------------------------------------- no regresión
 
     [Fact]
@@ -173,7 +359,119 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         Assert.Equal(8L, await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task El_rol_dueno_sigue_viendo_todas_las_comisiones_sin_fijar_actor()
+    {
+        await SembrarAsync();
+        await SembrarComisionesAsync();
+        var duenoDePrueba = $"app_t{Guid.NewGuid():N}"[..20];
+        await EjecutarAsync(
+            $"""
+            CREATE ROLE "{duenoDePrueba}" WITH LOGIN PASSWORD 'dueno-de-prueba' NOSUPERUSER NOBYPASSRLS;
+            GRANT USAGE, CREATE ON SCHEMA comisiones TO "{duenoDePrueba}";
+            GRANT USAGE ON SCHEMA identity TO "{duenoDePrueba}";
+            ALTER TABLE comisiones.sga_comisiones OWNER TO "{duenoDePrueba}";
+            ALTER TABLE comisiones.sga_comision_docentes OWNER TO "{duenoDePrueba}";
+            """);
+
+        var cadena = new NpgsqlConnectionStringBuilder(Cadena)
+        {
+            Username = duenoDePrueba,
+            Password = "dueno-de-prueba",
+            Pooling = false,
+        }.ConnectionString;
+
+        await using var conexion = new NpgsqlConnection(cadena);
+        await conexion.OpenAsync(TestContext.Current.CancellationToken);
+
+        // The Comisiones screen and the importer connect as the owner: ENABLE (not FORCE) must keep
+        // exempting it, with no actor set.
+        foreach (var tabla in new[] { "sga_comisiones", "sga_comision_docentes" })
+        {
+            await using var comando = new NpgsqlCommand(
+                $"SELECT count(*) FROM comisiones.{tabla}", conexion);
+            Assert.True(
+                (long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))! > 0,
+                $"el dueño dejó de ver {tabla}");
+        }
+    }
+
     // ------------------------------------------------------------------------ apoyo
+
+    /// <summary>
+    /// Two comisiones: one whose materia the jefe teaches and one not matched to any materia,
+    /// plus a docente without <c>persona_id</c> and a schedule for each. Inserted as the owner.
+    /// </summary>
+    private async Task SembrarComisionesAsync()
+    {
+        await EjecutarAsync(
+            """
+            INSERT INTO comisiones.sga_importaciones
+                (id, anio_academico, periodo_lectivo_guarani_id, periodo_lectivo_nombre,
+                 estado, finalizada_at, cantidad)
+            VALUES ('d0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                    'exitosa', now(), 2);
+
+            INSERT INTO comisiones.sga_comisiones
+                (comision_guarani_id, importacion_id, anio_academico, periodo_lectivo_guarani_id,
+                 periodo_lectivo_nombre, nombre, materia_codigo, materia_nombre, materia_id)
+            VALUES
+                ('C1', 'd0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                 '01', 'M1', 'Ingenieria de Software', @materia),
+                ('C2', 'd0000000-0000-4000-8000-000000000001', 2026, 'P1', '1er cuatrimestre',
+                 '02', 'M2', 'Materia sin vincular', NULL);
+
+            INSERT INTO comisiones.sga_comision_carreras
+                (comision_guarani_id, carrera_codigo, carrera_nombre, carrera_id)
+            VALUES ('C1', 'K1', 'Informatica', @carrera), ('C2', 'K2', 'Carrera sin vincular', NULL);
+
+            INSERT INTO comisiones.sga_comision_docentes
+                (comision_guarani_id, orden, nombre, responsabilidad, persona_id)
+            VALUES ('C1', 1, 'Docente de prueba', 'Titular', NULL);
+
+            INSERT INTO comisiones.sga_comision_horarios
+                (comision_guarani_id, asignacion_guarani_id, dia, desde, hasta, aula)
+            VALUES ('C1', 'A1', 2, '19:00', '22:00', 'Aula 1'),
+                   ('C2', 'A2', 6, '08:00', '12:00', NULL);
+            """,
+            ("materia", MateriaIngenieriaDeSoftware),
+            ("carrera", CarreraInformatica));
+    }
+
+    /// <summary>
+    /// Four requests: two by the jefe's persona and two by the coordinator's. Permissions are set
+    /// explicitly (approve for Secretaría, request for the jefe, nothing for anyone else) so the
+    /// test does not depend on the production role matrix. Inserted as the owner.
+    /// </summary>
+    private async Task SembrarSolicitudesDeAulaAsync()
+    {
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code IN ('aulas.aprobar', 'aulas.solicitar');
+
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT ur.role_id, p.id
+              FROM identity.user_roles ur, identity.permisos p
+             WHERE (ur.user_id = @secretaria AND p.code = 'aulas.aprobar')
+                OR (ur.user_id = @jefe AND p.code = 'aulas.solicitar')
+            ON CONFLICT DO NOTHING;
+
+            INSERT INTO aulas.solicitudes_reserva
+                (docente_id, dia, horario_desde, horario_hasta, cantidad_alumnos_aprox, materia_id,
+                 comision, estado, aula_asignada)
+            SELECT u.persona_id, DATE '2026-03-20', '18:00', '21:00', 30, @materia, '01',
+                   x.estado, CASE WHEN x.estado = 'aprobada' THEN 'Aula 101' END
+              FROM identity.users u
+             CROSS JOIN (VALUES ('pendiente'), ('aprobada')) AS x(estado)
+             WHERE u.id IN (@jefe, @coordinador);
+            """,
+            ("secretaria", Secretaria),
+            ("jefe", Jefe),
+            ("coordinador", Coordinador),
+            ("materia", MateriaIngenieriaDeSoftware));
+    }
 
     private async Task CrearDuenoNoSuperusuarioAsync(string rol)
     {

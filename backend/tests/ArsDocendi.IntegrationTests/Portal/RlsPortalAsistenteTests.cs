@@ -16,12 +16,15 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     /// <summary>Secretaría: ámbito global, y sin el permiso nuevo por default.</summary>
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
+    /// <summary>Jefe de cátedra de Ingeniería de Software en el seed.</summary>
+    private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+
     private const string PermisoNuevo = "portal.ver_trayectoria_ajena";
 
     private static readonly string[] Protegidas =
     [
         "perfiles", "educaciones", "certificaciones",
-        "experiencias", "docente_habilidades", "habilidades",
+        "experiencias", "docente_habilidades", "habilidades", "proyectos",
     ];
 
     private string _lector = string.Empty;
@@ -29,7 +32,7 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     // ------------------------------------------------------------------ la forma
 
     [Fact]
-    public async Task Las_seis_tablas_tienen_RLS_habilitada_sin_FORCE()
+    public async Task Las_siete_tablas_tienen_RLS_habilitada_sin_FORCE()
     {
         // FORCE sometería también al dueño, y la aplicación conecta como el dueño:
         // `ServicioPortal` dejaría de ver los perfiles que administra.
@@ -42,7 +45,7 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
              ORDER BY c.relname
             """, ("tablas", Protegidas));
 
-        Assert.Equal(6, estado.Count);
+        Assert.Equal(7, estado.Count);
         Assert.All(estado, fila => Assert.EndsWith("|true|false", fila, StringComparison.Ordinal));
     }
 
@@ -160,6 +163,8 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
         var total = await ContarComoDuenoAsync("portal.perfiles");
         Assert.True(total > 1, $"El seed tiene {total} perfiles; hace falta más de uno.");
 
+        // El jefe de cátedra queda afuera A PROPÓSITO: desde 2026-11-07 tiene el permiso y su
+        // alcance se prueba aparte, en Un_jefe_de_catedra_ve_los_perfiles_de_su_catedra_y_no_los_de_otras.
         foreach (var actor in new[] { Docente, Secretaria })
         {
             await using var conexion = await AbrirConexionComoAsistenteAsync(false);
@@ -190,11 +195,11 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     [Fact]
     public async Task El_asistente_no_llega_a_las_tablas_que_no_se_le_conceden()
     {
-        // La otra mitad de la frontera: contacto personal, CV y proyectos no se conceden, así que
+        // La otra mitad de la frontera: contacto personal, CV y documentos de proyecto no se conceden, así que
         // el motor rechaza antes de evaluar ninguna policy.
         await SembrarAsync();
 
-        foreach (var tabla in new[] { "contactos", "cvs", "proyectos", "proyecto_documentos" })
+        foreach (var tabla in new[] { "contactos", "cvs", "proyecto_documentos" })
         {
             await using var conexion = await AbrirConexionComoAsistenteAsync(true);
             await using var comando = new NpgsqlCommand(
@@ -206,6 +211,107 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
             // 42501 es insufficient_privilege.
             Assert.Equal("42501", error.SqlState);
         }
+    }
+
+    // ------------------------------------- el jefe de cátedra y los proyectos
+
+    [Fact]
+    public async Task El_permiso_lo_tiene_el_jefe_de_catedra_y_ningun_otro_rol_de_arranque()
+    {
+        await SembrarAsync();
+
+        var roles = await LeerFilasAsync(
+            """
+            SELECT r.code
+              FROM identity.rol_permisos rp
+              JOIN identity.permisos p ON p.id = rp.permiso_id
+              JOIN identity.roles r ON r.id = rp.rol_id
+             WHERE p.code = @codigo
+             ORDER BY r.code
+            """, ("codigo", PermisoNuevo));
+
+        Assert.Equal(["jefe_catedra"], roles);
+    }
+
+    [Fact]
+    public async Task Un_jefe_de_catedra_ve_los_perfiles_y_proyectos_de_su_catedra_y_no_los_de_otras()
+    {
+        // Con los roles REALES del asistente y sin conceder nada a mano: el estado en que queda
+        // desplegado. El jefe alcanza su propio perfil y el de quienes tienen designación vigente
+        // en su materia; el resto del padrón queda afuera.
+        await SembrarAsync();
+        await EjecutarAsync(
+            """
+            INSERT INTO portal.perfiles (persona_id)
+            SELECT p.id FROM identity.personas p
+             WHERE NOT EXISTS (SELECT 1 FROM portal.perfiles pf WHERE pf.persona_id = p.id);
+
+            INSERT INTO portal.proyectos (perfil_id, nombre, rol, descripcion, desde, doi)
+            SELECT pf.id, 'Proyecto de ' || pf.id, 'Investigador', 'texto libre', DATE '2024-03-01', '10.1000/x'
+              FROM portal.perfiles pf
+             WHERE NOT EXISTS (SELECT 1 FROM portal.proyectos x WHERE x.perfil_id = pf.id);
+            """);
+
+        var esperados = await EscalarAsync<long>(
+            """
+            SELECT count(*)
+              FROM portal.proyectos x
+              JOIN portal.perfiles pf ON pf.id = x.perfil_id
+             WHERE pf.persona_id = (SELECT persona_id FROM identity.users WHERE id = @jefe)
+                OR EXISTS (
+                    SELECT 1 FROM designaciones.designaciones d
+                     WHERE d.persona_id = pf.persona_id
+                       AND EXISTS (
+                           SELECT 1 FROM identity.user_roles ur
+                            WHERE ur.user_id = @jefe AND ur.deleted_at IS NULL
+                              AND ur.materia_id = d.materia_id
+                              AND (ur.carrera_id IS NULL OR ur.carrera_id = d.carrera_id))
+                       AND d.vigente_hasta IS NULL)
+            """, ("jefe", Jefe));
+
+        var total = await ContarComoDuenoAsync("portal.proyectos");
+        Assert.True(esperados > 0 && esperados < total, $"Premisa del seed: {esperados} de {total}.");
+
+        foreach (var tabla in new[] { "portal.proyectos", "portal.perfiles" })
+        {
+            var visibles = await ContarComoAsistenteRealAsync(Jefe, tabla);
+            Assert.True(visibles > 0 && visibles < total, $"{tabla}: el jefe vio {visibles} de {total}.");
+            Assert.Equal(esperados, visibles);
+        }
+    }
+
+    [Fact]
+    public async Task La_descripcion_de_un_proyecto_no_se_concede()
+    {
+        await SembrarAsync();
+
+        await using var conexion = await AbrirConexionComoAsistenteAsync(true);
+        await using var comando = new NpgsqlCommand(
+            "SELECT descripcion FROM portal.proyectos", conexion);
+
+        var error = await Assert.ThrowsAsync<PostgresException>(
+            () => comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("42501", error.SqlState);
+    }
+
+    private async Task<long> ContarComoAsistenteRealAsync(Guid actor, string tabla)
+    {
+        await using var conexion = await AbrirConexionComoAsistenteAsync(false);
+        await using var transaccion = await conexion.BeginTransactionAsync(
+            TestContext.Current.CancellationToken);
+
+        await using (var ajuste = new NpgsqlCommand(
+            "SELECT set_config('app.asistente_user_id', @actor, TRUE)", conexion, transaccion))
+        {
+            ajuste.Parameters.AddWithValue("actor", actor.ToString());
+            await ajuste.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var comando = new NpgsqlCommand(
+            $"SELECT count(*) FROM {tabla}", conexion, transaccion);
+
+        return (long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
     // ------------------------------------------------------------------ no regresión

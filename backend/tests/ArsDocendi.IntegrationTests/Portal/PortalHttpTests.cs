@@ -209,7 +209,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // /api/designaciones/comisiones`, `GET …/periodos`, `POST …/exportacion`, `GET
         // …/guarani/periodos-lectivos`, `POST …/importaciones`) and two in TareasController
         // (`POST /api/tareas/{id}/hijas`, `DELETE …/hijas/{hijaId}`).
-        Assert.Equal(176, operaciones.Length);
+        //
+        // Up to 178 with asistente-modelo-en-reposo: `GET /api/asistente/modelo/disponibilidad` and
+        // `POST /api/asistente/modelo/activacion` in ModeloDelAsistenteController.
+        Assert.Equal(178, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

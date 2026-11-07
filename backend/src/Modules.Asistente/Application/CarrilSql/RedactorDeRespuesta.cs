@@ -27,7 +27,9 @@ public sealed class RedactorDeRespuesta(
         ResultadoDeConsulta resultado,
         bool alcanzaTodo,
         IReadOnlyList<CoberturaDeUnDato> cobertura,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool hayTextoLibreOculto = false,
+        string? comoSeBusco = null)
     {
         // RESULTADO TRIVIAL, SIN MODELO (asistente-optimizaciones-modelo-local, D5): una columna
         // con pocos valores, alcance completo, sin recorte ni cobertura autodeclarada.
@@ -41,7 +43,7 @@ public sealed class RedactorDeRespuesta(
             new SolicitudAlModelo
             {
                 PrefijoEstable = Instrucciones,
-                Mensaje = ArmarMensaje(pregunta, resultado, alcanzaTodo, cobertura),
+                Mensaje = ArmarMensaje(pregunta, resultado, alcanzaTodo, cobertura, hayTextoLibreOculto, comoSeBusco),
                 Temperatura = Temperatura,
                 // Bajo a propósito: las filas ya están y esto es convertirlas en una oración.
                 Esfuerzo = EsfuerzoConfigurado.Interpretar(
@@ -82,16 +84,39 @@ public sealed class RedactorDeRespuesta(
         string pregunta,
         ResultadoDeConsulta resultado,
         bool alcanzaTodo,
-        IReadOnlyList<CoberturaDeUnDato>? cobertura = null)
+        IReadOnlyList<CoberturaDeUnDato>? cobertura = null,
+        bool hayTextoLibreOculto = false,
+        string? comoSeBusco = null)
     {
         ArgumentNullException.ThrowIfNull(resultado);
 
         var mensaje = new StringBuilder();
         mensaje.Append(CultureInfo.InvariantCulture, $"Pregunta del usuario:\n{pregunta}\n");
 
+        // The rows do not always carry the column the query filtered on («solicitudes urgentes»
+        // returns the urgent ones without a prioritario column). Without this, the model read the
+        // rows and said «ninguna está marcada como urgente». It is the generation's own reading of
+        // the question: model text, no data.
+        if (!string.IsNullOrWhiteSpace(comoSeBusco))
+        {
+            mensaje.Append(CultureInfo.InvariantCulture,
+                $"\nCómo se buscó (las filas ya cumplen esta condición): {comoSeBusco}\n");
+        }
+
         foreach (var regla in PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo, resultado.Truncado, cobertura))
         {
             mensaje.Append(CultureInfo.InvariantCulture, $"\nIMPORTANTE: {regla}\n");
+        }
+
+        // A sensible-texto column was dropped before this prompt: without this line the model reads
+        // its absence as missing data and says «no hay datos sobre el motivo» while the table shows it.
+        // Column names stay out, as the suppression requires.
+        if (hayTextoLibreOculto)
+        {
+            mensaje.Append(
+                "\nIMPORTANTE: la tabla que ve el usuario tiene además columnas de texto libre " +
+                "que no se te muestran. Si la pregunta pide ese texto, decí que está en la tabla; " +
+                "nunca digas que no hay datos sobre eso.\n");
         }
 
         var mostradas = Math.Min(resultado.Filas.Count, TopeDeFilasEnElPrompt);

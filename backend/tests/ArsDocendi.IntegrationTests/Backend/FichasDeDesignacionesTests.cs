@@ -46,7 +46,7 @@ public sealed class FichasDeDesignacionesTests
 
         using var alcance = host.Services.CreateScope();
 
-        Assert.IsType<FichasDeDesignaciones>(
+        Assert.IsType<FichasCompuestas>(
             alcance.ServiceProvider.GetRequiredService<IProveedorDeFichas>());
     }
 

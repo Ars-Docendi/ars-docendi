@@ -15,21 +15,23 @@ public sealed class PermisoYPersonaPortalTests(PostgresFixture postgres)
     // ------------------------------------------------------------- el permiso
 
     [Fact]
-    public async Task El_permiso_existe_y_no_lo_tiene_ningun_rol()
+    public async Task El_permiso_existe_y_solo_lo_tiene_el_jefe_de_catedra()
     {
-        // NACE VACÍO Y ES DELIBERADO. Quién puede leer la trayectoria de otro es una decisión del
-        // Departamento con respaldo normativo.
+        // Decisión del equipo, 2026-11-07 (BR-portal-001): el jefe de cátedra lo recibe de arranque,
+        // acotado por el ámbito a los docentes designados en sus materias. Ningún otro rol, en
+        // particular ni `docente` ni `sys_admin`.
         await SembrarAsync();
 
         Assert.Equal(1L, await EscalarAsync<long>(
             "SELECT count(*) FROM identity.permisos WHERE code = @codigo",
             ("codigo", PermisoNuevo)));
 
-        Assert.Equal(0L, await EscalarAsync<long>(
+        Assert.Equal("jefe_catedra", await EscalarAsync<string>(
             """
-            SELECT count(*)
+            SELECT string_agg(r.code, ',' ORDER BY r.code)
               FROM identity.rol_permisos rp
               JOIN identity.permisos p ON p.id = rp.permiso_id
+              JOIN identity.roles r ON r.id = rp.rol_id
              WHERE p.code = @codigo
             """,
             ("codigo", PermisoNuevo)));

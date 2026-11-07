@@ -72,6 +72,61 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task VeComisiones_sigue_la_matriz_de_permisos_sin_redeploy()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Con permiso y sin ámbito global: el flag mira sólo el permiso.
+        Assert.True((await Consultor().ObtenerAsync(Jefe, ct)).VeComisiones);
+        Assert.True((await Consultor().ObtenerAsync(Secretaria, ct)).VeComisiones);
+
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code = 'comisiones.ver'
+            """);
+
+        // Se lee en vivo: el mismo consultor, después de cambiar la matriz.
+        Assert.False((await Consultor().ObtenerAsync(Secretaria, ct)).VeComisiones);
+    }
+
+    [Fact]
+    public async Task Los_permisos_de_aulas_siguen_la_matriz_sin_redeploy()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        await EjecutarAsync(
+            """
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT ur.role_id, p.id
+              FROM identity.user_roles ur, identity.permisos p
+             WHERE (ur.user_id = @secretaria AND p.code = 'aulas.aprobar')
+                OR (ur.user_id = @jefe AND p.code = 'aulas.solicitar')
+            ON CONFLICT DO NOTHING
+            """,
+            ("secretaria", Secretaria), ("jefe", Jefe));
+
+        var aprueba = await Consultor().ObtenerAsync(Secretaria, ct);
+        var solicita = await Consultor().ObtenerAsync(Jefe, ct);
+        Assert.True(aprueba.VeSolicitudesDeAula);
+        Assert.False(solicita.VeSolicitudesDeAula);
+        Assert.True(solicita.VeSolicitudesPropias);
+
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code = 'aulas.aprobar'
+            """);
+
+        // Read live: the same consultor, after changing the matrix.
+        Assert.False((await Consultor().ObtenerAsync(Secretaria, ct)).VeSolicitudesDeAula);
+    }
+
+    [Fact]
     public void El_texto_del_vacio_solo_afirma_ausencia_cuando_el_actor_alcanza_todo()
     {
         // La política es pura, así que acá se prueba la decisión sin base: dado el booleano, qué se dice.

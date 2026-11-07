@@ -190,6 +190,24 @@ public sealed class OpcionesAsistente
     /// </summary>
     public int ContextoDelModelo { get; set; }
 
+    // ------------------------------------------------------------------
+    // asistente-modelo-en-reposo.
+
+    /// <summary>
+    /// Cuánto se reutiliza la lectura de <c>GET /api/ps</c> de Ollama (segundos), para no gastar el
+    /// presupuesto por credencial del servicio compartido en consultas de estado.
+    /// </summary>
+    public int TiempoDeVidaDisponibilidadSegundos { get; set; } = 30;
+
+    /// <summary>Tope de una precarga del modelo (segundos) antes de darla por fallida.</summary>
+    public int TiempoMaximoDeActivacionSegundos { get; set; } = 120;
+
+    /// <summary>
+    /// Espera mínima (segundos) entre el fin de una precarga y el comienzo de la siguiente, sin
+    /// importar quién la pida.
+    /// </summary>
+    public int EnfriamientoDeActivacionSegundos { get; set; } = 30;
+
     /// <summary>
     /// Si una consulta que volvió vacía se vuelve a generar una vez. Default <c>true</c>
     /// (asistente-proveedor-local, D6).

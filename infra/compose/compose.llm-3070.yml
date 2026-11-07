@@ -18,9 +18,9 @@
 # Por qué llama-server y no vLLM: con ~4,7 GiB de pesos de un 8B en 4 bits,
 # vLLM —que reserva memoria para CUDA graphs y activaciones— deja muy poco KV.
 #
-# Presupuesto de VRAM [estimado]: pesos Q4_K_M ~4,7 GiB + KV q8_0 de 2 slots de
-# 13.312 tokens (~76,5 KiB/token) ~1,9 GiB + buffers ~0,6 GiB ≈ 7,3 GiB.
-# El escritorio también usa la GPU: si no entra, ver los respaldos abajo.
+# Presupuesto de VRAM: pesos Q4_K_M ~4,7 GiB + KV q8_0 de 1 slot de 16.384
+# tokens (~76,5 KiB/token) ~1,2 GiB + buffers ~0,6 GiB. Medido: ~6,9 GiB en
+# total con el escritorio usando ~1 GB. Si no entra, ver el respaldo abajo.
 
 services:
   llama:
@@ -53,16 +53,18 @@ services:
       - "${LLM_NOMBRE_SERVIDO:-qwen3-8b}"
       - --n-gpu-layers
       - "99"
-      # Contexto total repartido entre los slots: 2 × 13.312. Con el esquema
-      # compacto y los ejemplos en el prefijo, el pedido más largo medido usa
-      # 9,8k tokens; queda lugar para el mensaje y la salida (600).
-      # RESPALDO si no entra en VRAM o el servidor dice que el pedido excede el
-      # contexto: LLAMA_SLOTS=1 y LLAMA_CTX=16384 (un turno a la vez), o
+      # Un slot de 16.384: un turno a la vez. Con comisiones en el prefijo, el
+      # pedido más largo medido usa 12,8k tokens y, con el techo de salida
+      # (600), pide 13,4k (modelo-local.md §8, medido el 2026-11-07). Dos slots
+      # de 13.312 ya no alcanzan para el pedido y, con el escritorio en la
+      # misma GPU, tampoco entraban en VRAM. Va con
+      # Asistente__MaximoDeLlamadasConcurrentes=1 en el backend.
+      # RESPALDO si no entra en VRAM:
       # LLAMA_GGUF=Qwen3-4B-Instruct-2507-Q6_K.gguf con su repo.
       - --ctx-size
-      - "${LLAMA_CTX:-26624}"
+      - "${LLAMA_CTX:-16384}"
       - --parallel
-      - "${LLAMA_SLOTS:-2}"
+      - "${LLAMA_SLOTS:-1}"
       - --flash-attn
       - "on"
       - --cache-type-k

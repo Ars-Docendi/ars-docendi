@@ -51,6 +51,26 @@ public sealed class CoberturaDelPortalTests
         Assert.Empty(CoberturaDelPortal.TablasQueToca("SELECT id FROM portal.perfiles"));
     }
 
+    // ----------------------------------------------- qué dominios toca la consulta
+
+    [Theory]
+    [InlineData("SELECT 1 FROM comisiones.sga_comisiones c", "Comisiones")]
+    [InlineData("select 1 from PORTAL.perfiles", "Portal")]
+    [InlineData("SELECT 1 FROM designaciones.pedidos", "Designaciones")]
+    [InlineData("SELECT 1 FROM identity.materias", "Ninguno")]
+    [InlineData(
+        "SELECT 1 FROM comisiones.sga_comision_docentes d JOIN designaciones.designaciones x ON x.persona_id = d.persona_id",
+        "Designaciones, Comisiones")]
+    [InlineData("SELECT 1 FROM \"comisiones\".\"sga_comisiones\"", "Comisiones")]
+    // Un alias o un comentario que nombra un dominio no lo toca.
+    [InlineData("SELECT m.code AS comisiones FROM identity.materias m", "Ninguno")]
+    [InlineData("SELECT 1 FROM identity.materias /* designaciones.pedidos */ -- portal.perfiles", "Ninguno")]
+    [InlineData("SELECT 'portal.perfiles' FROM identity.materias", "Ninguno")]
+    public void Detecta_los_dominios_que_toca_la_consulta_por_sus_tablas(string sql, string esperados) =>
+        Assert.Equal(
+            Enum.Parse<DominioConsultado>(esperados),
+            DetectorDeDominios.Detectar(sql).Dominios);
+
     // ----------------------------------------------------- cuál explica el vacío
 
     [Fact]
@@ -164,6 +184,28 @@ public sealed class CoberturaDelPortalTests
             [new CoberturaDeUnDato("educaciones", 14, 120)]);
 
         Assert.Contains("14 cargaron su formación", mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_scoped_actor_is_told_the_coverage_total_is_the_whole_padron()
+    {
+        // Found end to end: a jefe de cátedra read «de los 24 docentes de tu cátedra» when the 24
+        // is the Departamento's padrón and only the numerator is scoped.
+        var mensaje = RedactorDeRespuesta.ArmarMensaje(
+            "¿qué proyectos cargaron mis docentes?",
+            new ResultadoDeConsulta(["apellido"], [new object?[] { "Díaz" }], false),
+            alcanzaTodo: false,
+            [new CoberturaDeUnDato("proyectos", 3, 24)]);
+
+        Assert.Contains("El total (24) es el padrón de todo el Departamento", mensaje, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "padrón de todo el Departamento",
+            RedactorDeRespuesta.ArmarMensaje(
+                "¿qué proyectos cargaron los docentes?",
+                new ResultadoDeConsulta(["apellido"], [new object?[] { "Díaz" }], false),
+                alcanzaTodo: true,
+                [new CoberturaDeUnDato("proyectos", 3, 24)]),
+            StringComparison.Ordinal);
     }
 }
 
