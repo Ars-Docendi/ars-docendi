@@ -33,7 +33,7 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         await using var _i = identity; await using var _m = modulo;
 
         var creada = await servicio.GuardarAsync(null, Datos("70000001", "sec@unlam.edu.ar",
-            [new GuardarAsignacionRolDto(RolSecretaria)], []), ct);
+            [new GuardarAsignacionRolDto(RolSecretaria)]), ct);
 
         Assert.True(creada.TieneCuenta);
         Assert.Equal(["secretaria"], creada.Roles.Select(r => r.Codigo));
@@ -48,23 +48,10 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         await using var _i = identity; await using var _m = modulo;
 
         var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() =>
-            servicio.GuardarAsync(null, Datos("70000002", "sinrol@unlam.edu.ar", [], []), ct));
+            servicio.GuardarAsync(null, Datos("70000002", "sinrol@unlam.edu.ar", []), ct));
 
         Assert.Equal(TipoErrorAplicacion.Validacion, error.Tipo);
         Assert.True(error.Errores!.ContainsKey("membresias"));
-    }
-
-    [Fact]
-    public async Task Docente_sin_asignaciones_se_rechaza()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var (servicio, identity, modulo) = await PrepararAsync(ct);
-        await using var _i = identity; await using var _m = modulo;
-
-        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.GuardarAsync(null,
-            Datos("70000003", "doc@unlam.edu.ar", [Docente()], []), ct));
-
-        Assert.True(error.Errores!.ContainsKey("designaciones"));
     }
 
     [Fact]
@@ -74,7 +61,7 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         var (servicio, identity, modulo) = await PrepararAsync(ct);
         await using var _i = identity; await using var _m = modulo;
         var creada = await servicio.GuardarAsync(null, Datos("28.456.123", "dni@unlam.edu.ar",
-            [new GuardarAsignacionRolDto(RolSecretaria)], []), ct);
+            [new GuardarAsignacionRolDto(RolSecretaria)]), ct);
 
         Assert.Equal("28456123", creada.Documento);
         var repetido = await servicio.VerificarDocumentoAsync("28 456 123", null, ct);
@@ -83,7 +70,7 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         Assert.Equal("Lovelace, Ada", repetido.Nombre);
         Assert.False((await servicio.VerificarDocumentoAsync("28456123", creada.PersonaId, ct)).Existe);
         var conflicto = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.GuardarAsync(null,
-            Datos("28456123", "otra@unlam.edu.ar", [new GuardarAsignacionRolDto(RolSecretaria)], []), ct));
+            Datos("28456123", "otra@unlam.edu.ar", [new GuardarAsignacionRolDto(RolSecretaria)]), ct));
         Assert.Equal("identity-document-conflict", conflicto.Codigo);
     }
 
@@ -95,26 +82,25 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         await using var _i = identity; await using var _m = modulo;
 
         var coordinador = await servicio.GuardarAsync(null, Datos("70000004", "coord@unlam.edu.ar",
-            [new GuardarAsignacionRolDto(RolCoordinador, CarreraId: Carrera)], []), ct);
+            [new GuardarAsignacionRolDto(RolCoordinador, CarreraId: Carrera)]), ct);
         Assert.Equal(["coordinador_carrera"], coordinador.Roles.Select(r => r.Codigo));
 
         var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.GuardarAsync(null,
-            Datos("70000005", "jefe@unlam.edu.ar", [new GuardarAsignacionRolDto(RolJefe, MateriaId: Materia, CarreraId: Carrera)],
-                [Designacion(Materia)]), ct));
+            Datos("70000005", "jefe@unlam.edu.ar", [new GuardarAsignacionRolDto(RolJefe, MateriaId: Materia, CarreraId: Carrera)]), ct));
         Assert.Equal("identity-role-scope-conflict", error.Codigo);
     }
 
     [Fact]
-    public async Task Edicion_reemplaza_todos_los_roles_y_las_asignaciones()
+    public async Task Edicion_reemplaza_todos_los_roles()
     {
         var ct = TestContext.Current.CancellationToken;
         var (servicio, identity, modulo) = await PrepararAsync(ct);
         await using var _i = identity; await using var _m = modulo;
         var creada = await servicio.GuardarAsync(null, Datos("70000006", "edit@unlam.edu.ar",
-            [Docente(), new GuardarAsignacionRolDto(RolSecretaria)], [Designacion(Materia)]), ct);
+            [Docente(), new GuardarAsignacionRolDto(RolSecretaria)]), ct);
 
         var editada = await servicio.GuardarAsync(creada.PersonaId, Datos("70000006", "edit@unlam.edu.ar",
-            [new GuardarAsignacionRolDto(RolSecretaria)], []) with { Version = creada.Version }, ct);
+            [new GuardarAsignacionRolDto(RolSecretaria)]) with { Version = creada.Version }, ct);
 
         Assert.Equal(["secretaria"], editada.Roles.Select(r => r.Codigo));
         Assert.Empty(editada.Asignaciones);
@@ -126,9 +112,11 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         var ct = TestContext.Current.CancellationToken;
         var (servicio, identity, modulo) = await PrepararAsync(ct);
         await using var _i = identity; await using var _m = modulo;
-        var enA = await servicio.GuardarAsync(null, Datos("70000007", "a@unlam.edu.ar", [Docente()], [Designacion(Materia)]), ct);
+        var enA = await servicio.GuardarAsync(null, Datos("70000007", "a@unlam.edu.ar", [Docente()]), ct);
+        await SembrarDesignacionAsync(modulo, enA.PersonaId, Materia, ct);
         var enB = await servicio.GuardarAsync(null, Datos("70000008", "b@unlam.edu.ar",
-            [new GuardarAsignacionRolDto(RolDocente, MateriaId: MateriaB, CarreraId: Carrera)], [Designacion(MateriaB)]), ct);
+            [new GuardarAsignacionRolDto(RolDocente, MateriaId: MateriaB, CarreraId: Carrera)]), ct);
+        await SembrarDesignacionAsync(modulo, enB.PersonaId, MateriaB, ct);
         IReadOnlySet<Guid> soloA = new HashSet<Guid> { Materia };
 
         var visibles = await servicio.ListarAsync(soloA, ct);
@@ -155,16 +143,25 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
 
     private static GuardarAsignacionRolDto Docente() => new(RolDocente, MateriaId: Materia, CarreraId: Carrera);
 
-    private static GuardarDesignacionVigenteDto Designacion(Guid materia) =>
-        new(materia, Carrera, CargoTitular, DedicacionSimple, 12);
+    /// <summary>Las designaciones ya no se cargan desde administración: se siembran directo.</summary>
+    private static async Task SembrarDesignacionAsync(
+        DesignacionesDbContext modulo, Guid personaId, Guid materia, CancellationToken ct)
+    {
+        modulo.Designaciones.Add(new Designacion
+        {
+            Id = Guid.NewGuid(), PersonaId = personaId, MateriaId = materia, CarreraId = Carrera,
+            CargoId = CargoTitular, DedicacionId = DedicacionSimple, Horas = 12,
+            VigenteDesde = new DateOnly(2026, 3, 1), CreadoEn = DateTimeOffset.UtcNow,
+        });
+        await modulo.SaveChangesAsync(ct);
+    }
 
     private static GuardarPersonaDto Datos(
         string documento,
         string upn,
-        IReadOnlyList<GuardarAsignacionRolDto> membresias,
-        IReadOnlyList<GuardarDesignacionVigenteDto> designaciones) => new(
+        IReadOnlyList<GuardarAsignacionRolDto> membresias) => new(
             "Ada", "Lovelace", documento, "L-" + documento.Replace(".", "").Replace(" ", ""), null,
-            new DateOnly(1985, 12, 10), null, upn, membresias, designaciones);
+            new DateOnly(1985, 12, 10), null, upn, membresias);
 
     private static async Task PrepararCatalogoAsync(IdentityDbContext identity, CancellationToken ct)
     {

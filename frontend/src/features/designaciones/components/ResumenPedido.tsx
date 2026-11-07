@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Cargo, Dedicacion, Novedad, PedidoDesignacion } from "../types";
+import { etiquetaSectorExterno } from "../types";
 import { iniciales } from "./detalleAdapters";
 import { motivoRechazo } from "./tableroRevisionModelo";
 import { DocumentacionAdjuntaPedido } from "./DocumentacionAdjuntaPedido";
@@ -117,10 +118,20 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
         <Dato etiqueta="Carrera">{pedido.carrera}</Dato>
         <Dato etiqueta="Período">{periodoNombre ?? "—"}</Dato>
         <Dato etiqueta="Cargo">
-          <Transicion desde={pedido.cargoActual} hacia={pedido.cargoSolicitado} />
+          <Transicion
+            desde={pedido.cargoActual}
+            hacia={
+              pedido.sectorExterno
+                ? etiquetaSectorExterno(pedido.sectorExterno)
+                : pedido.cargoSolicitado
+            }
+          />
         </Dato>
         <Dato etiqueta="Dedicación">
-          <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
+          <Transicion
+            desde={pedido.dedicacionActual}
+            hacia={pedido.sectorExterno ? "Sin dedicación (externo)" : pedido.dedicacionSolicitada}
+          />
         </Dato>
         <Dato etiqueta="Materias">
           {pedido.catedra} (<HorasPedido actual={pedido.horasActuales} solicitadas={pedido.horas} />
@@ -140,8 +151,8 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
           <HorasPedido actual={pedido.horasExternasActuales} solicitadas={pedido.horasExternas} />{" "}
           semanales
         </Dato>
-        <Dato etiqueta="Agente externo">
-          {pedido.esAgenteExterno ? (pedido.departamentoAgenteExterno ?? "Sí") : "No"}
+        <Dato etiqueta="Docente externo">
+          {pedido.sectorExterno ? etiquetaSectorExterno(pedido.sectorExterno) : "No"}
         </Dato>
       </div>
 

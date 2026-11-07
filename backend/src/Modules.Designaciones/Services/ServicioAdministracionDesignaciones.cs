@@ -17,99 +17,9 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         (await repositorio.ListarDedicacionesAsync(ct))
             .Select(d => new DedicacionAdministracionDto(d.Id, d.Codigo, d.Nombre, d.Orden, d.Activo)).ToArray();
 
-    public async Task ValidarReemplazoAsync(
-        Guid? personaId,
-        IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
-        CancellationToken ct)
-    {
-        // Una persona tiene a lo sumo una designación por materia canónica, sin importar la
-        // carrera: la materia ya identifica la designación única.
-        if (designaciones.Select(d => d.MateriaId).Distinct().Count() != designaciones.Count)
-        {
-            throw new ErrorDominioPedido("No se puede repetir una materia en las designaciones vigentes.");
-        }
-        if (designaciones.Any(d => d.Horas <= 0))
-        {
-            throw new ErrorDominioPedido("Las horas de una designación deben ser mayores a cero.");
-        }
-        var actuales = personaId is { } id
-            ? await repositorio.ListarVigentesDePersonaAsync(id, ct)
-            : [];
-        var dedicaciones = await repositorio.ListarDedicacionesAsync(ct);
-        foreach (var deseada in designaciones)
-        {
-            var actual = actuales.SingleOrDefault(d => d.MateriaId == deseada.MateriaId);
-            if (actual is not null && actual.DedicacionId == deseada.DedicacionId) continue;
-            if (!dedicaciones.Any(d => d.Id == deseada.DedicacionId && d.Activo))
-                throw new ErrorDominioPedido("La dedicación no existe o está inactiva.");
-        }
-        var cargos = designaciones.Select(d => d.CargoId).Distinct().ToArray();
-        if ((await repositorio.ObtenerCargosActivosAsync(cargos, ct)).Count != cargos.Length)
-        {
-            throw new ErrorDominioPedido("Uno de los cargos no existe o está inactivo.");
-        }
-    }
-
-    public async Task<IReadOnlyList<DesignacionVigenteDto>> ReemplazarVigentesAsync(
-        Guid personaId,
-        IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
-        CancellationToken ct)
-        => await repositorio.EjecutarCoordinadoAsync(personaId,
-            token => ReemplazarProtegidoAsync(personaId, designaciones, token), ct);
-
-    private async Task<IReadOnlyList<DesignacionVigenteDto>> ReemplazarProtegidoAsync(
-        Guid personaId, IReadOnlyList<GuardarDesignacionVigenteDto> designaciones, CancellationToken ct)
-    {
-        await ValidarReemplazoAsync(personaId, designaciones, ct);
-        var actuales = await repositorio.ListarVigentesDePersonaAsync(personaId, ct);
-        var deseadas = designaciones.ToDictionary(d => d.MateriaId);
-        var hoy = FechaOperativa.Hoy(reloj ?? TimeProvider.System);
-
-        foreach (var actual in actuales)
-        {
-            if (!deseadas.Remove(actual.MateriaId, out var deseada))
-            {
-                actual.VigenteHasta = hoy > actual.VigenteDesde
-                    ? hoy
-                    : actual.VigenteDesde.AddDays(1);
-                continue;
-            }
-
-            actual.CarreraId = deseada.CarreraId;
-            actual.CargoId = deseada.CargoId;
-            if (actual.DedicacionId != deseada.DedicacionId)
-            {
-                actual.DedicacionId = deseada.DedicacionId;
-                actual.Dedicacion = null;
-            }
-            actual.Horas = deseada.Horas;
-            // Una edición administrativa deja de atribuir el estado resultante
-            // al pedido original; audit.change_log conserva quién y qué cambió.
-            actual.OrigenPedidoId = null;
-        }
-
-        foreach (var deseada in deseadas.Values)
-        {
-            repositorio.Agregar(new Designacion
-            {
-                Id = Guid.NewGuid(),
-                PersonaId = personaId,
-                MateriaId = deseada.MateriaId,
-                CarreraId = deseada.CarreraId,
-                CargoId = deseada.CargoId,
-                DedicacionId = deseada.DedicacionId,
-                Horas = deseada.Horas,
-                VigenteDesde = hoy,
-                CreadoEn = DateTimeOffset.UtcNow,
-            });
-        }
-
-        await repositorio.GuardarAsync(ct);
-        return (await repositorio.ListarVigentesDePersonaSinTrackingAsync(personaId, ct))
-            .Select(Mapear)
-            .OrderBy(d => d.MateriaId)
-            .ToArray();
-    }
+    public async Task<IReadOnlyList<SectorExternoAdministracionDto>> ListarSectoresExternosAsync(CancellationToken ct) =>
+        (await repositorio.ListarSectoresExternosAsync(ct))
+            .Select(s => new SectorExternoAdministracionDto(s.Id, s.Codigo, s.Nombre, s.Activo)).ToArray();
 
     private static DesignacionVigenteDto Mapear(Designacion d) => new(
         d.Id,
@@ -117,12 +27,13 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         d.MateriaId,
         d.CarreraId,
         d.CargoId,
-        d.Cargo?.Nombre ?? string.Empty,
-        d.Cargo?.Abreviatura ?? string.Empty,
-        d.DedicacionCatalogo?.Nombre ?? d.Dedicacion,
+        d.Cargo?.Nombre,
+        d.Cargo?.Abreviatura,
+        d.DedicacionCatalogo?.Nombre,
         d.Horas,
         d.VigenteDesde,
-        d.DedicacionId, d.HorasInvestigacion, d.HorasExternas);
+        d.DedicacionId, d.HorasInvestigacion, d.HorasExternas,
+        d.SectorExternoId, d.SectorExterno?.Codigo, d.SectorExterno?.Nombre);
 
     private static CargoAdministracionDto Mapear(Cargo c) => new(
         c.Id, c.Codigo, c.Nombre, c.Abreviatura, c.Orden, c.Activo);

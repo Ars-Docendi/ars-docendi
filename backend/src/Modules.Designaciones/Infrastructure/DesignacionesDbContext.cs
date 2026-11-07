@@ -21,6 +21,7 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
 
     public DbSet<Dedicacion> Dedicaciones => Set<Dedicacion>();
     public DbSet<Cargo> Cargos => Set<Cargo>();
+    public DbSet<SectorExterno> SectoresExternos => Set<SectorExterno>();
     public DbSet<Periodo> Periodos => Set<Periodo>();
     public DbSet<Pedido> Pedidos => Set<Pedido>();
     public DbSet<PedidoAdjunto> PedidoAdjuntos => Set<PedidoAdjunto>();
@@ -63,6 +64,18 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
             e.HasIndex(x => x.Codigo).IsUnique();
         });
 
+        modelBuilder.Entity<SectorExterno>(e =>
+        {
+            e.ToTable("sectores_externos", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Codigo).HasColumnName("codigo");
+            e.Property(x => x.Nombre).HasColumnName("nombre");
+            e.Property(x => x.Activo).HasColumnName("activo");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.HasIndex(x => x.Codigo).IsUnique();
+        });
+
         modelBuilder.Entity<Periodo>(e =>
         {
             e.ToTable("periodos", Schema, t => t.ExcludeFromMigrations());
@@ -92,9 +105,11 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
             e.Property(x => x.Estado).HasColumnName("estado");
             e.Property(x => x.Prioritario).HasColumnName("prioritario");
             e.Property(x => x.CargoSolicitadoId).HasColumnName("cargo_solicitado_id");
-            e.Property(x => x.DedicacionSolicitada).HasColumnName("dedicacion_solicitada");
             e.Property(x => x.DedicacionSolicitadaId).HasColumnName("dedicacion_solicitada_id");
             e.HasOne(x => x.DedicacionSolicitadaCatalogo).WithMany().HasForeignKey(x => x.DedicacionSolicitadaId);
+            e.Property(x => x.SectorExternoId).HasColumnName("sector_externo_id");
+            e.HasOne(x => x.SectorExterno).WithMany().HasForeignKey(x => x.SectorExternoId);
+            e.Ignore(x => x.EsExterno);
             e.Property(x => x.Horas).HasColumnName("horas");
             e.Property(x => x.HorasInvestigacion).HasColumnName("horas_investigacion");
             e.Property(x => x.HorasExternas).HasColumnName("horas_externas");
@@ -161,9 +176,11 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
             e.Property(x => x.MateriaId).HasColumnName("materia_id");
             e.Property(x => x.CarreraId).HasColumnName("carrera_id");
             e.Property(x => x.CargoId).HasColumnName("cargo_id");
-            e.Property(x => x.Dedicacion).HasColumnName("dedicacion");
             e.Property(x => x.DedicacionId).HasColumnName("dedicacion_id");
             e.HasOne(x => x.DedicacionCatalogo).WithMany().HasForeignKey(x => x.DedicacionId);
+            e.Property(x => x.SectorExternoId).HasColumnName("sector_externo_id");
+            e.HasOne(x => x.SectorExterno).WithMany().HasForeignKey(x => x.SectorExternoId);
+            e.Ignore(x => x.EsExterna);
             e.Property(x => x.Horas).HasColumnName("horas");
             e.Property(x => x.HorasInvestigacion).HasColumnName("horas_investigacion");
             e.Property(x => x.HorasExternas).HasColumnName("horas_externas");

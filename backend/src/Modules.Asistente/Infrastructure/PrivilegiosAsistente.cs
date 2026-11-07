@@ -10,6 +10,9 @@ public static partial class PrivilegiosAsistente
     /// <summary>Ruta lógica del recurso embebido con el DDL de privilegios.</summary>
     public const string RecursoSql = "asistente/001_asistente_grants.sql";
 
+    /// <summary>Privilegios sobre el catálogo de sectores externos y sus referencias.</summary>
+    public const string RecursoSqlSectoresExternos = "asistente/011_asistente_sectores_externos.sql";
+
     /// <summary>
     /// Concede los privilegios declarados en el manifiesto a los dos roles del asistente.
     /// </summary>
@@ -23,6 +26,7 @@ public static partial class PrivilegiosAsistente
         ValidarNombreDeRol(rolSoloLecturaPii, nameof(rolSoloLecturaPii));
 
         var sql = RecursosSql.Leer(typeof(PrivilegiosAsistente).Assembly, RecursoSql);
+        var sqlSectoresExternos = RecursosSql.Leer(typeof(PrivilegiosAsistente).Assembly, RecursoSqlSectoresExternos);
 
         // Una sola transacción: o quedan todos los privilegios del manifiesto o ninguno.
         await using var transaccion = await conexion.BeginTransactionAsync(ct);
@@ -41,6 +45,11 @@ public static partial class PrivilegiosAsistente
         await using (var grants = new NpgsqlCommand(sql, conexion, transaccion))
         {
             await grants.ExecuteNonQueryAsync(ct);
+        }
+
+        await using (var grantsSectores = new NpgsqlCommand(sqlSectoresExternos, conexion, transaccion))
+        {
+            await grantsSectores.ExecuteNonQueryAsync(ct);
         }
 
         await transaccion.CommitAsync(ct);

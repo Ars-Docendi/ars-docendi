@@ -160,6 +160,42 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SectorExterno", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("activo");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("codigo");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nombre");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("sectores_externos", "designaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Designacion", b =>
                 {
                     b.Property<Guid>("Id")
@@ -167,7 +203,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid>("CargoId")
+                    b.Property<Guid?>("CargoId")
                         .HasColumnType("uuid")
                         .HasColumnName("cargo_id");
 
@@ -179,13 +215,13 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("Dedicacion")
-                        .HasColumnType("text")
-                        .HasColumnName("dedicacion");
-
                     b.Property<Guid?>("DedicacionId")
                         .HasColumnType("uuid")
                         .HasColumnName("dedicacion_id");
+
+                    b.Property<Guid?>("SectorExternoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sector_externo_id");
 
                     b.Property<int>("Horas")
                         .HasColumnType("integer")
@@ -579,13 +615,13 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("DedicacionSolicitada")
-                        .HasColumnType("text")
-                        .HasColumnName("dedicacion_solicitada");
-
                     b.Property<Guid?>("DedicacionSolicitadaId")
                         .HasColumnType("uuid")
                         .HasColumnName("dedicacion_solicitada_id");
+
+                    b.Property<Guid?>("SectorExternoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sector_externo_id");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -825,17 +861,21 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                 {
                     b.HasOne("Cargo", "Cargo")
                         .WithMany()
-                        .HasForeignKey("CargoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CargoId");
 
                     b.HasOne("Dedicacion", "DedicacionCatalogo")
                         .WithMany()
                         .HasForeignKey("DedicacionId");
 
+                    b.HasOne("SectorExterno", "SectorExterno")
+                        .WithMany()
+                        .HasForeignKey("SectorExternoId");
+
                     b.Navigation("Cargo");
 
                     b.Navigation("DedicacionCatalogo");
+
+                    b.Navigation("SectorExterno");
                 });
 
             modelBuilder.Entity("Modules.Designaciones.Domain.ComisionCarrera", b =>
@@ -905,11 +945,17 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SectorExterno", "SectorExterno")
+                        .WithMany()
+                        .HasForeignKey("SectorExternoId");
+
                     b.Navigation("CargoSolicitado");
 
                     b.Navigation("DedicacionSolicitadaCatalogo");
 
                     b.Navigation("Periodo");
+
+                    b.Navigation("SectorExterno");
                 });
 
             modelBuilder.Entity("PedidoAdjunto", b =>

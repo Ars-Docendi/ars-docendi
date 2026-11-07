@@ -73,7 +73,6 @@ const PEDIDO: PedidoDesignacion = {
   novedad: "Cambio de cargo o dedicación",
   horasExternas: 0,
   horasInvestigacion: 0,
-  esAgenteExterno: false,
   adjuntos: [],
   estado: "devuelto",
   prioritario: false,

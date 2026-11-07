@@ -376,7 +376,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         var datos = new GuardarPersonaDto(
             "Julieta", "Acosta", $"{Random.Shared.NextInt64(10_000_000, 99_999_999)}", $"LEG{sufijo}", null,
             new DateOnly(1990, 1, 1), null, $"{sufijo}@prueba.invalid",
-            [new GuardarAsignacionRolDto(rolSecretaria)], []);
+            [new GuardarAsignacionRolDto(rolSecretaria)]);
 
         var creado = await servicio.GuardarAsync(null, datos, ct);
         var idAsignacionSecretaria = creado.Membresias.Single(m => m.RolId == rolSecretaria).Id;

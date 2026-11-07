@@ -25,6 +25,20 @@ public sealed class Dedicacion
 }
 
 /// <summary>
+/// Departamento o área de la universidad que paga a un docente externo. Una designación
+/// o pedido con sector no tiene cargo ni dedicación (lo garantiza la base).
+/// </summary>
+public sealed class SectorExterno
+{
+    public Guid Id { get; set; }
+    /// <summary>Sigla de la propuesta y del lote (ECO, DPU, ...).</summary>
+    public required string Codigo { get; set; }
+    public required string Nombre { get; set; }
+    public bool Activo { get; set; }
+    public DateTimeOffset CreadoEn { get; set; }
+}
+
+/// <summary>
 /// Período de designación. <see cref="CargaHasta"/> es un límite blando: pasada esa
 /// fecha se sigue permitiendo cargar, porque el cierre real es manual vía
 /// <see cref="Activo"/>. A lo sumo un período activo a la vez (lo garantiza la base).
@@ -57,7 +71,9 @@ public sealed record SnapshotPedido(
     int? Horas,
     string? Materia,
     int? HorasInvestigacion,
-    int? HorasExternas);
+    int? HorasExternas,
+    /// <summary>Sigla del sector si la designación fotografiada era externa (sin cargo ni dedicación).</summary>
+    string? SectorExterno = null);
 
 /// <summary>
 /// El trámite. Cubre EXACTAMENTE UNA materia — la cátedra sobre la que opera el
@@ -86,9 +102,12 @@ public sealed class Pedido
     public bool Prioritario { get; set; }
 
     public Guid? CargoSolicitadoId { get; set; }
-    public string? DedicacionSolicitada { get; set; }
     public Guid? DedicacionSolicitadaId { get; set; }
     public Dedicacion? DedicacionSolicitadaCatalogo { get; set; }
+    /// <summary>Con valor, el Alta o Cambio es externo: excluye cargo y dedicación.</summary>
+    public Guid? SectorExternoId { get; set; }
+    public SectorExterno? SectorExterno { get; set; }
+    public bool EsExterno => SectorExternoId is not null;
     public int? Horas { get; set; }
 
     /// <summary>Del docente, no de la materia (así lo define la spec vigente).</summary>
@@ -176,10 +195,13 @@ public sealed class Designacion
     /// <summary>Materia canónica: una persona tiene a lo sumo una designación vigente por materia.</summary>
     public Guid MateriaId { get; set; }
     public Guid CarreraId { get; set; }
-    public Guid CargoId { get; set; }
-    public string? Dedicacion { get; set; }
+    /// <summary>Null sólo en una designación externa (ver <see cref="SectorExternoId"/>).</summary>
+    public Guid? CargoId { get; set; }
     public Guid? DedicacionId { get; set; }
     public Dedicacion? DedicacionCatalogo { get; set; }
+    /// <summary>Con valor, la designación es externa: sin cargo ni dedicación.</summary>
+    public Guid? SectorExternoId { get; set; }
+    public SectorExterno? SectorExterno { get; set; }
     public int Horas { get; set; }
     public int? HorasInvestigacion { get; set; }
     public int? HorasExternas { get; set; }
@@ -192,6 +214,7 @@ public sealed class Designacion
     public Cargo? Cargo { get; set; }
 
     public bool EstaVigente => VigenteHasta is null;
+    public bool EsExterna => SectorExternoId is not null;
     /// <summary>Token PostgreSQL xmin: una escritura no pisa una vigencia cargada antes de otro commit.</summary>
     public uint Version { get; set; }
 }

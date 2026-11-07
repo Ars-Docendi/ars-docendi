@@ -185,10 +185,10 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
 
         Assert.Contains(
             "- designaciones.dedicaciones.nombre: "
-            + "'Categoría 1', 'Categoría 2', 'Categoría 3', 'Categoría 4', 'Categoría 5', 'Categoría 6'",
+            + "'Categoría 0', 'Categoría 1', 'Categoría 2', 'Categoría 3', 'Categoría 4', 'Categoría 5', 'Categoría 6'",
             con.Prefijo, StringComparison.Ordinal);
         Assert.Contains(
-            "- designaciones.dedicaciones.codigo: '1', '2', '3', '4', '5', '6'",
+            "- designaciones.dedicaciones.codigo: '0', '1', '2', '3', '4', '5', '6'",
             con.Prefijo, StringComparison.Ordinal);
     }
 

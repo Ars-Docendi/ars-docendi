@@ -126,15 +126,27 @@ Microsoft (`azure_oid` y `azure_tid`) en el primer ingreso, sin crear personas n
 
 ### Designaciones (`schema: designaciones`)
 
-El baseline incluye el catálogo auditado
-`dedicaciones`: UUID, código único 1–6, nombre, orden único, activo y `created_at`.
-`pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id` lo referencian
-mediante FK nullable. Los textos históricos Categoría 0 y los snapshots se
-conservan como parte del modelo, sin backfills de alpha en instalaciones nuevas.
-Los triggers de selección impiden insertar texto libre
-o cambiar los textos legados. Nuevas designaciones y solicitudes Alta/Cambio
-requieren una referencia activa; una actualización sin cambio de dedicación
-conserva el valor histórico, incluso si su categoría fue desactivada.
+El catálogo auditado `dedicaciones` tiene UUID, código único 0–6 (Categoría 0
+a 6), nombre, orden único, activo y `created_at`. Es la **única** forma de
+dedicación: `pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id`
+lo referencian por FK. Las columnas de texto `dedicacion` y
+`dedicacion_solicitada` quedan sin uso: los triggers rechazan cualquier texto
+nuevo y el backend no las lee
+(`20261107020000_DedicacionCatalogoYExternosDesignaciones`). Nuevas
+designaciones y solicitudes Alta/Cambio internas requieren una referencia
+activa; una actualización sin cambio de dedicación conserva la referencia,
+incluso si su categoría fue desactivada. Los snapshots ya congelados conservan
+el texto que fotografiaron.
+
+**Docentes externos.** `sectores_externos` (UUID, `codigo` único con la sigla
+de la propuesta y del lote, nombre, activo) cataloga los departamentos o áreas
+que pagan a un docente externo. `designaciones.sector_externo_id` y
+`pedidos.sector_externo_id` lo referencian. Una designación es interna (cargo
+y dedicación, sin sector) o externa (sector, sin cargo ni dedicación):
+`designaciones_interna_o_externa` lo exige, por eso `cargo_id` es nullable. En
+`pedidos`, `pedidos_interno_o_externo` prohíbe mezclar y
+`pedidos_completitud_circuito` acepta cargo y dedicación, o sector. Los
+triggers validan que el sector elegido exista y esté activo.
 
 `pedidos` conserva por separado las horas solicitadas de materia,
 investigación y externas, además del `snapshot` congelado al enviar. En
@@ -161,17 +173,18 @@ Una persona tiene a lo sumo una
 designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` sobre
 `(persona_id, materia_id)`).
 
-| Tabla              | Descripción                                                                                                                     | PII |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --- |
-| `cargos`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                  | No  |
-| `periodos`         | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                                | No  |
-| `dedicaciones`     | Catálogo activo de Categorías 1–6; conserva referencias históricas si una categoría se desactiva                                | No  |
-| `pedidos`          | **El trámite.** Cubre exactamente una materia; dedicación y las tres horas solicitadas; `snapshot` congela al enviar            | No  |
-| `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                            | No  |
-| `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
-| `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
-| `pedido_sellos`    | Cadena de integridad por período: un sello firmado por evento fuera de borrador. Sólo inserción (ver abajo)                     | No  |
-| `periodo_anclas`   | Cabezas de la cadena publicadas en un lote exportado o registradas por el sellado retroactivo. Sólo inserción                   | No  |
+| Tabla               | Descripción                                                                                                                                       | PII |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `cargos`            | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                                    | No  |
+| `periodos`          | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                                                  | No  |
+| `dedicaciones`      | Catálogo activo de Categorías 0–6; conserva referencias históricas si una categoría se desactiva                                                  | No  |
+| `sectores_externos` | Departamentos o áreas que pagan a un docente externo; `codigo` es la sigla de la propuesta y del lote                                             | No  |
+| `pedidos`           | **El trámite.** Cubre exactamente una materia; dedicación y las tres horas solicitadas; `snapshot` congela al enviar                              | No  |
+| `pedido_adjuntos`   | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                                              | No  |
+| `pedido_historial`  | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                                         | No  |
+| `designaciones`     | **El estado vigente** `(persona, materia, cargo y dedicación o sector externo, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
+| `pedido_sellos`     | Cadena de integridad por período: un sello firmado por evento fuera de borrador. Sólo inserción (ver abajo)                                       | No  |
+| `periodo_anclas`    | Cabezas de la cadena publicadas en un lote exportado o registradas por el sellado retroactivo. Sólo inserción                                     | No  |
 
 Pedido y Designación usan `xmin` como token EF; no requieren agregar una columna
 ordinaria. Administración y circuito comparten exclusión transaccional por persona,

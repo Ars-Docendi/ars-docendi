@@ -82,7 +82,7 @@ export const administrarPersonas: ArticuloAyuda = {
       titulo: "Cargá las asignaciones",
       etiquetaIndice: "Asignaciones",
       cuerpo:
-        "En la pestaña Datos docentes, Asignaciones describe su designación: cada fila lleva la materia y la carrera, el Cargo, la Dedicación y las Horas. Cambiar elige otra materia, × quita la fila y + Agregar asignación suma otra. Si una pestaña tiene datos incompletos, se marca y el formulario avisa.",
+        "En la pestaña Datos docentes, Designaciones vigentes muestra sus designaciones: la materia y la carrera, el Cargo y la Dedicación (o el Sector externo, si es un docente externo) y las Horas. Son sólo informativas: una designación se crea, cambia o termina únicamente con un pedido de Alta, Cambio o Baja aprobado. Por eso una persona nueva con rol Docente queda sin designación hasta que se apruebe su Alta. Si una pestaña tiene datos incompletos, se marca y el formulario avisa.",
       captura: {
         src: "/ayuda/administracion/administrar-personas-paso-6.webp",
         alt: "Pestaña Datos docentes con una asignación: materia y carrera, cargo, dedicación y horas.",

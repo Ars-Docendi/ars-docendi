@@ -19,6 +19,7 @@ const catalogos = {
   carreras: [],
   cargos: [],
   dedicaciones: [],
+  sectoresExternos: [],
 } as CatalogosPersonas;
 
 /** Persona que la conciliación dejó con su designación y todavía sin mail. */
@@ -67,14 +68,12 @@ describe("Persona sin cuenta con designaciones sincronizadas", () => {
     ]);
   });
 
-  it("si el operador quita el rol precargado, se guarda sin él y la designación se conserva", () => {
+  it("si el operador quita el rol precargado, se guarda sin él", () => {
     const form = formularioDesde(sinCuenta(), catalogos);
     form.datos.upn = "ana.paz@unlam.edu.ar";
     form.membresias = [];
 
-    const guardado = aGuardar(form, catalogos);
-    expect(guardado.membresias).toEqual([]);
-    expect(guardado.designaciones).toHaveLength(1);
+    expect(aGuardar(form, catalogos).membresias).toEqual([]);
   });
 
   it("una persona con cuenta conserva sus roles sin precargas", () => {

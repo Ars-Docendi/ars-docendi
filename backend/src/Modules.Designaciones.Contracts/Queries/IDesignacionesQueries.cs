@@ -25,6 +25,7 @@ public sealed record PedidoUbicableDto(string Numero, Guid Id);
 /// <param name="Periodo">Nombre del período del trámite.</param>
 /// <param name="Cargo">Cargo solicitado, si el trámite lo tiene.</param>
 /// <param name="Dedicacion">Dedicación solicitada, si el trámite la tiene.</param>
+/// <param name="SectorExterno">Sigla y nombre del sector si el trámite es de un docente externo.</param>
 /// <param name="UltimaActividad">
 /// Fecha del último movimiento del historial; si todavía no hay ninguno, la de
 /// creación.
@@ -43,7 +44,8 @@ public sealed record FichaDePedidoDto(
     string Periodo,
     string? Cargo,
     string? Dedicacion,
-    DateTimeOffset UltimaActividad);
+    DateTimeOffset UltimaActividad,
+    string? SectorExterno = null);
 
 /// <summary>
 /// Consultas públicas del módulo de designaciones para otros módulos.

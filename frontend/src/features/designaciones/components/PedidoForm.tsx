@@ -9,6 +9,7 @@ import type {
   NovedadAdmitida,
   PedidoDesignacion,
   MateriaPedido,
+  SectorExterno,
   TipoAdjunto,
   TipoBaja,
 } from "../types";
@@ -48,6 +49,9 @@ interface PedidoFormProps {
   materias?: MateriaPedido[];
   cargos: string[];
   dedicaciones: string[];
+  sectoresExternos?: SectorExterno[];
+  /** Muestra un buscador de materias en lugar de la lista (quien no es Jefe de Cátedra). */
+  buscadorMaterias?: boolean;
   tiposBaja: string[];
 }
 
@@ -67,6 +71,7 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
     horasExternas: pedido?.horasExternas ?? 0,
     horasInvestigacion: pedido?.horasInvestigacion ?? 0,
     adjuntos: pedido?.adjuntos ?? [],
+    sectorExternoId: pedido?.sectorExternoId,
     personaId: pedido?.personaId,
     materiaId: pedido?.materiaId,
     carreraId: pedido?.carreraId,
@@ -89,6 +94,8 @@ export function PedidoForm({
   materias = [],
   cargos,
   dedicaciones,
+  sectoresExternos = [],
+  buscadorMaterias = false,
   tiposBaja,
 }: PedidoFormProps) {
   const [datos, setDatos] = useState<DatosEditablesPedido>(() =>
@@ -438,6 +445,29 @@ export function PedidoForm({
             horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
             onSeleccionarDocente={seleccionarDocente}
             onCambiarPersona={cambiarPersona}
+            buscadorMaterias={buscadorMaterias}
+            personaExistente={esAlta && Boolean(datos.personaId)}
+            onElegirPersona={(persona) =>
+              setDatos((prev) => ({
+                ...prev,
+                personaId: persona.id,
+                docente: {
+                  dni: persona.documento,
+                  nombre: `${persona.apellido}, ${persona.nombre}`,
+                  nombrePersona: persona.nombre,
+                  apellido: persona.apellido,
+                  legajo: persona.legajo ?? undefined,
+                  antiguedad: 0,
+                },
+              }))
+            }
+            onPersonaNueva={() =>
+              setDatos((prev) => ({
+                ...prev,
+                personaId: undefined,
+                docente: { dni: "", nombre: "", antiguedad: 0 },
+              }))
+            }
             onSeleccionarMateria={seleccionarMateria}
           />
         )}
@@ -458,6 +488,23 @@ export function PedidoForm({
             onHorasExternas={(valor) => actualizar("horasExternas", valor)}
             cargos={cargos}
             dedicaciones={dedicaciones}
+            sectorExternoId={datos.sectorExternoId}
+            sectoresExternos={sectoresExternos}
+            onExterno={(externo) =>
+              setDatos((prev) => ({
+                ...prev,
+                sectorExternoId: externo ? "" : undefined,
+                ...(externo
+                  ? {
+                      cargoSolicitado: undefined,
+                      cargoSolicitadoId: undefined,
+                      dedicacionSolicitada: undefined,
+                      dedicacionSolicitadaId: undefined,
+                    }
+                  : {}),
+              }))
+            }
+            onSectorExterno={(id) => actualizar("sectorExternoId", id)}
           />
         )}
 

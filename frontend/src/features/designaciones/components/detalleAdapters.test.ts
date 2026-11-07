@@ -15,7 +15,6 @@ function pedido(overrides: Partial<PedidoDesignacion> = {}): PedidoDesignacion {
     novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
-    esAgenteExterno: false,
     adjuntos: [],
     estado: "en_revision_secretaria",
     prioritario: false,

@@ -116,7 +116,8 @@ internal sealed partial class ServicioConsultasDesignaciones(
             datos.Periodo,
             datos.Cargo,
             datos.Dedicacion,
-            datos.UltimoMovimiento ?? datos.CreadoEn);
+            datos.UltimoMovimiento ?? datos.CreadoEn,
+            datos.SectorExterno);
     }
 
     /// <summary>

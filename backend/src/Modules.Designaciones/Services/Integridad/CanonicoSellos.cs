@@ -13,7 +13,7 @@ namespace Modules.Designaciones.Services.Integridad;
 /// </summary>
 internal static class CanonicoSellos
 {
-    private const string VersionPayload = "v1";
+    private const string VersionPayload = "v2";
 
     /// <summary>Antecesor del primer sello del período. Coincide con el trigger <c>encadenar_sello</c>.</summary>
     public static byte[] Genesis(Guid periodoId) =>
@@ -35,8 +35,8 @@ internal static class CanonicoSellos
         escritor.WriteString("estado", pedido.Estado);
         escritor.WriteBoolean("prioritario", pedido.Prioritario);
         EscribirGuid(escritor, "cargo_solicitado_id", pedido.CargoSolicitadoId);
-        escritor.WriteString("dedicacion_solicitada", pedido.DedicacionSolicitada);
         EscribirGuid(escritor, "dedicacion_solicitada_id", pedido.DedicacionSolicitadaId);
+        EscribirGuid(escritor, "sector_externo_id", pedido.SectorExternoId);
         EscribirEntero(escritor, "horas", pedido.Horas);
         EscribirEntero(escritor, "horas_investigacion", pedido.HorasInvestigacion);
         EscribirEntero(escritor, "horas_externas", pedido.HorasExternas);
@@ -54,6 +54,7 @@ internal static class CanonicoSellos
             escritor.WriteString("materia", snapshot.Materia);
             EscribirEntero(escritor, "horas_investigacion", snapshot.HorasInvestigacion);
             EscribirEntero(escritor, "horas_externas", snapshot.HorasExternas);
+            escritor.WriteString("sector_externo", snapshot.SectorExterno);
             escritor.WriteEndObject();
         }
         else
