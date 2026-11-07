@@ -1,9 +1,9 @@
 {
   "Eje": "robustez de fraseo",
   "Sello": {
-    "Prefijo": "9ae0bab9468ee2df7603a4ca87089208c4a0483859310ff32875e40a50785567",
-    "Dataset": "5117fe16467323a6a03af4c62522189ad0cd436be31d13eed6bcf24ac8c2bc7d",
-    "Fixture": "a0173fada5749f78a3b2e42131fa9814e6a873b6ca8dfbf98f178f625fbc97c2"
+    "Prefijo": "263d74f4f90389eb0ae958b2c32e42ebd1c1c32637af3193ac22a703de0d63c7",
+    "Dataset": "766fe6d77929978d0f98452cc91cf92357d9842d1bf478cf63cd8ed203c34095",
+    "Fixture": "6b1f31774c5b0c0163d7b561bacebea092566820e12852f142d0948157abd420"
   },
   "Items": {
     "rob-001": "traduccion_correcta",
@@ -23,6 +23,10 @@
     "rob-015": "traduccion_correcta",
     "rob-016": "traduccion_correcta",
     "rob-017": "traduccion_correcta",
-    "rob-018": "traduccion_correcta"
+    "rob-018": "traduccion_correcta",
+    "rob-019": "traduccion_correcta",
+    "rob-020": "traduccion_correcta",
+    "rob-021": "traduccion_correcta",
+    "rob-022": "abstencion_sobrelo_factible"
   }
 }

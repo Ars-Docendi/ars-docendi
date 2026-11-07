@@ -23,7 +23,7 @@
 -- Idempotente: COMMENT ON reemplaza el comentario anterior, no acumula.
 
 COMMENT ON TABLE aulas.solicitudes_reserva IS
-    'Solicitudes de reserva de un aula o laboratorio para una mesa de examen, que un docente o jefe de cátedra pide y un administrativo aprueba o rechaza. Sinónimos: reserva de aula, pedido de aula, solicitud de aula. Usar esta tabla sólo cuando la pregunta habla de reservas, solicitudes o pedidos de aula, o del estado pendiente, aprobada, rechazada o cancelada de un pedido. NO es el aula en que se dicta una comisión: «en qué aula se dicta X» o «aula de la comisión» se responde con comisiones.sga_comision_horarios. No hay catálogo de aulas: no sirve para saber qué aulas están libres ni qué capacidad tienen. Quien aprueba solicitudes ve todas; quien sólo solicita ve las suyas.';
+    'Solicitudes de reserva de un aula o laboratorio para una mesa de examen, que un docente o jefe de cátedra pide y un administrativo aprueba o rechaza. Sinónimos: reserva de aula, pedido de aula, solicitud de aula. Usar esta tabla sólo cuando la pregunta dice «aula» o «reserva» (reservas de aula, solicitudes de aula, pedidos de aula). «Solicitudes» o «pedidos» a secas, sin «aula» ni «reserva» —«qué solicitudes fueron rechazadas», «solicitudes urgentes», «solicitudes de mi carrera»—, son los pedidos de designación (designaciones.pedidos), NO esta tabla. NO es el aula en que se dicta una comisión: «en qué aula se dicta X» o «aula de la comisión» se responde con comisiones.sga_comision_horarios. No hay catálogo de aulas: no sirve para saber qué aulas están libres ni qué capacidad tienen. Quien aprueba solicitudes ve todas; quien sólo solicita ve las suyas.';
 
 COMMENT ON COLUMN aulas.solicitudes_reserva.id IS
     'Identificador de la solicitud. Es un UUID opaco: no se muestra al usuario.';
@@ -42,7 +42,7 @@ COMMENT ON COLUMN aulas.solicitudes_reserva.materia_id IS
 COMMENT ON COLUMN aulas.solicitudes_reserva.comision IS
     'Comisión a la que corresponde el pedido, en texto libre tal como la escribió el solicitante (por ejemplo «02»). No hay catálogo de comisiones y no se une con comisiones.sga_comisiones.';
 COMMENT ON COLUMN aulas.solicitudes_reserva.estado IS
-    'Estado de la solicitud: pendiente (esperando respuesta), aprobada (tiene aula_asignada), rechazada (tiene motivo_rechazo) o cancelada. Valores exactos, en minúscula.';
+    'Estado de la solicitud de aula: pendiente (esperando respuesta), aprobada (tiene aula_asignada), rechazada (tiene motivo_rechazo) o cancelada. Valores exactos, en minúscula.';
 COMMENT ON COLUMN aulas.solicitudes_reserva.aula_asignada IS
     'Aula que se asignó, en texto libre sin catálogo (por ejemplo «Aula 101» o «Laboratorio 3»). Sólo existe cuando estado es aprobada; en cualquier otro estado es nula, y una reserva aprobada que luego se cancela deja de tener aula.';
 COMMENT ON COLUMN aulas.solicitudes_reserva.motivo_rechazo IS

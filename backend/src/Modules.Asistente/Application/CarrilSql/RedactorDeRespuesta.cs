@@ -27,7 +27,8 @@ public sealed class RedactorDeRespuesta(
         ResultadoDeConsulta resultado,
         bool alcanzaTodo,
         IReadOnlyList<CoberturaDeUnDato> cobertura,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool hayTextoLibreOculto = false)
     {
         // RESULTADO TRIVIAL, SIN MODELO (asistente-optimizaciones-modelo-local, D5): una columna
         // con pocos valores, alcance completo, sin recorte ni cobertura autodeclarada.
@@ -41,7 +42,7 @@ public sealed class RedactorDeRespuesta(
             new SolicitudAlModelo
             {
                 PrefijoEstable = Instrucciones,
-                Mensaje = ArmarMensaje(pregunta, resultado, alcanzaTodo, cobertura),
+                Mensaje = ArmarMensaje(pregunta, resultado, alcanzaTodo, cobertura, hayTextoLibreOculto),
                 Temperatura = Temperatura,
                 // Bajo a propósito: las filas ya están y esto es convertirlas en una oración.
                 Esfuerzo = EsfuerzoConfigurado.Interpretar(
@@ -82,7 +83,8 @@ public sealed class RedactorDeRespuesta(
         string pregunta,
         ResultadoDeConsulta resultado,
         bool alcanzaTodo,
-        IReadOnlyList<CoberturaDeUnDato>? cobertura = null)
+        IReadOnlyList<CoberturaDeUnDato>? cobertura = null,
+        bool hayTextoLibreOculto = false)
     {
         ArgumentNullException.ThrowIfNull(resultado);
 
@@ -92,6 +94,17 @@ public sealed class RedactorDeRespuesta(
         foreach (var regla in PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo, resultado.Truncado, cobertura))
         {
             mensaje.Append(CultureInfo.InvariantCulture, $"\nIMPORTANTE: {regla}\n");
+        }
+
+        // A sensible-texto column was dropped before this prompt: without this line the model reads
+        // its absence as missing data and says «no hay datos sobre el motivo» while the table shows it.
+        // Column names stay out, as the suppression requires.
+        if (hayTextoLibreOculto)
+        {
+            mensaje.Append(
+                "\nIMPORTANTE: la tabla que ve el usuario tiene además columnas de texto libre " +
+                "que no se te muestran. Si la pregunta pide ese texto, decí que está en la tabla; " +
+                "nunca digas que no hay datos sobre eso.\n");
         }
 
         var mostradas = Math.Min(resultado.Filas.Count, TopeDeFilasEnElPrompt);

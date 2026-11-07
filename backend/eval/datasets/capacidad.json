@@ -227,10 +227,9 @@
     {
       "id": "cap-032",
       "pregunta": "¿Qué proyectos de investigación cargó cada docente?",
-      "categoria": "no_contestable",
+      "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": null,
-      "motivos_aceptables": ["no_cubierto"]
+      "sql_referencia": "SELECT x.nombre FROM portal.proyectos x ORDER BY x.nombre"
     },
     {
       "id": "cap-033",
@@ -308,7 +307,7 @@
       "pregunta": "¿En qué días y horarios cursa Ledesma?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre, h.dia, h.desde, h.hasta, h.aula FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE d.nombre ILIKE 'Ledesma%' ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, h.dia, h.desde"
+      "sql_referencia": "SELECT h.dia, h.desde FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE d.nombre ILIKE 'Ledesma%' ORDER BY h.dia, h.desde"
     },
     {
       "id": "cap-041",
@@ -347,7 +346,7 @@
     },
     {
       "id": "cap-046",
-      "pregunta": "¿Qué docentes con designación vigente en una materia con comisiones no figuran en las comisiones de esa materia, en todos los períodos importados?",
+      "pregunta": "¿Qué docentes con designación vigente en una materia con comisiones nunca figuraron en una comisión de esa materia en los períodos importados?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre, m.name AS materia FROM designaciones.designaciones x JOIN identity.personas p ON p.id = x.persona_id JOIN identity.materias m ON m.id = x.materia_id WHERE x.vigente_hasta IS NULL AND EXISTS (SELECT 1 FROM comisiones.sga_comisiones c WHERE c.materia_id = x.materia_id) AND NOT EXISTS (SELECT 1 FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id WHERE d.persona_id = x.persona_id AND c.materia_id = x.materia_id) ORDER BY materia, p.apellido, p.nombre"
@@ -388,7 +387,7 @@
       "pregunta": "¿Qué solicitudes de aula están pendientes?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT s.dia, s.horario_desde, s.horario_hasta, m.name AS materia, s.comision, p.apellido, p.nombre FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id JOIN identity.personas p ON p.id = s.docente_id WHERE s.estado = 'pendiente' ORDER BY s.dia, s.horario_desde, p.apellido"
+      "sql_referencia": "SELECT s.dia, s.horario_desde FROM aulas.solicitudes_reserva s WHERE s.estado = 'pendiente' ORDER BY s.dia, s.horario_desde"
     },
     {
       "id": "cap-052",
@@ -409,7 +408,7 @@
       "pregunta": "¿Qué solicitudes de aula hice yo y en qué estado están?",
       "categoria": "consulta_simple",
       "actor": "materia",
-      "sql_referencia": "SELECT s.dia, s.horario_desde, s.horario_hasta, m.name AS materia, s.comision, s.estado, s.aula_asignada FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id ORDER BY s.dia, s.horario_desde"
+      "sql_referencia": "SELECT s.dia, s.estado FROM aulas.solicitudes_reserva s ORDER BY s.dia, s.horario_desde"
     },
     {
       "id": "cap-055",
@@ -423,14 +422,14 @@
       "pregunta": "¿Qué solicitudes de aula se cancelaron y con qué motivo?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT s.dia, m.name AS materia, s.comision, s.motivo_cancelacion FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE s.estado = 'cancelada' ORDER BY s.dia, m.name"
+      "sql_referencia": "SELECT s.dia FROM aulas.solicitudes_reserva s WHERE s.estado = 'cancelada' ORDER BY s.dia"
     },
     {
       "id": "cap-057",
-      "pregunta": "¿Qué docentes de mi cátedra declararon saber Cálculo o Análisis matemático?",
+      "pregunta": "¿Qué docentes declararon saber Cálculo o Análisis matemático, y cuál de las dos?",
       "categoria": "cruce_de_tablas",
       "actor": "materia",
-      "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE dh.tipo = 'habilidad' AND h.termino_norm ILIKE ANY (ARRAY['%CÁLCULO%', '%ANÁLISIS MATEM%']) ORDER BY p.apellido, p.nombre"
+      "sql_referencia": "SELECT p.apellido, p.nombre, h.termino FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE dh.tipo = 'habilidad' AND h.termino_norm ILIKE ANY (ARRAY['%CÁLCULO%', '%ANÁLISIS MATEM%']) ORDER BY p.apellido, p.nombre, h.termino"
     },
     {
       "id": "cap-058",
@@ -455,7 +454,7 @@
     },
     {
       "id": "cap-061",
-      "pregunta": "¿Cuántos docentes de mi cátedra cargaron al menos un proyecto?",
+      "pregunta": "¿Cuántos docentes cargaron al menos un proyecto en Mi Portal?",
       "categoria": "agregacion",
       "actor": "materia",
       "sql_referencia": "SELECT count(DISTINCT x.perfil_id) AS cantidad FROM portal.proyectos x"

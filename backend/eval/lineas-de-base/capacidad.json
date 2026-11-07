@@ -1,15 +1,15 @@
 {
   "Eje": "capacidad",
   "Sello": {
-    "Prefijo": "9ae0bab9468ee2df7603a4ca87089208c4a0483859310ff32875e40a50785567",
-    "Dataset": "7df7878c22db23953e57a48b4b897bb4d0595bd608d29048e33cdf88f9861145",
-    "Fixture": "a0173fada5749f78a3b2e42131fa9814e6a873b6ca8dfbf98f178f625fbc97c2"
+    "Prefijo": "263d74f4f90389eb0ae958b2c32e42ebd1c1c32637af3193ac22a703de0d63c7",
+    "Dataset": "66174198cdc7e827ee28b6618568bda85c56bc20b1cab0cd51f5ff573166ba85",
+    "Fixture": "6b1f31774c5b0c0163d7b561bacebea092566820e12852f142d0948157abd420"
   },
   "Items": {
     "cap-001": "traduccion_correcta",
     "cap-002": "traduccion_correcta",
     "cap-003": "traduccion_correcta",
-    "cap-004": "traduccion_correcta",
+    "cap-004": "abstencion_sobrelo_factible",
     "cap-005": "traduccion_correcta",
     "cap-006": "traduccion_correcta",
     "cap-007": "traduccion_correcta",
@@ -25,7 +25,7 @@
     "cap-017": "abstencion_correcta",
     "cap-018": "abstencion_correcta",
     "cap-019": "traduccion_correcta",
-    "cap-020": "intento_sobre_lo_infactible",
+    "cap-020": "abstencion_correcta",
     "cap-021": "abstencion_correcta",
     "cap-022": "traduccion_correcta",
     "cap-023": "traduccion_correcta",
@@ -37,7 +37,7 @@
     "cap-029": "traduccion_correcta",
     "cap-030": "abstencion_correcta",
     "cap-031": "abstencion_correcta",
-    "cap-032": "abstencion_correcta",
+    "cap-032": "traduccion_correcta",
     "cap-033": "traduccion_correcta",
     "cap-034": "traduccion_correcta",
     "cap-035": "abstencion_correcta",
@@ -55,6 +55,17 @@
     "cap-047": "traduccion_correcta",
     "cap-048": "abstencion_correcta",
     "cap-049": "abstencion_correcta",
-    "cap-050": "abstencion_correcta"
+    "cap-050": "abstencion_correcta",
+    "cap-051": "traduccion_correcta",
+    "cap-052": "traduccion_correcta",
+    "cap-053": "traduccion_correcta",
+    "cap-054": "traduccion_correcta",
+    "cap-055": "traduccion_correcta",
+    "cap-056": "traduccion_correcta",
+    "cap-057": "traduccion_correcta",
+    "cap-058": "traduccion_correcta",
+    "cap-059": "traduccion_correcta",
+    "cap-060": "traduccion_correcta",
+    "cap-061": "traduccion_correcta"
   }
 }

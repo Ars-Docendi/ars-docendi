@@ -53,34 +53,44 @@ mismo en la misma corrida no informaría nada.
 
 ## Las cuatro vigentes
 
-Congeladas **en vivo**, sin cassettes, contra `claude-sonnet-5` el 2026-11-07, con el
-prefijo `9ae0bab9468ee2df…` que ya incluye el schema `comisiones`
-(change `asistente-lee-comisiones`). Capacidad suma `cap-040`..`cap-050` y robustez
-`rob-016`..`rob-018`.
+Congeladas **en vivo**, sin cassettes, contra `claude-sonnet-5` el 2026-11-07 (tarde),
+con el prefijo `263d74f4f90389eb…`, que incluye `comisiones`, las solicitudes de aula
+(`asistente-lee-aulas`), los proyectos del portal (`asistente-portal-jefe-catedra`) y la
+regla de generación que pide las columnas clave de los enlaces
+(`asistente-enlaces-personas-y-aulas`). Capacidad suma `cap-051`..`cap-061` y robustez
+`rob-019`..`rob-022`.
 
 | Eje       | Ítems | Aciertos | Normalizado |
 | --------- | ----- | -------- | ----------- |
-| Capacidad | 50    | 49       | 98,0 %      |
-| Robustez  | 18    | 18       | 100,0 %     |
-| Diálogo   | 11    | 9        | 81,8 %      |
+| Capacidad | 61    | 60       | 98,4 %      |
+| Robustez  | 22    | 21       | 95,5 %      |
+| Diálogo   | 11    | 11       | 100,0 %     |
 | Social    | 20    | 20       | 100,0 %     |
 
-Los tres que no aciertan están en la tabla de abajo: oscilan, no son regresiones de
-comisiones. Qué se movió respecto de las anteriores está en
-[`antes-de-comisiones/`](./antes-de-comisiones/README.md).
+Los dos que no aciertan (`cap-004`, `rob-022`) acertaron en las otras dos corridas del
+mismo código y quedan en la tabla de abajo. Las líneas anteriores, de comisiones, están
+en [`antes-de-aulas-y-portal/`](./antes-de-aulas-y-portal/README.md).
 
-Antes de congelar se corrigieron tres ítems propios del change, con el motivo
-registrado:
+Antes de congelar, tres corridas en vivo mostraron fallas que se corrigieron:
 
-- `cap-047` («¿Cuántas comisiones hay de Investigación Operativa?») contaba sin
-  agrupar. Por la decisión D10, una pregunta sin período se responde por cada período
-  del año más reciente: la referencia agrupa por `periodo_lectivo_nombre`.
-- `cap-046` admitía dos lecturas (por período o sobre todos) y el modelo alternaba
-  entre ellas. La pregunta dice ahora «en ningún período importado».
-- `rob-005` («¿Quiénes dictan Bases de Dattos?») respondía con los docentes de las
-  comisiones. Por D8, «quién dicta» una materia se responde por designaciones: se
-  reforzó el comentario de `sga_comision_docentes` y se agregó un ejemplo de «quiénes
-  dictan» resuelto por designaciones. Pasó en las tres corridas siguientes.
+- **«Solicitudes» a secas se iba a las reservas de aula** (`cap-008`, `cap-012`,
+  `cap-023`): el comentario de `aulas.solicitudes_reserva` dice ahora que esa tabla es
+  sólo para preguntas que nombran «aula» o «reserva»; lo demás son pedidos de
+  designación.
+- **«Solicitudes urgentes» dejó de traducirse** (`cap-016`, `rob-012`): una migración
+  nueva agrega «urgente» como sinónimo en el comentario de `designaciones.pedidos.prioritario`.
+- **`cap-032` («¿Qué proyectos de investigación cargó cada docente?») pasó a
+  contestable**: los proyectos del portal ahora se conceden.
+- **Referencias que exigían columnas que la pregunta no pide** (`cap-040`, `cap-051`,
+  `cap-054`, `cap-056`): el comparador exige que la respuesta contenga todas las columnas
+  de la referencia, así que la referencia proyecta sólo lo que la pregunta pide.
+- **«De mi cátedra» admitía dos lecturas** (`cap-057`, `cap-061`, `rob-021`): ¿el propio
+  jefe cuenta? La RLS ya acota a quien pregunta, así que las preguntas no lo dicen.
+- **`cap-046`** se reformuló otra vez («nunca figuraron…»), para no ser un superconjunto
+  de un ejemplo del catálogo.
+- **Una columna de texto libre suprimida se narraba como «no hay datos»** (`cap-056`,
+  motivos de cancelación): la redacción recibe ahora un aviso, sin el nombre ni el valor de
+  la columna, de que ese texto está en la tabla.
 
 ## Ítems que oscilan en vivo
 
@@ -96,8 +106,11 @@ ajustes de arriba), mostraron estos:
 | `dia-001-seguimiento#2`             | 2                      | se abstiene ante contestable        |
 | `dia-003-pivote-duro#1`             | 2                      | se abstiene o traduce mal           |
 | `dia-005-referencia-al-resultado#2` | 3                      | se abstiene ante contestable        |
+| `cap-047`                           | 4 de 5                 | no agrupa por período (D10)         |
+| `cap-004`                           | 2 de 3                 | se abstiene ante contestable        |
+| `rob-022`                           | 2 de 3                 | se abstiene ante «mi cátedra»       |
 
-Ninguno toca `comisiones`. `dia-003-pivote-duro#1` ya oscilaba antes de este change.
+Los tres últimos se observaron en las corridas de la tarde, con aulas y portal en el prefijo. `dia-003-pivote-duro#1` ya oscilaba antes de comisiones.
 
 **Decisión: se marcan como tolerantes** (change `evaluador-items-inestables`). Viven en
 [`inestables.json`](./inestables.json), por eje y con su motivo:
