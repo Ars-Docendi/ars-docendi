@@ -164,6 +164,7 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         var ficha = await servicio.FichaAsync(enA.PersonaId, soloA, ct);
         Assert.NotNull(ficha);
         Assert.Single(ficha.Designaciones);
+        Assert.Equal("ta@unlam.edu.ar", ficha.EmailInstitucional);
     }
 
     private async Task<(ServicioAdministracionPersonas, IdentityDbContext, DesignacionesDbContext)> PrepararAsync(CancellationToken ct)

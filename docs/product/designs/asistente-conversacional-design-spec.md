@@ -557,9 +557,9 @@ página «Tipos de respuesta», tarjetas 01–20 (sólo los tipos con destino ex
   (`--color-status-*-bg/fg`).
 - **Tarjeta de docente** (principal de tipo `persona`: todas las filas son el mismo docente): misma
   estructura que la ficha del pedido, con ícono de persona, eyebrow «DOCENTE», título
-  «{apellido}, {nombre}», la lista «Designaciones vigentes» (materia · cargo · carrera, sólo las
-  del ámbito del actor) y, al pie, «Ver perfil →» a `/personas/:id`. No muestra correo ni
-  documento: el perfil completo está a un clic.
+  «{apellido}, {nombre}», «Correo institucional» como enlace `mailto:` (si la cuenta lo tiene), la lista «Designaciones vigentes» (materia · cargo · carrera, sólo las
+  del ámbito del actor) y, al pie, «Ver perfil →» a `/personas/:id`. No muestra documento, teléfono ni
+  correo personal: el perfil completo está a un clic.
 - **Lista de docentes**: el apellido de cada fila es un enlace al perfil (nombre accesible «Ver el
   perfil de {apellido}») y bajo la tabla va la pista «Tocá un nombre para ver su perfil». El
   identificador interno que habilita el enlace no se muestra. **Sin acceso** (sin

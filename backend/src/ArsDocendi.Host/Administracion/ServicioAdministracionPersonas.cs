@@ -111,7 +111,8 @@ public sealed class ServicioAdministracionPersonas(
             .Order(StringComparer.CurrentCulture)
             .ToArray();
 
-        return new FichaDePersonaDto(persona.Apellido, persona.Nombre, lineas);
+        // Institutional email = the account UPN. Never Mi Portal's personal email or phone.
+        return new FichaDePersonaDto(persona.Apellido, persona.Nombre, lineas, persona.Usuario?.Upn);
     }
 
     public async Task<CatalogosPersonasDto> ObtenerCatalogosAsync(CancellationToken ct)
@@ -443,4 +444,5 @@ public sealed class ServicioAdministracionPersonas(
 }
 
 /// <summary>La ficha de una persona para la tarjeta del asistente.</summary>
-public sealed record FichaDePersonaDto(string Apellido, string Nombre, IReadOnlyList<string> Designaciones);
+public sealed record FichaDePersonaDto(string Apellido, string Nombre, IReadOnlyList<string> Designaciones,
+    string? EmailInstitucional = null);

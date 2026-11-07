@@ -50,7 +50,7 @@ Cuando un destino se declara de clave interna, el sistema SHALL mover el víncul
 
 ### Requirement: Una respuesta sobre un único docente lo presenta en una tarjeta
 
-Cuando todos los vínculos del resultado apuntan a la misma persona, el sistema SHALL designarla elemento principal y pedir su ficha al módulo dueño con el mismo criterio de ámbito. La ficha lleva apellido y nombre y las designaciones vigentes dentro del ámbito del actor. Un fallo MUST NOT impedir el turno.
+Cuando todos los vínculos del resultado apuntan a la misma persona, el sistema SHALL designarla elemento principal y pedir su ficha al módulo dueño con el mismo criterio de ámbito. La ficha lleva apellido y nombre, las designaciones vigentes dentro del ámbito del actor y el correo institucional (el UPN de la cuenta) cuando la persona lo tiene; MUST NOT llevar documento, teléfono ni correo personal, y los datos de la ficha MUST NOT pasar por el modelo. Un fallo MUST NOT impedir el turno.
 
 #### Scenario: Un docente con dos designaciones trae su tarjeta
 

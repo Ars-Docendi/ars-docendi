@@ -17,7 +17,7 @@ export function TarjetaDeDocente({ principal }: TarjetaDeDocenteProps) {
   const destino = destinoDe(principal.tipo);
   if (!destino) return null;
 
-  const { apellido, nombre, designaciones } = principal.datos;
+  const { apellido, nombre, designaciones, email } = principal.datos;
   const lineas = (designaciones ?? "").split("\n").filter((linea) => linea.trim() !== "");
 
   return (
@@ -34,6 +34,13 @@ export function TarjetaDeDocente({ principal }: TarjetaDeDocenteProps) {
           </p>
         </div>
       </div>
+
+      {email && (
+        <div className="adoc-asistente-ficha-dato">
+          <p className="adoc-asistente-ficha-subtitulo">Correo institucional</p>
+          <a href={`mailto:${email}`}>{email}</a>
+        </div>
+      )}
 
       {lineas.length > 0 && (
         <div className="adoc-asistente-ficha-dato">

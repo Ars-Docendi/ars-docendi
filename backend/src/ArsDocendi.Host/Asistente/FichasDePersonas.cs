@@ -9,8 +9,9 @@ namespace ArsDocendi.Host.Asistente;
 /// con el mismo criterio de ámbito que el detalle de personas.
 /// </summary>
 /// <remarks>
-/// <b>Sin correo ni documento.</b> El proveedor no ve el resultado del turno, así que no puede
-/// saber si el actor ya tiene el correo a la vista; el perfil completo está a un click.
+/// <b>Correo institucional sí; documento, teléfono y correo personal no.</b> El correo es el UPN
+/// de la cuenta y sale con el mismo criterio que habilita la tarjeta. La ficha va sólo al cliente:
+/// se arma en el cierre del turno, después de redactar, y nunca entra al prompt del modelo.
 /// </remarks>
 public sealed class FichasDePersonas(
     AlcancePersonas alcance,
@@ -44,13 +45,24 @@ public sealed class FichasDePersonas(
 
         var ficha = await personas.FichaAsync(personaId, materias, ct);
 
-        return ficha is null
-            ? null
-            : new FichaDelElemento(tipo, id, new Dictionary<string, string?>(StringComparer.Ordinal)
-            {
-                ["apellido"] = ficha.Apellido,
-                ["nombre"] = ficha.Nombre,
-                ["designaciones"] = string.Join('\n', ficha.Designaciones),
-            });
+        if (ficha is null)
+        {
+            return null;
+        }
+
+        var datos = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["apellido"] = ficha.Apellido,
+            ["nombre"] = ficha.Nombre,
+            ["designaciones"] = string.Join('\n', ficha.Designaciones),
+        };
+
+        // Same gate as the card itself (AlcancePersonas, passed above). Only when the persona has one.
+        if (!string.IsNullOrWhiteSpace(ficha.EmailInstitucional))
+        {
+            datos["email"] = ficha.EmailInstitucional;
+        }
+
+        return new FichaDelElemento(tipo, id, datos);
     }
 }

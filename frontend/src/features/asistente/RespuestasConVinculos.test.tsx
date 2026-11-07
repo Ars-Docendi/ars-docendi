@@ -306,12 +306,17 @@ describe("Docentes y solicitudes de aulas", () => {
         datos: {
           apellido: "Lovelace",
           nombre: "Ada",
+          email: "ada.lovelace@unlam.edu.ar",
           designaciones: "Algoritmos · Titular · Ingeniería en Informática\nÁlgebra · Adjunto",
         },
       },
     });
 
     expect(screen.getByText("Lovelace, Ada")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "ada.lovelace@unlam.edu.ar" })).toHaveAttribute(
+      "href",
+      "mailto:ada.lovelace@unlam.edu.ar",
+    );
     expect(
       screen.getByText("Algoritmos · Titular · Ingeniería en Informática"),
     ).toBeInTheDocument();
