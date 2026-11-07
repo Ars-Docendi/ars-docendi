@@ -18,7 +18,8 @@ internal sealed record DatosPedido(
     string? TipoBajaDetalle,
     IReadOnlyList<GuardarAdjuntoPedidoDto> Adjuntos,
     uint? Version,
-    GuardarPersonaPedidoDto? Persona)
+    GuardarPersonaPedidoDto? Persona,
+    Guid? SectorExternoId = null)
 {
     public static DatosPedido Desde(GuardarPedidoDto datos) => new(
         datos.PeriodoId,
@@ -36,5 +37,6 @@ internal sealed record DatosPedido(
         datos.TipoBajaDetalle,
         datos.Adjuntos,
         datos.Version,
-        datos.Persona);
+        datos.Persona,
+        datos.SectorExternoId);
 }

@@ -29,7 +29,8 @@ AsignacionRolDto       = { id, rolId, codigo, nombre, ambito, materiaId?, carrer
                          Coordinador → `carreraId` solo.
 DesignacionVigenteDto  = { id, materiaId, materiaCodigo, materiaNombre, carreraId,
                            cargo{id,codigo,nombre,abreviatura},
-                           dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde }
+                           dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde,
+                           sectorExternoId?, sectorExternoCodigo?, sectorExternoNombre? }
 PersonaAdministracionDto = { personaId, usuarioId?, nombre, apellido, documento, legajo?, cuil?,
                            fechaNacimiento?, telefono?, upn?, tieneCuenta, activo, version?,
                            roles[], membresias[], asignaciones[] }
@@ -83,11 +84,11 @@ pueden reemplazarse.
 | POST   | `/api/administracion/personas/{personaId}/desactivar` | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                                                          |
 
 `GuardarPersonaDto = { nombre, apellido, documento, legajo, cuil?, fechaNacimiento, telefono?, upn,
-membresias[{ rolId, materiaId?, carreraId? }], designaciones[{ materiaId, carreraId, cargoId,
-dedicacionId?, horas }], version? }`. Reglas: al menos un rol con su ámbito; asignaciones obligatorias
-con rol Docente o Jefe de Cátedra; `dedicacionId` es obligatorio en una asignación nueva y sólo puede
-faltar en una histórica que conserva su dedicación legada; el documento se guarda y compara por sus dígitos y no se repite;
-la lista de roles y la de designaciones se reemplazan completas en una sola transacción.
+membresias[{ rolId, materiaId?, carreraId? }], version? }`. Reglas: al menos un rol con su ámbito; el
+documento se guarda y compara por sus dígitos y no se repite; la lista de roles se reemplaza completa en
+una sola transacción. **Las designaciones no se envían ni se modifican desde administración**: sólo cambian
+por un pedido aprobado (Alta, Baja o Cambio). Por eso una persona con rol Docente o Jefe de Cátedra se crea
+sin designación; la crea su pedido de Alta.
 
 ## Mi Portal de una persona
 
@@ -339,4 +340,4 @@ acepta ámbitos declarados por el cliente. En Production la ruta y el esquema no
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
 
-El catálogo de personas incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.
+El catálogo de personas incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }` y `sectoresExternos` con `{ id, codigo, nombre, activo }`. Cada asignación leída trae `dedicacion` (nombre del catálogo), `dedicacionId`, `horasInvestigacion` y `horasExternas`, o los datos del sector si es externa. Son de sólo lectura: guardar una persona no las toca.

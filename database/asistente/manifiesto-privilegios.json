@@ -285,6 +285,17 @@
     },
     {
       "schema": "designaciones",
+      "tabla": "sectores_externos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "codigo", "nombre", "activo", "created_at"],
+        "asistente_ro_pii": ["id", "codigo", "nombre", "activo", "created_at"]
+      },
+      "columnas_denegadas": [],
+      "nota": "Catálogo de departamentos o áreas que pagan a un docente externo. Se concede para que el asistente pueda nombrar el sector de una designación externa (sin cargo ni dedicación)."
+    },
+    {
+      "schema": "designaciones",
       "tabla": "periodos",
       "estado": "concedida",
       "columnas_concedidas": {
@@ -337,7 +348,8 @@
           "tipo_baja_detalle",
           "etapa_retorno",
           "propietario_actual",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ],
         "asistente_ro_pii": [
           "id",
@@ -360,7 +372,8 @@
           "tipo_baja_detalle",
           "etapa_retorno",
           "propietario_actual",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ]
       },
       "columnas_denegadas": [
@@ -438,7 +451,8 @@
           "vigente_desde",
           "vigente_hasta",
           "origen_pedido_id",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ],
         "asistente_ro_pii": [
           "id",
@@ -454,7 +468,8 @@
           "vigente_desde",
           "vigente_hasta",
           "origen_pedido_id",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ]
       },
       "columnas_denegadas": [],

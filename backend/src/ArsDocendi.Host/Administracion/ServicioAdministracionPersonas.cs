@@ -20,7 +20,6 @@ public sealed class ServicioAdministracionPersonas(
     IAdministracionDesignaciones designaciones,
     IUnidadDeTrabajoAdministracion unidadDeTrabajo)
 {
-    private static readonly HashSet<string> RolesConAsignaciones = ["docente", "jefe_catedra"];
 
     public async Task<IReadOnlyList<PersonaAdministracionDto>> ListarAsync(
         IReadOnlySet<Guid>? materiasVisibles,
@@ -82,7 +81,8 @@ public sealed class ServicioAdministracionPersonas(
             (await repositorio.ListarCarrerasAsync(ct))
                 .Select(c => new OpcionCatalogoDto(c.Id, c.Codigo, c.Nombre)).ToArray(),
             (await designaciones.ListarCargosAsync(ct)).Where(c => c.Activo).ToArray(),
-            (await designaciones.ListarDedicacionesAsync(ct)).Where(d => d.Activo).ToArray());
+            (await designaciones.ListarDedicacionesAsync(ct)).Where(d => d.Activo).ToArray(),
+            (await designaciones.ListarSectoresExternosAsync(ct)).Where(s => s.Activo).ToArray());
     }
 
     /// <summary>El DNI se compara por sus dígitos; <paramref name="exceptoPersonaId"/> es la propia persona al editar.</summary>
@@ -160,7 +160,7 @@ public sealed class ServicioAdministracionPersonas(
                 repositorio.AgregarAsignacion(asignacion);
             }
             await repositorio.GuardarAsync(token);
-            await designaciones.ReemplazarVigentesAsync(persona.Id, datos.Designaciones, token);
+            // Las designaciones no se tocan desde acá: sólo cambian por un pedido aprobado.
             return persona.Id;
         }, ct);
 
@@ -191,7 +191,6 @@ public sealed class ServicioAdministracionPersonas(
         string documento,
         CancellationToken ct)
     {
-        await designaciones.ValidarReemplazoAsync(existente?.Id, datos.Designaciones, ct);
         if (await repositorio.ExisteUpnAsync(upn, existente?.Usuario?.Id, ct))
         {
             throw new ExcepcionAplicacion(
@@ -216,7 +215,6 @@ public sealed class ServicioAdministracionPersonas(
 
         var materias = (await repositorio.ObtenerMateriasAsync(
             datos.Membresias.Where(m => m.MateriaId is not null).Select(m => m.MateriaId!.Value)
-                .Concat(datos.Designaciones.Select(d => d.MateriaId))
                 .Distinct().ToArray(), ct)).ToDictionary(m => m.Id);
         var carreras = (await repositorio.ObtenerCarrerasAsync(
             datos.Membresias.Where(m => m.CarreraId is not null).Select(m => m.CarreraId!.Value)
@@ -234,19 +232,6 @@ public sealed class ServicioAdministracionPersonas(
             {
                 throw ErrorAmbito($"El ámbito indicado no corresponde al rol {rol.Nombre}.");
             }
-        }
-
-        var requiereAsignaciones = datos.Membresias.Any(m => RolesConAsignaciones.Contains(roles[m.RolId].Codigo));
-        if (requiereAsignaciones && datos.Designaciones.Count == 0)
-        {
-            throw ErrorValidacion(
-                "designaciones", "Con rol Docente o Jefe de Cátedra hace falta al menos una asignación.");
-        }
-        if (datos.Designaciones.Any(d =>
-            !materias.ContainsKey(d.MateriaId) || !paresActivos.Contains((d.MateriaId, d.CarreraId))))
-        {
-            throw ErrorValidacion(
-                "designaciones", "Una de las materias no existe, está inactiva o no se dicta en la carrera indicada.");
         }
         return roles;
     }
@@ -369,7 +354,8 @@ public sealed class ServicioAdministracionPersonas(
                 d.CargoAbreviatura,
                 d.Dedicacion,
                 d.Horas,
-                d.DedicacionId, d.HorasInvestigacion, d.HorasExternas)).ToArray());
+                d.DedicacionId, d.HorasInvestigacion, d.HorasExternas,
+                d.SectorExternoId, d.SectorExternoCodigo, d.SectorExternoNombre)).ToArray());
     }
 
     private static string SoloDigitos(string? valor) =>

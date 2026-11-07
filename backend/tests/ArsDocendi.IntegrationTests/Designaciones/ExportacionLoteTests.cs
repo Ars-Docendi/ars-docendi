@@ -154,15 +154,15 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
         var propuesta = LeerXml(zip, "xl/worksheets/sheet1.xml");
-        var filaNatalia = FilasDeDatos(propuesta, 5).Single(f =>
-            Valor(f, "B") == "Castro, Natalia" && Valor(f, "H") == "=Materia de prueba");
+        // Un registro por docente: la asignatura lleva los códigos de materia, no el nombre.
+        var filaNatalia = FilasDeDatos(propuesta, 5).First(f => Valor(f, "B") == "Castro, Natalia");
 
         Assert.Equal("0014", Valor(filaNatalia, "C"));
         Assert.Equal("inlineStr", Celda(filaNatalia, "C")?.Attribute("t")?.Value);
-        Assert.Contains("=Materia de prueba", Texto(propuesta));
+        Assert.Equal("inlineStr", Celda(filaNatalia, "H")?.Attribute("t")?.Value);
         Assert.All(FilasDeDatos(propuesta, 5), fila =>
         {
-            Assert.True(Celda(fila, "I")?.Elements().SingleOrDefault() is null);
+            // Departamento (I) tiene fuente; cargo/dedicación departamental (J) y horas al ingreso (K), no.
             Assert.True(Celda(fila, "J")?.Elements().SingleOrDefault() is null);
             Assert.True(Celda(fila, "K")?.Elements().SingleOrDefault() is null);
         });

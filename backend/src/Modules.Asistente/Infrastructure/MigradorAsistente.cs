@@ -24,6 +24,7 @@ internal sealed class MigradorAsistente(
     private static readonly string[] Recursos =
     [
         PrivilegiosAsistente.RecursoSql,
+        PrivilegiosAsistente.RecursoSqlSectoresExternos,
         RegistrosAsistente.RecursoSql,
         RetroalimentacionAsistente.RecursoSql,
         HistorialAsistente.RecursoSql,

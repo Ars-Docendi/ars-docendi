@@ -17,6 +17,8 @@ export const crearUnPedido: ArticuloAyuda = {
     "baja",
     "cambio de cargo",
     "cambio de dedicación",
+    "docente externo",
+    "sector externo",
     "novedad",
     "jefe de cátedra",
     "docente",
@@ -50,7 +52,7 @@ export const crearUnPedido: ArticuloAyuda = {
       titulo: "Indicá el docente y la materia",
       etiquetaIndice: "Docente y materia",
       cuerpo:
-        "En un Alta ingresás DNI, Nombre y Apellido de la persona nueva, y elegís la Materia. En una Baja o un Cambio elegís el Docente de la lista; el sistema completa sus datos actuales (cargo, dedicación, horas, antigüedad), que son de solo lectura, y propone la Materia. Solo podés elegir materias de tu cátedra.",
+        "En un Alta ingresás DNI, Nombre y Apellido de la persona nueva, o usás Buscar persona del sistema para elegir a alguien ya registrado (por ejemplo, dado de alta en Administración), y elegís la Materia. En una Baja o un Cambio elegís el Docente de la lista; el sistema completa sus datos actuales (cargo, dedicación, horas, antigüedad), que son de solo lectura, y propone la Materia. El Jefe de Cátedra elige la Materia de una lista con las de su cátedra; Administrativo y Secretaría la buscan por código o nombre entre todas las del Departamento.",
       captura: {
         src: "/ayuda/designaciones/crear-un-pedido-paso-3.webp",
         alt: "Sección Docente de un Cambio con un docente elegido y el panel de datos actuales.",
@@ -65,7 +67,7 @@ export const crearUnPedido: ArticuloAyuda = {
       titulo: "Completá la designación solicitada",
       etiquetaIndice: "Designación solicitada",
       cuerpo:
-        "En un Alta o un Cambio, completá Cargo solicitado, Dedicación solicitada y la carga horaria de la materia (debe ser mayor que 0). Las Horas de investigación y las Horas externas (otro depto.) son opcionales. En una Baja esta sección no aparece.",
+        "En un Alta o un Cambio, completá Cargo solicitado, Dedicación solicitada (Categoría 0 a 6) y la carga horaria de la materia (debe ser mayor que 0). Las Horas de investigación y las Horas externas (otro depto.) son opcionales. Si el docente es externo, porque lo designa y le paga otro departamento o área, activá Docente externo: Cargo y Dedicación se deshabilitan y elegís el Sector externo que lo designa. En una Baja esta sección no aparece.",
     },
     {
       titulo: "Escribí la justificación",

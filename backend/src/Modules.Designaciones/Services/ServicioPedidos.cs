@@ -50,10 +50,11 @@ internal sealed partial class ServicioPedidos(
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 
-        if (!actor.Tiene(RolesCircuito.JefeCatedra) || !actor.MateriasACargo.Contains(datos.MateriaId))
+        var alcanceCarga = new AlcancePedido(datos.MateriaId, datos.CarreraId);
+        if (!MaquinaEstadosPedido.PuedeCargar(alcanceCarga, actor))
         {
             throw new ErrorDominioPedido(
-                "Sólo el Jefe de Cátedra de la materia puede cargar un pedido sobre esa cátedra [BR-designaciones-009].");
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden cargar un pedido [BR-designaciones-009].");
         }
 
         var archivos = await ValidarDatosAsync(datos, actor, ct);
@@ -84,7 +85,8 @@ internal sealed partial class ServicioPedidos(
         foreach (var adjunto in ConstruirAdjuntos(pedido.Id, datosResueltos.Adjuntos, archivos, datosResueltos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null)) pedido.Adjuntos.Add(adjunto);
 
         pedidos.Agregar(pedido);
-        await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Crear, RolesCircuito.JefeCatedra, actor, null, ct);
+        await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Crear,
+            MaquinaEstadosPedido.RolCargador(alcanceCarga, actor), actor, null, ct);
 
         await pedidos.GuardarCambiosAsync(ct);
 
@@ -136,7 +138,8 @@ internal sealed partial class ServicioPedidos(
             AplicarDatos(pedido, datos);
             pedidos.ReemplazarAdjuntos(pedido, ConstruirAdjuntos(pedido.Id, datos.Adjuntos, archivos, datos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null));
             var rol = pedido.Estado == EstadosPedido.Borrador
-                ? RolesCircuito.JefeCatedra
+                || (pedido.PropietarioActual is { } propietario && !actor.Tiene(propietario))
+                ? MaquinaEstadosPedido.RolCargador(alcance, actor)
                 : pedido.PropietarioActual ?? RolesCircuito.JefeCatedra;
             await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Editar, rol, actor, null, token);
             await pedidos.GuardarCambiosAsync(token);
@@ -209,10 +212,10 @@ internal sealed partial class ServicioPedidos(
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
 
         if (!MaquinaEstadosPedido.PuedeEliminar(pedido, actor)
-            || !actor.MateriasACargo.Contains(pedido.MateriaId))
+            || !MaquinaEstadosPedido.PuedeCargar(new AlcancePedido(pedido.MateriaId, pedido.CarreraId), actor))
         {
             throw new ErrorDominioPedido(
-                "Sólo el Jefe de Cátedra propietario puede eliminar un pedido en borrador.");
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden eliminar un pedido en borrador.");
         }
 
         pedidos.Eliminar(pedido);
@@ -314,11 +317,12 @@ internal sealed partial class ServicioPedidos(
 
         return new SnapshotPedido(
             Cargo: vigente?.Cargo?.Nombre,
-            Dedicacion: vigente?.DedicacionCatalogo?.Nombre ?? vigente?.Dedicacion,
+            Dedicacion: vigente?.DedicacionCatalogo?.Nombre,
             Horas: vigente?.Horas,
             Materia: materia.Nombre,
             HorasInvestigacion: vigente?.HorasInvestigacion,
-            HorasExternas: vigente?.HorasExternas);
+            HorasExternas: vigente?.HorasExternas,
+            SectorExterno: vigente?.SectorExterno?.Codigo);
     }
 
     private async Task<IReadOnlyDictionary<Guid, ArchivoDto>> ValidarDatosAsync(
@@ -357,6 +361,15 @@ internal sealed partial class ServicioPedidos(
             && !(actor.Tiene(RolesCircuito.CoordinadorCarrera) && actor.CarrerasACargo.Contains(datos.CarreraId))
             && !(actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(datos.MateriaId)))
             throw new ErrorDominioPedido("La materia seleccionada está fuera del ámbito del actor.");
+        if (datos.SectorExternoId is { } sectorId)
+        {
+            if (datos.Novedad is not (Novedades.Alta or Novedades.CambioDeCargoODedicacion))
+                throw new ErrorDominioPedido("Sólo un Alta o un Cambio puede ser de un docente externo.");
+            if (datos.CargoSolicitadoId is not null || datos.DedicacionSolicitadaId is not null)
+                throw new ErrorDominioPedido("Un pedido de docente externo no lleva cargo ni dedicación.");
+            if (!await pedidos.ExisteSectorExternoActivoAsync(sectorId, ct))
+                throw new ErrorDominioPedido("El sector externo no existe o está inactivo.");
+        }
         if (datos.CargoSolicitadoId is { } cargoId
             && !await pedidos.ExisteCargoActivoAsync(cargoId, ct))
             throw new ErrorDominioPedido("El cargo seleccionado no existe o está inactivo.");
@@ -366,7 +379,8 @@ internal sealed partial class ServicioPedidos(
             throw new ErrorDominioPedido("El tipo de baja no es válido.");
         if (datos.TipoBaja == TiposBaja.Otro && string.IsNullOrWhiteSpace(datos.TipoBajaDetalle))
             throw new ErrorDominioPedido("El tipo de baja Otro exige un detalle.");
-        if ((datos.Novedad is Novedades.Alta or Novedades.CambioDeCargoODedicacion && datos.DedicacionSolicitadaId is null)
+        if ((datos.Novedad is Novedades.Alta or Novedades.CambioDeCargoODedicacion
+                && datos.SectorExternoId is null && datos.DedicacionSolicitadaId is null)
             || (datos.DedicacionSolicitadaId is { } dedicacionId
                 && !await pedidos.ExisteDedicacionActivaAsync(dedicacionId, ct)))
             throw new ErrorDominioPedido("La dedicación solicitada no es válida.");
@@ -466,7 +480,7 @@ internal sealed partial class ServicioPedidos(
     {
         pedido.CargoSolicitadoId = datos.CargoSolicitadoId;
         pedido.DedicacionSolicitadaId = datos.DedicacionSolicitadaId;
-        pedido.DedicacionSolicitada = null;
+        pedido.SectorExternoId = datos.SectorExternoId;
         pedido.Horas = datos.Horas;
         pedido.HorasInvestigacion = datos.HorasInvestigacion;
         pedido.HorasExternas = datos.HorasExternas;

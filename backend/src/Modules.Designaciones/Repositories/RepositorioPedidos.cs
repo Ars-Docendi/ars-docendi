@@ -20,6 +20,7 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
           .Include(p => p.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id))
           .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
+          .Include(p => p.SectorExterno)
           .Include(p => p.Periodo)
           .AsSplitQuery()
           .FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
@@ -36,6 +37,9 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
     public Task<Periodo?> ObtenerPeriodoActivoAsync(CancellationToken ct) =>
         db.Periodos.AsNoTracking().SingleOrDefaultAsync(p => p.Activo, ct);
 
+    public Task<bool> ExisteSectorExternoActivoAsync(Guid sectorId, CancellationToken ct) =>
+        db.SectoresExternos.AnyAsync(s => s.Id == sectorId && s.Activo, ct);
+
     public Task<bool> ExisteDedicacionActivaAsync(Guid dedicacionId, CancellationToken ct) =>
         db.Dedicaciones.AsNoTracking().AnyAsync(d => d.Id == dedicacionId && d.Activo, ct);
 
@@ -49,6 +53,7 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
+          .Include(p => p.SectorExterno)
                 .Where(p => p.PeriodoId == periodoId && materiaIds.Contains(p.MateriaId))
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
@@ -61,6 +66,7 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
+          .Include(p => p.SectorExterno)
                 .Where(p => p.PeriodoId == periodoId && carreraIds.Contains(p.CarreraId))
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
@@ -72,6 +78,7 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
+          .Include(p => p.SectorExterno)
                 .Where(p => p.PeriodoId == periodoId)
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
@@ -124,9 +131,8 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
               CarreraId = p.CarreraId,
               Periodo = p.Periodo == null ? string.Empty : p.Periodo.Nombre,
               Cargo = p.CargoSolicitado == null ? null : p.CargoSolicitado.Nombre,
-              Dedicacion = p.DedicacionSolicitadaCatalogo != null
-                  ? p.DedicacionSolicitadaCatalogo.Nombre
-                  : p.DedicacionSolicitada,
+              Dedicacion = p.DedicacionSolicitadaCatalogo == null ? null : p.DedicacionSolicitadaCatalogo.Nombre,
+              SectorExterno = p.SectorExterno == null ? null : p.SectorExterno.Codigo + " – " + p.SectorExterno.Nombre,
               UltimoMovimiento = p.Historial.Max(h => (DateTimeOffset?)h.CreadoEn),
               CreadoEn = p.CreadoEn,
           })
@@ -224,6 +230,8 @@ internal sealed class DatosDeFicha
     public string? Cargo { get; set; }
 
     public string? Dedicacion { get; set; }
+
+    public string? SectorExterno { get; set; }
 
     /// <summary>Fecha del último evento del historial; nula si todavía no tiene ninguno.</summary>
     public DateTimeOffset? UltimoMovimiento { get; set; }

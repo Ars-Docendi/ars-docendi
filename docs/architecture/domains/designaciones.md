@@ -18,15 +18,16 @@ Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprob
 
 ## Entidades principales
 
-| Entidad           | Descripción                                                                                 | Schema/Tabla                     |
-| ----------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
-| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional              | `designaciones.cargos`           |
-| `Dedicacion`      | Catálogo seleccionable de Categorías 1–6; valores históricos fuera de catálogo sólo se leen | `designaciones.dedicaciones`     |
-| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez                          | `designaciones.periodos`         |
-| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra              | `designaciones.pedidos`          |
-| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                                        | `designaciones.pedido_adjuntos`  |
-| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario                 | `designaciones.pedido_historial` |
-| `Designacion`     | **El estado vigente** `(persona, materia, cargo, dedicación y tres horas)` con vigencia     | `designaciones.designaciones`    |
+| Entidad           | Descripción                                                                            | Schema/Tabla                      |
+| ----------------- | -------------------------------------------------------------------------------------- | --------------------------------- |
+| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional         | `designaciones.cargos`            |
+| `Dedicacion`      | Catálogo seleccionable de Categorías 0–6; única forma de dedicación (sin texto libre)  | `designaciones.dedicaciones`      |
+| `SectorExterno`   | Departamento o área que paga a un docente externo; su sigla va al lote                 | `designaciones.sectores_externos` |
+| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez                     | `designaciones.periodos`          |
+| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra         | `designaciones.pedidos`           |
+| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                                   | `designaciones.pedido_adjuntos`   |
+| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario            | `designaciones.pedido_historial`  |
+| `Designacion`     | **El estado vigente** `(persona, materia, cargo y dedicación o sector externo, horas)` | `designaciones.designaciones`     |
 
 ### Pedido vs Designación
 

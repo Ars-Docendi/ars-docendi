@@ -14,26 +14,6 @@ namespace ArsDocendi.IntegrationTests.Designaciones;
 
 public sealed class DestinosLogicosDesignacionesTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Nueva_vigencia_rechaza_persona_inexistente_en_transaccion_local_o_ambiente(bool ambiente)
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await SembrarAsync(ct);
-        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
-        var modelo = await db.Designaciones.FirstAsync(ct);
-        var datos = new[] { new GuardarDesignacionVigenteDto(modelo.MateriaId, modelo.CarreraId,
-            modelo.CargoId, modelo.DedicacionId, 12) };
-        using var alcance = ambiente ? new System.Transactions.TransactionScope(
-            System.Transactions.TransactionScopeAsyncFlowOption.Enabled) : null;
-        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() =>
-            new ServicioAdministracionDesignaciones(new RepositorioDesignaciones(db))
-                .ReemplazarVigentesAsync(Guid.NewGuid(), datos, ct));
-        Assert.Equal(TipoErrorAplicacion.Conflicto, error.Tipo);
-        Assert.Equal("identity-destination-conflict", error.Codigo);
-    }
-
     [Fact]
     public async Task Actor_desactivado_tras_resolver_no_confirma_referencia_ni_snapshot_ni_evento()
     {

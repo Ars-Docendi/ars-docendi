@@ -12,7 +12,7 @@ internal sealed partial class RepositorioDesignaciones(DesignacionesDbContext db
         Guid personaId, CancellationToken ct) =>
         await db.Designaciones
                 .Include(d => d.Cargo)
-                .Include(d => d.DedicacionCatalogo)
+                .Include(d => d.DedicacionCatalogo).Include(d => d.SectorExterno)
                 .Where(d => d.PersonaId == personaId && d.VigenteHasta == null)
                 .ToListAsync(ct);
 
@@ -20,7 +20,7 @@ internal sealed partial class RepositorioDesignaciones(DesignacionesDbContext db
     public Task<Designacion?> ObtenerVigenteAsync(Guid personaId, Guid materiaId, CancellationToken ct) =>
         db.Designaciones
           .Include(d => d.Cargo)
-                .Include(d => d.DedicacionCatalogo)
+                .Include(d => d.DedicacionCatalogo).Include(d => d.SectorExterno)
           .FirstOrDefaultAsync(
               d => d.PersonaId == personaId && d.MateriaId == materiaId && d.VigenteHasta == null, ct);
 
@@ -28,7 +28,7 @@ internal sealed partial class RepositorioDesignaciones(DesignacionesDbContext db
         await db.Designaciones
             .AsNoTracking()
             .Include(d => d.Cargo)
-                .Include(d => d.DedicacionCatalogo)
+                .Include(d => d.DedicacionCatalogo).Include(d => d.SectorExterno)
             .Where(d => d.VigenteHasta == null)
             .OrderBy(d => d.PersonaId)
             .ThenBy(d => d.MateriaId)
@@ -37,7 +37,7 @@ internal sealed partial class RepositorioDesignaciones(DesignacionesDbContext db
     public async Task<IReadOnlyList<Designacion>> ListarVigentesDePersonaSinTrackingAsync(
         Guid personaId, CancellationToken ct) =>
         await db.Designaciones.AsNoTracking()
-            .Include(d => d.Cargo).Include(d => d.DedicacionCatalogo)
+            .Include(d => d.Cargo).Include(d => d.DedicacionCatalogo).Include(d => d.SectorExterno)
             .Where(d => d.PersonaId == personaId && d.VigenteHasta == null)
             .OrderBy(d => d.MateriaId).ToListAsync(ct);
 
@@ -51,6 +51,9 @@ internal sealed partial class RepositorioDesignaciones(DesignacionesDbContext db
 
     public async Task<IReadOnlyList<Dedicacion>> ListarDedicacionesAsync(CancellationToken ct) =>
         await db.Dedicaciones.AsNoTracking().OrderBy(d => d.Orden).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<SectorExterno>> ListarSectoresExternosAsync(CancellationToken ct) =>
+        await db.SectoresExternos.AsNoTracking().OrderBy(s => s.Codigo).ToListAsync(ct);
 
     public void Agregar(Designacion designacion) => db.Designaciones.Add(designacion);
 

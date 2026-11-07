@@ -14,13 +14,14 @@ PedidoDto        = { id, numero, periodo{id,nombre}, persona, materia{id,codigo,
                      horasInvestigacion?, horasExternas?, justificacion?, tipoBaja?,
                      tipoBajaDetalle?, etapaRetorno?, propietarioActual?, snapshot?, version,
                      adjuntos[], historial[], accionesPermitidas[], dedicacionSolicitadaId?,
-                     motivoDevolucion?, enviadoEn? }
+                     motivoDevolucion?, enviadoEn?, sectorExterno?{id,codigo,nombre} }
 GuardarPedidoDto = { periodoId, personaId?, materiaId, carreraId, novedad, cargoSolicitadoId?,
                      dedicacionSolicitadaId?, horas?, horasInvestigacion?, horasExternas?,
-                     justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[], persona?, version? }
+                     justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[], persona?, version?,
+                     sectorExternoId? }
 AccionPedidoDto  = { comentario? }
 CatalogosDto     = { periodoActivo?, periodos[], personas[], materias[], cargos[],
-                     dedicaciones[], tiposBaja[], novedades[] }
+                     dedicaciones[], tiposBaja[], novedades[], sectoresExternos[] }
 ```
 
 Los valores cerrados pueden viajar en `CatalogosDto` para un contrato uniforme, aunque permanezcan reglas de dominio y no filas configurables.
@@ -40,16 +41,19 @@ por haber registrado la persona en un Alta.
 
 ## Períodos y catálogos
 
-| Método | Ruta                                          | Permiso                                         | Entrada / salida                                                                                     |
-| ------ | --------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| GET    | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `PeriodoDto[]`                                                                                       |
-| GET    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `PeriodoDto`                                                                                         |
-| POST   | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `GuardarPeriodoDto` → `201 PeriodoDto`                                                               |
-| PUT    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `GuardarPeriodoDto` → `PeriodoDto`                                                                   |
-| POST   | `/api/designaciones/periodos/{id}/activar`    | `periodos.administrar`                          | `PeriodoDto`                                                                                         |
-| POST   | `/api/designaciones/periodos/{id}/desactivar` | `periodos.administrar`                          | `PeriodoDto`                                                                                         |
-| DELETE | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `204`                                                                                                |
-| GET    | `/api/designaciones/catalogos`                | `designaciones.ver` o `designaciones.gestionar` | `CatalogosDto` acotado al actor; `?pedidoId=` (edición) mantiene elegible a la persona de ese pedido |
+| Método | Ruta                                          | Permiso                                         | Entrada / salida                                                                                                                                                                                                                                                                            |
+| ------ | --------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `PeriodoDto[]`                                                                                                                                                                                                                                                                              |
+| GET    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `PeriodoDto`                                                                                                                                                                                                                                                                                |
+| POST   | `/api/designaciones/periodos`                 | `periodos.administrar`                          | `GuardarPeriodoDto` → `201 PeriodoDto`                                                                                                                                                                                                                                                      |
+| PUT    | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `GuardarPeriodoDto` → `PeriodoDto`                                                                                                                                                                                                                                                          |
+| POST   | `/api/designaciones/periodos/{id}/activar`    | `periodos.administrar`                          | `PeriodoDto`                                                                                                                                                                                                                                                                                |
+| POST   | `/api/designaciones/periodos/{id}/desactivar` | `periodos.administrar`                          | `PeriodoDto`                                                                                                                                                                                                                                                                                |
+| DELETE | `/api/designaciones/periodos/{id}`            | `periodos.administrar`                          | `204`                                                                                                                                                                                                                                                                                       |
+| GET    | `/api/designaciones/catalogos`                | `designaciones.ver` o `designaciones.gestionar` | `CatalogosDto` acotado al actor; `?pedidoId=` (edición) mantiene elegible a la persona de ese pedido                                                                                                                                                                                        |
+| GET    | `/api/designaciones/personas/buscar?texto=`   | `designaciones.gestionar`                       | `PersonaBusquedaDto[]` (`{ id, nombre, apellido, documento, legajo? }`): hasta 20 personas por apellido, nombre, DNI o legajo, sin las que ya tienen una designación vigente ni las que tienen un pedido vivo en el período activo. Alimenta el Alta de una persona existente (`personaId`) |
+
+Cargan pedidos (crear, editar y eliminar en borrador, enviar y cancelar) el Jefe de Cátedra sobre sus materias y, sobre cualquier materia, Administrativo y Secretaría, que tienen `designaciones.gestionar`. El circuito es el mismo; un pedido devuelto al primer nivel lo corrige y reenvía el Jefe de Cátedra de la materia o un Administrativo o Secretaría. El historial registra el rol con el que actuó quien cargó.
 
 ## Exportación del lote
 
@@ -166,4 +170,6 @@ Crear, editar y eliminar usan constraints y control de concurrencia, pero no el 
 | `identity-destination-conflict` | 409  | nuevo destino inexistente o actor desactivado durante la mutación    |
 | `concurrency-conflict`          | 409  | pedido/vigencia cambió respecto de la observación usada para guardar |
 
-El catálogo `dedicaciones` devuelve `{ id, codigo, nombre, orden }` para las seis categorías activas 1–6. Las mutaciones envían `dedicacionSolicitadaId` (UUID); la lectura conserva `dedicacionSolicitada` como nombre histórico y agrega el ID opcional.
+El catálogo `dedicaciones` devuelve `{ id, codigo, nombre, orden }` para las categorías activas 0–6. Las mutaciones envían `dedicacionSolicitadaId` (UUID); la lectura devuelve en `dedicacionSolicitada` el nombre de esa categoría del catálogo.
+
+`sectoresExternos` devuelve `{ id, codigo, nombre }` de los sectores activos. Un Alta o Cambio de un docente externo envía `sectorExternoId` y deja `cargoSolicitadoId` y `dedicacionSolicitadaId` en null; mezclar sector con cargo o dedicación, o mandar sector en una Baja o Sin novedad, se rechaza con 400. Enviar, reenviar y aprobar exigen cargo y dedicación (interno) o sector (externo), además de horas positivas. Las designaciones vigentes del catálogo (`personas[].designacionesVigentes[]`) traen `cargoId?`, `cargoNombre?` y, si son externas, `sectorExternoId`, `sectorExternoCodigo` y `sectorExternoNombre`. El snapshot suma `sectorExterno` (sigla) cuando la designación fotografiada era externa.

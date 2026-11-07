@@ -11,6 +11,46 @@ public sealed class ServicioCatalogosDesignaciones(
     ResolutorActor resolutorActor)
 {
     private static readonly string[] TiposBaja = ["Renuncia", "Jubilación", "Otro"];
+    private const int MaximoResultadosBusqueda = 20;
+
+    /// <summary>
+    /// Personas elegibles para un Alta: coincide el texto con apellido y nombre (sin distinguir
+    /// mayúsculas ni acentos), o con los dígitos del DNI o del legajo. Excluye a quien ya tiene un
+    /// pedido vivo en el período activo [BR-designaciones-001] y a quien ya tiene una designación
+    /// vigente: un Alta es para alguien todavía no designado.
+    /// </summary>
+    public async Task<IReadOnlyList<PersonaBusquedaDto>> BuscarPersonasAsync(string texto, CancellationToken ct)
+    {
+        var termino = Normalizar(texto);
+        if (termino.Length < 2) return [];
+        var digitos = new string(texto.Where(char.IsAsciiDigit).ToArray());
+
+        var activo = (await repositorio.ListarPeriodosAsync(ct)).SingleOrDefault(p => p.Activo);
+        var ocupadas = activo is null
+            ? new HashSet<Guid>()
+            : new HashSet<Guid>(await repositorio.ListarPersonasConPedidoVivoAsync(activo.Id, null, ct));
+        ocupadas.UnionWith((await repositorio.ListarDesignacionesVigentesAsync(ct)).Select(d => d.PersonaId));
+
+        return (await identity.ListarPersonasAsync(ct))
+            .Where(p => !ocupadas.Contains(p.Id))
+            .Where(p => Normalizar($"{p.Apellido} {p.Nombre}").Contains(termino)
+                || (digitos.Length >= 3 && (p.Documento.Contains(digitos)
+                    || (p.Legajo ?? string.Empty).Contains(digitos))))
+            .OrderBy(p => p.Apellido, StringComparer.CurrentCulture)
+            .ThenBy(p => p.Nombre, StringComparer.CurrentCulture)
+            .Take(MaximoResultadosBusqueda)
+            .Select(p => new PersonaBusquedaDto(p.Id, p.Nombre, p.Apellido, p.Documento, p.Legajo))
+            .ToArray();
+    }
+
+    private static string Normalizar(string texto)
+    {
+        var descompuesto = texto.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+        return new string(descompuesto
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)
+                != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .ToArray());
+    }
 
     public async Task<CatalogosDesignacionesDto> ObtenerAsync(CancellationToken ct, Guid? pedidoEditado = null)
     {
@@ -56,16 +96,17 @@ public sealed class ServicioCatalogosDesignaciones(
             .Select(p => new PersonaDesignacionesDto(
                 p.Id, p.Nombre, p.Apellido, p.Documento, p.Legajo,
                 designacionesVisibles.GetValueOrDefault(p.Id, [])
-                    .Where(d => materiasCanonicasPorId.ContainsKey(d.MateriaId) && d.Cargo is not null)
+                    .Where(d => materiasCanonicasPorId.ContainsKey(d.MateriaId) && (d.Cargo is not null || d.SectorExterno is not null))
                     .Select(d => new DesignacionVigenteCatalogoDto(
                         d.MateriaId,
                         materiasCanonicasPorId[d.MateriaId].Nombre,
                         d.CarreraId,
                         d.CargoId,
-                        d.Cargo!.Nombre,
-                        d.DedicacionCatalogo?.Nombre ?? d.Dedicacion,
+                        d.Cargo?.Nombre,
+                        d.DedicacionCatalogo?.Nombre,
                         d.Horas,
-                        d.DedicacionId, d.HorasInvestigacion, d.HorasExternas))
+                        d.DedicacionId, d.HorasInvestigacion, d.HorasExternas,
+                        d.SectorExternoId, d.SectorExterno?.Codigo, d.SectorExterno?.Nombre))
                     .ToArray()))
             .ToArray();
         var cargos = (await repositorio.ListarCargosActivosAsync(ct))
@@ -82,7 +123,9 @@ public sealed class ServicioCatalogosDesignaciones(
             (await repositorio.ListarDedicacionesActivasAsync(ct))
                 .Select(d => new DedicacionDesignacionesDto(d.Id, d.Codigo, d.Nombre, d.Orden)).ToArray(),
             TiposBaja,
-            Novedades.Admitidas.Order().ToArray());
+            Novedades.Admitidas.Order().ToArray(),
+            (await repositorio.ListarSectoresExternosActivosAsync(ct))
+                .Select(s => new SectorExternoDesignacionesDto(s.Id, s.Codigo, s.Nombre)).ToArray());
     }
 
     private static PeriodoDto Mapear(Periodo p) => new(

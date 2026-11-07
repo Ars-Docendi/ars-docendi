@@ -43,7 +43,7 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
       titulo: "Abrí el libro",
       etiquetaIndice: "Contenido del libro",
       cuerpo:
-        "El libro tiene tres hojas. PROPUESTA COMPLETA: una fila por asignación vigente, baja aprobada o alta aprobada del período. ALTAS: los pedidos de Alta aprobados. BAJAS: los pedidos de Baja aprobados, con el cargo anterior y el motivo. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco. Arriba a la derecha de la primera hoja, la celda «INTEGRIDAD · sello …» identifica el estado exacto del período que se exportó.",
+        "El libro tiene tres hojas. PROPUESTA COMPLETA: un registro por docente con sus asignaciones vigentes, bajas y altas aprobadas del período; sus materias van juntas (códigos separados por guion) y las horas se suman, porque el cargo y la dedicación son únicos por docente. ALTAS: los pedidos de Alta aprobados. BAJAS: los pedidos de Baja aprobados, con el cargo anterior y el motivo. Para un docente externo, la columna de cargo/dedicación muestra la sigla de su sector (por ejemplo, ECO) y la columna Departamento, su nombre completo; para los docentes del Departamento, Departamento de Ingeniería e Investigaciones Tecnológicas. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco. Arriba a la derecha de la primera hoja, la celda «INTEGRIDAD · sello …» identifica el estado exacto del período que se exportó.",
     },
     {
       titulo: "Si algo falla",

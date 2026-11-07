@@ -28,7 +28,6 @@ import {
   aGuardar,
   formularioDesde,
   formularioVacio,
-  hayErroresDocentes,
   hayErroresPersonales,
   validar,
   type FormularioPersona,
@@ -121,14 +120,14 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
     ? `Ya existe una persona con este DNI: ${duplicado.nombre}${duplicado.legajo ? ` (legajo ${duplicado.legajo})` : ""}${estadoDuplicado(duplicado.activo)}`
     : undefined;
   const marcaPersonales = (enviado && hayErroresPersonales(errores)) || Boolean(errorDni);
-  const marcaDocentes = enviado && hayErroresDocentes(errores);
-  const otraConError = pestana === "personales" ? marcaDocentes : marcaPersonales;
+  // La pestaña de datos docentes es de sólo lectura: no puede tener errores.
+  const otraConError = pestana === "personales" ? false : marcaPersonales;
   const setDatos = (campo: keyof FormularioPersona["datos"], valor: string) =>
     setForm({ ...form, datos: { ...form.datos, [campo]: valor } });
 
   function enviar() {
     setEnviado(true);
-    if (hayErroresPersonales(errores) || hayErroresDocentes(errores) || errorDni) return;
+    if (hayErroresPersonales(errores) || errorDni) return;
     guardar.mutate(aGuardar(form, cat, versionInicial), {
       onSuccess: (p) => {
         permitirSalida();
@@ -195,7 +194,7 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
         onChange={(id) => setPestana(id as Pestana)}
         items={[
           { id: "personales", label: <>Datos personales{marca(marcaPersonales)}</> },
-          { id: "docentes", label: <>Datos docentes{marca(marcaDocentes)}</> },
+          { id: "docentes", label: "Datos docentes" },
         ]}
       />
       {otraConError && (
@@ -261,16 +260,8 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
           style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}
         >
           <section className="adoc-personas-tarjeta">
-            <h2>Asignaciones</h2>
-            <AsignacionesPersona
-              filas={form.asignaciones}
-              onChange={(asignaciones) => setForm({ ...form, asignaciones })}
-              catalogos={cat}
-              soloLectura={soloLectura}
-            />
-            {enviado && errores.asignaciones && (
-              <span className="adoc-personas-error">{errores.asignaciones}</span>
-            )}
+            <h2>Designaciones vigentes</h2>
+            <AsignacionesPersona filas={form.asignaciones} catalogos={cat} />
           </section>
           <section className="adoc-personas-tarjeta">
             <h2>Perfil en Mi Portal</h2>

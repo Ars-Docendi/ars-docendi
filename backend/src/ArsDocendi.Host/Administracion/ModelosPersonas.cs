@@ -3,21 +3,24 @@ using Modules.Designaciones.Contracts.Administracion;
 
 namespace ArsDocendi.Host.Administracion;
 
-/// <summary>Designación vigente de la persona.</summary>
+/// <summary>Designación vigente de la persona: interna (cargo y dedicación) o externa (sector).</summary>
 public sealed record AsignacionDocenteDto(
     Guid Id,
     Guid MateriaId,
     string MateriaCodigo,
     string MateriaNombre,
     Guid CarreraId,
-    Guid CargoId,
-    string CargoNombre,
-    string CargoAbreviatura,
+    Guid? CargoId,
+    string? CargoNombre,
+    string? CargoAbreviatura,
     string? Dedicacion,
     int Horas,
     Guid? DedicacionId = null,
     int? HorasInvestigacion = null,
-    int? HorasExternas = null);
+    int? HorasExternas = null,
+    Guid? SectorExternoId = null,
+    string? SectorExternoCodigo = null,
+    string? SectorExternoNombre = null);
 
 /// <summary>
 /// Una persona con su cuenta, sus roles con ámbito y sus designaciones vigentes: lo que antes
@@ -51,7 +54,6 @@ public sealed record GuardarPersonaDto(
     string? Telefono,
     string Upn,
     IReadOnlyList<GuardarAsignacionRolDto> Membresias,
-    IReadOnlyList<GuardarDesignacionVigenteDto> Designaciones,
     uint? Version = null);
 
 /// <param name="ExceptoPersonaId">La propia persona al editar, para no avisarse a sí misma.</param>
@@ -75,4 +77,5 @@ public sealed record CatalogosPersonasDto(
     IReadOnlyList<OpcionCatalogoDto> MateriasPlan,
     IReadOnlyList<OpcionCatalogoDto> Carreras,
     IReadOnlyList<CargoAdministracionDto> Cargos,
-    IReadOnlyList<DedicacionAdministracionDto> Dedicaciones);
+    IReadOnlyList<DedicacionAdministracionDto> Dedicaciones,
+    IReadOnlyList<SectorExternoAdministracionDto> SectoresExternos);
