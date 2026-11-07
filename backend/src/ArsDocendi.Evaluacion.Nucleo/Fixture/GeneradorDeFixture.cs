@@ -85,6 +85,14 @@ public sealed class GeneradorDeFixture
         ("Bases de datos", 4, 2),
         ("Python", 3, 0),
         ("Investigación educativa", 1, 3),
+
+        // Términos afines entre sí, para el jefe de cátedra de la materia 0 que busca quién puede
+        // dictar Análisis: nadie los unificó, así que «Cálculo» y «Análisis matemático» son dos
+        // términos distintos. Cálculo lo declaran los perfiles 0 a 4; los de dentro de la cátedra son
+        // el 0 y el 3 (ver DocentesAgregadosALaCatedraCero) y los demás quedan afuera a propósito.
+        ("Cálculo", 5, 0),
+        ("Análisis matemático", 2, 0),
+        ("Ecuaciones diferenciales", 1, 0),
     ];
 
     /// <summary>
@@ -473,20 +481,23 @@ public sealed class GeneradorDeFixture
     /// consultado el padrón, que es exactamente el tipo de test sin filo que este
     /// proyecto ya encontró tres veces.
     ///
-    /// Que en producción el permiso nazca vacío es una decisión del Departamento; que
-    /// el fixture lo conceda es lo que permite medir si la máquina funciona cuando
-    /// alguien lo concede. Son dos cosas distintas y las dos son correctas.
+    /// El fixture lo concede de forma explícita aunque la migración ya se lo dé al jefe de
+    /// cátedra: el ítem no puede depender de que nadie cambie esa migración, y es lo que permite
+    /// medir si la máquina funciona cuando alguien lo concede.
     ///
-    /// Se concede al rol de Secretaría —el del actor global— y NO a los otros tres:
-    /// el actor de carrera, el de materia y el docente quedan sin él, que es lo que
-    /// hace medible la diferencia entre alcanzar el padrón y no alcanzarlo.
+    /// Se concede al rol de Secretaría —el del actor global— y al jefe de cátedra —el
+    /// de materia—, como en producción desde 2026-11-07. El actor de carrera y el
+    /// docente quedan sin él, que es lo que hace medible la diferencia entre alcanzar
+    /// la cátedra, el padrón o nada.
     /// </remarks>
     private static void EscribirPermisoDePortal(StringBuilder sql) => sql.Append(
         """
 
         INSERT INTO identity.rol_permisos (rol_id, permiso_id)
-        SELECT 'a1000000-0000-4000-8000-000000000004', p.id
+        SELECT r.id, p.id
           FROM identity.permisos p
+         CROSS JOIN (VALUES ('a1000000-0000-4000-8000-000000000004'::uuid),
+                            ('a1000000-0000-4000-8000-000000000002'::uuid)) r(id)
          WHERE p.code = 'portal.ver_trayectoria_ajena'
         ON CONFLICT DO NOTHING;
 
@@ -615,6 +626,17 @@ public sealed class GeneradorDeFixture
         sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
     }
 
+    /// <summary>
+    /// Personas con perfil de portal que se designan TAMBIÉN en la materia 0, la del jefe de cátedra
+    /// de evaluación. Sin ellas, la materia 0 sólo tiene designada a la persona 0 y el ítem del jefe
+    /// no distingue «los de mi cátedra» de «el único».
+    /// </summary>
+    /// <remarks>
+    /// Las personas 1, 2 y 4 quedan afuera de la cátedra con habilidades afines cargadas: son las
+    /// que la respuesta del jefe NO debe incluir.
+    /// </remarks>
+    internal static readonly IReadOnlyList<int> DocentesAgregadosALaCatedraCero = [3, 5];
+
     private void EscribirDesignaciones(StringBuilder sql)
     {
         sql.Append(
@@ -640,6 +662,18 @@ public sealed class GeneradorDeFixture
                 $"    ('{IdDeDesignacion(indice)}', '{IdDePersona(indice)}', '{IdDeMateria(materia)}', "
                 + $"'{IdDeCarrera(carrera)}', '{IdDeCargo(cargo)}', '{IdDeDedicacionAlAzar(azar)}', "
                 + $"{4 + azar.Next(8)}, DATE '{Ancla.AddDays(-365):yyyy-MM-dd}', {vigenteHasta})");
+        }
+
+        // El fixture con suplemento compuesto fija conteos y porcentajes por materia (`cmp-*`,
+        // PlanCompiladoTests): estas dos designaciones los mueven, y ese dataset no tiene ítems del
+        // jefe de cátedra, así que no las lleva.
+        foreach (var (orden, persona) in (_conSuplementoCompuesto ? [] : DocentesAgregadosALaCatedraCero).Index())
+        {
+            filas.Add(
+                $"    ('{IdDeDesignacion(_personas + orden)}', '{IdDePersona(persona)}', "
+                + $"'{IdDeMateria(0)}', '{IdDeCarrera(0)}', '{IdDeCargo(0)}', "
+                + $"'{IdDeDedicacionAlAzar(azar)}', {4 + azar.Next(8)}, "
+                + $"DATE '{Ancla.AddDays(-365):yyyy-MM-dd}', NULL)");
         }
 
         sql.Append(string.Join(",\n", filas));
@@ -944,6 +978,30 @@ public sealed class GeneradorDeFixture
         EscribirCertificaciones(sql, perfiles);
         EscribirExperiencias(sql, perfiles);
         EscribirHabilidades(sql, perfiles);
+        EscribirProyectos(sql);
+    }
+
+    /// <summary>
+    /// Proyectos declarados. Con DOI y sin él, en curso y terminados, dentro y fuera de la cátedra
+    /// del jefe de evaluación (perfiles 0 y 3 dentro; 1 y 2 fuera).
+    /// </summary>
+    private static void EscribirProyectos(StringBuilder sql)
+    {
+        (int Perfil, string Nombre, string Rol, string Hasta, string Doi)[] proyectos =
+        [
+            (0, "Modelos de cálculo numérico para simulación", "Director", "DATE '2024-12-31'", "'10.1000/ars.0001'"),
+            (0, "Enseñanza de ecuaciones diferenciales con herramientas digitales", "Investigador", "NULL", "NULL"),
+            (3, "Análisis matemático aplicado a la optimización", "Investigador", "NULL", "'10.1000/ars.0002'"),
+            (1, "Cálculo diferencial en sistemas dinámicos", "Becario", "DATE '2023-06-30'", "'10.1000/ars.0003'"),
+            (2, "Plataforma de laboratorios remotos", "Colaborador", "NULL", "NULL"),
+        ];
+
+        sql.Append(
+            "\nINSERT INTO portal.proyectos (id, perfil_id, nombre, rol, descripcion, desde, hasta, doi) VALUES\n");
+        sql.Append(string.Join(",\n", proyectos.Select((p, indice) =>
+            $"    ('{IdDeProyecto(indice)}', '{IdDePerfil(p.Perfil)}', '{Escapar(p.Nombre)}', "
+            + $"'{p.Rol}', '', DATE '{Ancla.AddYears(-3):yyyy-MM-dd}', {p.Hasta}, {p.Doi})")));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
     }
 
     /// <summary>
@@ -1118,6 +1176,8 @@ public sealed class GeneradorDeFixture
 
     /// <summary>Identificador de perfil de portal, derivado del índice.</summary>
     public static string IdDePerfil(int indice) => Identificador('1', indice);
+
+    private static string IdDeProyecto(int indice) => Identificador('1', 700 + indice);
 
     private static string IdDeHabilidad(int indice) => Identificador('2', indice);
 

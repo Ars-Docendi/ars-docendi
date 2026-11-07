@@ -23,6 +23,7 @@ internal static class CoberturaDelPortal
         ["certificaciones"] = "sus certificaciones",
         ["experiencias"] = "su experiencia laboral",
         ["docente_habilidades"] = "sus habilidades e intereses",
+        ["proyectos"] = "sus proyectos",
     };
 
     /// <summary>Si la tabla es una de las que se declaran.</summary>

@@ -351,8 +351,9 @@ persona con perfil cargado tiene que fallar y que alguien lo mire.
 
 #### Lo que el asistente ve de portal, y lo que no
 
-Seis de las diez tablas se le conceden al asistente —`perfiles`, `educaciones`,
-`certificaciones`, `experiencias`, `habilidades` y `docente_habilidades`— con
+Siete de las diez tablas se le conceden al asistente —`perfiles`, `educaciones`,
+`certificaciones`, `experiencias`, `habilidades`, `docente_habilidades` y, desde
+2026-11-07, `proyectos` sin su `descripcion`— con
 `GRANT` por columna y `ENABLE ROW LEVEL SECURITY`. El predicado es una **disyunción**
 y no conjuga el ámbito, porque el portal está archivado por persona y el ámbito no
 dice nada sobre un dato de persona:
@@ -362,19 +363,22 @@ persona_id = identity.asistente_persona()
 OR identity.asistente_tiene_permiso('portal.ver_trayectoria_ajena')
 ```
 
-Ese permiso **nace concedido a nadie**: con el `GRANT` puesto, cada actor ve
-exactamente su propio perfil hasta que Secretaría decida a quién dárselo.
+Ese permiso lo tiene **únicamente el rol `jefe_catedra`** (decisión del equipo,
+2026-11-07; antes no lo tenía nadie), y el predicado efectivo de las policies lo acota
+con `identity.asistente_alcanza_a`: el jefe ve el perfil propio y el de los docentes con
+designación vigente en sus materias. Cualquier otro rol ve exactamente su propio perfil
+hasta que alguien le conceda el permiso desde `/roles`.
 
-Las otras cuatro **no se conceden**. `contactos` guarda el teléfono y el mail
+Las otras tres **no se conceden**. `contactos` guarda el teléfono y el mail
 personales, y el contacto institucional ya sale de `identity.personas.telefono` e
-`identity.users.upn`: es todo el riesgo y ninguna pregunta nueva. `cvs`, `proyectos`
-y `proyecto_documentos` no las pide ninguna pregunta del catálogo, y una tabla
+`identity.users.upn`: es todo el riesgo y ninguna pregunta nueva. `cvs` y
+`proyecto_documentos` no las pide ninguna pregunta del catálogo, y una tabla
 expuesta que nadie consulta es prefijo de prompt que se paga en cada llamada.
 
-Cuatro columnas quedan afuera con motivo escrito en `manifiesto-privilegios.json`:
+Cinco columnas quedan afuera con motivo escrito en `manifiesto-privilegios.json`:
 `habilidades.usos` es un contador agregado sobre todo el padrón que una policy por
 fila no puede acotar; `sugerido` y `canonica_id` son curaduría del vocabulario; y
-`experiencias.descripcion` es texto libre autodeclarado que el enmascarador no puede
+`experiencias.descripcion` y `proyectos.descripcion` son texto libre autodeclarado que el enmascarador no puede
 proteger, porque toda expresión sobre una columna reporta OID 0 y se trata como
 pública.
 

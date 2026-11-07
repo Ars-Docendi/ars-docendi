@@ -120,6 +120,18 @@
       "origen": "cap-053",
       "clase": "sin_tildes",
       "pregunta": "Cuantas solicitudes de aula se rechazaron por materia?"
+    },
+    {
+      "id": "rob-021",
+      "origen": "cap-057",
+      "clase": "sinonimo",
+      "pregunta": "¿Quiénes de mi cátedra figuran con la competencia de Cálculo o de Análisis matemático?"
+    },
+    {
+      "id": "rob-022",
+      "origen": "cap-059",
+      "clase": "coloquial",
+      "pregunta": "che, ¿qué proyectos con publicación cargó la gente de mi cátedra?"
     }
   ]
 }

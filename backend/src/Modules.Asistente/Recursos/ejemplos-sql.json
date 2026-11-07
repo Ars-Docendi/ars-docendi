@@ -103,6 +103,21 @@
       "sql": "SELECT p.apellido, p.nombre, x.puesto, x.organizacion, x.desde FROM portal.experiencias x JOIN portal.perfiles pf ON pf.id = x.perfil_id JOIN identity.personas p ON p.id = pf.persona_id ORDER BY p.apellido, x.desde DESC"
     },
     {
+      "pregunta": "¿Quiénes saben Cálculo, Análisis matemático o Ecuaciones diferenciales?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT DISTINCT p.apellido, p.nombre, h.termino FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE dh.tipo = 'habilidad' AND h.termino_norm ILIKE ANY (ARRAY['%CÁLCULO%', '%ANÁLISIS MATEM%', '%ECUACIONES DIFERENCIALES%']) ORDER BY p.apellido, p.nombre, h.termino"
+    },
+    {
+      "pregunta": "¿Qué docentes tienen una maestría o un doctorado terminado en Ingeniería de Software?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, e.nivel, e.institucion FROM portal.educaciones e JOIN portal.perfiles pf ON pf.id = e.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE e.nivel IN ('Maestría', 'Doctorado') AND e.hasta IS NOT NULL AND e.carrera ILIKE '%Software%' ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "pregunta": "¿Qué proyectos declaró cada docente, con su rol y su DOI?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, x.nombre AS proyecto, x.rol, x.desde, x.hasta, x.doi FROM portal.proyectos x JOIN portal.perfiles pf ON pf.id = x.perfil_id JOIN identity.personas p ON p.id = pf.persona_id ORDER BY p.apellido, x.desde DESC"
+    },
+    {
       "pregunta": "¿Quiénes dictan Paradigmas de Programación?",
       "categoria": "cruce_de_tablas",
       "sql": "SELECT DISTINCT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE m.name = 'Paradigmas de Programación' AND d.vigente_hasta IS NULL ORDER BY p.apellido, p.nombre"

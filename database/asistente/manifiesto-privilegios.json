@@ -38,7 +38,7 @@
     {
       "nombre": "portal",
       "estado": "expuesto",
-      "motivo": "Seis de las diez tablas se conceden: las que responden el catálogo de preguntas de perfil profesional. `contactos` queda denegada entera y `cvs`, `proyectos` y `proyecto_documentos` no se conceden porque ninguna pregunta las pide. Conceder esto NO abre el padrón: el predicado de RLS es «mi propio perfil OR tengo portal.ver_trayectoria_ajena», y ese permiso está concedido a nadie."
+      "motivo": "Siete de las diez tablas se conceden: las que responden el catálogo de preguntas de perfil profesional, más `proyectos` sin su descripción (decisión del equipo, 2026-11-07). `contactos` queda denegada entera y `cvs` y `proyecto_documentos` no se conceden porque ninguna pregunta las pide. Conceder esto NO abre el padrón: el predicado de RLS es «mi propio perfil OR (tengo portal.ver_trayectoria_ajena Y el ámbito alcanza a la persona)», y ese permiso lo tiene únicamente el rol jefe_catedra, acotado a los docentes con designación vigente en sus materias."
     },
     {
       "nombre": "tareas",
@@ -657,10 +657,26 @@
     {
       "schema": "portal",
       "tabla": "proyectos",
-      "estado": "denegada-explicita",
-      "motivo": "Ninguna pregunta del catálogo la necesita. El alcance se derivó de las preguntas y no de lo que la base tiene disponible: exponerla costaría prefijo permanente sin comprar ninguna respuesta. Además descripcion es texto libre autodeclarado, con el mismo problema de enmascarado que experiencias.descripcion.",
-      "columnas_concedidas": {},
-      "columnas_denegadas": []
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "perfil_id", "nombre", "rol", "desde", "hasta", "doi", "created_at"],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "nombre",
+          "rol",
+          "desde",
+          "hasta",
+          "doi",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "descripcion",
+          "motivo": "Texto libre donde el docente describe su proyecto: puede nombrar a terceros o contar cualquier cosa. Clasificarla como sensible NO alcanza: el enmascarador identifica la columna por (OID, attnum), y toda expresión —un upper(descripcion), por ejemplo— reporta OID 0, que se trata como pública. O no se concede, o viaja verbatim al proveedor del modelo. Mismo criterio que experiencias.descripcion."
+        }
+      ]
     },
     {
       "schema": "portal",

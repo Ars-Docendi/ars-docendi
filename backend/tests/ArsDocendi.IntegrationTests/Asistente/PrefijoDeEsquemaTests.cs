@@ -91,6 +91,21 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         Assert.DoesNotContain("sga_importaciones", prefijo, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task El_prefijo_trae_los_proyectos_del_portal_sin_su_descripcion(bool conDatosPersonales)
+    {
+        var prefijo = (await PrefijoAsync(conDatosPersonales)).Prefijo;
+
+        Assert.Contains("portal.proyectos", prefijo, StringComparison.Ordinal);
+        Assert.Contains("- doi (", prefijo, StringComparison.Ordinal);
+
+        // The free-text description is denied: it must not even be named as a column of projects.
+        Assert.DoesNotContain("portal.proyectos.descripcion", prefijo, StringComparison.Ordinal);
+        Assert.DoesNotContain("proyecto_documentos", prefijo, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task El_prefijo_lista_las_claves_foraneas_reales_de_comisiones()
     {

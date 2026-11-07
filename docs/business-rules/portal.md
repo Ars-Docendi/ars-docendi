@@ -15,7 +15,7 @@
 
 ### BR-`portal`-001 El acceso del asistente al portal exige finalidad declarada
 
-- **Statement:** Ningún rol puede consultar por el asistente el perfil profesional de otra persona sin que Secretaría Académica haya declarado por escrito para qué tarea concreta lo necesita.
+- **Statement:** Ningún rol puede consultar por el asistente el perfil profesional de otra persona sin una finalidad declarada por escrito para qué tarea concreta lo necesita. Desde el 2026-11-07 la declaración la registra el equipo del sistema (decisión del equipo, sin consulta a Secretaría), no Secretaría Académica.
 - **Rationale:** Los datos del portal se recogieron para que el docente mantenga su propia ficha. Consultarlos cruzados a través del asistente es una **finalidad distinta**: hoy están disponibles perfil por perfil y en la práctica nadie los recorre; con el asistente se responden en dos segundos. Lo que desaparece no es la protección formal sino la fricción, y la fricción era parte de la protección.
 - **Provenance:** `from_regulation`
 - **Fuente normativa:** Ley 25.326, art. 4 inc. 3 — los datos no pueden usarse para finalidades distintas o incompatibles con aquellas que motivaron su obtención. _(Cita pendiente de verificación.)_
@@ -27,16 +27,17 @@
   **Consecuencia asumida:** es la finalidad más amplia de las que se evaluaron, y por eso **no acota el `GRANT`**: se concede la trayectoria completa —formación, experiencia, certificaciones y habilidades— sin vínculo con un trámite. Una finalidad más estrecha, como «armar el proyecto docente», habría permitido recortar columnas. Se eligió la amplia con conocimiento de eso.
 
 - **Roles afectados:** todos los que pueden usar el asistente.
-- **Implementación:** el permiso `portal.ver_trayectoria_ajena` nace concedido a nadie (`database/identity/20261103000400_PermisoPortalTrayectoriaAjenaIdentity.sql`). Conceder es una decisión de Secretaría, no un despliegue.
-- **Mapping a test:** `PermisoYPersonaPortalTests.El_permiso_existe_y_no_lo_tiene_ningun_rol`.
+- **Decisión del equipo, 2026-11-07:** el rol `jefe_catedra` recibe el permiso para buscar, dentro de su cátedra, a los docentes con el perfil para dictar una materia. Finalidad declarada: _«que el jefe de cátedra conozca la formación, la experiencia, las certificaciones, los proyectos (sin su descripción) y las habilidades declaradas de los docentes designados en las materias que dirige, para proponer quién puede dictarlas»_. La decide el equipo y **no Secretaría**; sigue pendiente ratificarla con Secretaría y la verificación legal (Ley 25.326, inscripción ante la AAIP), de dueño «equipo / área legal». Los candidatos de afuera de la cátedra no se alcanzan (limitación aceptada, `BR-portal-007`).
+- **Implementación:** el permiso nace en `database/identity/20261103000400_PermisoPortalTrayectoriaAjenaIdentity.sql` sin dueño y se concede al rol `jefe_catedra` en `database/identity/20261107131850_PermisoPortalTrayectoriaAjenaJefeCatedraIdentity.sql`. Los demás roles lo reciben desde `/roles`, no con un despliegue.
+- **Mapping a test:** `PermisoYPersonaPortalTests.El_permiso_existe_y_solo_lo_tiene_el_jefe_de_catedra` y `RlsPortalAsistenteTests.Un_jefe_de_catedra_ve_los_perfiles_y_proyectos_de_su_catedra_y_no_los_de_otras`.
 
 ### BR-`portal`-002 Quién puede otorgar el permiso de trayectoria ajena
 
-- **Statement:** `portal.ver_trayectoria_ajena` sólo se concede por decisión registrada de Secretaría Académica, nombrando el rol y la finalidad. No se concede a un usuario individual ni «para probar».
+- **Statement:** `portal.ver_trayectoria_ajena` sólo se concede por decisión registrada, nombrando el rol y la finalidad. Hasta el 2026-11-07 la tomaba Secretaría Académica; desde esa fecha la toma el equipo del sistema (decisión del equipo: concesión al rol `jefe_catedra`), y la ratificación con Secretaría sigue pendiente. No se concede a un usuario individual ni «para probar».
 - **Rationale:** **Es la regla de control más importante del paquete**, porque la frontera real es administrativa y no técnica. La RLS impone el permiso, pero el permiso se concede desde `/roles` en treinta segundos y sin migración. Sin esta regla, la política efectiva es «cualquiera con `roles.gestionar_membresia`».
 - **Provenance:** `from_regulation`
 - **Fuente normativa:** Ley 25.326, art. 4 inc. 1 (pertinencia y no excesividad respecto de la finalidad). _(Cita pendiente de verificación.)_
-- **Ejemplos:** Secretaría concede el permiso al rol `secretaria` con la finalidad de BR-001 registrada → correcto. Un administrador se lo concede a `jefe_catedra` sin registro → viola esta regla aunque el sistema lo permita.
+- **Ejemplos:** Secretaría concede el permiso al rol `secretaria` con la finalidad de BR-001 registrada → correcto. Un administrador se lo concede a un rol distinto de `jefe_catedra` sin registro → viola esta regla aunque el sistema lo permita.
 - **Roles afectados:** quien administra la matriz de roles.
 - **Quién puede otorgarlo (2026-09-09):** el rol `secretaria`, y sólo ese. Es lo que ya impone el código y no hizo falta cambiarlo: la pantalla exige `roles.administrar` o `roles.gestionar_membresia` (`frontend/src/features/roles/pages/IndexPage.tsx:35-37`), y `database/identity/008_identity_rol_permisos.sql` le da esos dos permisos únicamente a `secretaria` — ni Decanato, ni Coordinador, ni Administrativo.
 - **Nota sobre la pantalla:** la regla decía `/membresia-roles`, que **dejó de existir**: esa feature se borró y hoy `router.tsx` la redirige a `/roles`.

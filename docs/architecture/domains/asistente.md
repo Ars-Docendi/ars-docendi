@@ -53,14 +53,16 @@ declaradas?»— y con el cruce hacia designaciones, que es lo que vuelve la res
 accionable: «¿qué docentes de Ingeniería de Software declararon experiencia en
 industria?».
 
-### Las seis tablas, derivadas de las preguntas
+### Las siete tablas, derivadas de las preguntas
 
 `perfiles` · `habilidades` · `docente_habilidades` · `educaciones` ·
-`certificaciones` · `experiencias`
+`certificaciones` · `experiencias` · `proyectos` (sin `descripcion`)
 
-**Ninguna pregunta del catálogo necesita `cvs`, `proyectos` ni
-`proyecto_documentos`.** Quedan fuera del alcance hasta que exista una pregunta que
-las pida: son tres tablas de prefijo que nadie está usando.
+**Ninguna pregunta del catálogo necesita `cvs` ni `proyecto_documentos`.** Quedan fuera
+del alcance hasta que exista una pregunta que las pida. `proyectos` entró el 2026-11-07
+para el caso del jefe de cátedra que busca quién puede dictar una materia: el asistente
+encuentra a quien escribió «Cálculo» o declaró un proyecto afín, no a quien «cumple los
+requisitos» de la materia, porque ese perfil requerido no existe.
 
 ### Comisiones de Guaraní — la familia de `asistente-lee-comisiones`
 
@@ -214,9 +216,9 @@ El asistente no tiene ninguna rama de código que decida qué puede ver quién.
   PostgreSQL con privilegios enumerados columna por columna. No hay ninguna entidad
   canónica acá.
 
-  De `portal` se conceden **seis de las diez tablas**, y su predicado de RLS no
-  conjuga el ámbito sino un permiso propio, `portal.ver_trayectoria_ajena`, que nace
-  concedido a nadie. El detalle está en [data-model](../data-model.md) y las reglas
+  De `portal` se conceden **siete de las diez tablas**, y su predicado de RLS conjuga el
+  ámbito con un permiso propio, `portal.ver_trayectoria_ajena`, que desde 2026-11-07
+  tiene sólo el rol `jefe_catedra`. El detalle está en [data-model](../data-model.md) y las reglas
   que lo gobiernan en [`business-rules/portal.md`](../../business-rules/portal.md).
 
 ## Entidades principales

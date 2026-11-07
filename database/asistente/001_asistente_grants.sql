@@ -136,9 +136,10 @@ BEGIN
   -- ------------------------------------------------------------------
   -- portal
   -- ------------------------------------------------------------------
-  -- LAS SEIS TABLAS QUE EL CATÁLOGO DE PREGUNTAS NECESITA, y ninguna más. El
-  -- alcance se derivó de las preguntas y no de lo que la base tiene disponible:
-  -- `cvs`, `proyectos` y `proyecto_documentos` quedan afuera porque ninguna
+  -- LAS SEIS TABLAS DEL CATÁLOGO DE PREGUNTAS MÁS `proyectos` (2026-11-07, el jefe
+  -- de cátedra que busca quién puede dictar una materia pide los antecedentes de
+  -- investigación). El alcance se derivó de las preguntas y no de lo que la base
+  -- tiene disponible: `cvs` y `proyecto_documentos` quedan afuera porque ninguna
   -- pregunta las pide, y una tabla expuesta que nadie consulta es prefijo de prompt
   -- que se paga en cada llamada, para siempre.
   --
@@ -148,15 +149,21 @@ BEGIN
   -- ninguno de los dos, así que no queda nada que separar.
   --
   -- CONCEDER ESTO NO ABRE EL PADRÓN. El predicado de RLS es «mi propio perfil OR
-  -- tengo portal.ver_trayectoria_ajena», y ese permiso está concedido A NADIE. Con
-  -- el GRANT puesto, cada actor ve exactamente su propio perfil y nada más; el
-  -- disyunto ajeno queda inerte hasta que Secretaría decida a quién dárselo, que es
-  -- una acción de administración y no un despliegue.
+  -- (tengo portal.ver_trayectoria_ajena Y el ámbito alcanza a la persona)». El
+  -- permiso lo tiene únicamente el rol `jefe_catedra` (decisión del equipo,
+  -- 2026-11-07; migración PermisoPortalTrayectoriaAjenaJefeCatedraIdentity), y su
+  -- ámbito son los docentes con designación vigente en sus materias. Cualquier otro
+  -- rol sólo ve su propio perfil hasta que alguien le conceda el permiso desde
+  -- /roles, que es una acción de administración y no un despliegue.
   --
-  -- Cuatro columnas NO se conceden y el motivo va en manifiesto-privilegios.json:
+  -- `proyectos` se concede SIN `descripcion` (texto libre, mismo problema de
+  -- enmascarado que `experiencias.descripcion`). Su policy la crea
+  -- RlsAsistenteProyectosPortal, que corre antes que este archivo.
+  --
+  -- Cinco columnas NO se conceden y el motivo va en manifiesto-privilegios.json:
   -- `habilidades.usos` es un contador agregado sobre todo el padrón y una policy por
   -- fila no puede acotarlo; `sugerido` y `canonica_id` son curaduría del vocabulario;
-  -- y `experiencias.descripcion` es texto libre autodeclarado que el enmascarador no
+  -- y `experiencias.descripcion` y `proyectos.descripcion` son texto libre autodeclarado que el enmascarador no
   -- puede proteger, porque una expresión sobre esa columna reporta OID 0 y se trata
   -- como pública.
   EXECUTE format('GRANT SELECT (id, persona_id, created_at) ON portal.perfiles TO %I, %I', rol_basico, rol_pii);
@@ -165,6 +172,7 @@ BEGIN
   EXECUTE format('GRANT SELECT (id, perfil_id, puesto, organizacion, desde, hasta, created_at) ON portal.experiencias TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (id, termino, termino_norm, created_at) ON portal.habilidades TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (perfil_id, habilidad_id, tipo, created_at) ON portal.docente_habilidades TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (id, perfil_id, nombre, rol, desde, hasta, doi, created_at) ON portal.proyectos TO %I, %I', rol_basico, rol_pii);
 
   -- ------------------------------------------------------------------
   -- comisiones

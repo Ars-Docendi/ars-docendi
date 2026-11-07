@@ -347,7 +347,7 @@
     },
     {
       "id": "cap-046",
-      "pregunta": "¿Qué docentes designados en una materia con comisiones no figuran en ninguna comisión de esa materia, en ningún período importado?",
+      "pregunta": "¿Qué docentes con designación vigente en una materia con comisiones no figuran en las comisiones de esa materia, en todos los períodos importados?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre, m.name AS materia FROM designaciones.designaciones x JOIN identity.personas p ON p.id = x.persona_id JOIN identity.materias m ON m.id = x.materia_id WHERE x.vigente_hasta IS NULL AND EXISTS (SELECT 1 FROM comisiones.sga_comisiones c WHERE c.materia_id = x.materia_id) AND NOT EXISTS (SELECT 1 FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id WHERE d.persona_id = x.persona_id AND c.materia_id = x.materia_id) ORDER BY materia, p.apellido, p.nombre"
@@ -424,6 +424,41 @@
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT s.dia, m.name AS materia, s.comision, s.motivo_cancelacion FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE s.estado = 'cancelada' ORDER BY s.dia, m.name"
+    },
+    {
+      "id": "cap-057",
+      "pregunta": "¿Qué docentes de mi cátedra declararon saber Cálculo o Análisis matemático?",
+      "categoria": "cruce_de_tablas",
+      "actor": "materia",
+      "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE dh.tipo = 'habilidad' AND h.termino_norm ILIKE ANY (ARRAY['%CÁLCULO%', '%ANÁLISIS MATEM%']) ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-058",
+      "pregunta": "¿Quiénes de mi cátedra tienen una maestría o un doctorado terminado?",
+      "categoria": "cruce_de_tablas",
+      "actor": "materia",
+      "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre, e.nivel FROM portal.educaciones e JOIN portal.perfiles pf ON pf.id = e.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE e.nivel IN ('Maestría', 'Doctorado') AND e.hasta IS NOT NULL ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-059",
+      "pregunta": "¿Qué proyectos con publicación cargaron los docentes de mi cátedra?",
+      "categoria": "cruce_de_tablas",
+      "actor": "materia",
+      "sql_referencia": "SELECT p.apellido, p.nombre, x.nombre AS proyecto, x.doi FROM portal.proyectos x JOIN portal.perfiles pf ON pf.id = x.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE x.doi IS NOT NULL ORDER BY p.apellido, x.nombre"
+    },
+    {
+      "id": "cap-060",
+      "pregunta": "¿Qué docentes de cualquier cátedra de la facultad saben Cálculo?",
+      "categoria": "cruce_de_tablas",
+      "actor": "materia",
+      "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE dh.tipo = 'habilidad' AND h.termino_norm ILIKE '%CÁLCULO%' ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-061",
+      "pregunta": "¿Cuántos docentes de mi cátedra cargaron al menos un proyecto?",
+      "categoria": "agregacion",
+      "actor": "materia",
+      "sql_referencia": "SELECT count(DISTINCT x.perfil_id) AS cantidad FROM portal.proyectos x"
     }
   ]
 }

@@ -555,6 +555,14 @@ Las áreas, los ejemplos y la presentación de **aulas** siguen el mismo criteri
 permisos vivos `aulas.aprobar` (`VeSolicitudesDeAula`: todas las solicitudes) y
 `aulas.solicitar` (`VeSolicitudesPropias`: «tus solicitudes»); nadie más las ve anunciadas.
 
+### Portal para el jefe de cátedra
+
+Desde 2026-11-07 el rol `jefe_catedra` tiene `portal.ver_trayectoria_ajena` y `portal.proyectos`
+(sin `descripcion`) es legible. El alcance no cambió: el perfil propio y el de los docentes con
+designación vigente en sus materias. El asistente encuentra a quien escribió «Cálculo»; **no sabe
+qué requisitos tiene una materia**, y la cobertura (`CoberturaDelPortal`, que ahora declara también
+`proyectos`) dice cuántos cargaron el dato. El denominador de esa frase es el padrón, no la cátedra.
+
 ### El alcance se evalúa por dominio
 
 `DetectorDeDominios.Detectar(sql)` (por tokens) devuelve las tablas calificadas y los

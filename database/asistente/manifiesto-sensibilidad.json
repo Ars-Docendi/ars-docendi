@@ -780,6 +780,47 @@
     },
     {
       "schema": "portal",
+      "tabla": "proyectos",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "perfil_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "rol",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "doi",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "portal",
       "tabla": "habilidades",
       "columnas": [
         {
