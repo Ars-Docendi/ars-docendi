@@ -232,6 +232,28 @@ public static class Program
 
             Directory.CreateDirectory(reportes);
             var salida = 0;
+            var toleradas = 0;
+
+            // Ver ItemsInestables: viven fuera del dataset para no tocar el sello.
+            IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> inestables;
+            try
+            {
+                inestables = ItemsInestables.Cargar(Path.Combine(lineasDeBase, "inestables.json"));
+            }
+            catch (InvalidOperationException error)
+            {
+                await Console.Error.WriteLineAsync(error.Message);
+                return CodigoDeUso;
+            }
+
+            string[] ejesConocidos = ["capacidad", "robustez", "dialogo", "social"];
+            var desconocidos = inestables.Keys.Where(eje => !ejesConocidos.Contains(eje)).ToArray();
+            if (desconocidos.Length > 0)
+            {
+                await Console.Error.WriteLineAsync(
+                    $"inestables.json: ejes desconocidos: {string.Join(", ", desconocidos)}.");
+                return CodigoDeUso;
+            }
 
             foreach (var (nombre, correr) in corridas)
             {
@@ -289,8 +311,33 @@ public static class Program
                     continue;
                 }
 
-                var veredicto = GateDeRegresion.Comparar(resultado.Reporte, linea);
+                VeredictoDelGate veredicto;
+                try
+                {
+                    veredicto = GateDeRegresion.Comparar(
+                        resultado.Reporte, linea, ItemsInestables.DelEje(inestables, nombre));
+                }
+                catch (InvalidOperationException error)
+                {
+                    await Console.Error.WriteLineAsync($"  {error.Message}");
+                    salida = CodigoDeUso;
+                    continue;
+                }
+
                 Console.WriteLine($"  {veredicto.Renderizar()}");
+
+                if (veredicto.Tolerados.Count > 0)
+                {
+                    toleradas += veredicto.Tolerados.Count;
+
+                    // La oscilación se ve en el reporte, no solo en la consola.
+                    await File.AppendAllTextAsync(
+                        ruta,
+                        "\n## Oscilaciones conocidas\n\n"
+                        + "Ítems marcados como inestables en vivo que pasaron de acierto a falla. "
+                        + "No hacen fallar el gate.\n\n"
+                        + string.Concat(veredicto.Tolerados.Select(t => $"- {t}\n")));
+                }
 
                 // El sello distinto NO es una regresión: es que no hay con qué
                 // comparar. Se distingue en el código de salida porque el que lo lea
@@ -300,6 +347,12 @@ public static class Program
                 {
                     salida = CodigoDeRegresion;
                 }
+            }
+
+            if (toleradas > 0)
+            {
+                Console.WriteLine(
+                    $"\n{toleradas} oscilación(es) conocida(s) tolerada(s): se informan pero no hacen fallar el gate.");
             }
 
             Console.WriteLine(

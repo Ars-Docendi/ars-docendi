@@ -1,0 +1,11 @@
+{
+  "capacidad": {
+    "cap-009": "se abstiene ante contestable (3 de 4 corridas en vivo)",
+    "cap-020": "responde en vez de pedir aclaración (3 de 4 corridas en vivo)"
+  },
+  "dialogo": {
+    "dia-001-seguimiento#2": "se abstiene ante contestable (2 de 4 corridas en vivo)",
+    "dia-003-pivote-duro#1": "se abstiene o traduce mal (2 de 4 corridas en vivo)",
+    "dia-005-referencia-al-resultado#2": "se abstiene ante contestable (3 de 4 corridas en vivo)"
+  }
+}

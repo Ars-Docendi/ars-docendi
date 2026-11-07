@@ -98,9 +98,25 @@ ajustes de arriba), mostraron estos:
 | `dia-005-referencia-al-resultado#2` | 3                      | se abstiene ante contestable        |
 
 Ninguno toca `comisiones`. `dia-003-pivote-duro#1` ya oscilaba antes de este change.
-Sigue pendiente decidir si se marcan como tolerantes o se reformulan; hasta entonces,
-una «regresión» en uno de estos ítems hay que confirmarla con otra corrida antes de
-leerla como tal.
+
+**Decisión: se marcan como tolerantes** (change `evaluador-items-inestables`). Viven en
+[`inestables.json`](./inestables.json), por eje y con su motivo:
+`{ "capacidad": { "cap-009": "motivo" } }`. En diálogo el id es el de la línea de base,
+por turno (`dia-001-seguimiento#2`).
+
+- Si un ítem listado pasa de acierto a falla, el gate **no devuelve 4**: lo informa como
+  «Oscilaciones conocidas» en la consola, en una sección del reporte del eje y en el
+  resumen final (cuántas se toleraron).
+- Todo lo demás conserva el lock estricto. Una mejora en un ítem listado se informa como
+  cualquier otra.
+- El archivo está **fuera del sello**: no entra en el hash del dataset, así que listar o
+  quitar un ítem no obliga a regenerar las líneas de base.
+- Un id que no está en la línea de base de su eje (o un eje desconocido, o un motivo
+  vacío) corta la corrida con código 64: la lista no se pudre en silencio.
+
+Para **agregar** un ítem, sumá su id y el motivo con la evidencia (cuántas corridas
+oscilaron) en el eje que corresponde. Para **quitarlo**, borrá la entrada: vuelve al lock
+estricto. Un ítem que se reformula o se arregla debe salir de la lista en el mismo diff.
 
 Las de antes de portal están en [`antes-de-portal/`](./antes-de-portal/README.md),
 que explica qué costó ese cambio.
