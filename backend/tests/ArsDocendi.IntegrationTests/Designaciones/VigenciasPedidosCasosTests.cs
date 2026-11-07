@@ -18,16 +18,16 @@ public sealed class VigenciasPedidosCasosTests(PostgresFixture postgres) : Vigen
         var pedido = await db.Pedidos.SingleAsync(p => p.Id == PedidoId, ct);
         var vigente = await db.Designaciones.SingleAsync(d => d.PersonaId == pedido.PersonaId && d.VigenteHasta == null, ct);
         vigente.VigenteDesde = new DateOnly(2026, 10, 14);
-        pedido.Estado = EstadosPedido.EnRevisionDecanato;
+        pedido.Estado = EstadosPedido.EnLote;
         await db.SaveChangesAsync(ct);
         await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         db.ChangeTracker.Clear();
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
-        var error = await Assert.ThrowsAsync<ErrorDominioPedido>(() => CrearApi(Decanato, identity, db)
-            .AplicarAccionAsync(PedidoId, new AccionPedido.Aceptar(), ct));
+        var error = await Assert.ThrowsAsync<ErrorDominioPedido>(() =>
+            ConciliacionPrueba.SincronizarAsync(PedidoId, identity, db, ct, new RelojFijo()));
         Assert.Contains("posterior", error.Message);
         db.ChangeTracker.Clear();
-        Assert.Equal(EstadosPedido.EnRevisionDecanato, (await db.Pedidos.SingleAsync(p => p.Id == PedidoId, ct)).Estado);
+        Assert.Equal(EstadosPedido.EnLote, (await db.Pedidos.SingleAsync(p => p.Id == PedidoId, ct)).Estado);
         Assert.Null((await db.Designaciones.SingleAsync(d => d.Id == vigente.Id, ct)).VigenteHasta);
     }
 
@@ -42,7 +42,7 @@ public sealed class VigenciasPedidosCasosTests(PostgresFixture postgres) : Vigen
         var pedido = await db.Pedidos.SingleAsync(p => p.Id == PedidoId, ct);
         var vigente = await db.Designaciones.SingleAsync(d => d.PersonaId == pedido.PersonaId && d.VigenteHasta == null, ct);
         vigente.VigenteDesde = new DateOnly(2026, 10, intradia ? 13 : 12);
-        pedido.Estado = EstadosPedido.EnRevisionDecanato;
+        pedido.Estado = EstadosPedido.EnLote;
         await db.SaveChangesAsync(ct);
         await SellosPrueba.SellarEtapaForzadaAsync(db, pedido, ct);
         var horas = vigente.Horas;
@@ -56,13 +56,15 @@ public sealed class VigenciasPedidosCasosTests(PostgresFixture postgres) : Vigen
             """, conexion)) await fallo.ExecuteNonQueryAsync(ct);
         db.ChangeTracker.Clear();
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
-        await Assert.ThrowsAsync<DbUpdateException>(() => CrearApi(Decanato, identity, db)
-            .AplicarAccionAsync(PedidoId, new AccionPedido.Aceptar(), ct));
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            ConciliacionPrueba.SincronizarAsync(PedidoId, identity, db, ct, new RelojFijo()));
         db.ChangeTracker.Clear();
         var actual = await db.Designaciones.SingleAsync(d => d.Id == vigente.Id, ct);
         Assert.Equal((inicio, horas, (DateOnly?)null), (actual.VigenteDesde, actual.Horas, actual.VigenteHasta));
-        Assert.Equal(EstadosPedido.EnRevisionDecanato, (await db.Pedidos.SingleAsync(p => p.Id == PedidoId, ct)).Estado);
-        Assert.False(await db.PedidoHistorial.AnyAsync(h => h.PedidoId == PedidoId && h.Accion == AccionesHistorial.Aceptar, ct));
+        var pedidoActual = await db.Pedidos.SingleAsync(p => p.Id == PedidoId, ct);
+        Assert.Equal(EstadosPedido.EnLote, pedidoActual.Estado);
+        Assert.Null(pedidoActual.MaterializadoEn);
+        Assert.False(await db.PedidoHistorial.AnyAsync(h => h.PedidoId == PedidoId && h.Accion == AccionesHistorial.Sincronizar, ct));
     }
 
     [Fact]

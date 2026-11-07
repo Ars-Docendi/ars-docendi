@@ -11,6 +11,7 @@ const ETAPA_LEGIBLE: Record<EstadoPedido, string> = {
   en_revision_decanato: "Decanato",
   devuelto: "Devuelto",
   en_lote: "En lote",
+  no_aprobado: "Rechazado en conciliación",
   rechazado: "Rechazado",
   cancelado: "Cancelado",
   en_proceso: "En proceso",

@@ -39,7 +39,7 @@ internal sealed class DiagnosticoDesignaciones(
         UNION ALL SELECT 'hallazgo', 'designaciones-pedido-incompleto', id, NULL::text, NULL::uuid
         FROM designaciones.pedidos
         WHERE novedad IN ('Alta','Cambio de cargo o dedicación')
-          AND estado IN ('en_revision_coordinador','en_revision_secretaria','en_revision_decanato','devuelto','en_lote')
+          AND estado IN ('en_revision_coordinador','en_revision_secretaria','en_revision_decanato','devuelto','en_lote','no_aprobado')
           AND (cargo_solicitado_id IS NULL OR dedicacion_solicitada_id IS NULL OR horas IS NULL OR horas <= 0)
         """);
 }

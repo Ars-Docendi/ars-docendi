@@ -42,10 +42,15 @@ public sealed class ResolutorActor(ICurrentUser usuarioActual, IConsultasIdentit
             ? await identity.ObtenerCarrerasDeRolAsync(usuarioId, RolesCircuito.CoordinadorCarrera, ct)
             : [];
 
+        // Los permisos de la sesión, ya acotados al rol activo: son los mismos que
+        // evalúan las políticas [Authorize] de los controladores.
         return new ActorContexto(
             usuarioId,
             roles.ToHashSet(),
             materias.ToHashSet(),
-            carreras.ToHashSet());
+            carreras.ToHashSet())
+        {
+            Permisos = usuarioActual.Permissions.ToHashSet(),
+        };
     }
 }

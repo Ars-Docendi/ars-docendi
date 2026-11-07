@@ -25,6 +25,7 @@ import { revisarElTablero } from "./designaciones/revisar-el-tablero";
 import { resolverUnPedido } from "./designaciones/resolver-un-pedido";
 import { descargarElLoteDeFinalizados } from "./designaciones/descargar-el-lote-de-finalizados";
 import { gestionarPeriodos } from "./designaciones/gestionar-periodos";
+import { conciliarElLote } from "./designaciones/conciliar-el-lote";
 import { administrarPersonas } from "./administracion/administrar-personas";
 import { administrarRolesYPermisos } from "./administracion/administrar-roles-y-permisos";
 import { leerElDashboardDelSistema } from "./administracion/leer-el-dashboard-del-sistema";
@@ -62,7 +63,12 @@ export const MODULOS: readonly ModuloAyuda[] = [
     titulo: "Designaciones",
     descripcion: "Pedir, seguir y revisar designaciones, y administrar los períodos.",
     grupos: ["Pedir una designación", "Revisar pedidos", "Períodos"],
-    permisos: ["designaciones.gestionar", "designaciones.revisar", "periodos.administrar"],
+    permisos: [
+      "designaciones.gestionar",
+      "designaciones.revisar",
+      "designaciones.conciliar",
+      "periodos.administrar",
+    ],
   },
   {
     slug: "administracion",
@@ -113,6 +119,7 @@ export const ARTICULOS: readonly ArticuloAyuda[] = [
   revisarElTablero,
   resolverUnPedido,
   descargarElLoteDeFinalizados,
+  conciliarElLote,
   gestionarPeriodos,
   // Configuración y sistema
   administrarPersonas,

@@ -30,6 +30,7 @@ import {
   formularioVacio,
   hayErroresDocentes,
   hayErroresPersonales,
+  membresiasSugeridas,
   validar,
   type FormularioPersona,
 } from "../formularioPersona";
@@ -80,7 +81,11 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   const [pestana, setPestana] = usePestanaURL(PESTANAS, "personales", { reemplazar: true });
   const volver = useDestinoVolver("persona");
   const [form, setForm] = useState<FormularioPersona>(() =>
-    personaActual ? formularioDesde(personaActual) : formularioVacio(),
+    personaActual ? formularioDesde(personaActual, cat) : formularioVacio(),
+  );
+  // Rol Docente precargado desde las designaciones de una persona sin cuenta.
+  const [conSugeridas] = useState(
+    () => personaActual !== null && membresiasSugeridas(personaActual, cat).length > 0,
   );
   // Versión con la que se abrió el formulario: si otro la cambió mientras tanto, el guardado
   // falla por concurrencia en lugar de pisar ese cambio.
@@ -240,6 +245,12 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
           </section>
           <section className="adoc-personas-tarjeta">
             <h2>Roles y ámbitos</h2>
+            {conSugeridas && !soloLectura && (
+              <InlineAlert severity="info" title="Rol Docente precargado">
+                Se asigna al crear la cuenta, según sus designaciones. Podés quitarlo antes de
+                guardar.
+              </InlineAlert>
+            )}
             <MembresiasSelector
               filas={form.membresias}
               onChange={(membresias) => setForm({ ...form, membresias })}

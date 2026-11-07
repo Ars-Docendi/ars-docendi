@@ -53,24 +53,29 @@ por haber registrado la persona en un Alta.
 
 ## Exportación del lote
 
-| Método | Ruta                                         | Permiso y ámbito                                                          | Salida |
-| ------ | -------------------------------------------- | ------------------------------------------------------------------------- | ------ |
-| GET    | `/api/designaciones/periodos/{id}/lote.xlsx` | `designaciones.ver` + Secretaría, Decanato o Administración departamental | XLSX   |
+| Método | Ruta                                         | Permiso y ámbito                                                     | Salida |
+| ------ | -------------------------------------------- | -------------------------------------------------------------------- | ------ |
+| GET    | `/api/designaciones/periodos/{id}/lote.xlsx` | `designaciones.exportar_lote` (de inicio, sólo Secretaría Académica) | XLSX   |
 
 La ruta sólo acepta el período activo indicado por `{id}`. El archivo fijo
 `lote-designaciones.xlsx` contiene exactamente tres hojas institucionales:
 
 - `PROPUESTA COMPLETA`: una fila por persona y materia vigente, baja aprobada o
-  Alta aprobada aún no materializada del período. Incluye CUIL,
+  Alta aprobada aún no materializada del período. Un Cambio de cargo o dedicación
+  en lote todavía sin sincronizar muestra la designación vigente como anterior y lo
+  pedido como propuesta, con la justificación como observación. Incluye CUIL,
   cargo/dedicación anterior y propuesta, observación, horas semanales y
   asignatura; departamento, dedicación externa y horas destinadas al ingreso
   quedan vacíos porque no tienen fuente persistida.
-- `ALTAS`: sólo pedidos `en_lote` de novedad Alta del período activo, con CUIL,
+- `ALTAS`: sólo pedidos `en_lote` o `aprobado` de novedad Alta del período activo, con CUIL,
   cargo/dedicación, fecha de nacimiento, teléfono y correo de Portal cuando
   exista.
-- `BAJAS`: sólo pedidos `en_lote` de novedad Baja del período activo, con CUIL,
+- `BAJAS`: sólo pedidos `en_lote` o `aprobado` de novedad Baja del período activo, con CUIL,
   cargo/dedicación anterior y el motivo compuesto por tipo, detalle y
   justificación disponibles.
+
+Un pedido `no_aprobado` (rechazado en la conciliación) no aparece en ninguna hoja. Un pedido
+sincronizado aparece una sola vez: su designación ya es la vigente.
 
 Los encabezados usan el nombre del período activo y, en la primera hoja, el
 período anterior por `ImpactoDesde`; si no existe, la referencia anterior queda
@@ -95,6 +100,36 @@ registrada como ancla [BR-designaciones-020]. Identity aporta persona, CUIL, fec
 `pedido-estado-divergente` y `ancla-no-reproducida`; `id` es técnico (evento, pedido o ancla).
 Devuelve `404` si el período no existe. Sólo lee.
 
+## Conciliación del lote
+
+| Método | Ruta                                          | Permiso                   | Entrada / salida                              |
+| ------ | --------------------------------------------- | ------------------------- | --------------------------------------------- |
+| GET    | `/api/designaciones/conciliacion`             | `designaciones.conciliar` | `ConciliacionDto`                             |
+| POST   | `/api/designaciones/conciliacion/sincronizar` | `designaciones.conciliar` | `SincronizarConciliacionDto` → `{ numeros }`  |
+| POST   | `/api/designaciones/pedidos/{id}/no-aprobar`  | `designaciones.conciliar` | comentario (motivo) obligatorio → `PedidoDto` |
+
+`ConciliacionDto` = `{ periodo, docentes }`: `periodo` es el activo (o `null`) y `docentes` trae
+una entrada por pedido `en_lote`, `no_aprobado` o `aprobado` del período activo dentro del ámbito
+del actor, con `{ personaId, nombre, apellido, cuil, documento, personaNueva, pedido, vigentes }`.
+`pedido` informa `numero`, `version`, `novedad`, `estado`, materia y carrera, `hoy` (lo vigente en
+esa materia; para un `aprobado`, la fotografía tomada al enviar), `queda` (lo pedido; `null` en
+una Baja), justificación, tipo de baja, `motivoRechazo`, `sincronizadoEn`, `sincronizadoPor` y
+`acciones` (`sincronizar`, `rechazar`, `editar`). `vigentes` son todas las designaciones vigentes
+de la persona, en cualquier materia.
+
+Sincronizar recibe `{ pedidos: [{ id, version }] }` y es todo o nada en una sola transacción de
+Designaciones e Identity: cada pedido pasa a `aprobado` con su evento `sincronizar` sellado, se
+escribe su designación (Alta o Cambio) o se cierra la vigente (Baja) y se asigna o retira la
+membresía Docente en esa materia y carrera si la persona tiene usuario. Si un pedido cambió de
+versión o de estado, o no es del período activo, responde `409 conciliacion-pedido-cambio`
+nombrando el número y no aplica ninguno. Un pedido `en_lote` heredado, ya materializado al
+aceptar en Decanato (`materializado_en`), se sincroniza sin volver a escribir la designación, y
+no se puede rechazar ni editar.
+
+No aprobar pasa un pedido `en_lote` a `no_aprobado` con el motivo en el historial; sale del
+Excel. Con `designaciones.editar`, un pedido `en_lote` o `no_aprobado` se edita con el `PUT` de
+pedidos y vuelve a `en_lote`; un `aprobado` no se edita nunca.
+
 ## Pedidos
 
 | Método | Ruta                                           | Permiso                   | Entrada / salida                     |
@@ -118,8 +153,9 @@ Permiso de etapa significa `designaciones.aprobar_coordinacion`, `designaciones.
 
 Sin `designaciones.ver_seguimiento` (Jefe de Cátedra) la API arma una vista simplificada:
 `estado` es `borrador`, `en_proceso` (cualquier etapa de revisión o devuelto a otro actor),
-`devuelto` (sólo si volvió al rol activo de quien consulta), `aprobado` (`en_lote`), `rechazado` o
-`cancelado`; `historial` va vacío y `etapaRetorno` en `null`. `motivoDevolucion` trae el
+`devuelto` (sólo si volvió al rol activo de quien consulta), `en_proceso` también mientras está
+`en_lote`, `aprobado` (sincronizado), `rechazado` (por el circuito o en la conciliación; en este
+caso `motivoDevolucion` trae el motivo de la conciliación) o `cancelado`; `historial` va vacío y `etapaRetorno` en `null`. `motivoDevolucion` trae el
 comentario de la última devolución cuando el pedido está devuelto a quien consulta (con
 seguimiento, siempre que esté devuelto). `accionesPermitidas` se calcula sobre el estado real. `enviadoEn` (fecha del primer envío) se
 entrega a todos, con o sin seguimiento.
@@ -143,7 +179,7 @@ intención obsoleta en automático.
 
 ## Idempotencia
 
-`Idempotency-Key: <uuid>` es obligatorio en enviar, reenviar, aceptar, rechazar, devolver, priorizar y despriorizar. La clave se identifica junto con actor, ruta y pedido durante 24 horas:
+`Idempotency-Key: <uuid>` es obligatorio en enviar, reenviar, aceptar, rechazar, devolver, priorizar, despriorizar, no aprobar y sincronizar la conciliación. La clave se identifica junto con actor, ruta y pedido durante 24 horas (en la sincronización, el conjunto de pedidos y versiones):
 
 - repetir exactamente la solicitud no repite la transición: revalida el ámbito y retorna el pedido vigente con la vista que corresponde a los permisos actuales;
 - reutilizar la clave con otro payload o recurso retorna `409 idempotency-key-reused`;
@@ -165,5 +201,6 @@ Crear, editar y eliminar usan constraints y control de concurrencia, pero no el 
 | `identity-document-conflict`    | 409  | documento ya asociado a otra persona                                 |
 | `identity-destination-conflict` | 409  | nuevo destino inexistente o actor desactivado durante la mutación    |
 | `concurrency-conflict`          | 409  | pedido/vigencia cambió respecto de la observación usada para guardar |
+| `conciliacion-pedido-cambio`    | 409  | un pedido a sincronizar cambió de versión/estado o de período        |
 
 El catálogo `dedicaciones` devuelve `{ id, codigo, nombre, orden }` para las seis categorías activas 1–6. Las mutaciones envían `dedicacionSolicitadaId` (UUID); la lectura conserva `dedicacionSolicitada` como nombre histórico y agrega el ID opcional.

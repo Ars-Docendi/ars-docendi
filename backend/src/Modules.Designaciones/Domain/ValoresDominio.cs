@@ -32,16 +32,29 @@ public static class EstadosPedido
     public const string EnRevisionSecretaria = "en_revision_secretaria";
     public const string EnRevisionDecanato = "en_revision_decanato";
     public const string Devuelto = "devuelto";
+    /// <summary>Aceptado por Decanato y exportado para rectificar: pendiente de conciliar.</summary>
     public const string EnLote = "en_lote";
+    /// <summary>La rectificación lo aprobó y se sincronizó con las designaciones vigentes.</summary>
+    public const string Aprobado = "aprobado";
+    /// <summary>La rectificación no lo aprobó. Se puede corregir y vuelve a <see cref="EnLote"/>.</summary>
+    public const string NoAprobado = "no_aprobado";
     public const string Rechazado = "rechazado";
     public const string Cancelado = "cancelado";
 
     /// <summary>
     /// Estados terminales: no admiten ninguna acción posterior
-    /// [BR-designaciones-011]. <c>en_lote</c> es terminal para el alcance actual.
+    /// [BR-designaciones-011]. <c>aprobado</c> es terminal porque ya se escribió
+    /// sobre las designaciones vigentes.
     /// </summary>
     public static readonly IReadOnlySet<string> Terminales =
-        new HashSet<string> { EnLote, Rechazado, Cancelado };
+        new HashSet<string> { Aprobado, Rechazado, Cancelado };
+
+    /// <summary>
+    /// Estados de la conciliación del lote: salieron del circuito de revisión y sólo
+    /// admiten sincronizar, rechazar en la conciliación o editar con permiso.
+    /// </summary>
+    public static readonly IReadOnlySet<string> EnConciliacion =
+        new HashSet<string> { EnLote, NoAprobado };
 
     /// <summary>
     /// Estados que NO ocupan el cupo de BR-designaciones-001. Debe coincidir con el
@@ -115,6 +128,10 @@ public static class AccionesHistorial
     public const string Cancelar = "cancelar";
     public const string Priorizar = "priorizar";
     public const string Despriorizar = "despriorizar";
+    /// <summary>Aprobado en la conciliación y escrito sobre las designaciones vigentes.</summary>
+    public const string Sincronizar = "sincronizar";
+    /// <summary>Rechazado en la conciliación, con motivo.</summary>
+    public const string NoAprobar = "no_aprobar";
 }
 
 /// <summary>

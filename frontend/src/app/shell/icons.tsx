@@ -76,6 +76,12 @@ export const navIcons = {
       <path d="M6.5 9.5l1.6 1.6 3-3.6" />
     </svg>
   ),
+  conciliacion: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M15 9a6 6 0 01-10.4 4.1M3 9a6 6 0 0110.4-4.1" />
+      <path d="M14 2.5v3h-3M4 15.5v-3h3" />
+    </svg>
+  ),
   periodos: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="4" width="12" height="11" rx="1" />

@@ -55,6 +55,18 @@ export const routes: RouteObject = {
         },
       ],
     },
+    {
+      element: <RequirePermission permission="designaciones.conciliar" />,
+      children: [
+        {
+          path: "conciliacion",
+          lazy: () =>
+            import("./pages/ConciliacionPage").then(({ ConciliacionPage }) => ({
+              Component: ConciliacionPage,
+            })),
+        },
+      ],
+    },
     // SCRUM-8: el detalle es accesible a cualquier rol; la visibilidad se acota por ámbito en la página.
     {
       path: "pedidos/:id",

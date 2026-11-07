@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprobación/rechazo por Coordinador de Carrera → revisión por Secretaría Académica → aprobación final por Decanato.
+Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprobación/rechazo por Coordinador de Carrera → revisión por Secretaría Académica → aprobación final por Decanato → lote (Excel) → conciliación con la rectificación y sincronización.
 
 ## Roles que interactúan
 
@@ -43,7 +43,7 @@ El `snapshot` se congela **al enviar** a revisión, no al crear. Es lo que le da
 
 ### Trazabilidad
 
-Aprobar un pedido se traduce a escrituras sobre `designaciones` en una única transacción:
+Aceptar en Decanato deja el pedido `en_lote`: entra al Excel pero todavía no cambia la designación. La rectificación vuelve con lo que efectivamente se aprobó y, en la pantalla de Conciliación (`designaciones.conciliar`), se acepta por docente, se rechaza con motivo (`no_aprobado`, sale del Excel) o se edita (`designaciones.editar`). **Sincronizar** pasa los aceptados a `aprobado` y recién ahí escribe sobre `designaciones`, en una única transacción:
 
 ```
 Alta        → INSERT de una designación nueva
@@ -52,6 +52,8 @@ Cambio      → actualiza la misma fila si inició en la fecha efectiva;
               en otro caso cierra la vigente y abre una nueva
 Continuidad → se conserva la designación vigente y no crea pedido
 ```
+
+En esa misma transacción (Designaciones e Identity) la persona conserva sus datos (sin mail si no lo tenía) y, si tiene usuario, recibe o pierde la membresía Docente en esa materia y carrera. Sin usuario, el editor de personas precarga el rol Docente según sus designaciones al crear la cuenta. Un pedido sincronizado no se edita nunca. Los pedidos `en_lote` anteriores a la conciliación (`materializado_en`) ya escribieron su designación al aceptar y se sincronizan sin reescribirla.
 
 `origen_pedido_id` en NULL significa **carga administrativa directa**: la pantalla de administración de docentes escribe esta misma tabla. Son dos caminos de escritura hacia una sola tabla, y esa columna es lo único que permite distinguirlos.
 
@@ -107,13 +109,14 @@ ni a repositorios de Identity.
 
 ## Endpoints HTTP
 
-| Recurso            | Path                                         | Autoridad                                                           |
-| ------------------ | -------------------------------------------- | ------------------------------------------------------------------- |
-| Períodos           | `/api/designaciones/periodos`                | permiso `periodos.administrar`                                      |
-| Catálogos acotados | `/api/designaciones/catalogos`               | identidad y ámbitos persistidos                                     |
-| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`          | permisos y visibilidad resueltos por backend                        |
-| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}`   | máquina de estados, permiso de etapa e idempotencia                 |
-| Lote XLSX          | `/api/designaciones/periodos/{id}/lote.xlsx` | Secretaría, Decanato o Administración departamental; período activo |
+| Recurso            | Path                                            | Autoridad                                                           |
+| ------------------ | ----------------------------------------------- | ------------------------------------------------------------------- |
+| Períodos           | `/api/designaciones/periodos`                   | permiso `periodos.administrar`                                      |
+| Catálogos acotados | `/api/designaciones/catalogos`                  | identidad y ámbitos persistidos                                     |
+| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`             | permisos y visibilidad resueltos por backend                        |
+| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}`      | máquina de estados, permiso de etapa e idempotencia                 |
+| Lote XLSX          | `/api/designaciones/periodos/{id}/lote.xlsx`    | Secretaría, Decanato o Administración departamental; período activo |
+| Conciliación       | `/api/designaciones/conciliacion[/sincronizar]` | permiso `designaciones.conciliar`; período activo                   |
 
 El contrato completo está en [api-contracts-designaciones.md](../api-contracts-designaciones.md).
 
@@ -125,7 +128,7 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 
 ## Dependencias
 
-- **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta. La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
+- **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta y, al sincronizar, para asignar o retirar la membresía Docente (`AsignarRolDocenteAsync`, `RetirarRolDocenteAsync`). La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
 - **Exportación**: el lote es una proyección de sólo lectura ([exportacion-lote-designaciones](../../../openspec/specs/exportacion-lote-designaciones/spec.md)); el correo de las altas sale de `IPortalQueries`.
 - **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`), `ArsDocendi.Storage.Contracts` (adjuntos de pedidos) y `Modules.Notificaciones.Contracts` (`INotificador`).
 - **Avisos**: `ServicioPedidosApi` avisa **después del commit más externo** (la transición idempotente corre dentro de una transacción) y sólo para tres acciones: Aceptar a una etapa con revisor (Secretaría o Decanato; `en_lote` no avisa), Rechazar (a los Jefes de la materia) y Devolver (al rol propietario de la etapa de origen, en el ámbito del pedido). Enviar, Reenviar, Cancelar y las prioridades no avisan. Ver [notificaciones.md](./notificaciones.md).

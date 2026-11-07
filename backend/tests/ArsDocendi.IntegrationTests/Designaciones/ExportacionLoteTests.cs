@@ -13,18 +13,15 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "exportacion_lote")
 {
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
-    private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
-    [Theory]
-    [InlineData("a0000000-0000-4000-8000-000000000004", "secretaria")]
-    [InlineData("a0000000-0000-4000-8000-000000000005", "decanato")]
-    [InlineData("a0000000-0000-4000-8000-000000000006", "administrativo")]
-    public async Task Rol_departamental_descarga_la_planilla_institucional(string usuario, string rol)
+    [Fact]
+    public async Task Secretaria_descarga_la_planilla_institucional()
     {
         var ct = TestContext.Current.CancellationToken;
         await EjecutarSeedAsync(ct);
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse(usuario), rol);
+        Autenticar(cliente, Secretaria, "secretaria");
 
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
 
@@ -59,8 +56,12 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         Assert.Equal("n", Celda(filas.First(), "G")?.Attribute("t")?.Value);
     }
 
-    [Fact]
-    public async Task API_rechaza_sin_autenticacion_y_roles_fuera_del_lote()
+    [Theory]
+    [InlineData("a0000000-0000-4000-8000-000000000002", "jefe_catedra")]
+    // Departamentales sin designaciones.exportar_lote: exportar se decide por permiso, no por rol.
+    [InlineData("a0000000-0000-4000-8000-000000000005", "decanato")]
+    [InlineData("a0000000-0000-4000-8000-000000000006", "administrativo")]
+    public async Task API_rechaza_sin_autenticacion_y_sin_permiso_de_exportar(string usuario, string rol)
     {
         var ct = TestContext.Current.CancellationToken;
         await EjecutarSeedAsync(ct);
@@ -71,7 +72,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             (await sinAutenticar.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct)).StatusCode);
 
         using var cliente = host.CreateClient();
-        Autenticar(cliente, Jefe, "jefe_catedra");
+        Autenticar(cliente, Guid.Parse(usuario), rol);
         Assert.Equal(
             HttpStatusCode.Forbidden,
             (await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct)).StatusCode);
@@ -85,7 +86,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         await EjecutarAsync("UPDATE designaciones.periodos SET activo = FALSE WHERE id = @id", ct, new NpgsqlParameter("id", Periodo));
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         Assert.Equal(
             HttpStatusCode.Conflict,
             (await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct)).StatusCode);
@@ -112,7 +113,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'", ct);
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
@@ -137,6 +138,97 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Cambio_en_lote_sin_sincronizar_muestra_lo_que_propone_el_pedido()
+    {
+        // Aceptado por Decanato y todavía no sincronizado: la designación vigente sigue igual,
+        // pero el lote que va a rectificar ya lleva el cambio.
+        var ct = TestContext.Current.CancellationToken;
+        // En el seed es un borrador: sin un evento fuera de borrador no habría qué sellar.
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'en_lote'
+             WHERE id = 'd5000000-0000-4000-8000-000000000001';
+            INSERT INTO designaciones.pedido_historial
+                (id, pedido_id, accion, rol_id, actor_id, etapa, comentario, created_at)
+            VALUES ('d7000000-0000-4000-8000-000000000901', 'd5000000-0000-4000-8000-000000000001',
+                    'aceptar', 'a1000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000005',
+                    'en_lote', NULL, TIMESTAMPTZ '2026-06-20 12:00:00+00');
+            """);
+
+        var (propuesta, _, _) = await DescargarAsync(ct);
+
+        var fila = Assert.Single(FilasDeDatos(propuesta, 5),
+            f => Valor(f, "B") == "López, Carla" && Valor(f, "F") == "Ampliación de responsabilidades");
+        Assert.StartsWith("Profesor Asociado", Valor(fila, "E"), StringComparison.Ordinal);
+        Assert.NotEqual(Valor(fila, "D"), Valor(fila, "E"));
+    }
+
+    [Fact]
+    public async Task Baja_en_lote_sin_sincronizar_no_duplica_la_continuidad()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'en_lote'
+             WHERE id = 'd5000000-0000-4000-8000-000000000008';
+            """);
+
+        var (propuesta, _, bajas) = await DescargarAsync(ct);
+
+        Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Giménez, Laura");
+        Assert.Contains("Giménez, Laura", Texto(bajas));
+    }
+
+    [Fact]
+    public async Task Alta_sincronizada_aparece_una_sola_vez()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'aprobado', materializado_en = now()
+             WHERE id = 'd5000000-0000-4000-8000-000000000004';
+            INSERT INTO designaciones.designaciones
+                (id, persona_id, materia_id, carrera_id, cargo_id, dedicacion_id, horas,
+                 horas_investigacion, horas_externas, vigente_desde, origen_pedido_id)
+            SELECT 'd6000000-0000-4000-8000-000000000099', persona_id, materia_id, carrera_id,
+                   cargo_solicitado_id, dedicacion_solicitada_id, horas, horas_investigacion,
+                   horas_externas, DATE '2026-08-01', id
+              FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000004';
+            """);
+
+        var (propuesta, altas, _) = await DescargarAsync(ct);
+
+        Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Ortiz, Brenda");
+        Assert.Contains("Ortiz, Brenda", Assert.Single(FilasDeDatos(altas, 2)).ToString());
+    }
+
+    [Fact]
+    public async Task Rechazado_en_la_conciliacion_sale_de_las_tres_hojas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct, """
+            UPDATE designaciones.pedidos SET estado = 'no_aprobado'
+             WHERE id IN ('d5000000-0000-4000-8000-000000000004', 'd5000000-0000-4000-8000-000000000008');
+            """);
+
+        var (propuesta, altas, bajas) = await DescargarAsync(ct);
+
+        Assert.DoesNotContain("Ortiz, Brenda", Texto(propuesta) + Texto(altas) + Texto(bajas));
+        Assert.DoesNotContain("Giménez, Laura", Texto(bajas));
+    }
+
+    private async Task<(XDocument Propuesta, XDocument Altas, XDocument Bajas)> DescargarAsync(CancellationToken ct)
+    {
+        using var cliente = CrearHost().CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+        using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        using var zip = new ZipArchive(
+            new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
+        return (
+            LeerXml(zip, "xl/worksheets/sheet1.xml"),
+            LeerXml(zip, "xl/worksheets/sheet2.xml"),
+            LeerXml(zip, "xl/worksheets/sheet3.xml"));
+    }
+
+    [Fact]
     public async Task XLSX_conserva_textos_literales_CUIL_y_celdas_sin_fuente()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -149,7 +241,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             """, ct);
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
@@ -176,7 +268,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         await EjecutarAsync("DELETE FROM designaciones.periodos WHERE id <> @id", ct, new NpgsqlParameter("id", Periodo));
 
         using var cliente = CrearHost().CreateClient();
-        Autenticar(cliente, Guid.Parse("a0000000-0000-4000-8000-000000000005"), "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         using var respuesta = await cliente.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);

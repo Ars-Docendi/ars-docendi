@@ -11,7 +11,9 @@ type Tono = "exito" | "aviso" | "peligro" | "neutro";
  * cambio, la pone Designaciones (D2). Un código que no se conoce queda neutro.
  */
 const TONO_POR_ESTADO: Record<string, Tono> = {
-  en_lote: "exito",
+  en_lote: "aviso",
+  aprobado: "exito",
+  no_aprobado: "peligro",
   en_revision_coordinador: "aviso",
   en_revision_secretaria: "aviso",
   en_revision_decanato: "aviso",

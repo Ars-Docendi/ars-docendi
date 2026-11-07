@@ -87,7 +87,8 @@ async function completarAlta(user: ReturnType<typeof userEvent.setup>) {
 async function adjuntar(user: ReturnType<typeof userEvent.setup>, titulo: string, nombre: string) {
   const input = screen.getByText(titulo).parentElement?.querySelector("input[type=file]");
   if (!(input instanceof HTMLInputElement)) throw new Error(`No se encontró el adjunto ${titulo}`);
-  await user.upload(input, new File(["contenido"], nombre, { type: "application/pdf" }));
+  const tipo = nombre.endsWith(".pdf") ? "application/pdf" : "image/jpeg";
+  await user.upload(input, new File(["contenido"], nombre, { type: tipo }));
 }
 
 describe("PedidoForm", () => {
@@ -373,8 +374,8 @@ describe("PedidoForm", () => {
       await user.click(screen.getByLabelText("Alta"));
       await completarAlta(user);
       await adjuntar(user, "CV (PDF)", "cv.pdf");
-      await adjuntar(user, "DNI · Frente", "frente.pdf");
-      await adjuntar(user, "DNI · Dorso", "dorso.pdf");
+      await adjuntar(user, "DNI · Frente", "frente.jpg");
+      await adjuntar(user, "DNI · Dorso", "dorso.jpg");
 
       await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
 
