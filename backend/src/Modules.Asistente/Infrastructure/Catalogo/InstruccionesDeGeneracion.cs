@@ -40,6 +40,11 @@ internal static class InstruccionesDeGeneracion
            con `=`. Lo que alguien escribe casi nunca coincide carácter por
            carácter con lo que hay guardado, y una consulta válida que no matchea
            nada se ve igual que un dato que no existe.
+        9. Cuando la consulta liste personas (una fila por docente, o por
+           designación), agregá como ÚLTIMA columna `p.id AS persona_id`; si lista
+           solicitudes de reserva de aulas, `s.id AS solicitud_id`. La interfaz usa
+           esa columna para enlazar el nombre a su pantalla y no la muestra. No la
+           agregues a un conteo ni a una agregación.
 
            `public.unaccent` va de LOS DOS LADOS, y calificada con su esquema.
            `ILIKE` ignora mayúsculas pero NO tildes: `apellido ILIKE '%Diaz%'` no

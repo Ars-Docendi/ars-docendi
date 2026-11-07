@@ -65,6 +65,55 @@ public sealed class ServicioAdministracionPersonas(
             .Any(d => d.PersonaId == personaId && materiasVisibles.Contains(d.MateriaId));
     }
 
+    /// <summary>De las personas dadas, las que el ámbito del actor deja abrir.</summary>
+    public async Task<IReadOnlySet<Guid>> PersonasEnAmbitoAsync(
+        IReadOnlyCollection<Guid> ids, IReadOnlySet<Guid>? materiasVisibles, CancellationToken ct)
+    {
+        var existentes = (await repositorio.ListarPersonasAsync(ct))
+            .Where(p => ids.Contains(p.Id))
+            .Select(p => p.Id)
+            .ToHashSet();
+
+        if (materiasVisibles is null || existentes.Count == 0) return existentes;
+
+        var conDesignacion = (await designaciones.ListarVigentesAsync(ct))
+            .Where(d => existentes.Contains(d.PersonaId) && materiasVisibles.Contains(d.MateriaId))
+            .Select(d => d.PersonaId)
+            .ToHashSet();
+
+        return conDesignacion;
+    }
+
+    /// <summary>Lo que muestra la tarjeta del asistente: nombre y designaciones dentro del ámbito.</summary>
+    public async Task<FichaDePersonaDto?> FichaAsync(
+        Guid personaId, IReadOnlySet<Guid>? materiasVisibles, CancellationToken ct)
+    {
+        if (!(await PersonasEnAmbitoAsync([personaId], materiasVisibles, ct)).Contains(personaId))
+        {
+            return null;
+        }
+
+        var persona = await repositorio.ObtenerPersonaAsync(personaId, false, ct);
+        if (persona is null) return null;
+
+        var materias = (await repositorio.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
+        var carreras = (await repositorio.ListarCarrerasAsync(ct)).ToDictionary(c => c.Id);
+
+        var lineas = (await designaciones.ListarVigentesAsync(ct))
+            .Where(d => d.PersonaId == personaId
+                && (materiasVisibles is null || materiasVisibles.Contains(d.MateriaId)))
+            .Select(d => string.Join(" · ", new[]
+            {
+                materias.GetValueOrDefault(d.MateriaId)?.Nombre,
+                d.CargoNombre,
+                carreras.GetValueOrDefault(d.CarreraId)?.Nombre,
+            }.Where(t => !string.IsNullOrWhiteSpace(t))))
+            .Order(StringComparer.CurrentCulture)
+            .ToArray();
+
+        return new FichaDePersonaDto(persona.Apellido, persona.Nombre, lineas);
+    }
+
     public async Task<CatalogosPersonasDto> ObtenerCatalogosAsync(CancellationToken ct)
     {
         var materias = await repositorio.ListarMateriasAsync(ct);
@@ -392,3 +441,6 @@ public sealed class ServicioAdministracionPersonas(
         "resource-not-found",
         "No se encontró la persona solicitada.");
 }
+
+/// <summary>La ficha de una persona para la tarjeta del asistente.</summary>
+public sealed record FichaDePersonaDto(string Apellido, string Nombre, IReadOnlyList<string> Designaciones);
