@@ -1268,13 +1268,13 @@ borre esa conversación (borrado permanente, sin papelera). Sin FK, un id que ya
 no existe sigue siendo una fila de auditoría perfectamente legible.
 
 **Lectura de `comisiones`.** Cuatro de las cinco tablas del snapshot de Guaraní se
-conceden a los dos roles (`001_asistente_grants.sql`, columna por columna; `sga_importaciones`
+conceden a los dos roles (`011_asistente_grants_dominios.sql`, columna por columna; `sga_importaciones`
 queda denegada). La RLS (`ENABLE`, predicado `comisiones.ver` sin ámbito) y los `COMMENT ON`
 son migraciones de Designaciones, que es el dueño del schema; el `GRANT` corre después.
 Ver BR-asistente-010.
 
 **Lectura de `aulas`.** La única tabla del schema, `aulas.solicitudes_reserva`, se concede
-entera a los dos roles (`001_asistente_grants.sql`); la RLS (`ENABLE`, `aulas.aprobar` todas /
+entera a los dos roles (`011_asistente_grants_dominios.sql`); la RLS (`ENABLE`, `aulas.aprobar` todas /
 `aulas.solicitar` las propias) y los `COMMENT ON` son migraciones de Aulas
 (`RlsAsistenteSolicitudesAulas`, `ComentariosAsistenteSolicitudesAulas`). Ver BR-asistente-011.
 
@@ -1303,7 +1303,9 @@ columna faltante hace reventar el `INSERT` del registro en cada turno, el escrit
 traga el fallo para no tumbar el servicio y el registro deja de guardar en silencio.
 
 Los archivos corren en orden y el orden importa: `001_asistente_grants.sql`
-concede la lectura; `002_asistente_registros.sql` crea el schema propio y se lo
+concede la lectura (está protegido en `database/migraciones-protegidas.json`: lo que se
+sume después, comisiones, aulas y `portal.proyectos`, va en
+`011_asistente_grants_dominios.sql`, que `MigradorAsistente` aplica justo después); `002_asistente_registros.sql` crea el schema propio y se lo
 revoca a los dos roles —para revocar un schema, primero tiene que existir—;
 `003_asistente_retroalimentacion.sql` crea la tabla de retroalimentación **después**,
 porque su clave primaria es una FK hacia `registro_analitico`; y

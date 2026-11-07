@@ -1,6 +1,6 @@
 ## Context
 
-The assistant reads foreign schemas with two read roles and column-by-column `GRANT` (AGENTS.md rule 11). `asistente-lee-comisiones` built the pattern this change copies: RLS migration plus `COMMENT ON` migration in the owning module's chain, grants in `database/asistente/001_asistente_grants.sql`, both manifests, a domain flag in `DetectorDeDominios`, a permission flag read live in `ConsultorDeAlcance`, per-domain abstention, fixture, evaluator items.
+The assistant reads foreign schemas with two read roles and column-by-column `GRANT` (AGENTS.md rule 11). `asistente-lee-comisiones` built the pattern this change copies: RLS migration plus `COMMENT ON` migration in the owning module's chain, grants in `database/asistente/011_asistente_grants_dominios.sql`, both manifests, a domain flag in `DetectorDeDominios`, a permission flag read live in `ConsultorDeAlcance`, per-domain abstention, fixture, evaluator items.
 
 Facts checked before writing this design:
 
@@ -59,4 +59,4 @@ The fixture seeds twelve requests: three pending, four approved (two on one date
 
 ## Migration / Rollback
 
-Two incremental migrations in the Aulas chain (RLS first, comments after); the grant lives in `001_asistente_grants.sql`, which `MigradorAsistente` re-applies as a whole. Rollback: revert the grant and manifests first, then the migrations; nothing is written to existing data.
+Two incremental migrations in the Aulas chain (RLS first, comments after); the grant lives in `011_asistente_grants_dominios.sql`, which `MigradorAsistente` re-applies as a whole. Rollback: revert the grant and manifests first, then the migrations; nothing is written to existing data.

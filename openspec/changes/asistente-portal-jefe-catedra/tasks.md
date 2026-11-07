@@ -8,13 +8,13 @@
 
 - [x] 1.1 Red first: change `PermisoYPersonaPortalTests.El_permiso_existe_y_no_lo_tiene_ningun_rol` to assert that exactly `jefe_catedra` holds it, and add a test that a `jefe_catedra` actor with a designación sees the profile of a docente designated in their materia and not of one designated elsewhere. Verify: `dotnet test backend/ArsDocendi.slnx --filter RlsPortalAsistente` fails, then passes after 1.2
 - [x] 1.2 `node scripts/migrations/scaffold.mjs Identity PermisoPortalTrayectoriaAjenaJefeCatedra`: insert the `jefe_catedra` row in `identity.rol_permisos`, idempotent, header with D1 and the blast radius. Verify: `node --test scripts/tests/migrations.test.mjs`, `node scripts/migrations/validate.mjs`
-- [x] 1.3 Update the stale comment in `database/asistente/001_asistente_grants.sql` (portal block, «concedido A NADIE») in the same diff as 2.3. Verify: `ManifiestoPrivilegiosTests`
+- [x] 1.3 Correct the stale «concedido A NADIE» claim: `001` is protected and cannot be edited, so the corrected explanation lives in the portal block of `database/asistente/011_asistente_grants_dominios.sql` in the same diff as 2.3. Verify: `ManifiestoPrivilegiosTests`
 
 ## 2. Projects
 
 - [x] 2.1 Red first: boundary test with a disposable `NOSUPERUSER NOBYPASSRLS` role: a jefe sees projects of docentes in their materias and none of others; no actor sees none; the owner connection sees all; `descripcion` fails for lack of privilege (not zero rows). Verify: `dotnet test backend/ArsDocendi.slnx --filter RlsPortal` fails, then passes after 2.2 and 2.3
 - [x] 2.2 `node scripts/migrations/scaffold.mjs Portal RlsAsistenteProyectos`: `ENABLE` (not `FORCE`) RLS and `asistente_ve_proyectos` with the `educaciones` pattern. Verify: migration checks as in 1.2
-- [x] 2.3 `GRANT SELECT (id, perfil_id, nombre, rol, desde, hasta, doi, created_at) ON portal.proyectos` to both roles in `001_asistente_grants.sql` after the RLS. Verify: `PrivilegiosLecturaTests`
+- [x] 2.3 `GRANT SELECT (id, perfil_id, nombre, rol, desde, hasta, doi, created_at) ON portal.proyectos` to both roles in `011_asistente_grants_dominios.sql` after the RLS. Verify: `PrivilegiosLecturaTests`
 - [x] 2.4 `manifiesto-privilegios.json`: `proyectos` `concedida` with granted columns and denied `descripcion` with its reason; reword the `portal` schema `motivo`; `proyecto_documentos` unchanged. Verify: all four directions of `ManifiestoPrivilegiosTests`
 - [x] 2.5 `manifiesto-sensibilidad.json`: classify the granted columns. Verify: `ManifiestoSensibilidadTests`
 - [x] 2.6 `node scripts/migrations/scaffold.mjs Portal ComentariosAsistenteProyectos`: `COMMENT ON` for the table and granted columns with the facts of the spec. Verify: migration checks; prefix test of 3.2

@@ -32,7 +32,7 @@ The data exists since PR #58: the `comisiones` schema is a SIU-Guaraní snapshot
 
 ## Impact
 
-- **Database**: `database/asistente/001_asistente_grants.sql` and both manifests; two new migrations in the Designaciones chain for RLS and comments (see design D4). No change to the comisiones DDL.
+- **Database**: `database/asistente/011_asistente_grants_dominios.sql` and both manifests; two new migrations in the Designaciones chain for RLS and comments (see design D4). No change to the comisiones DDL.
 - **`Modules.Asistente`**: `PoliticaDeAbstencion`, `PerfilDelActor`, `ConsultorDeAlcance`, `CarrilSql`, `CarrilDelPlan` (call-site only), `EtiquetasDeAreas`, `ejemplos-sql.json`, a small coverage reader for imported períodos.
 - **Evaluator**: `GeneradorDeFixture`, `capacidad.json`, `robustez.json`, baselines. Existing item `cap-019` ("¿En qué aula se dicta Sistemas Operativos?") stops being non-answerable and must be reclassified.
 - **Dependency graph**: no new project reference. The boundary is the database engine (AGENTS.md rule 11), not `Contracts`.

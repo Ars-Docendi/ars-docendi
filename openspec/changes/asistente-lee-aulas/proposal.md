@@ -31,7 +31,7 @@ The data is one table, `aulas.solicitudes_reserva`. The assistant's manifest lis
 
 ## Impact
 
-- **Database**: `database/asistente/001_asistente_grants.sql` and both manifests; two new migrations in the Aulas chain (RLS, then comments). No change to the `aulas` DDL.
+- **Database**: `database/asistente/011_asistente_grants_dominios.sql` and both manifests; two new migrations in the Aulas chain (RLS, then comments). No change to the `aulas` DDL.
 - **`Modules.Asistente`**: `DetectorDeDominios` (`Aulas` flag), `PoliticaDeAbstencion`, `PerfilDelActor` (two flags read live in `ConsultorDeAlcance`), `EtiquetasDeAreas`, `PresentacionPorRol`, `CatalogoDeCapacidades`, `ejemplos-sql.json`.
 - **Evaluator**: `GeneradorDeFixture`, `capacidad.json`, `robustez.json`; baselines are re-recorded by the funded run, not here.
 - **Dependency graph**: no new project reference. The boundary is the database engine (AGENTS.md rule 11), not `Contracts`.

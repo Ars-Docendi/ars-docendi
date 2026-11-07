@@ -212,7 +212,7 @@ libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
 
 **Lectura por el asistente.** `solicitudes_reserva` es legible por los dos roles de
 lectura del asistente: `GRANT SELECT` en todas sus columnas
-(`database/asistente/001_asistente_grants.sql`, listado en `manifiesto-privilegios.json`)
+(`database/asistente/001_asistente_grants.sql` y `011_asistente_grants_dominios.sql`, listado en `manifiesto-privilegios.json`)
 y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT` cuyo predicado espeja la
 pantalla: `aulas.aprobar` ve todas; `aulas.solicitar` sólo las propias
 (`docente_id = identity.asistente_persona()`). El dueño (la aplicación) queda exento.
@@ -275,7 +275,7 @@ parcial sobre `sga_importaciones(periodo_lectivo_guarani_id) WHERE estado =
 
 **Lectura por el asistente.** Las cuatro tablas de datos (no `sga_importaciones`) son
 legibles por los dos roles de lectura del asistente: `GRANT SELECT` por columna
-(`database/asistente/001_asistente_grants.sql`, listado en
+(`database/asistente/001_asistente_grants.sql` y `011_asistente_grants_dominios.sql`, listado en
 `manifiesto-privilegios.json`) y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT`
 por tabla cuyo predicado es `identity.asistente_tiene_permiso('comisiones.ver')`, sin
 ámbito. El dueño (la aplicación y el importador) queda exento. Las policies y los
@@ -552,7 +552,7 @@ Tres decisiones de esquema que sostienen la desvinculación, y las tres están e
 
 Retención de 90 días configurable, con purga automática en el proceso (`PurgaDeRegistros` + un servicio hospedado) y test de retención en las dos direcciones. Una retención sin un mecanismo que borre es una frase en un documento.
 
-**Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql`, que ejecuta el migrador del módulo con las tablas ya creadas.
+**Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql` (protegido) y `011_asistente_grants_dominios.sql` (comisiones, aulas, `portal.proyectos`), que ejecuta el migrador del módulo con las tablas ya creadas.
 
 ### El historial propio y la auditoría de soporte
 

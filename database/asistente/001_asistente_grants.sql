@@ -47,8 +47,6 @@ BEGIN
   EXECUTE format('GRANT USAGE ON SCHEMA identity TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT USAGE ON SCHEMA designaciones TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT USAGE ON SCHEMA portal TO %I, %I', rol_basico, rol_pii);
-  EXECUTE format('GRANT USAGE ON SCHEMA comisiones TO %I, %I', rol_basico, rol_pii);
-  EXECUTE format('GRANT USAGE ON SCHEMA aulas TO %I, %I', rol_basico, rol_pii);
 
   -- El schema audit queda FUERA DE ALCANCE, entero. change_log.old_row y
   -- change_log.new_row guardan la fila completa en JSON: cualquier dato personal
@@ -136,10 +134,9 @@ BEGIN
   -- ------------------------------------------------------------------
   -- portal
   -- ------------------------------------------------------------------
-  -- LAS SEIS TABLAS DEL CATÁLOGO DE PREGUNTAS MÁS `proyectos` (2026-11-07, el jefe
-  -- de cátedra que busca quién puede dictar una materia pide los antecedentes de
-  -- investigación). El alcance se derivó de las preguntas y no de lo que la base
-  -- tiene disponible: `cvs` y `proyecto_documentos` quedan afuera porque ninguna
+  -- LAS SEIS TABLAS QUE EL CATÁLOGO DE PREGUNTAS NECESITA, y ninguna más. El
+  -- alcance se derivó de las preguntas y no de lo que la base tiene disponible:
+  -- `cvs`, `proyectos` y `proyecto_documentos` quedan afuera porque ninguna
   -- pregunta las pide, y una tabla expuesta que nadie consulta es prefijo de prompt
   -- que se paga en cada llamada, para siempre.
   --
@@ -149,21 +146,15 @@ BEGIN
   -- ninguno de los dos, así que no queda nada que separar.
   --
   -- CONCEDER ESTO NO ABRE EL PADRÓN. El predicado de RLS es «mi propio perfil OR
-  -- (tengo portal.ver_trayectoria_ajena Y el ámbito alcanza a la persona)». El
-  -- permiso lo tiene únicamente el rol `jefe_catedra` (decisión del equipo,
-  -- 2026-11-07; migración PermisoPortalTrayectoriaAjenaJefeCatedraIdentity), y su
-  -- ámbito son los docentes con designación vigente en sus materias. Cualquier otro
-  -- rol sólo ve su propio perfil hasta que alguien le conceda el permiso desde
-  -- /roles, que es una acción de administración y no un despliegue.
+  -- tengo portal.ver_trayectoria_ajena», y ese permiso está concedido A NADIE. Con
+  -- el GRANT puesto, cada actor ve exactamente su propio perfil y nada más; el
+  -- disyunto ajeno queda inerte hasta que Secretaría decida a quién dárselo, que es
+  -- una acción de administración y no un despliegue.
   --
-  -- `proyectos` se concede SIN `descripcion` (texto libre, mismo problema de
-  -- enmascarado que `experiencias.descripcion`). Su policy la crea
-  -- RlsAsistenteProyectosPortal, que corre antes que este archivo.
-  --
-  -- Cinco columnas NO se conceden y el motivo va en manifiesto-privilegios.json:
+  -- Cuatro columnas NO se conceden y el motivo va en manifiesto-privilegios.json:
   -- `habilidades.usos` es un contador agregado sobre todo el padrón y una policy por
   -- fila no puede acotarlo; `sugerido` y `canonica_id` son curaduría del vocabulario;
-  -- y `experiencias.descripcion` y `proyectos.descripcion` son texto libre autodeclarado que el enmascarador no
+  -- y `experiencias.descripcion` es texto libre autodeclarado que el enmascarador no
   -- puede proteger, porque una expresión sobre esa columna reporta OID 0 y se trata
   -- como pública.
   EXECUTE format('GRANT SELECT (id, persona_id, created_at) ON portal.perfiles TO %I, %I', rol_basico, rol_pii);
@@ -172,57 +163,5 @@ BEGIN
   EXECUTE format('GRANT SELECT (id, perfil_id, puesto, organizacion, desde, hasta, created_at) ON portal.experiencias TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (id, termino, termino_norm, created_at) ON portal.habilidades TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (perfil_id, habilidad_id, tipo, created_at) ON portal.docente_habilidades TO %I, %I', rol_basico, rol_pii);
-  EXECUTE format('GRANT SELECT (id, perfil_id, nombre, rol, desde, hasta, doi, created_at) ON portal.proyectos TO %I, %I', rol_basico, rol_pii);
-
-  -- ------------------------------------------------------------------
-  -- comisiones
-  -- ------------------------------------------------------------------
-  -- CUATRO DE LAS CINCO TABLAS, derivadas de las preguntas (qué comisiones tiene un
-  -- docente, quién dicta la comisión 02, en qué días, horarios y aulas, cuántas
-  -- carga cada uno). `sga_importaciones` NO se concede: es el registro operativo de
-  -- cada importación y nombra a quien la hizo (`usuario_id`); ninguna pregunta del
-  -- catálogo lo necesita. El motor lo rechaza por falta de privilegio, no devuelve
-  -- cero filas.
-  --
-  -- LOS DOS ROLES RECIBEN LO MISMO. Ninguna columna concedida es personal:
-  -- `sga_comision_docentes.nombre` va al rol básico igual que identity.personas.nombre,
-  -- porque `persona_id` es nullable (docente de Guaraní sin persona vinculada) y sin el
-  -- nombre ese docente desaparecería de las respuestas. El documento nunca se guarda.
-  --
-  -- ESTE GRANT VIVE ACÁ Y NO EN UN ARCHIVO NUEVO. Este archivo no tiene historial EF:
-  -- MigradorAsistente lo reaplica entero y registra una huella, así que la regla de
-  -- «no editar una migración publicada» (que protege SQL congelado por historial) no
-  -- aplica; es donde se concedió portal. Un archivo 011 exigiría cablear recurso, lista
-  -- y llamada sin agregar protección: los tests de manifiesto comparan la base efectiva
-  -- contra el manifiesto, no archivo contra archivo.
-  --
-  -- CORRE DESPUÉS DEL RLS. El módulo asistente se aplica después de Designaciones, que
-  -- es quien habilita RLS y crea las policies sobre estas tablas
-  -- (RlsAsistenteComisiones). Conceder antes abriría el snapshot entero en la ventana
-  -- entre los dos merges; por eso el orden es parte de la frontera y no un detalle.
-  --
-  -- Columnas NO concedidas (el motivo va en manifiesto-privilegios.json):
-  -- sga_comisiones.importacion_id (FK hacia el registro denegado),
-  -- periodo_lectivo_guarani_id (clave opaca), modalidad_codigo (código de Guaraní) y
-  -- created_at (mecánica de importación); sga_comision_horarios.asignacion_guarani_id.
-  EXECUTE format('GRANT SELECT (comision_guarani_id, anio_academico, periodo_lectivo_nombre, nombre, materia_codigo, materia_nombre, materia_id, modalidad, ubicacion) ON comisiones.sga_comisiones TO %I, %I', rol_basico, rol_pii);
-  EXECUTE format('GRANT SELECT (comision_guarani_id, carrera_codigo, carrera_nombre, carrera_id) ON comisiones.sga_comision_carreras TO %I, %I', rol_basico, rol_pii);
-  EXECUTE format('GRANT SELECT (comision_guarani_id, orden, nombre, responsabilidad, persona_id) ON comisiones.sga_comision_docentes TO %I, %I', rol_basico, rol_pii);
-  EXECUTE format('GRANT SELECT (comision_guarani_id, dia, desde, hasta, aula) ON comisiones.sga_comision_horarios TO %I, %I', rol_basico, rol_pii);
-
-  -- ------------------------------------------------------------------
-  -- aulas
-  -- ------------------------------------------------------------------
-  -- UNA SOLA TABLA, la única que tiene el schema: las solicitudes de reserva de aula.
-  -- Se conceden TODAS las columnas a los dos roles: ninguna es personal (quién pidió se
-  -- expresa con docente_id, que se une con identity.personas bajo el GRANT de esa
-  -- tabla). motivo_rechazo y motivo_cancelacion son texto libre del trámite y se
-  -- clasifican `sensible-texto` en el manifiesto de sensibilidad: el usuario las ve en
-  -- la tabla de resultados y no viajan al modelo.
-  --
-  -- CORRE DESPUÉS DEL RLS (RlsAsistenteSolicitudes, en la cadena de Aulas): conceder
-  -- antes abriría todas las solicitudes en la ventana entre los dos merges. El predicado
-  -- espeja la pantalla: aulas.aprobar ve todas, aulas.solicitar sólo las propias.
-  EXECUTE format('GRANT SELECT (id, docente_id, dia, horario_desde, horario_hasta, cantidad_alumnos_aprox, materia_id, comision, estado, aula_asignada, motivo_rechazo, created_at, motivo_cancelacion, rol_solicitante) ON aulas.solicitudes_reserva TO %I, %I', rol_basico, rol_pii);
 END
 $asistente_grants$;

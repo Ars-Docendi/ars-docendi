@@ -34,7 +34,7 @@ None.
 ## Impact
 
 - **Blast radius of the grant**: `portal.ver_trayectoria_ajena` is consumed only by the assistant: `ConsultorDeAlcance` (`PermisoDeTrayectoriaAjena`), the portal RLS (`20261020001500`, `20261020001700` through `identity.asistente_alcanza_a`, `database/designaciones/20261103001400_...`), and the evaluator fixture. No endpoint, frontend code or other module reads it, so granting it changes nothing outside the assistant. The Personas screen is governed by `personas.ver_ambito`.
-- **Database**: one Identity migration, one Portal migration (RLS plus comments, or two via scaffold), `database/asistente/001_asistente_grants.sql`, both manifests.
+- **Database**: one Identity migration, one Portal migration (RLS plus comments, or two via scaffold), `database/asistente/011_asistente_grants_dominios.sql`, both manifests.
 - **`Modules.Asistente`**: `ejemplos-sql.json`; prompt prefix grows by the projects table.
 - **Evaluator**: `GeneradorDeFixture`, `capacidad.json`, `robustez.json`; baselines are NOT re-recorded here (funded run belongs to the orchestrator).
 - **Docs**: `docs/business-rules/portal.md`, `docs/business-rules/asistente.md` if its examples cite the permission as unassigned, `docs/product/consulta-secretaria-portal-asistente.md`, `docs/architecture/domains/asistente.md`, `docs/architecture/data-model.md`, `docs/architecture/domains/portal.md`, `backend/src/Modules.Asistente/README.md`. No Centro de ayuda article about the assistant exists, so rule 9 adds none.
