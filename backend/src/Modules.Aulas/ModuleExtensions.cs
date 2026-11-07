@@ -3,6 +3,7 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Modules.Aulas.Contracts.Queries;
 using Modules.Aulas.Infrastructure;
 using Modules.Aulas.Repositories;
 using Modules.Aulas.Services;
@@ -22,6 +23,7 @@ public static class ModuleExtensions
 
         services.AddScoped<RepositorioSolicitudesAula>();
         services.AddScoped<IServicioSolicitudesAula, ServicioSolicitudesAula>();
+        services.AddScoped<IAulasQueries, ServicioConsultasAulas>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

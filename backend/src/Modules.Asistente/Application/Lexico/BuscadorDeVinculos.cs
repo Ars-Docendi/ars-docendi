@@ -58,7 +58,8 @@ internal static class BuscadorDeVinculos
                     && destinos.TryGetValue(texto, out var destino))
                 {
                     vinculos.Add(
-                        new VinculoDelResultado(fila, columna, destino.Tipo, destino.Id));
+                        new VinculoDelResultado(
+                            fila, columna, destino.Tipo, destino.Id, destino.EsClave));
                 }
             }
         }

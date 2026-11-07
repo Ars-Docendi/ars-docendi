@@ -141,6 +141,32 @@ public sealed class AdministracionPersonasTests(PostgresFixture postgres)
         Assert.False(await servicio.EstaEnAmbitoAsync(enB.PersonaId, soloA, ct));
     }
 
+    [Fact]
+    public async Task La_tarjeta_del_asistente_respeta_el_ambito_del_actor()
+    {
+        // The assistant links a docente's name only when this answers yes, and shows only the
+        // designaciones inside the actor's scope; an out-of-scope person has no card at all.
+        var ct = TestContext.Current.CancellationToken;
+        var (servicio, identity, modulo) = await PrepararAsync(ct);
+        await using var _i = identity; await using var _m = modulo;
+        var enA = await servicio.GuardarAsync(null, Datos("70000009", "ta@unlam.edu.ar", [Docente()], [Designacion(Materia)]), ct);
+        var enB = await servicio.GuardarAsync(null, Datos("70000010", "tb@unlam.edu.ar",
+            [new GuardarAsignacionRolDto(RolDocente, MateriaId: MateriaB, CarreraId: Carrera)], [Designacion(MateriaB)]), ct);
+        IReadOnlySet<Guid> soloA = new HashSet<Guid> { Materia };
+        Guid[] ambas = [enA.PersonaId, enB.PersonaId];
+
+        var conAmbito = await servicio.PersonasEnAmbitoAsync(ambas, soloA, ct);
+        var sinLimite = await servicio.PersonasEnAmbitoAsync(ambas, null, ct);
+
+        Assert.Equal([enA.PersonaId], conAmbito);
+        Assert.Equal(2, sinLimite.Count);
+        Assert.Null(await servicio.FichaAsync(enB.PersonaId, soloA, ct));
+        var ficha = await servicio.FichaAsync(enA.PersonaId, soloA, ct);
+        Assert.NotNull(ficha);
+        Assert.Single(ficha.Designaciones);
+        Assert.Equal("ta@unlam.edu.ar", ficha.EmailInstitucional);
+    }
+
     private async Task<(ServicioAdministracionPersonas, IdentityDbContext, DesignacionesDbContext)> PrepararAsync(CancellationToken ct)
     {
         var identity = PostgresFixture.CrearIdentity(Cadena);

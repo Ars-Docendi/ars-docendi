@@ -3,10 +3,15 @@ namespace Modules.Asistente.Application;
 /// <summary>
 /// A qué apunta un vínculo: qué clase de cosa es y con qué identificador se abre.
 /// </summary>
-public sealed record DestinoDelVinculo(string Tipo, string Id);
+/// <param name="EsClave">
+/// El texto que resolvió es un identificador interno (un uuid) que el usuario no debería leer:
+/// el vínculo se muestra sobre el rótulo de la fila y la columna del identificador se quita.
+/// </param>
+public sealed record DestinoDelVinculo(string Tipo, string Id, bool EsClave = false);
 
 /// <summary>Un vínculo ya ubicado en el resultado: qué celda lo ofrece y a qué apunta.</summary>
-public sealed record VinculoDelResultado(int Fila, int Columna, string Tipo, string Id);
+public sealed record VinculoDelResultado(
+    int Fila, int Columna, string Tipo, string Id, bool EsClave = false);
 
 /// <summary>
 /// Decide, para textos que aparecieron en un resultado, cuáles identifican algo que el actor
