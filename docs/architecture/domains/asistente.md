@@ -257,6 +257,8 @@ o se declara la excepción.
 | POST   | `/api/asistente/consultas`                                       | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                      |
 | GET    | `/api/asistente/menciones`                                       | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para «@»/«#»             |
 | GET    | `/api/asistente/capacidades`                                     | `asistente.consultar`            | Qué puede hacer el asistente para este actor                           |
+| GET    | `/api/asistente/modelo/disponibilidad`                           | `asistente.consultar`            | Si el modelo propio (`ollama`) está cargado: `listo`, `en_reposo`, …   |
+| POST   | `/api/asistente/modelo/activacion`                               | `asistente.consultar`            | Pide precargar el modelo; `202`, una sola carga por ambiente           |
 | POST   | `/api/asistente/retroalimentacion`                               | `asistente.consultar`            | Califica un turno respondido (thumbs + razón), por posesión del token  |
 | GET    | `/api/asistente/historial`                                       | `asistente.consultar`            | Lista y busca las conversaciones propias                               |
 | GET    | `/api/asistente/historial/{id}`                                  | `asistente.consultar`            | El detalle de una conversación propia                                  |
@@ -949,6 +951,17 @@ consulta.
 registrando convierte la observabilidad en una fuente de indisponibilidad. Es la
 decisión inversa a la del enmascarador, y a propósito: ahí un fallo silencioso filtra
 datos, acá un fallo ruidoso niega un servicio que funciona.
+
+## El modelo en reposo (`asistente-modelo-en-reposo`)
+
+Con el proveedor `ollama`, la GPU compartida descarga el modelo tras `OLLAMA_KEEP_ALIVE` de ocio, al recrear Ollama o cuando otro inquilino carga uno distinto; el primer turno paga la carga sin explicación. `CargaDelModelo` (singleton, `Infrastructure/`) lo detecta con `GET /api/ps` —comparando el modelo y, si Ollama lo informa, el contexto con el que está cargado— y lo precarga con `POST /api/generate`. Reglas:
+
+- El estado sale de la identidad que resolvería el turno (`ResolutorDelProveedor`), no de la configuración: una selección en caliente sobre `ollama` cuenta. Otros proveedores: `no_aplica`.
+- Lectura cacheada 30 s con un solo pedido en vuelo; un turno exitoso la marca `listo` sin gastar `/api/ps`. Sin la ruta en Traefik, `desconocido` y el chat no muestra nada.
+- Cualquier actor con `asistente.consultar` puede activar; una carga por ambiente, enfriamiento de 30 s, fuera de la cadena del turno (sin cupo, techo, breaker ni compuerta). Se activa sólo el modelo de generación: `ModeloDeRedaccion` no se usa en ningún ambiente.
+- El log de cada carga lleva modelo y desenlace, nunca actor, URL ni cuerpo; no es un evento de auditoría porque no cambia datos.
+
+El aviso en el chat (`AvisoDeModeloEnReposo`) y su sondeo están en el [design spec](../../product/designs/asistente-conversacional-design-spec.md).
 
 ## La superficie de usuario
 

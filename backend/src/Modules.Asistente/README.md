@@ -671,18 +671,21 @@ falla: la métrica del asistente es corrección con abstención.
 
 ### Configuración del adaptador real
 
-| Variable                           | Default           | Qué decide                                                      |
-| ---------------------------------- | ----------------- | --------------------------------------------------------------- |
-| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                                     |
-| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado                   |
-| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                                      |
-| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta                             |
-| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español                             |
-| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento                       |
-| `Asistente__UrlDelProveedorLocal`  | vacío             | Servidor del modelo propio, terminada en `/v1`                  |
-| `Asistente__ContextoDelModelo`     | `0`               | `num_ctx` que pide `ollama`; 0 = el del servidor                |
-| `Asistente__ClaveMaestra`          | vacío             | Clave AES-GCM (32 bytes, base64) de las claves de API guardadas |
-| `Asistente__ClaveMaestraAnterior`  | vacío             | Sólo durante una rotación de la clave maestra                   |
+| Variable                                        | Default           | Qué decide                                                           |
+| ----------------------------------------------- | ----------------- | -------------------------------------------------------------------- |
+| `Asistente__Proveedor`                          | `simulado`        | Cuál adaptador se construye                                          |
+| `Asistente__ClaveDelProveedor`                  | vacío             | La credencial. Nunca en un archivo versionado                        |
+| `Asistente__Modelo`                             | `claude-sonnet-5` | Qué modelo                                                           |
+| `Asistente__EsfuerzoDeGeneracion`               | `medio`           | Deliberación al generar la consulta                                  |
+| `Asistente__EsfuerzoDeRedaccion`                | `bajo`            | Deliberación al redactar en español                                  |
+| `Asistente__EsfuerzoDeReescritura`              | `bajo`            | Deliberación al reescribir un seguimiento                            |
+| `Asistente__UrlDelProveedorLocal`               | vacío             | Servidor del modelo propio, terminada en `/v1`                       |
+| `Asistente__ContextoDelModelo`                  | `0`               | `num_ctx` que pide `ollama`; 0 = el del servidor                     |
+| `Asistente__TiempoDeVidaDisponibilidadSegundos` | `30`              | Cuánto se reutiliza la lectura de `GET /api/ps` (proveedor `ollama`) |
+| `Asistente__TiempoMaximoDeActivacionSegundos`   | `120`             | Tope de una precarga del modelo antes de darla por fallida           |
+| `Asistente__EnfriamientoDeActivacionSegundos`   | `30`              | Espera mínima entre el fin de una precarga y la siguiente            |
+| `Asistente__ClaveMaestra`                       | vacío             | Clave AES-GCM (32 bytes, base64) de las claves de API guardadas      |
+| `Asistente__ClaveMaestraAnterior`               | vacío             | Sólo durante una rotación de la clave maestra                        |
 
 **El proveedor `local`** (asistente-proveedor-local) habla con cualquier servidor
 OpenAI-compatible —vLLM, `llama-server`, SGLang— en `{UrlDelProveedorLocal}/chat/completions`.
