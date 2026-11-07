@@ -110,6 +110,50 @@ prefijo pasa de ≈32 700 a ≈39 600 caracteres, +6 900 caracteres (≈ +2 000 
 estimación por caracteres: la medición contra el perfil local de 16 384 tokens (3070)
 y el techo de salida queda en la tarea 5.4 de `asistente-lee-comisiones`.
 
+### Solicitudes de reserva de aula — la familia de `asistente-lee-aulas`
+
+Lo que la pantalla de Aulas ya muestra: qué solicitudes están pendientes, qué aula se
+asignó a una reserva aprobada en una fecha, cuántas se rechazaron por materia, en qué
+estado están las solicitudes propias (jefe de cátedra) y cuántas hay por estado.
+
+Una sola tabla, `aulas.solicitudes_reserva`, con **todas** sus columnas concedidas.
+`motivo_rechazo` y `motivo_cancelacion` son `sensible-texto`: el usuario las ve en la
+tabla de resultados y no viajan al modelo. `aulas.__EFMigrationsHistory` queda denegada.
+
+| Se puede preguntar                                         | No se puede preguntar (abstención)                          |
+| ---------------------------------------------------------- | ----------------------------------------------------------- |
+| Solicitudes pendientes, aprobadas, rechazadas, canceladas  | Qué aulas están libres (no hay catálogo de aulas)           |
+| Aula asignada a una reserva aprobada, por fecha o materia  | Capacidad de un aula                                        |
+| Rechazos por materia; solicitudes por estado o por docente | En qué aula se dicta una comisión (eso es Guaraní, abajo)   |
+| Mis solicitudes (actor que sólo solicita)                  | Solicitudes ajenas, para quien sólo tiene `aulas.solicitar` |
+
+**Dos tablas con la palabra «aula», dos preguntas distintas.** «En qué aula se dicta X»
+y «aula de la comisión» siguen yendo a `comisiones.sga_comision_horarios`;
+`solicitudes_reserva` se usa sólo cuando la pregunta dice reserva, solicitud o pedido de
+aula, o un estado de pedido. La distinción vive en el `COMMENT ON` de la tabla y en los
+ejemplos, no en código.
+
+**Reglas que el modelo aprende de los comentarios.** `dia` es la fecha para la que se
+pide el aula (no un día de la semana); `aula_asignada` es texto libre y sólo existe si
+la solicitud está aprobada; `motivo_rechazo` sólo si está rechazada; `motivo_cancelacion`
+sólo cuando un aprobador cancela (nulo si el docente cancela su pendiente).
+
+**Frontera.** `GRANT` por columna, RLS `ENABLE` (no `FORCE`) con una policy `FOR SELECT`:
+`aulas.aprobar` ve todas; `aulas.solicitar` ve sólo las propias
+(`docente_id = identity.asistente_persona()`). Sin permiso, sin persona o sin actor no
+hay filas. La pantalla de Aulas, que conecta como dueño, no se ve afectada (BR-asistente-011).
+
+**Abstención.** «Cero filas significa que no hay» vale sólo con `aulas.aprobar`
+(`PerfilDelActor.VeSolicitudesDeAula`). Quien sólo solicita
+(`VeSolicitudesPropias`) recibe el aviso de alcance, nunca «no hay» como hecho del
+Departamento. El catálogo anuncia «las solicitudes de reserva de aula» a los aprobadores
+y «tus solicitudes de reserva de aula» a los solicitantes.
+
+**Prefijo.** Medido sobre el esquema real (ambos roles): pasa de 39 781 a 42 854
+caracteres en el rol básico (+3 073, +7,7 %) y de 40 164 a 43 237 en el rol PII
+(≈ +900 tokens a ~3,4 caracteres por token). La medición contra el perfil local de
+16 384 tokens (3070) queda para la corrida con el servidor local.
+
 ### Lo que NO debe contestar
 
 Estas van al dataset como `no_contestable`, donde **la abstención es la respuesta

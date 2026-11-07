@@ -210,6 +210,15 @@ libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
 
+**Lectura por el asistente.** `solicitudes_reserva` es legible por los dos roles de
+lectura del asistente: `GRANT SELECT` en todas sus columnas
+(`database/asistente/001_asistente_grants.sql`, listado en `manifiesto-privilegios.json`)
+y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT` cuyo predicado espeja la
+pantalla: `aulas.aprobar` ve todas; `aulas.solicitar` sólo las propias
+(`docente_id = identity.asistente_persona()`). El dueño (la aplicación) queda exento.
+La policy y los `COMMENT ON` viven en las migraciones `RlsAsistenteSolicitudesAulas` y
+`ComentariosAsistenteSolicitudesAulas`. `aulas.__EFMigrationsHistory` no se concede.
+
 `solicitudes_reserva` suma, desde la migración `20261102030524_MotivoCancelacionYRolSolicitanteAulas`:
 
 - `motivo_cancelacion TEXT NULL`: motivo con que un Administrativo cancela una reserva ya aprobada
