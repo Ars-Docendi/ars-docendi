@@ -53,51 +53,54 @@ mismo en la misma corrida no informaría nada.
 
 ## Las cuatro vigentes
 
-Congeladas reproduciendo los 107 cassettes, así que **no costaron una corrida
-financiada**. Modelo `claude-sonnet-5`.
+Congeladas **en vivo**, sin cassettes, contra `claude-sonnet-5` el 2026-11-07, con el
+prefijo `9ae0bab9468ee2df…` que ya incluye el schema `comisiones`
+(change `asistente-lee-comisiones`). Capacidad suma `cap-040`..`cap-050` y robustez
+`rob-016`..`rob-018`.
 
 | Eje       | Ítems | Aciertos | Normalizado |
 | --------- | ----- | -------- | ----------- |
-| Capacidad | 24    | 23       | 95,8 %      |
-| Robustez  | 15    | 14       | 93,3 %      |
-| Diálogo   | 9     | 8        | 88,9 %      |
+| Capacidad | 50    | 49       | 98,0 %      |
+| Robustez  | 18    | 18       | 100,0 %     |
+| Diálogo   | 11    | 9        | 81,8 %      |
 | Social    | 20    | 20       | 100,0 %     |
 
-El ítem que no acierta en diálogo es `dia-003-pivote-duro#1`, que **se abstiene ante
-algo contestable**. Queda congelado así a propósito: la línea de base registra el
-comportamiento que hay, no el que se querría. Que mejore va a aparecer como «mejora»
-en el gate, que es donde se lo quiere ver.
+Los tres que no aciertan están en la tabla de abajo: oscilan, no son regresiones de
+comisiones. Qué se movió respecto de las anteriores está en
+[`antes-de-comisiones/`](./antes-de-comisiones/README.md).
 
-**Ojo con ese ítem si el gate llegara a correr contra el modelo en vivo.** Reproducido
-de cassette es determinista —tres corridas dieron reportes idénticos byte a byte—, pero
-en vivo osciló entre acierto y abstención sin que nada cambiara. Un ítem que oscila
-produce regresiones falsas con lock por ítem. Los cassettes ya no existen (Anthropic dejó
-de ser proveedor de producción), así que el gate corre en vivo: hay que decidir si se lo
-marca como tolerante o se lo reformula.
+Antes de congelar se corrigieron tres ítems propios del change, con el motivo
+registrado:
 
-## Las cuatro vigentes son de después de los rechazos dinámicos
+- `cap-047` («¿Cuántas comisiones hay de Investigación Operativa?») contaba sin
+  agrupar. Por la decisión D10, una pregunta sin período se responde por cada período
+  del año más reciente: la referencia agrupa por `periodo_lectivo_nombre`.
+- `cap-046` admitía dos lecturas (por período o sobre todos) y el modelo alternaba
+  entre ellas. La pregunta dice ahora «en ningún período importado».
+- `rob-005` («¿Quiénes dictan Bases de Dattos?») respondía con los docentes de las
+  comisiones. Por D8, «quién dicta» una materia se responde por designaciones: se
+  reforzó el comentario de `sga_comision_docentes` y se agregó un ejemplo de «quiénes
+  dictan» resuelto por designaciones. Pasó en las tres corridas siguientes.
 
-Se regeneraron con la corrida financiada que regrabó los cassettes contra el prefijo
-que pide `motivo` y `termino` (ARS-139, unidad B; `7e06fddb…` y sucesores). Capacidad
-suma cap-035..039, un ítem o más por motivo de rechazo. La corrida costó unos
-0,47 USD con `claude-sonnet-5`; las cuatro se congelaron reproduciendo esos cassettes
-y dieron el mismo veredicto ítem por ítem que la corrida en vivo.
+## Ítems que oscilan en vivo
 
-| Eje       | Ítems | Aciertos | Normalizado |
-| --------- | ----- | -------- | ----------- |
-| Capacidad | 39    | 38       | 97,4 %      |
-| Robustez  | 15    | 15       | 100,0 %     |
-| Diálogo   | 11    | 11       | 100,0 %     |
-| Social    | 20    | 20       | 100,0 %     |
+Los cassettes ya no existen (Anthropic dejó de ser proveedor de producción), así que
+el gate corre en vivo. Con lock por ítem, un ítem que oscila da regresiones falsas.
+Cuatro corridas del 2026-11-07, mismo modelo y mismo fixture (la primera, antes de los
+ajustes de arriba), mostraron estos:
 
-El que no acierta en capacidad es `cap-008` («¿Qué solicitudes puedo ver de mi
-carrera?»): el modelo se abstiene creyendo que «de mi carrera» exige filtrar por la
-identidad del usuario, cuando la RLS ya acota las filas. Viene de antes de este cambio.
-`cap-033` y `cap-034` dejaron de exigir `orden_importa`: sus preguntas no piden un
-orden, y `cap-033` fallaba sólo por ordenar por jerarquía del cargo en vez de por
-apellido, con las mismas filas. El acuerdo de motivos —informativo, fuera
-del puntaje— dio 10 de 11: `cap-018` (notas de Guaraní) declaró `no_cubierto` en vez
-de `otro_sistema`.
+| Ítem                                | Aciertos en 4 corridas | Cuando falla                        |
+| ----------------------------------- | ---------------------- | ----------------------------------- |
+| `cap-009`                           | 3                      | se abstiene ante contestable        |
+| `cap-020`                           | 3                      | responde en vez de pedir aclaración |
+| `dia-001-seguimiento#2`             | 2                      | se abstiene ante contestable        |
+| `dia-003-pivote-duro#1`             | 2                      | se abstiene o traduce mal           |
+| `dia-005-referencia-al-resultado#2` | 3                      | se abstiene ante contestable        |
+
+Ninguno toca `comisiones`. `dia-003-pivote-duro#1` ya oscilaba antes de este change.
+Sigue pendiente decidir si se marcan como tolerantes o se reformulan; hasta entonces,
+una «regresión» en uno de estos ítems hay que confirmarla con otra corrida antes de
+leerla como tal.
 
 Las de antes de portal están en [`antes-de-portal/`](./antes-de-portal/README.md),
 que explica qué costó ese cambio.

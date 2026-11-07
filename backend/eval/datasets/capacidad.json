@@ -347,7 +347,7 @@
     },
     {
       "id": "cap-046",
-      "pregunta": "¿Qué docentes designados en una materia con comisiones no figuran en ninguna de ellas?",
+      "pregunta": "¿Qué docentes designados en una materia con comisiones no figuran en ninguna comisión de esa materia, en ningún período importado?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre, m.name AS materia FROM designaciones.designaciones x JOIN identity.personas p ON p.id = x.persona_id JOIN identity.materias m ON m.id = x.materia_id WHERE x.vigente_hasta IS NULL AND EXISTS (SELECT 1 FROM comisiones.sga_comisiones c WHERE c.materia_id = x.materia_id) AND NOT EXISTS (SELECT 1 FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id WHERE d.persona_id = x.persona_id AND c.materia_id = x.materia_id) ORDER BY materia, p.apellido, p.nombre"
@@ -357,7 +357,7 @@
       "pregunta": "¿Cuántas comisiones hay de Investigación Operativa?",
       "categoria": "agregacion",
       "actor": "carrera",
-      "sql_referencia": "SELECT count(*) AS cantidad FROM comisiones.sga_comisiones c WHERE c.materia_nombre ILIKE '%Investigación Operativa%'"
+      "sql_referencia": "SELECT c.periodo_lectivo_nombre, count(*) AS cantidad FROM comisiones.sga_comisiones c WHERE c.materia_nombre ILIKE '%Investigación Operativa%' AND c.anio_academico = (SELECT max(x.anio_academico) FROM comisiones.sga_comisiones x) GROUP BY c.periodo_lectivo_nombre ORDER BY c.periodo_lectivo_nombre"
     },
     {
       "id": "cap-048",

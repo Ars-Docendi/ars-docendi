@@ -71,7 +71,7 @@ COMMENT ON COLUMN comisiones.sga_comision_carreras.carrera_id IS
 -- -------------------------------------------------------- sga_comision_docentes
 
 COMMENT ON TABLE comisiones.sga_comision_docentes IS
-    'Docentes de cada comisión según Guaraní, con su responsabilidad: una fila por docente y comisión. Sinónimos del dominio: docente de la comisión, quién dicta la comisión, equipo de la comisión. Responde «quién dicta la comisión 02 de tal materia» y «cuántas comisiones tiene cada docente» (contar comisiones distintas por docente, dentro de un período). NO es una designación: una persona puede dictar una comisión sin tener designación vigente en esa materia, y al revés.';
+    'Docentes de cada comisión según Guaraní, con su responsabilidad: una fila por docente y comisión. Sinónimos del dominio: docente de la comisión, equipo de la comisión. Responde «quién está en la comisión 02 de tal materia», «qué días y en qué aula da clase tal docente» y «cuántas comisiones tiene cada docente» (contar comisiones distintas por docente, dentro de un período). NO es una designación: una persona puede figurar en una comisión sin tener designación vigente en esa materia, y al revés. «Quién dicta» o «quiénes dictan» una MATERIA, sin nombrar comisión, horario, aula, día, turno, cuatrimestre ni período, NO se responde con esta tabla: se responde con las designaciones vigentes (designaciones.designaciones con vigente_hasta nulo).';
 
 COMMENT ON COLUMN comisiones.sga_comision_docentes.comision_guarani_id IS
     'Comisión que dicta el docente (clave foránea a sga_comisiones).';

@@ -41,7 +41,7 @@
 - [x] 5.2 Add capacidad items (the questions in the proposal, with the turn values of 0.1) and robustez variants; add an item asking for "this período" whose reference answer is grouped by both períodos of the latest year (D10); add non-answerable items (free aulas). Verify: the dataset loads, every non-answerable item declares its refusal reasons, disjointness with the examples holds
 - [x] 5.3 Reclassify `cap-019` as answerable with its reference SQL and the reason written; check `cap-020`, `cap-039` and the dialogue items that say "dicta" against D8. Verify: the dataset diff shows each reclassification with its reason
 - [ ] 5.4 Measure the longest request against the 3070 profile (one slot, 16,384): prefix plus request plus output ceiling fits. If not, compact comments, then examples; if the default 2 x 13,312 profile no longer fits, say so in `docs/architecture/modelo-local.md`. Verify: the measured numbers are in the doc
-- [ ] 5.5 Funded run: re-record the baselines, archive the previous ones with the list of items that moved, freeze the new ones. Verify: the regression gate compares again and `lineas-de-base/README.md` records the diff
+- [x] 5.5 Funded run: re-record the baselines, archive the previous ones with the list of items that moved, freeze the new ones. Verify: the regression gate compares again and `lineas-de-base/README.md` records the diff — four live runs against `claude-sonnet-5` on 2026-11-07; before freezing, `cap-047` and `cap-046` were aligned with D10 and `rob-005` was fixed for D8 (comment on `sga_comision_docentes` plus a designaciones "quiénes dictan" example); previous baselines in `lineas-de-base/antes-de-comisiones/`; five unrelated items oscillate live and are listed in the README
 
 ## 6. Documentation
 
@@ -52,7 +52,7 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Backend: `dotnet test backend/ArsDocendi.slnx`
+- [x] 7.1 Backend: `dotnet test backend/ArsDocendi.slnx` — 2460/2460 on a clean checkout of 37e45bd8 (2026-11-07); in a checkout with a local `.env` pointing at an Ollama, `Sin_proveedor_local_la_telemetria_dice_que_no_esta_configurado` fails because of that local configuration, not because of this change.
 - [x] 7.2 SQL and migrations: `node --test scripts/tests/migrations.test.mjs`, `node scripts/migrations/validate.mjs`, then after `dotnet build -c Release`, `dotnet run --project backend/src/ArsDocendi.Host --no-build -c Release -- --validar-recursos`
 - [ ] 7.3 Docs and specs: `pnpm format:check`, `node scripts/docs/check-links.mjs`, `pnpm exec openspec validate --all`
 - [ ] 7.4 Record any check the environment could not complete in the PR description
