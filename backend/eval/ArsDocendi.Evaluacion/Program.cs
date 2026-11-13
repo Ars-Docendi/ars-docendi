@@ -238,7 +238,7 @@ public static class Program
             IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> inestables;
             try
             {
-                inestables = ItemsInestables.Cargar(Path.Combine(lineasDeBase, "inestables.json"));
+                inestables = ItemsInestables.Cargar(Path.Join(lineasDeBase, "inestables.json"));
             }
             catch (InvalidOperationException error)
             {

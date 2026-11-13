@@ -430,7 +430,7 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void Las_inestables_se_cargan_por_eje_y_exigen_un_motivo()
     {
-        var ruta = Path.Combine(Path.GetTempPath(), $"inestables-{Guid.NewGuid():N}.json");
+        var ruta = Path.Join(Path.GetTempPath(), $"inestables-{Guid.NewGuid():N}.json");
         try
         {
             File.WriteAllText(ruta, """{ "capacidad": { "i1": "oscila" }, "dialogo": { "d#2": " " } }""");
@@ -452,12 +452,12 @@ public sealed class EjesDeEvaluacionTests
     [Fact]
     public void El_archivo_versionado_de_inestables_no_tiene_ids_que_no_esten_en_las_lineas_de_base()
     {
-        var ruta = Path.Combine(RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", "inestables.json");
+        var ruta = Path.Join(RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", "inestables.json");
         var cargadas = ItemsInestables.Cargar(ruta);
 
         foreach (var (eje, ids) in cargadas)
         {
-            var linea = LineaDeBase.Cargar(Path.Combine(
+            var linea = LineaDeBase.Cargar(Path.Join(
                 Path.GetDirectoryName(ruta)!, $"{eje}.json"));
             Assert.NotNull(linea);
             foreach (var id in ids.Keys)
