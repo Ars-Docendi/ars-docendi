@@ -20,8 +20,8 @@ Ninguna tarea posterior arranca antes de que estas dos cierren. Si el equipo rec
 
 - [x] 2.1 `infra/scripts/provision-db.sh` — crear `asistente_ro_<ambiente>` y `asistente_ro_pii_<ambiente>` con `LOGIN`, contraseña propia del ambiente y `GRANT CONNECT`; fijar su `search_path`
 - [x] 2.2 `infra/scripts/drop-db.sh` — dar de baja ambos roles con `DROP OWNED BY` + `DROP ROLE` al destruir la base
-- [x] 2.3 `infra/compose/.env.example` — declarar las variables de las dos contraseñas, sin valor real — **NO VERIFICADA:** queda como pendiente fuera del change (2026-11-06).
-- [x] 2.4 Verificar en un ambiente efímero que el alta y la baja son idempotentes y que el par de roles es distinto por ambiente — **NO VERIFICADA:** queda como pendiente fuera del change (2026-11-06).
+- [ ] 2.3 `infra/compose/.env.example` — declarar las variables de las dos contraseñas, sin valor real — **NO VERIFICADA:** queda como pendiente fuera del change (2026-11-06).
+- [ ] 2.4 Verificar en un ambiente efímero que el alta y la baja son idempotentes y que el par de roles es distinto por ambiente — **NO VERIFICADA:** queda como pendiente fuera del change (2026-11-06).
 - [x] 2.5 Test de humo: los roles existen después del paso 1 de `spin-up.sh` y antes de que corran las migraciones
 
 ## 3. Migración de privilegios de lectura
@@ -93,7 +93,7 @@ Ninguna tarea posterior arranca antes de que estas dos cierren. Si el equipo rec
 - [x] 10.1 `CLAUDE.md` — agregar el invariante #14 con su texto acordado y el alcance limitado a `Modules.Asistente` — **Hecha como regla 11 de `AGENTS.md`**, que `CLAUDE.md` incluye (verificado el 2026-11-06).
 - [x] 10.2 `docs/architecture/dependency-graph.md` — agregar el nodo `Modules.Asistente` y su fila en el registro de edges; verificar que no se introducen ciclos
 - [x] 10.3 `docs/architecture/data-model.md` — documentar los dos roles, el modelo de privilegios por columna y las cuatro tablas con RLS
-- [x] 10.4 `docs/architecture/diagrams/` — actualizar los diagramas afectados — **NO HECHA:** queda como pendiente fuera del change (2026-11-06).
+- [ ] 10.4 `docs/architecture/diagrams/` — actualizar los diagramas afectados — **NO HECHA:** queda como pendiente fuera del change (2026-11-06).
 - [x] 10.5 `docs/architecture/domains/asistente.md` — crear el documento de dominio del módulo desde `_template.md`
 - [x] 10.6 `docs/product/designs/asistente-conversacional-definicion.md` — completar el campo `feature` del frontmatter con el link a la spec, y pasar `status` a `review` — **Hecha el 2026-11-06.**
 
