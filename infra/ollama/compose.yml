@@ -50,7 +50,7 @@ services:
       # Override de la red pública por defecto del Docker provider existente.
       traefik.docker.network: ${OLLAMA_RED_TRAEFIK:-docendi-ai-inferencia}
       traefik.http.routers.ollama-privada.entrypoints: ollama
-      traefik.http.routers.ollama-privada.rule: "(Method(`GET`) && (Path(`/api/version`) || Path(`/api/tags`))) || (Method(`POST`) && (Path(`/api/chat`) || Path(`/api/generate`)))"
+      traefik.http.routers.ollama-privada.rule: "(Method(`GET`) && (Path(`/api/version`) || Path(`/api/tags`) || Path(`/api/ps`))) || (Method(`POST`) && (Path(`/api/chat`) || Path(`/api/generate`)))"
       traefik.http.routers.ollama-privada.priority: "100"
       traefik.http.routers.ollama-privada.service: ollama-local
       # Tasa antes de auth: también frena fuerza bruta de BasicAuth.

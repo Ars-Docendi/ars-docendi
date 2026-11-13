@@ -10,8 +10,14 @@ public sealed record VeredictoDelGate(
     IReadOnlyList<string> Regresiones,
     IReadOnlyList<string> Mejoras,
     IReadOnlyList<string> Nuevos,
-    string? ExigeRegenerar)
+    string? ExigeRegenerar,
+    IReadOnlyList<string>? Oscilaciones = null)
 {
+    /// <summary>
+    /// Ítems inestables que pasaron de acierto a falla: se informan, no hacen fallar el gate.
+    /// </summary>
+    public IReadOnlyList<string> Tolerados { get; } = Oscilaciones ?? [];
+
     /// <summary>Un resumen legible de lo que pasó.</summary>
     public string Renderizar()
     {
@@ -27,6 +33,12 @@ public sealed record VeredictoDelGate(
         {
             texto.Append(CultureInfo.InvariantCulture,
                 $" Regresiones: {string.Join(", ", Regresiones)}.");
+        }
+
+        if (Tolerados.Count > 0)
+        {
+            texto.Append(CultureInfo.InvariantCulture,
+                $" Oscilaciones conocidas (no hacen fallar el gate; {Tolerados.Count} tolerada(s)): {string.Join(", ", Tolerados)}.");
         }
 
         if (Mejoras.Count > 0)
@@ -62,10 +74,32 @@ public sealed record VeredictoDelGate(
 public static class GateDeRegresion
 {
     /// <summary>Compara el reporte contra la línea de base.</summary>
-    public static VeredictoDelGate Comparar(Reporte reporte, LineaDeBase linea)
+    /// <param name="reporte">La corrida.</param>
+    /// <param name="linea">La línea de base del mismo eje.</param>
+    /// <param name="inestables">
+    /// Ítems del eje que oscilan en vivo (id → motivo). Una caída de acierto a falla en
+    /// uno de ellos se informa como oscilación conocida y no hace fallar el gate. Los
+    /// demás ítems conservan el lock estricto.
+    /// </param>
+    /// <exception cref="InvalidOperationException">Algún id inestable no está en la línea de base.</exception>
+    public static VeredictoDelGate Comparar(
+        Reporte reporte, LineaDeBase linea, IReadOnlyDictionary<string, string>? inestables = null)
     {
         ArgumentNullException.ThrowIfNull(reporte);
         ArgumentNullException.ThrowIfNull(linea);
+        inestables ??= new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // LA LISTA NO PUEDE PUDRIRSE EN SILENCIO. Un id renombrado o borrado dejaría
+        // de tolerar lo que se quería tolerar, o peor, quedaría un permiso colgado.
+        // Se valida antes del sello: un id desconocido es un error del archivo, no
+        // algo que el sello explique.
+        var desconocidos = inestables.Keys.Where(id => !linea.Items.ContainsKey(id)).Order(StringComparer.Ordinal).ToArray();
+        if (desconocidos.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"inestables.json (eje {linea.Eje}): ids que no están en la línea de base: "
+                + $"{string.Join(", ", desconocidos)}. Corregí o quitá esas entradas.");
+        }
 
         var cambiado = SelloCambiado(reporte.Sello, linea.Sello);
         if (cambiado is not null)
@@ -81,6 +115,7 @@ public static class GateDeRegresion
         var regresiones = new List<string>();
         var mejoras = new List<string>();
         var nuevos = new List<string>();
+        var tolerados = new List<string>();
 
         foreach (var resultado in reporte.Resultados)
         {
@@ -95,7 +130,11 @@ public static class GateDeRegresion
             var pasabaAntes = EsAcierto(antes);
             var pasaAhora = EsAcierto(resultado.Desenlace);
 
-            if (pasabaAntes && !pasaAhora)
+            if (pasabaAntes && !pasaAhora && inestables.TryGetValue(resultado.Id, out var motivo))
+            {
+                tolerados.Add($"{resultado.Id} ({antes} → {resultado.Desenlace}; {motivo})");
+            }
+            else if (pasabaAntes && !pasaAhora)
             {
                 regresiones.Add($"{resultado.Id} ({antes} → {resultado.Desenlace})");
             }
@@ -105,7 +144,7 @@ public static class GateDeRegresion
             }
         }
 
-        return new VeredictoDelGate(regresiones.Count == 0, regresiones, mejoras, nuevos, null);
+        return new VeredictoDelGate(regresiones.Count == 0, regresiones, mejoras, nuevos, null, tolerados);
     }
 
     /// <summary>

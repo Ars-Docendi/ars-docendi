@@ -21,12 +21,19 @@ internal static class CierreDelTurno
     {
         var vinculos = await VinculosAsync(resultado, resolutor, log, ct);
 
-        return resultado with
+        // Todo lo que se calcula sobre el resultado ORIGINAL va antes de quitar las claves: las
+        // posiciones en el texto (un apellido repetido no debe enlazar a la persona equivocada,
+        // y un uuid nunca aparece en la prosa) y el elemento principal.
+        var enElTexto = UbicadorEnElTexto.Ubicar(texto, resultado.Filas, vinculos);
+        var principal = await PrincipalAsync(resultado, vinculos, fichas, log, ct);
+        var sinClaves = ClavesInternas.Quitar(resultado, vinculos);
+
+        return sinClaves.Resultado with
         {
             Respuesta = texto,
-            Vinculos = vinculos,
-            VinculosDelTexto = UbicadorEnElTexto.Ubicar(texto, resultado.Filas, vinculos),
-            Principal = await PrincipalAsync(resultado, vinculos, fichas, log, ct),
+            Vinculos = sinClaves.Vinculos,
+            VinculosDelTexto = enElTexto,
+            Principal = principal,
             Origenes = resultado.Origenes ?? OrigenesDeLosDatos.De(resultado.SqlEjecutado),
         };
     }
@@ -39,7 +46,13 @@ internal static class CierreDelTurno
         ILogger log,
         CancellationToken ct)
     {
-        if (resultado.Filas.Count != 1 || vinculos.Count != 1)
+        // Un elemento, o una fila con un vínculo, o varias filas de la MISMA clave interna (un
+        // docente con dos designaciones): ahí la tabla sigue montada, así que nada se pierde.
+        var mismoElemento = vinculos.Count > 0
+            && vinculos.All(v => v.EsClave)
+            && vinculos.Select(v => (v.Tipo, v.Id)).Distinct().Count() == 1;
+
+        if (!(resultado.Filas.Count == 1 && vinculos.Count == 1) && !mismoElemento)
         {
             return null;
         }

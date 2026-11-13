@@ -216,7 +216,8 @@ internal sealed class BancoDelAsistente
         CacheDeConsultasGeneradas? cache = null,
         IOptions<OpcionesAsistente>? opcionesDelRedactor = null,
         CarrilDelPlan? plan = null,
-        IEnmascaradoDelTurno? enmascarado = null) =>
+        IEnmascaradoDelTurno? enmascarado = null,
+        IConsultorDeCobertura? cobertura = null) =>
         new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(apertura),
@@ -229,7 +230,7 @@ internal sealed class BancoDelAsistente
             ejecutor,
             new ConsultorDeAlcance(apertura),
             new RedactorDeRespuesta(conTecho, opcionesDelRedactor ?? Options.Create(new OpcionesAsistente())),
-            new ConsultorDeCobertura(apertura),
+            cobertura ?? new ConsultorDeCobertura(apertura),
             new BuscadorDeMenciones(apertura),
             contador,
             // Un catálogo real por omisión, sobre la misma base: un test que no pasa el suyo sigue

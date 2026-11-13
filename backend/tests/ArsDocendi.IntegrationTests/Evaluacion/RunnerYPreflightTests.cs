@@ -347,6 +347,41 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Los_actores_de_los_items_de_comisiones_las_leen_porque_el_fixture_les_da_el_permiso()
+    {
+        // Without comisiones.ver the policy returns zero rows to the actor, the reference query
+        // (same actor) returns zero too, and a comisiones item passes without reading anything. The
+        // permission is removed from every role first, so only the fixture can be the reason.
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarAsync(
+            """
+            DELETE FROM identity.rol_permisos rp
+             USING identity.permisos p
+             WHERE p.id = rp.permiso_id AND p.code = 'comisiones.ver'
+            """);
+        await EjecutarAsync(new ArsDocendi.Evaluacion.Nucleo.Fixture.GeneradorDeFixture().Generar());
+
+        // Users 0, 1 and 2 are the global, carrera and materia actors; 3 is the docente.
+        foreach (var (usuario, ve) in new[] { (0, true), (1, true), (2, true), (3, false) })
+        {
+            await using var conexion = await AbrirConexionComoAsistenteAsync(false);
+            await using var transaccion = await conexion.BeginTransactionAsync(ct);
+            await using (var actor = new NpgsqlCommand(
+                "SELECT set_config('app.asistente_user_id', @actor, true)", conexion, transaccion))
+            {
+                actor.Parameters.AddWithValue(
+                    "actor", ArsDocendi.Evaluacion.Nucleo.Fixture.GeneradorDeFixture.IdDeUsuario(usuario));
+                await actor.ExecuteNonQueryAsync(ct);
+            }
+
+            await using var contar = new NpgsqlCommand(
+                "SELECT count(*) FROM comisiones.sga_comision_docentes", conexion, transaccion);
+
+            Assert.Equal(ve, (long)(await contar.ExecuteScalarAsync(ct))! > 0);
+        }
+    }
+
+    [Fact]
     public async Task Las_colisiones_del_fixture_existen_en_la_base()
     {
         // La verificación de texto dice que el SQL las declara; ésta dice que la base las tiene.

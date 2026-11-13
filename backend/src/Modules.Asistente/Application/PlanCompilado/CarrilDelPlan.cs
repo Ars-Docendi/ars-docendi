@@ -180,7 +180,12 @@ public sealed class CarrilDelPlan
             return Abstencion(TextoSinSeguridad, CausaDelTurno.PlanInvalido);
         }
 
-        var alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(perfil, plan.TocaPortal);
+        // The compiled plan always reads designaciones and, for one measure, portal.
+        var alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(
+            perfil,
+            plan.TocaPortal
+                ? DominioConsultado.Designaciones | DominioConsultado.Portal
+                : DominioConsultado.Designaciones);
 
         return new ResultadoDelTurno(
             EstadoDelTurno.Respondida,
