@@ -34,7 +34,7 @@
   height: 36px;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-accent-on);
   display: inline-flex;
   align-items: center;
   justify-content: center;

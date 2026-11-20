@@ -30,7 +30,7 @@
   padding: 16px;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
-  background: #fff;
+  background: var(--color-bg-raised);
 }
 .adoc-det-tarea-panel h2,
 .adoc-det-tarea-panel h3 {

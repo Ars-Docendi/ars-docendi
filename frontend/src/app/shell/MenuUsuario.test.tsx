@@ -141,3 +141,61 @@ describe("rol activo", () => {
     expect(screen.getByRole("dialog")).toHaveTextContent("Programación I");
   });
 });
+
+describe("tema", () => {
+  it("elegir un tema lo aplica al documento y lo recuerda en este navegador", async () => {
+    render(
+      <MemoryRouter>
+        <MenuUsuario user={usuario([ADMIN])} />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Oscuro" }));
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("ars-docendi:tema")).toBe("oscuro");
+    expect(screen.getByRole("menuitemradio", { name: "Oscuro" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Claro" }));
+    expect(document.documentElement.dataset.theme).toBe("light");
+  });
+
+  it("con Sistema, el tema es el del dispositivo", async () => {
+    vi.stubGlobal("matchMedia", (consulta: string) => ({
+      matches: consulta === "(prefers-color-scheme: dark)",
+    }));
+    render(
+      <MemoryRouter>
+        <MenuUsuario user={usuario([ADMIN])} />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Menú de usuario/ }));
+    await userEvent.click(screen.getByRole("menuitemradio", { name: "Sistema" }));
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(screen.getByRole("menuitemradio", { name: "Sistema" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("al abrir el menú el foco va a la primera opción y las flechas lo recorren", async () => {
+    render(
+      <MemoryRouter>
+        <MenuUsuario user={usuario([ADMIN])} />
+      </MemoryRouter>,
+    );
+    screen.getByRole("button", { name: /Menú de usuario/ }).focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByRole("menuitemradio", { name: "Claro" })).toHaveFocus();
+
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "Oscuro" })).toHaveFocus();
+    await userEvent.keyboard("{ArrowUp}{ArrowUp}");
+    expect(screen.getByRole("menuitem", { name: "Cerrar sesión" })).toHaveFocus();
+  });
+});
