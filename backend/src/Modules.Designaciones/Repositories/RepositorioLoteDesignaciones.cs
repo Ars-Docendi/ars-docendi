@@ -8,7 +8,8 @@ internal sealed record ConsultaLoteDesignaciones(
     Periodo Periodo,
     Periodo? PeriodoAnterior,
     IReadOnlyList<Pedido> PedidosDelPeriodo,
-    IReadOnlyList<Designacion> DesignacionesVigentes);
+    IReadOnlyList<Designacion> DesignacionesVigentes,
+    IReadOnlyList<SectorExterno> SectoresExternos);
 
 /// <summary>Lee las fuentes del lote dentro de una misma transacción.</summary>
 internal sealed class RepositorioLoteDesignaciones(DesignacionesDbContext db)
@@ -44,6 +45,9 @@ internal sealed class RepositorioLoteDesignaciones(DesignacionesDbContext db)
             .ThenBy(d => d.MateriaId)
             .ToListAsync(ct);
 
-        return new ConsultaLoteDesignaciones(periodo, periodoAnterior, pedidos, designaciones);
+        // Una baja externa sólo conserva la sigla en su snapshot: el nombre sale del catálogo.
+        var sectores = await db.SectoresExternos.AsNoTracking().ToListAsync(ct);
+
+        return new ConsultaLoteDesignaciones(periodo, periodoAnterior, pedidos, designaciones, sectores);
     }
 }

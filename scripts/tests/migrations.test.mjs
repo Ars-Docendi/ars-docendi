@@ -272,6 +272,15 @@ test("inventario preserva orden de recursos y exige excepciones exactas motivada
     () => inventariar(raiz, { ...clasificados, "audit/auxiliar.sql": "Recurso ya consumido" }),
     /también clasificado/,
   );
+  // Una clasificación tiene que apuntar a un SQL que exista: no puede quedar huérfana.
+  assert.throws(
+    () =>
+      inventariar(raiz, {
+        ...clasificados,
+        "asistente/999_inexistente.sql": "DDL convergente sin archivo",
+      }),
+    /Clasificación de SQL inexistente/,
+  );
 });
 
 for (const tipo of ["sql", "wrapper", "manifiesto"]) {

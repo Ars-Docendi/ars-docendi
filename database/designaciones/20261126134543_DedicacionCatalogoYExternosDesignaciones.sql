@@ -124,7 +124,24 @@ BEGIN
 END;
 $$;
 
--- 5. Coherencia interno/externo.
+-- 5. Coherencia interno/externo. Antes del CHECK, una designación interna sin dedicación detiene
+-- la publicación: se sanea a mano por ID según docs/operations/migrations-persistence.md
+-- (Preflight de integridad y saneamiento autorizado), nunca con un relleno automático.
+DO $$
+DECLARE
+    ids text;
+BEGIN
+    SELECT string_agg(id::text, ', ' ORDER BY id) INTO ids
+      FROM designaciones.designaciones
+     WHERE sector_externo_id IS NULL AND dedicacion_id IS NULL;
+    IF ids IS NOT NULL THEN
+        RAISE EXCEPTION 'Designaciones internas sin dedicación del catálogo: %', ids
+            USING ERRCODE = '23514',
+                  HINT = 'Registrar una decisión de saneamiento manual por ID y repetir la publicación.';
+    END IF;
+END;
+$$;
+
 ALTER TABLE designaciones.designaciones ADD CONSTRAINT designaciones_interna_o_externa CHECK (
     (sector_externo_id IS NULL AND cargo_id IS NOT NULL AND dedicacion_id IS NOT NULL)
     OR (sector_externo_id IS NOT NULL AND cargo_id IS NULL AND dedicacion_id IS NULL)
@@ -146,6 +163,14 @@ ALTER TABLE designaciones.pedidos ADD CONSTRAINT pedidos_completitud_circuito CH
         AND ((cargo_solicitado_id IS NOT NULL AND dedicacion_solicitada_id IS NOT NULL)
              OR sector_externo_id IS NOT NULL))
 );
+
+-- 6. Versión del formato canónico de cada sello: los existentes quedan v1 y se siguen verificando
+-- con ese formato. Agregar la columna con DEFAULT constante no reescribe filas ni dispara el
+-- trigger de sólo inserción. El DEFAULT queda: la versión anterior de la aplicación, que no
+-- conoce la columna, sigue sellando en v1. La versión nueva siempre declara la suya.
+ALTER TABLE designaciones.pedido_sellos
+    ADD COLUMN version_payload text DEFAULT 'v1' NOT NULL,
+    ADD CONSTRAINT pedido_sellos_version_payload_valida CHECK (version_payload IN ('v1', 'v2'));
 
 CREATE INDEX designaciones_sector_externo_idx ON designaciones.designaciones USING btree (sector_externo_id)
     WHERE sector_externo_id IS NOT NULL;

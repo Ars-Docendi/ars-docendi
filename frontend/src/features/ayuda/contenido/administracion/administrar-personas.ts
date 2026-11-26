@@ -5,9 +5,10 @@ export const administrarPersonas: ArticuloAyuda = {
   moduloSlug: "administracion",
   grupo: "Personas",
   titulo: "Cómo administrar personas",
-  resumen: "Alta, edición, roles por ámbito, asignaciones docentes, activación y desactivación.",
+  resumen:
+    "Alta, edición, roles por ámbito, consulta de designaciones, activación y desactivación.",
   introduccion:
-    "Personas reúne en una sola pantalla a todas las personas del sistema, tengan cuenta o no, con sus roles, sus asignaciones docentes y su estado. Desde acá se da de alta a una persona, se corrigen sus datos, roles y asignaciones, y se activa o desactiva su acceso.",
+    "Personas reúne en una sola pantalla a todas las personas del sistema, tengan cuenta o no, con sus roles, sus designaciones vigentes y su estado. Desde acá se da de alta a una persona, se corrigen sus datos personales y sus roles, y se activa o desactiva su acceso. Las designaciones se consultan pero no se editan: para cambiar una, cargá el pedido de Alta, Cambio o Baja correspondiente.",
   permisos: ["personas.ver", "personas.ver_ambito"],
   palabrasClave: [
     "personas",
@@ -79,20 +80,20 @@ export const administrarPersonas: ArticuloAyuda = {
       },
     },
     {
-      titulo: "Cargá las asignaciones",
-      etiquetaIndice: "Asignaciones",
+      titulo: "Consultá sus designaciones",
+      etiquetaIndice: "Designaciones",
       cuerpo:
-        "En la pestaña Datos docentes, Designaciones vigentes muestra sus designaciones: la materia y la carrera, el Cargo y la Dedicación (o el Sector externo, si es un docente externo) y las Horas. Son sólo informativas: una designación se crea, cambia o termina únicamente con un pedido de Alta, Cambio o Baja aprobado. Por eso una persona nueva con rol Docente queda sin designación hasta que se apruebe su Alta. Si una pestaña tiene datos incompletos, se marca y el formulario avisa.",
+        "En la pestaña Datos docentes, Designaciones vigentes muestra sus designaciones: la materia y la carrera, el Cargo y la Dedicación (o el Sector externo, si es un docente externo) y las Horas. Son sólo informativas: una designación se crea, cambia o termina únicamente con un pedido de Alta, Cambio o Baja aprobado. Por eso una persona nueva con rol Docente queda sin designación hasta que se apruebe su Alta. Para cambiar una designación, cargá el pedido correspondiente en Designaciones.",
       captura: {
         src: "/ayuda/administracion/administrar-personas-paso-6.webp",
-        alt: "Pestaña Datos docentes con una asignación: materia y carrera, cargo, dedicación y horas.",
+        alt: "Pestaña Datos docentes con una designación vigente: materia y carrera, cargo, dedicación y horas.",
       },
     },
     {
       titulo: "Consultá su perfil en Mi Portal",
       etiquetaIndice: "Perfil en Mi Portal",
       cuerpo:
-        "Debajo de las asignaciones, Perfil en Mi Portal muestra el perfil docente de la persona: contacto, CV, experiencia, educación, certificaciones, proyectos y habilidades. Lo completa la propia persona desde Mi portal; una persona nueva lo completa al ingresar.",
+        "Debajo de las designaciones, Perfil en Mi Portal muestra el perfil docente de la persona: contacto, CV, experiencia, educación, certificaciones, proyectos y habilidades. Lo completa la propia persona desde Mi portal; una persona nueva lo completa al ingresar.",
       captura: {
         src: "/ayuda/administracion/administrar-personas-paso-7.webp",
         alt: "Sección Perfil en Mi Portal con contacto, CV y las secciones de experiencia, educación, certificaciones, proyectos y habilidades.",
@@ -102,7 +103,7 @@ export const administrarPersonas: ArticuloAyuda = {
       titulo: "Guardá",
       etiquetaIndice: "Guardar",
       cuerpo:
-        "Al guardar, el sistema vuelve al listado y muestra un aviso con el nombre de la persona. Se guardan juntos los datos personales, los roles y las asignaciones: si algo es inválido, no se guarda nada. Para editar a alguien, abrí su fila, cambiá lo que haga falta y guardá.",
+        "Al guardar, el sistema vuelve al listado y muestra un aviso con el nombre de la persona. Se guardan juntos los datos personales y los roles con sus ámbitos; las designaciones no cambian. Si algo es inválido, no se guarda nada. Si una pestaña tiene datos incompletos, se marca y el formulario avisa. Para editar a alguien, abrí su fila, cambiá lo que haga falta y guardá.",
     },
     {
       titulo: "Desactivá o activá una persona",

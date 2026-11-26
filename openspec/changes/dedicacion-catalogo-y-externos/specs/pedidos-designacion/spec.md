@@ -4,7 +4,7 @@
 
 ### Requirement: Catálogos canónicos
 
-Personas, materias, cargos, dedicaciones, sectores externos y períodos SHALL provenir de la API. Las mutaciones MUST enviar sus UUID canónicos. Para un Alta, el formulario SHALL ofrecer como materias únicamente las materias activas donde el actor tenga una membresía vigente de Jefe de Cátedra. Para una Baja o un Cambio de cargo o dedicación, el formulario SHALL ofrecer únicamente las materias activas que estén simultáneamente dentro del ámbito del actor y entre las designaciones vigentes del docente seleccionado. En un catálogo solicitado por un actor acotado, `personas` SHALL incluir sólo personas con al menos una designación vigente en una materia visible para ese actor y `designacionesVigentes` SHALL incluir únicamente esas designaciones visibles. Las dedicaciones seleccionables SHALL ser Categoría 0 a 6, de elección libre incluso al mantener o reducir la dedicación actual; la API MUST validar todas las referencias canónicas.
+Personas, materias, cargos, dedicaciones, sectores externos y períodos SHALL provenir de la API. Las mutaciones MUST enviar sus UUID canónicos. El ámbito de materias depende del rol con el que se carga: para un Jefe de Cátedra son las materias activas donde tenga una membresía vigente de Jefe de Cátedra; para un Administrativo o Secretaría, todas las materias activas del Departamento. Para un Alta, el formulario SHALL ofrecer como materias únicamente las materias de ese ámbito. Para una Baja o un Cambio de cargo o dedicación, el formulario SHALL ofrecer únicamente las materias de ese ámbito que estén además entre las designaciones vigentes del docente seleccionado. En un catálogo solicitado por un actor acotado, `personas` SHALL incluir sólo personas con al menos una designación vigente en una materia visible para ese actor y `designacionesVigentes` SHALL incluir únicamente esas designaciones visibles. Las dedicaciones seleccionables SHALL ser Categoría 0 a 6, de elección libre incluso al mantener o reducir la dedicación actual; la API MUST validar todas las referencias canónicas.
 
 #### Scenario: Abrir formulario
 
@@ -22,6 +22,12 @@ Personas, materias, cargos, dedicaciones, sectores externos y períodos SHALL pr
 - **GIVEN** un Jefe de Cátedra con materias A y B
 - **WHEN** elige la novedad "Alta"
 - **THEN** puede elegir A o B como materia del pedido, después de completar los datos del docente nuevo
+
+#### Scenario: Administrativo o Secretaría elige cualquier materia del Departamento
+
+- **GIVEN** un Administrativo o Secretaría sin membresía de Jefe de Cátedra
+- **WHEN** carga un Alta, o una Baja o Cambio para un docente con designaciones vigentes en B y C
+- **THEN** el Alta ofrece todas las materias activas del Departamento, y la Baja o el Cambio ofrecen B y C
 
 #### Scenario: Baja o Cambio limita las materias al docente seleccionado
 

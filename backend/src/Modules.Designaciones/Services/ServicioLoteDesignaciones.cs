@@ -76,6 +76,7 @@ internal sealed class ServicioLoteDesignaciones(
         var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
         var materias = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
         var datos = consulta!;
+        var nombresSector = datos.SectoresExternos.ToDictionary(s => s.Codigo, s => s.Nombre);
         // Lo que Decanato aceptó, se haya sincronizado o no. Lo rechazado en la conciliación
         // sale del lote: la rectificación no lo aprobó.
         var pedidosEnLote = datos.PedidosDelPeriodo
@@ -111,7 +112,7 @@ internal sealed class ServicioLoteDesignaciones(
             .Select(d => cambiosPendientes.TryGetValue((d.PersonaId, d.MateriaId), out var cambio)
                 ? MapearPropuestaCambioPendiente(d, cambio, personas, materias)
                 : MapearPropuesta(d, personas, materias, pedidosPorId))
-            .Concat(bajas.Select(p => MapearPropuestaBaja(p, personas, materias)))
+            .Concat(bajas.Select(p => MapearPropuestaBaja(p, personas, materias, nombresSector)))
             .Concat(altasSinDesignacion)
             .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(f => f.PersonaId)
@@ -142,7 +143,7 @@ internal sealed class ServicioLoteDesignaciones(
         }
 
         var bajasExportar = bajas
-            .Select(p => MapearBaja(p, personas, materias))
+            .Select(p => MapearBaja(p, personas, materias, nombresSector))
             .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(f => f.PersonaId)
             .ThenBy(f => f.Materia ?? string.Empty, StringComparer.Ordinal)
@@ -252,13 +253,16 @@ internal sealed class ServicioLoteDesignaciones(
             pedido.SectorExterno?.Nombre ?? DepartamentoPropio);
     }
 
+    /// <summary>La designación que se da de baja informa su departamento: el propio o el del sector externo.</summary>
     private static FilaPropuestaLote MapearPropuestaBaja(
         Pedido pedido,
         IReadOnlyDictionary<Guid, Persona> personas,
-        IReadOnlyDictionary<Guid, Materia> materias)
+        IReadOnlyDictionary<Guid, Materia> materias,
+        IReadOnlyDictionary<string, string> nombresSector)
     {
         personas.TryGetValue(pedido.PersonaId, out var persona);
         materias.TryGetValue(pedido.MateriaId, out var materia);
+        var sector = pedido.Snapshot?.SectorExterno;
         return new FilaPropuestaLote(
             pedido.PersonaId,
             pedido.MateriaId,
@@ -269,7 +273,8 @@ internal sealed class ServicioLoteDesignaciones(
             MotivoBaja(pedido),
             pedido.Snapshot?.Horas,
             pedido.Snapshot?.Materia ?? materia?.Nombre,
-            pedido.Numero);
+            pedido.Numero,
+            sector is null ? DepartamentoPropio : nombresSector.GetValueOrDefault(sector));
     }
 
     private static FilaPropuestaLote MapearPropuestaAlta(
@@ -296,9 +301,10 @@ internal sealed class ServicioLoteDesignaciones(
     private static FilaBajaLote MapearBaja(
         Pedido pedido,
         IReadOnlyDictionary<Guid, Persona> personas,
-        IReadOnlyDictionary<Guid, Materia> materias)
+        IReadOnlyDictionary<Guid, Materia> materias,
+        IReadOnlyDictionary<string, string> nombresSector)
     {
-        var fila = MapearPropuestaBaja(pedido, personas, materias);
+        var fila = MapearPropuestaBaja(pedido, personas, materias, nombresSector);
         return new FilaBajaLote(
             fila.PersonaId,
             fila.MateriaId,

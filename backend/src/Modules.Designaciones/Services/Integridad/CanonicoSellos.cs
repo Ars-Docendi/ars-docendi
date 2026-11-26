@@ -9,11 +9,15 @@ namespace Modules.Designaciones.Services.Integridad;
 /// <summary>
 /// Serialización canónica de los sellos [BR-designaciones-019]. Es propia y explícita a
 /// propósito: cambiar un nombre, el orden o el formato de un campo invalida toda cadena
-/// existente, así que un cambio de formato exige una versión de payload nueva.
+/// existente, así que un cambio de formato exige una versión de payload nueva. Cada sello
+/// guarda la suya y se verifica con ella: un sello nunca se recalcula ni se vuelve a firmar.
 /// </summary>
 internal static class CanonicoSellos
 {
-    private const string VersionPayload = "v2";
+    /// <summary>Primer formato: dedicación textual, sin sector externo.</summary>
+    public const string V1 = "v1";
+    /// <summary>Formato de los sellos nuevos: dedicación sólo por catálogo y sector externo.</summary>
+    public const string VersionVigente = "v2";
 
     /// <summary>Antecesor del primer sello del período. Coincide con el trigger <c>encadenar_sello</c>.</summary>
     public static byte[] Genesis(Guid periodoId) =>
@@ -24,9 +28,10 @@ internal static class CanonicoSellos
         new(instante.UtcTicks - instante.UtcTicks % 10, TimeSpan.Zero);
 
     /// <summary>Estado del pedido que el sello fotografía. Excluye <c>Version</c> (xmin cambia con cada UPDATE).</summary>
-    public static byte[] HashEstado(Pedido pedido) => Sha256(escritor =>
+    public static byte[] HashEstado(Pedido pedido, string version = VersionVigente) => Sha256(escritor =>
     {
-        escritor.WriteString("v", VersionPayload);
+        var v1 = version == V1;
+        escritor.WriteString("v", version);
         escritor.WriteString("periodo_id", pedido.PeriodoId);
         escritor.WriteString("persona_id", pedido.PersonaId);
         escritor.WriteString("materia_id", pedido.MateriaId);
@@ -35,8 +40,11 @@ internal static class CanonicoSellos
         escritor.WriteString("estado", pedido.Estado);
         escritor.WriteBoolean("prioritario", pedido.Prioritario);
         EscribirGuid(escritor, "cargo_solicitado_id", pedido.CargoSolicitadoId);
+        if (v1) escritor.WriteString("dedicacion_solicitada", pedido.DedicacionSolicitada);
         EscribirGuid(escritor, "dedicacion_solicitada_id", pedido.DedicacionSolicitadaId);
-        EscribirGuid(escritor, "sector_externo_id", pedido.SectorExternoId);
+        // Un pedido sellado en v1 no tenía sector: si hoy lo tiene, el hash debe divergir.
+        if (!v1 || pedido.SectorExternoId is not null)
+            EscribirGuid(escritor, "sector_externo_id", pedido.SectorExternoId);
         EscribirEntero(escritor, "horas", pedido.Horas);
         EscribirEntero(escritor, "horas_investigacion", pedido.HorasInvestigacion);
         EscribirEntero(escritor, "horas_externas", pedido.HorasExternas);
@@ -54,7 +62,8 @@ internal static class CanonicoSellos
             escritor.WriteString("materia", snapshot.Materia);
             EscribirEntero(escritor, "horas_investigacion", snapshot.HorasInvestigacion);
             EscribirEntero(escritor, "horas_externas", snapshot.HorasExternas);
-            escritor.WriteString("sector_externo", snapshot.SectorExterno);
+            if (!v1 || snapshot.SectorExterno is not null)
+                escritor.WriteString("sector_externo", snapshot.SectorExterno);
             escritor.WriteEndObject();
         }
         else
@@ -77,11 +86,12 @@ internal static class CanonicoSellos
 
     /// <summary>SHA-256(antecesor ‖ payload del evento).</summary>
     public static byte[] Hash(
-        byte[] hashAnterior, Guid periodoId, long secuencia, PedidoHistorial evento, byte[] hashEstado)
+        byte[] hashAnterior, Guid periodoId, long secuencia, PedidoHistorial evento, byte[] hashEstado,
+        string version = VersionVigente)
     {
         var payload = Serializar(escritor =>
         {
-            escritor.WriteString("v", VersionPayload);
+            escritor.WriteString("v", version);
             escritor.WriteString("periodo_id", periodoId);
             escritor.WriteNumber("secuencia", secuencia);
             escritor.WriteString("historial_id", evento.Id);

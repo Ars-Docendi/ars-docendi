@@ -23,7 +23,7 @@ El sistema SHALL mantener un catálogo persistido de sectores externos con ident
 
 ### Requirement: Coherencia entre designación interna y externa
 
-Toda designación y todo Alta o Cambio de cargo o dedicación SHALL ser interno, con cargo y dedicación del catálogo y sin sector externo, o externo, con sector externo y sin cargo ni dedicación. La base de datos MUST rechazar cualquier combinación mixta o incompleta, aunque provenga de un cliente o de una carga directa.
+Toda designación SHALL ser interna, con cargo y dedicación del catálogo y sin sector externo, o externa, con sector externo y sin cargo ni dedicación; la base de datos MUST rechazar una designación mixta o incompleta, aunque provenga de un cliente o de una carga directa. Un pedido MUST NOT combinar sector externo con cargo o dedicación en ningún estado. Un Alta o Cambio SHALL poder guardarse incompleto como borrador, pero al enviarse, reenviarse o aprobarse MUST estar completo —cargo y dedicación, o sector— con horas positivas, y la base de datos MUST rechazar un pedido incompleto en esos estados.
 
 #### Scenario: Designación externa válida
 
@@ -39,6 +39,12 @@ Toda designación y todo Alta o Cambio de cargo o dedicación SHALL ser interno,
 
 - **WHEN** se intenta registrar una designación sin sector externo y sin cargo o sin dedicación
 - **THEN** la base de datos MUST rechazar la operación
+
+#### Scenario: Borrador incompleto admitido
+
+- **GIVEN** un Alta en borrador, sin cargo, dedicación ni sector
+- **WHEN** se guarda
+- **THEN** se acepta como borrador, y enviarlo MUST rechazarse hasta completarlo
 
 ### Requirement: Selección de docente externo en Alta y Cambio
 
@@ -98,7 +104,7 @@ La administración de personas SHALL mostrar una designación externa con su sec
 
 ### Requirement: Externos en el lote departamental
 
-En la exportación del lote, una designación o pedido externo SHALL mostrar en la celda de cargo/dedicación únicamente la sigla del sector, tanto en la designación anterior como en la propuesta y en las hojas ALTAS y BAJAS. En `PROPUESTA COMPLETA`, la columna Departamento SHALL mostrar el nombre completo del sector de una designación vigente o un Alta externa, y "Departamento de Ingeniería e Investigaciones Tecnológicas" para una interna.
+En la exportación del lote, una designación o pedido externo SHALL mostrar en la celda de cargo/dedicación únicamente la sigla del sector, tanto en la designación anterior como en la propuesta y en las hojas ALTAS y BAJAS. En `PROPUESTA COMPLETA`, la columna Departamento SHALL mostrar el nombre completo del sector de una designación vigente o un Alta externa, y "Departamento de Ingeniería e Investigaciones Tecnológicas" para una interna. Una baja SHALL mostrar el departamento de la designación que termina, con el nombre del sector resuelto en el catálogo si era externa.
 
 #### Scenario: Continuidad de un externo
 

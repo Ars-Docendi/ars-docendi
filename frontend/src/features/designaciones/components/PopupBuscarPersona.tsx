@@ -37,6 +37,8 @@ export function PopupBuscarPersona({ open, onSeleccionar, onCerrar }: PopupBusca
 
   function buscar(evento: FormEvent) {
     evento.preventDefault();
+    // El modal se renderiza dentro del <form> del pedido: el submit no debe guardarlo.
+    evento.stopPropagation();
     setBusqueda(texto.trim());
   }
 

@@ -84,7 +84,8 @@ export function PedidoFormPage() {
             ...datos,
             version: pedidoInicial?.version,
             periodoId: pedidoInicial?.periodoId,
-            personaId: pedidoInicial?.personaId,
+            // La persona se puede cambiar al editar (el backend rearma el snapshot si cambia).
+            personaId: datos.personaId ?? pedidoInicial?.personaId,
           },
         },
         {

@@ -15,7 +15,7 @@ Estado actual relevante:
   El backend las lee como respaldo (`DedicacionCatalogo?.Nombre ?? Dedicacion`) en lote, consultas y administración.
 
 - **Cargo.** `designaciones.cargo_id` es `NOT NULL`, con FK a `cargos`. En pedidos, `cargo_solicitado_id` ya es nullable. `pedidos_completitud_circuito` (migración `20261013173721`) exige cargo, dedicación y horas a un Alta o Cambio en circuito.
-- **Sellos de integridad.** `CanonicoSellos.HashEstado` serializa el pedido completo, incluidos `dedicacion_solicitada` (texto) y el snapshot. Hay que adaptarlo a las columnas nuevas. El sistema todavía no está en producción, así que no hay pedidos sellados que preservar.
+- **Sellos de integridad.** `CanonicoSellos.HashEstado` serializa el pedido completo, incluidos `dedicacion_solicitada` (texto) y el snapshot. Hay que adaptarlo a las columnas nuevas. Staging y las PR conservan datos entre despliegues, así que ya hay cadenas selladas en `v1` que deben seguir verificando.
 - **Sin datos previos.** No hay ambientes productivos con datos. El diseño se adapta al modelo nuevo y no contempla compatibilidad con datos anteriores.
 - **Administración de personas.** `ServicioAdministracionDesignaciones.ReemplazarVigentesAsync` toma las designaciones deseadas que envía el editor y cierra las que no vienen. Si una designación externa no se puede representar en el editor, guardar la persona la cerraría.
 - **Asistente.** Concede `SELECT` por columna (`database/asistente/001`) y clasifica cada columna en `manifiesto-privilegios.json`; un test falla ante columnas sin clasificar. Sus lecturas hacen `JOIN designaciones.cargos` obligatorio (`CompiladorDePlan`, `BuscadorDeMenciones`), así que hoy dejarían afuera a un externo.
@@ -66,9 +66,9 @@ Alternativa descartada: eliminarlas. Obligaría a editar `database/asistente/001
 
 `ALTER TABLE ... DROP CONSTRAINT dedicaciones_codigo_check` y se agrega un `CHECK (codigo BETWEEN 0 AND 6)`. Se inserta `('d6000000-0000-4000-8000-000000000000', 0, 'Categoría 0', orden 0, activo)` con `ON CONFLICT DO NOTHING`. `orden = 0` respeta la unicidad y la ubica primera.
 
-### 5. Sellos adaptados al modelo nuevo
+### 5. Sellos versionados
 
-`VersionPayload` pasa de `v1` a `v2`: `HashEstado` deja de escribir `dedicacion_solicitada` y suma `sector_externo_id`. El snapshot sellado suma `sector`. Como no hay pedidos sellados, el formato canónico se adapta directamente, sin mecanismos de compatibilidad. Los tests de integridad existentes cubren que un pedido sellado verifica y que una alteración se detecta, también para un pedido externo.
+`pedido_sellos.version_payload` guarda el formato canónico de cada sello. Los existentes quedan `v1` (la columna se agrega con `DEFAULT 'v1'`) y los nuevos se calculan en `v2`: `HashEstado` deja de escribir `dedicacion_solicitada` y suma `sector_externo_id`, y el snapshot sellado suma `sector_externo`. `VerificadorIntegridadPedidos` y `SelladorPedidos.VerificarEstadoPrevioAsync` recalculan cada sello con su propia versión; ningún sello se recalcula ni se vuelve a firmar, y la cadena sigue encadenando `v1` y `v2`. Para verificar `v1`, `pedidos.dedicacion_solicitada` vuelve a mapearse sólo como lectura. En `v1`, un `sector_externo_id` presente (que ese formato no conocía) se escribe igual, para que agregarlo a un pedido sellado en `v1` se detecte como divergencia. El test de formato canónico fija los hashes de ambas versiones: cambiar `v2` exige una `v3`.
 
 ### 6. Snapshot y datos actuales
 
@@ -82,7 +82,7 @@ En `Modules.Designaciones.Contracts` los DTO de designación vigente usan `Cargo
 
 ### 8. Lote
 
-Una función única arma la celda: `CargoDedicacion(cargo, dedicacion, sectorExterno)` devuelve la sigla cuando hay sector y "cargo / dedicación" cuando no. Se aplica en la propuesta, las altas, las bajas y la designación anterior, que sale del snapshot. En `PROPUESTA COMPLETA`, la columna Departamento lleva el nombre completo del sector de una designación vigente o un Alta externa, y "Departamento de Ingeniería e Investigaciones Tecnológicas" en una interna; en una baja queda vacía, como la propuesta.
+Una función única arma la celda: `CargoDedicacion(cargo, dedicacion, sectorExterno)` devuelve la sigla cuando hay sector y "cargo / dedicación" cuando no. Se aplica en la propuesta, las altas, las bajas y la designación anterior, que sale del snapshot. En `PROPUESTA COMPLETA`, la columna Departamento lleva el nombre completo del sector de una designación vigente o un Alta externa, y "Departamento de Ingeniería e Investigaciones Tecnológicas" en una interna. Una baja informa el departamento de la designación que termina: el propio si era interna o, si era externa, el nombre que el catálogo de sectores da a la sigla de su snapshot (nunca la sigla como nombre).
 
 Las tres hojas agrupan por docente (`AgrupadorLote`): una fila por docente y combinación de cargo/dedicación, con los códigos de materia unidos por guion, las horas sumadas y las observaciones y números de pedido distintos combinados. Si un docente tuviera combinaciones distintas, cada una queda en su fila para no mezclar valores.
 
@@ -119,4 +119,4 @@ Una migración del contexto Asistente concede `SELECT` sobre `designaciones.sect
 2. Migración del contexto Asistente para permisos y comentarios, y actualización del manifiesto.
 3. Desplegar la aplicación. Los scripts de carga inicial (fuera del repo) vuelven a incluir la Categoría 0 y los externos con `sector_externo_id`.
 
-**Rollback:** revertir la versión de la aplicación. La migración no revierte DDL: las columnas y la tabla nuevas quedan sin uso. Las columnas de texto no se tocan. Si hiciera falta volver atrás el esquema, se hace con una migración incremental nueva.
+**Rollback:** la migración sólo agrega y no revierte DDL. Revertir sólo la aplicación alcanza **mientras la versión nueva no haya escrito datos propios**: la anterior ignora las columnas nuevas y sigue sellando en `v1` gracias al `DEFAULT`. Una vez que existen sellos `v2` o designaciones externas, no alcanza: la versión anterior marca los sellos `v2` como `sello-hash-invalido` (la exportación del lote responde 409) y su `CompiladorDePlan` excluye a las externas sin cargo. En ese caso el camino elegido es **hacia adelante**: corregir con una versión que verifique ambos formatos (como esta) y, si hace falta cambiar el esquema, con una migración incremental nueva. No se borran ni re-sellan sellos ni se convierten designaciones; restaurar un backup aislado previo al despliegue queda como recuperación explícita según [migrations-persistence](../../../docs/operations/migrations-persistence.md#recovery-aislado-sin-restore-directo-de-prod), nunca como rollback automático.

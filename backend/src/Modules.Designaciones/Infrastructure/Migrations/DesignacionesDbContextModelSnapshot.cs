@@ -546,6 +546,11 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("smallint")
                         .HasColumnName("version_clave");
 
+                    b.Property<string>("VersionPayload")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("version_payload");
+
                     b.HasKey("PeriodoId", "Secuencia");
 
                     b.HasIndex("HistorialId")
@@ -614,6 +619,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreadoEn")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<string>("DedicacionSolicitada")
+                        .HasColumnType("text")
+                        .HasColumnName("dedicacion_solicitada");
 
                     b.Property<Guid?>("DedicacionSolicitadaId")
                         .HasColumnType("uuid")

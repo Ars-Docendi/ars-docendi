@@ -102,6 +102,8 @@ public sealed class Pedido
     public bool Prioritario { get; set; }
 
     public Guid? CargoSolicitadoId { get; set; }
+    /// <summary>Dedicación textual legada: sin uso, sólo se lee para verificar sellos v1.</summary>
+    public string? DedicacionSolicitada { get; private set; }
     public Guid? DedicacionSolicitadaId { get; set; }
     public Dedicacion? DedicacionSolicitadaCatalogo { get; set; }
     /// <summary>Con valor, el Alta o Cambio es externo: excluye cargo y dedicación.</summary>

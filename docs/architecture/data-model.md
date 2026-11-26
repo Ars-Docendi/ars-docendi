@@ -419,6 +419,10 @@ historial y el log. Por eso cada evento fuera de borrador queda sellado en
   del pedido tras el evento; `hash` cubre el evento y `hash_estado`; `firma` es HMAC-SHA256
   con una clave por `version_clave` que vive en los secretos del host, nunca en la base. Un
   sello insertado por SQL directo no puede firmarse.
+- **Formato versionado.** `version_payload` dice con qué formato canónico se calcularon
+  `hash_estado` y `hash` (`v1`: dedicación textual; `v2`: dedicación de catálogo y sector
+  externo). La verificación usa el del sello: cambiar el formato exige una versión nueva, y
+  los sellos anteriores nunca se recalculan ni se vuelven a firmar.
 - **Sólo inserción.** `pedido_sellos` y `periodo_anclas` rechazan UPDATE/DELETE;
   `pedido_historial` rechaza cambiar un evento fuera de borrador y DELETE salvo el de un pedido en
   borrador; `pedidos` rechaza borrar un pedido fuera de borrador.

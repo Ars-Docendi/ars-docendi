@@ -55,7 +55,7 @@ Además del Jefe de Cátedra sobre sus materias, los roles Administrativo y Secr
 
 ### Requirement: Alta de una persona existente
 
-El Alta SHALL permitir elegir una persona que ya existe en el sistema mediante un buscador emergente por nombre, apellido, DNI o legajo, como alternativa a cargar una persona nueva. El buscador MUST ofrecer sólo personas sin designación vigente y sin un pedido vivo en el período, y el backend MUST validar la persona elegida.
+El Alta SHALL permitir elegir una persona que ya existe en el sistema mediante un buscador emergente por nombre, apellido, DNI o legajo, como alternativa a cargar una persona nueva. El buscador MUST ofrecer sólo personas sin designación vigente y sin un pedido vivo en el período. El backend MUST validar que la persona elegida exista y no tenga otro pedido vivo en el período [BR-designaciones-001]; no rechaza un Alta por una designación vigente en otra materia, porque un docente ya designado puede sumar una materia por Alta.
 
 #### Scenario: Alta de una persona creada en la administración
 

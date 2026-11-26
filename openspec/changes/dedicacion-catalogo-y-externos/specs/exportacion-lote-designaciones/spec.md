@@ -24,7 +24,9 @@ anterior sin reabrir la designación. En toda celda de cargo/dedicación, una
 designación o pedido externo SHALL mostrar únicamente la sigla de su sector
 externo, y la columna departamento SHALL mostrar el nombre completo de ese
 sector en una designación vigente o un Alta externa; para una interna, "Departamento
-de Ingeniería e Investigaciones Tecnológicas".
+de Ingeniería e Investigaciones Tecnológicas". Una baja SHALL mostrar el departamento
+de la designación que termina: el propio si era interna o, si era externa, el nombre
+del sector que el catálogo asigna a la sigla del snapshot.
 
 `ALTAS` y `BAJAS` SHALL agrupar igual: un registro por docente y
 cargo/dedicación. La hoja `ALTAS` SHALL contener exclusivamente pedidos `en_lote` del período

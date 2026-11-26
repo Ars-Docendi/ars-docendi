@@ -105,6 +105,7 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
             e.Property(x => x.Estado).HasColumnName("estado");
             e.Property(x => x.Prioritario).HasColumnName("prioritario");
             e.Property(x => x.CargoSolicitadoId).HasColumnName("cargo_solicitado_id");
+            e.Property(x => x.DedicacionSolicitada).HasColumnName("dedicacion_solicitada");
             e.Property(x => x.DedicacionSolicitadaId).HasColumnName("dedicacion_solicitada_id");
             e.HasOne(x => x.DedicacionSolicitadaCatalogo).WithMany().HasForeignKey(x => x.DedicacionSolicitadaId);
             e.Property(x => x.SectorExternoId).HasColumnName("sector_externo_id");
@@ -222,6 +223,7 @@ public sealed partial class DesignacionesDbContext(DbContextOptions<Designacione
             e.Property(x => x.Hash).HasColumnName("hash");
             e.Property(x => x.Firma).HasColumnName("firma");
             e.Property(x => x.VersionClave).HasColumnName("version_clave");
+            e.Property(x => x.VersionPayload).HasColumnName("version_payload");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             // Sin navegación: la relación sólo ordena el INSERT del sello después del evento.
             e.HasOne<PedidoHistorial>().WithMany().HasForeignKey(x => x.HistorialId).OnDelete(DeleteBehavior.Restrict);
