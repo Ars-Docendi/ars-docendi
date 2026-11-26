@@ -6,6 +6,7 @@ import { Migas } from "../../../shared/navegacion/Migas";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
 import { PedidoForm } from "../components/PedidoForm";
+import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
   useCrearPedido,
@@ -28,6 +29,10 @@ function etiquetaPeriodo(periodoId: string, periodos: { id: string; nombre: stri
 }
 
 export function PedidoFormPage() {
+  // El Jefe de Cátedra tiene pocas materias: lista. El resto (Administrativo, Secretaría…)
+  // ve todas las del Departamento: buscador.
+  const { user } = useCurrentUser();
+  const buscadorMaterias = user?.roleCode !== "jefe_catedra";
   const { id } = useParams();
   const esEdicion = Boolean(id);
   const navegar = useNavigate();
@@ -79,7 +84,8 @@ export function PedidoFormPage() {
             ...datos,
             version: pedidoInicial?.version,
             periodoId: pedidoInicial?.periodoId,
-            personaId: pedidoInicial?.personaId,
+            // La persona se puede cambiar al editar (el backend rearma el snapshot si cambia).
+            personaId: datos.personaId ?? pedidoInicial?.personaId,
           },
         },
         {
@@ -195,6 +201,8 @@ export function PedidoFormPage() {
           docentes={docentesDesdeCatalogo(catalogos.data)}
           cargos={catalogos.data.cargos.map((c) => c.nombre)}
           dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
+          sectoresExternos={catalogos.data.sectoresExternos}
+          buscadorMaterias={buscadorMaterias}
           tiposBaja={catalogos.data.tiposBaja}
         />
       )}
@@ -217,6 +225,8 @@ export function PedidoFormPage() {
             docentes={docentesDesdeCatalogo(catalogos.data)}
             cargos={catalogos.data.cargos.map((c) => c.nombre)}
             dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
+            sectoresExternos={catalogos.data.sectoresExternos}
+            buscadorMaterias={buscadorMaterias}
             tiposBaja={catalogos.data.tiposBaja}
           />
         )}

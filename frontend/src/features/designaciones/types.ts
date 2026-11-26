@@ -41,14 +41,21 @@ export interface MateriaPedido {
   carreraNombre?: string;
 }
 
-export type DepartamentoAgenteExterno =
-  | "Departamento de Arquitectura"
-  | "Departamento de Salud"
-  | "Departamento de Derecho"
-  | "Departamento de Económicas"
-  | "Departamento de Humanidades"
-  | "Departamento de Odontología"
-  | "Secretaría Académica";
+/**
+ * Departamento o área de la universidad que paga a un docente externo. Una designación o
+ * pedido externo lleva el sector y no tiene cargo ni dedicación.
+ */
+export interface SectorExterno {
+  id: string;
+  /** Sigla de la propuesta y del lote (ECO, DPU, ...). */
+  codigo: string;
+  nombre: string;
+}
+
+/** "Externo – Nombre (COD)", como se muestra un sector en lugar de cargo y dedicación. */
+export function etiquetaSectorExterno(sector: Pick<SectorExterno, "codigo" | "nombre">): string {
+  return `Externo – ${sector.nombre} (${sector.codigo})`;
+}
 
 /**
  * Una materia del docente con su carga horaria. Modela una fila de la designación
@@ -63,6 +70,8 @@ export interface AsignacionMateria {
   horas: number;
   cargoActual?: Cargo | null;
   dedicacionActual?: Dedicacion | null;
+  /** Con valor, la designación vigente es externa (sin cargo ni dedicación). */
+  sectorExternoActual?: SectorExterno | null;
   horasInvestigacion?: number | null;
   horasExternas?: number | null;
 }
@@ -144,6 +153,8 @@ export interface DocenteExistente {
   antiguedad: number;
   cargoActual: Cargo;
   dedicacionActual: Dedicacion;
+  /** Sector de la designación vigente si es externa; en ese caso cargo y dedicación vienen vacíos. */
+  sectorExternoActual?: SectorExterno | null;
   /** Materias a las que pertenece el docente, con su carga horaria. Mínimo 1 elemento. */
   materiasActuales: AsignacionMateria[];
   /** Horas de investigación/externas vigentes del docente (base de comparación en Cambio). */
@@ -154,6 +165,8 @@ export interface DocenteExistente {
 export interface SnapshotPedido {
   cargo: Cargo | null;
   dedicacion: Dedicacion | null;
+  /** Sigla del sector si la designación fotografiada era externa. */
+  sectorExterno?: string | null;
   horas: number | null;
   materia: string | null;
   horasInvestigacion: number | null;
@@ -191,8 +204,11 @@ export interface PedidoDesignacion {
   horasActuales?: number | null;
   horasInvestigacionActuales?: number | null;
   horasExternasActuales?: number | null;
-  esAgenteExterno?: boolean;
-  departamentoAgenteExterno?: DepartamentoAgenteExterno;
+  /** Sector solicitado: con valor, el Alta o Cambio es de un docente externo (sin cargo ni dedicación). */
+  sectorExternoId?: string;
+  sectorExterno?: SectorExterno;
+  /** Sigla del sector de la designación fotografiada, si era externa. */
+  sectorExternoActual?: string | null;
   adjuntos: Adjunto[];
   estado: EstadoPedido;
   prioritario: boolean;
@@ -239,8 +255,8 @@ export interface DatosEditablesPedido {
   tipoBajaDetalle?: string;
   horasExternas: number;
   horasInvestigacion: number;
-  esAgenteExterno?: boolean;
-  departamentoAgenteExterno?: DepartamentoAgenteExterno;
+  /** Sector solicitado: con valor, el pedido es de un docente externo. */
+  sectorExternoId?: string;
   adjuntos: Adjunto[];
   personaId?: string;
   materiaId?: string;

@@ -45,7 +45,6 @@ function pedido(
     novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
-    esAgenteExterno: false,
     adjuntos: [],
     estado,
     prioritario: false,

@@ -256,7 +256,7 @@ internal sealed class ServicioPedidosApi(
                     pedido.CargoSolicitado.Id,
                     pedido.CargoSolicitado.Codigo,
                     pedido.CargoSolicitado.Nombre),
-                pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada,
+                pedido.DedicacionSolicitadaCatalogo?.Nombre,
                 pedido.Horas,
                 pedido.HorasInvestigacion,
                 pedido.HorasExternas,
@@ -287,7 +287,9 @@ internal sealed class ServicioPedidosApi(
                 vista.MotivoDevolucion,
                 // Primer envío: lo ve también quien no tiene seguimiento (su propia acción).
                 pedido.Historial.Where(h => h.Accion == AccionesHistorial.Enviar)
-                    .OrderBy(h => h.CreadoEn).FirstOrDefault()?.CreadoEn));
+                    .OrderBy(h => h.CreadoEn).FirstOrDefault()?.CreadoEn,
+                pedido.SectorExterno is null ? null : new OpcionPedidoDto(
+                    pedido.SectorExterno.Id, pedido.SectorExterno.Codigo, pedido.SectorExterno.Nombre)));
         }
         return resultado;
     }

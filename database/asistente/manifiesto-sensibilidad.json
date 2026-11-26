@@ -392,6 +392,32 @@
     },
     {
       "schema": "designaciones",
+      "tabla": "sectores_externos",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "codigo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "activo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
       "tabla": "periodos",
       "columnas": [
         {
@@ -516,6 +542,10 @@
         },
         {
           "columna": "created_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "sector_externo_id",
           "clasificacion": "publica"
         }
       ]
@@ -643,6 +673,10 @@
         },
         {
           "columna": "created_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "sector_externo_id",
           "clasificacion": "publica"
         }
       ]

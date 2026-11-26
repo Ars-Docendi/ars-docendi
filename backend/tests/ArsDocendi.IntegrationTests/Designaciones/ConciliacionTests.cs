@@ -308,6 +308,30 @@ public sealed class ConciliacionTests(PostgresFixture postgres) : VigenciasPedid
             almacenamiento);
     }
 
+    [Fact]
+    public async Task Un_cambio_aprobado_de_un_docente_externo_muestra_su_sector_como_lo_que_tenia()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await using var identity = PostgresFixture.CrearIdentity(Cadena);
+        var pedido = await db.Pedidos.SingleAsync(p => p.Id == PedidoId, ct);
+        pedido.Novedad = Novedades.CambioDeCargoODedicacion;
+        pedido.Estado = EstadosPedido.Aprobado;
+        pedido.EtapaRetorno = null;
+        pedido.PropietarioActual = null;
+        // Era externo: la fotografía no tiene cargo ni dedicación, sólo la sigla del sector.
+        pedido.Snapshot = new SnapshotPedido(null, null, 4, "Ingeniería de Software", null, null, "ECO");
+        await db.SaveChangesAsync(ct);
+        db.ChangeTracker.Clear();
+
+        var conciliacion = await ConciliacionPrueba.Crear(ConciliacionPrueba.Secretaria, identity, db)
+            .ConsultarAsync(ct);
+
+        var fila = Assert.Single(conciliacion.Docentes, d => d.Pedido.Id == PedidoId);
+        Assert.Equal("Externo – ECO", fila.Pedido.Hoy?.Cargo);
+    }
+
     /// <summary>Lleva el pedido a en lote por EF y lo sella como si hubiera llegado por el circuito.</summary>
     private static async Task<Pedido> EnLoteAsync(
         DesignacionesDbContext db, Guid pedidoId, Action<Pedido> ajustar, CancellationToken ct)

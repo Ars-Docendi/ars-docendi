@@ -52,7 +52,10 @@ const contiene = (texto: string | null | undefined, filtro: string) =>
 
 const textoAsignaciones = (p: Persona) =>
   p.asignaciones
-    .map((a) => `${a.materiaCodigo} ${a.materiaNombre} ${a.cargoNombre} ${a.cargoAbreviatura}`)
+    .map(
+      (a) =>
+        `${a.materiaCodigo} ${a.materiaNombre} ${a.cargoNombre ?? ""} ${a.cargoAbreviatura ?? ""} ${a.sectorExternoNombre ?? ""} ${a.sectorExternoCodigo ?? ""}`,
+    )
     .join(" ");
 
 export function opcionesRol(personas: Persona[]): string[] {

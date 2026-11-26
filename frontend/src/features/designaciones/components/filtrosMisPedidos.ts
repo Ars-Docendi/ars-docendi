@@ -58,6 +58,7 @@ export function normalizarTexto(texto: string): string {
 
 export function etiquetaNovedadCorta(pedido: PedidoDesignacion): string {
   if (pedido.novedad !== "Cambio de cargo o dedicación") return pedido.novedad;
+  if (pedido.sectorExterno) return "Cambio a externo";
   if (pedido.cargoSolicitado && pedido.cargoSolicitado !== pedido.cargoActual)
     return "Cambio de cargo";
   if (pedido.dedicacionSolicitada && pedido.dedicacionSolicitada !== pedido.dedicacionActual)

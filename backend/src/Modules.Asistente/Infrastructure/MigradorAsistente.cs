@@ -25,6 +25,7 @@ internal sealed class MigradorAsistente(
     [
         PrivilegiosAsistente.RecursoSql,
         PrivilegiosAsistente.RecursoSqlDominios,
+        PrivilegiosAsistente.RecursoSqlSectoresExternos,
         RegistrosAsistente.RecursoSql,
         RetroalimentacionAsistente.RecursoSql,
         HistorialAsistente.RecursoSql,

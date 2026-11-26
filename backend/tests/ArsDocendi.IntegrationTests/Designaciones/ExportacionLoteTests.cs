@@ -129,7 +129,9 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         Assert.Contains("Profesor Titular / Categoría 1", Texto(bajas));
         Assert.Contains("Renuncia", Texto(bajas));
         Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Ortiz, Brenda");
-        Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Giménez, Laura");
+        // La baja de una designación interna informa el departamento propio.
+        Assert.Equal("Departamento de Ingeniería e Investigaciones Tecnológicas",
+            Valor(Assert.Single(FilasDeDatos(propuesta, 5), f => Valor(f, "B") == "Giménez, Laura"), "I"));
         Assert.Contains("Ayudante de Segunda / Categoría 5", Valores(FilasDeDatos(propuesta, 5), "E"));
         Assert.Equal(estadoAntes, await EscalarAsync<string>(
             "SELECT estado FROM designaciones.pedidos WHERE id = 'd5000000-0000-4000-8000-000000000008'", ct));
@@ -234,9 +236,7 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         var ct = TestContext.Current.CancellationToken;
         await EjecutarSeedAsync(ct);
         await EjecutarAsync("""
-            UPDATE identity.materias SET name = '=Materia de prueba'
-             WHERE id = '70000000-0000-4000-8000-000000000102';
-            UPDATE identity.personas SET cuil = '0014', legajo = '0014'
+            UPDATE identity.personas SET apellido = '=SUM(1,1)', cuil = '0014', legajo = '0014'
              WHERE id = 'd0000000-0000-4000-8000-000000000014';
             """, ct);
 
@@ -246,15 +246,17 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
         var propuesta = LeerXml(zip, "xl/worksheets/sheet1.xml");
-        var filaNatalia = FilasDeDatos(propuesta, 5).Single(f =>
-            Valor(f, "B") == "Castro, Natalia" && Valor(f, "H") == "=Materia de prueba");
+        // Un texto que empieza con «=» llega como texto literal, nunca como fórmula a evaluar.
+        var filaNatalia = FilasDeDatos(propuesta, 5).First(f => Valor(f, "B") == "=SUM(1,1), Natalia");
+        var docente = Celda(filaNatalia, "B")!;
 
+        Assert.Equal("inlineStr", docente.Attribute("t")?.Value);
+        Assert.DoesNotContain(docente.Elements(), e => e.Name.LocalName == "f");
         Assert.Equal("0014", Valor(filaNatalia, "C"));
         Assert.Equal("inlineStr", Celda(filaNatalia, "C")?.Attribute("t")?.Value);
-        Assert.Contains("=Materia de prueba", Texto(propuesta));
         Assert.All(FilasDeDatos(propuesta, 5), fila =>
         {
-            Assert.True(Celda(fila, "I")?.Elements().SingleOrDefault() is null);
+            // Departamento (I) tiene fuente; cargo/dedicación departamental (J) y horas al ingreso (K), no.
             Assert.True(Celda(fila, "J")?.Elements().SingleOrDefault() is null);
             Assert.True(Celda(fila, "K")?.Elements().SingleOrDefault() is null);
         });

@@ -135,11 +135,29 @@ public static class MaquinaEstadosPedido
     }
 
     /// <summary>
-    /// ¿El actor puede editar? Un borrador siendo Jefe de Cátedra, o un devuelto del
-    /// que es propietario actual [BR-designaciones-008]. Además, con
-    /// <c>designaciones.editar</c>, un pedido en lote o rechazado en la conciliación
-    /// que todavía no se escribió sobre las designaciones. El ámbito lo valida
-    /// <see cref="AlcanzaAmbito"/>.
+    /// Administrativo y Secretaría cargan pedidos de cualquier materia del Departamento, además
+    /// del Jefe de Cátedra sobre las suyas.
+    /// </summary>
+    public static bool EsCargadorDepartamental(ActorContexto actor) =>
+        actor.Tiene(RolesCircuito.Administrativo) || actor.Tiene(RolesCircuito.Secretaria);
+
+    /// <summary>¿El actor puede cargar (crear, enviar, cancelar) un pedido sobre esta materia?</summary>
+    public static bool PuedeCargar(AlcancePedido alcance, ActorContexto actor) =>
+        EsCargadorDepartamental(actor)
+        || (actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(alcance.MateriaId));
+
+    /// <summary>Rol con el que actúa quien carga: Jefe si la materia es suya; si no, Secretaría o Administrativo.</summary>
+    public static string RolCargador(AlcancePedido alcance, ActorContexto actor) =>
+        actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(alcance.MateriaId)
+            ? RolesCircuito.JefeCatedra
+            : actor.Tiene(RolesCircuito.Secretaria) ? RolesCircuito.Secretaria : RolesCircuito.Administrativo;
+
+    /// <summary>
+    /// ¿El actor puede editar? Un borrador, quien puede cargar pedidos; un devuelto, su
+    /// propietario actual, y si volvió al primer nivel también Administrativo o Secretaría
+    /// [BR-designaciones-008]. Además, con <c>designaciones.editar</c>, un pedido en lote o
+    /// rechazado en la conciliación que todavía no se escribió sobre las designaciones. El
+    /// ámbito lo valida <see cref="AlcanzaAmbito"/>.
     /// </summary>
     public static bool PuedeEditar(Pedido pedido, ActorContexto actor)
     {
@@ -156,22 +174,27 @@ public static class MaquinaEstadosPedido
                 && actor.TienePermiso(Permisos.DesignacionesEditar);
         }
 
-        var esBorradorDelJefe =
-            pedido.Estado == EstadosPedido.Borrador && actor.Tiene(RolesCircuito.JefeCatedra);
-        var esDevueltoDelPropietario =
-            pedido.Estado == EstadosPedido.Devuelto
-            && pedido.PropietarioActual is not null
-            && actor.Tiene(pedido.PropietarioActual);
+        var esBorradorDeCargador =
+            pedido.Estado == EstadosPedido.Borrador
+            && (actor.Tiene(RolesCircuito.JefeCatedra) || EsCargadorDepartamental(actor));
 
-        return esBorradorDelJefe || esDevueltoDelPropietario;
+        return esBorradorDeCargador
+            || (pedido.Estado == EstadosPedido.Devuelto && EsPropietarioDelDevuelto(pedido, actor));
     }
 
+    /// <summary>Propietario del devuelto; el primer nivel (Jefe) también lo corrigen Administrativo y Secretaría.</summary>
+    private static bool EsPropietarioDelDevuelto(Pedido pedido, ActorContexto actor) =>
+        pedido.PropietarioActual is not null
+        && (actor.Tiene(pedido.PropietarioActual)
+            || (pedido.PropietarioActual == RolesCircuito.JefeCatedra && EsCargadorDepartamental(actor)));
+
     /// <summary>
-    /// ¿Puede eliminarlo? Sólo un borrador propio del Jefe de Cátedra. Un devuelto NO,
+    /// ¿Puede eliminarlo? Sólo un borrador, y sólo quien puede cargar pedidos. Un devuelto NO,
     /// aunque también sea editable: ya tiene una revisión en su historial.
     /// </summary>
     public static bool PuedeEliminar(Pedido pedido, ActorContexto actor) =>
-        pedido.Estado == EstadosPedido.Borrador && actor.Tiene(RolesCircuito.JefeCatedra);
+        pedido.Estado == EstadosPedido.Borrador
+        && (actor.Tiene(RolesCircuito.JefeCatedra) || EsCargadorDepartamental(actor));
 
     /// <summary>
     /// ¿El actor puede conciliar este pedido? Está en lote, el actor tiene
@@ -263,21 +286,16 @@ public static class MaquinaEstadosPedido
                 $"Sólo se puede enviar a revisión un pedido en borrador (estado actual: \"{pedido.Estado}\").");
         }
 
-        if (!actor.Tiene(RolesCircuito.JefeCatedra))
-        {
-            throw new ErrorDominioPedido("Sólo el Jefe de Cátedra puede enviar el pedido a revisión.");
-        }
-
-        if (!actor.MateriasACargo.Contains(alcance.MateriaId))
+        if (!PuedeCargar(alcance, actor))
         {
             throw new ErrorDominioPedido(
-                "El pedido pertenece a una cátedra que el actor no tiene a cargo [BR-designaciones-009].");
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden enviar el pedido [BR-designaciones-009].");
         }
 
         return new TransicionPedido(
             EstadosPedido.EnRevisionCoordinador,
             AccionesHistorial.Enviar,
-            RolesCircuito.JefeCatedra);
+            RolCargador(alcance, actor));
     }
 
     private static TransicionPedido Cancelar(
@@ -289,20 +307,16 @@ public static class MaquinaEstadosPedido
                 $"Sólo se puede cancelar un pedido en borrador (estado actual: \"{pedido.Estado}\").");
         }
 
-        if (!actor.Tiene(RolesCircuito.JefeCatedra))
+        if (!PuedeCargar(alcance, actor))
         {
-            throw new ErrorDominioPedido("Sólo el Jefe de Cátedra puede cancelar el pedido.");
-        }
-
-        if (!AlcanzaAmbito(alcance, actor))
-        {
-            throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
+            throw new ErrorDominioPedido(
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden cancelar el pedido [BR-designaciones-009].");
         }
 
         return new TransicionPedido(
             EstadosPedido.Cancelado,
             AccionesHistorial.Cancelar,
-            RolesCircuito.JefeCatedra);
+            RolCargador(alcance, actor));
     }
 
     /// <summary>
@@ -404,7 +418,7 @@ public static class MaquinaEstadosPedido
                 $"Sólo se puede reenviar un pedido devuelto (estado actual: \"{pedido.Estado}\").");
         }
 
-        if (pedido.PropietarioActual is null || !actor.Tiene(pedido.PropietarioActual))
+        if (!EsPropietarioDelDevuelto(pedido, actor))
         {
             throw new ErrorDominioPedido(
                 "Sólo el propietario del pedido devuelto puede reenviarlo [BR-designaciones-014].");
@@ -423,7 +437,7 @@ public static class MaquinaEstadosPedido
         return new TransicionPedido(
             pedido.EtapaRetorno,
             AccionesHistorial.Reenviar,
-            pedido.PropietarioActual,
+            actor.Tiene(pedido.PropietarioActual!) ? pedido.PropietarioActual! : RolCargador(alcance, actor),
             EtapaRetorno: null,
             PropietarioActual: null);
     }

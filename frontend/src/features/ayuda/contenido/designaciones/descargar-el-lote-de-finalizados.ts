@@ -39,7 +39,7 @@ export const descargarElLoteDeFinalizados: ArticuloAyuda = {
       titulo: "Abrí el libro",
       etiquetaIndice: "Contenido del libro",
       cuerpo:
-        "El libro tiene tres hojas. PROPUESTA COMPLETA: una fila por asignación vigente, baja o alta del lote; un cambio todavía sin sincronizar muestra el cargo actual como anterior y lo pedido como propuesta. ALTAS: los pedidos de Alta del lote. BAJAS: los pedidos de Baja del lote, con el cargo anterior y el motivo. Un pedido rechazado en la conciliación ya no aparece. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco. Arriba a la derecha de la primera hoja, la celda «INTEGRIDAD · sello …» identifica el estado exacto del período que se exportó.",
+        "El libro tiene tres hojas. PROPUESTA COMPLETA: un registro por docente con sus asignaciones vigentes, bajas y altas del lote; sus materias van juntas (códigos separados por guion) y las horas se suman, porque el cargo y la dedicación son únicos por docente. Un cambio todavía sin sincronizar muestra el cargo actual como anterior y lo pedido como propuesta. ALTAS: los pedidos de Alta del lote. BAJAS: los pedidos de Baja del lote, con el cargo anterior y el motivo. Un pedido rechazado en la conciliación ya no aparece. Para un docente externo, la columna de cargo/dedicación muestra la sigla de su sector (por ejemplo, ECO) y la columna Departamento, su nombre completo; para los docentes del Departamento, Departamento de Ingeniería e Investigaciones Tecnológicas. Los datos que el sistema no tiene (por ejemplo CUIL o teléfono) quedan en blanco. Arriba a la derecha de la primera hoja, la celda «INTEGRIDAD · sello …» identifica el estado exacto del período que se exportó.",
     },
     {
       titulo: "Si algo falla",

@@ -20,13 +20,16 @@ public sealed record DesignacionVigenteCatalogoDto(
     Guid MateriaId,
     string MateriaNombre,
     Guid CarreraId,
-    Guid CargoId,
-    string CargoNombre,
+    Guid? CargoId,
+    string? CargoNombre,
     string? Dedicacion,
     int Horas,
     Guid? DedicacionId = null,
     int? HorasInvestigacion = null,
-    int? HorasExternas = null);
+    int? HorasExternas = null,
+    Guid? SectorExternoId = null,
+    string? SectorExternoCodigo = null,
+    string? SectorExternoNombre = null);
 
 public sealed record CargoDesignacionesDto(
     Guid Id,
@@ -37,6 +40,11 @@ public sealed record CargoDesignacionesDto(
 
 public sealed record DedicacionDesignacionesDto(Guid Id, short Codigo, string Nombre, short Orden);
 
+public sealed record SectorExternoDesignacionesDto(Guid Id, string Codigo, string Nombre);
+
+/// <summary>Persona del sistema elegible para un Alta (sin pedido vivo en el período activo).</summary>
+public sealed record PersonaBusquedaDto(Guid Id, string Nombre, string Apellido, string Documento, string? Legajo);
+
 public sealed record CatalogosDesignacionesDto(
     PeriodoDto? PeriodoActivo,
     IReadOnlyList<PeriodoDto> Periodos,
@@ -45,4 +53,5 @@ public sealed record CatalogosDesignacionesDto(
     IReadOnlyList<CargoDesignacionesDto> Cargos,
     IReadOnlyList<DedicacionDesignacionesDto> Dedicaciones,
     IReadOnlyList<string> TiposBaja,
-    IReadOnlyList<string> Novedades);
+    IReadOnlyList<string> Novedades,
+    IReadOnlyList<SectorExternoDesignacionesDto> SectoresExternos);

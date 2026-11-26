@@ -17,6 +17,8 @@ public sealed class PedidoSello
     /// <summary>HMAC-SHA256 de <see cref="Hash"/> con la clave del host.</summary>
     public required byte[] Firma { get; set; }
     public short VersionClave { get; set; }
+    /// <summary>Formato canónico con el que se calcularon los hashes (v1, v2): se verifica con ese mismo.</summary>
+    public required string VersionPayload { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 }
 

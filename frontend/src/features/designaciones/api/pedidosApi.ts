@@ -36,6 +36,7 @@ interface PedidoDto {
   cargoSolicitado: { id: string; codigo: string; nombre: string } | null;
   dedicacionSolicitada: string | null;
   dedicacionSolicitadaId: string | null;
+  sectorExterno?: { id: string; codigo: string; nombre: string } | null;
   horas: number | null;
   horasInvestigacion: number | null;
   horasExternas: number | null;
@@ -51,6 +52,7 @@ interface PedidoDto {
     materia: string | null;
     horasInvestigacion: number | null;
     horasExternas: number | null;
+    sectorExterno?: string | null;
   } | null;
   version: number;
   adjuntos: {
@@ -135,11 +137,14 @@ async function accion(id: string, nombre: string, comentario?: string): Promise<
 }
 
 async function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones) {
-  const cargoSolicitadoId =
-    datos.cargoSolicitadoId ??
-    catalogos.cargos.find(
-      (c) => c.nombre === datos.cargoSolicitado || c.abreviatura === datos.cargoSolicitado,
-    )?.id;
+  // Un docente externo lleva sólo el sector: cargo y dedicación viajan en null.
+  const externo = datos.sectorExternoId !== undefined;
+  const cargoSolicitadoId = externo
+    ? null
+    : (datos.cargoSolicitadoId ??
+      catalogos.cargos.find(
+        (c) => c.nombre === datos.cargoSolicitado || c.abreviatura === datos.cargoSolicitado,
+      )?.id);
   const personaNueva =
     !datos.personaId && datos.novedad === "Alta"
       ? {
@@ -164,10 +169,12 @@ async function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignac
     carreraId: datos.carreraId,
     novedad: datos.novedad,
     cargoSolicitadoId,
-    dedicacionSolicitadaId:
-      datos.dedicacionSolicitadaId ??
-      catalogos.dedicaciones.find((d) => d.nombre === datos.dedicacionSolicitada)?.id ??
-      null,
+    dedicacionSolicitadaId: externo
+      ? null
+      : (datos.dedicacionSolicitadaId ??
+        catalogos.dedicaciones.find((d) => d.nombre === datos.dedicacionSolicitada)?.id ??
+        null),
+    sectorExternoId: datos.sectorExternoId || null,
     horas: datos.horas,
     horasInvestigacion: datos.horasInvestigacion,
     horasExternas: datos.horasExternas,
@@ -199,13 +206,21 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
       antiguedad: 0,
     },
     horas: dto.horas ?? 0,
-    cargoActual: (dto.snapshot?.cargo as Cargo) ?? null,
-    dedicacionActual: dto.snapshot?.dedicacion ?? null,
+    // Una designación fotografiada externa se muestra por su sector, sin dedicación.
+    cargoActual: dto.snapshot?.sectorExterno
+      ? `Externo – ${dto.snapshot.sectorExterno}`
+      : ((dto.snapshot?.cargo as Cargo) ?? null),
+    dedicacionActual: dto.snapshot?.sectorExterno
+      ? "Sin dedicación (externo)"
+      : (dto.snapshot?.dedicacion ?? null),
     novedad: dto.novedad,
     cargoSolicitado: dto.cargoSolicitado?.nombre,
     cargoSolicitadoId: dto.cargoSolicitado?.id,
     dedicacionSolicitada: dto.dedicacionSolicitada ?? undefined,
     dedicacionSolicitadaId: dto.dedicacionSolicitadaId ?? undefined,
+    sectorExternoId: dto.sectorExterno?.id,
+    sectorExterno: dto.sectorExterno ?? undefined,
+    sectorExternoActual: dto.snapshot?.sectorExterno ?? null,
     justificacion: dto.justificacion ?? undefined,
     tipoBaja: dto.tipoBaja as PedidoDesignacion["tipoBaja"],
     tipoBajaDetalle: dto.tipoBajaDetalle ?? undefined,

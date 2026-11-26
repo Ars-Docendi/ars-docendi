@@ -51,11 +51,11 @@ internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscado
 
     /// <summary>
     /// La designación vigente más reciente de cada persona, para el cargo que se muestra en el
-    /// resultado.
+    /// resultado (o el sector, si la designación es externa).
     /// </summary>
     private const string ConDesignacionReciente = """
         WITH designacion_reciente AS (
-            SELECT persona_id, cargo_id,
+            SELECT persona_id, cargo_id, sector_externo_id,
                    ROW_NUMBER() OVER (
                        PARTITION BY persona_id
                        ORDER BY vigente_desde DESC, created_at DESC
@@ -65,10 +65,11 @@ internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscado
         """;
 
     private const string SqlDocentes = ConDesignacionReciente + """
-        SELECT p.id, p.nombre, p.apellido, cg.nombre AS cargo
+        SELECT p.id, p.nombre, p.apellido, COALESCE(cg.nombre, 'Externo – ' || se.nombre) AS cargo
           FROM identity.personas p
           JOIN designacion_reciente dr ON dr.persona_id = p.id AND dr.orden = 1
-          JOIN designaciones.cargos cg ON cg.id = dr.cargo_id
+          LEFT JOIN designaciones.cargos cg ON cg.id = dr.cargo_id
+          LEFT JOIN designaciones.sectores_externos se ON se.id = dr.sector_externo_id
          WHERE EXISTS (
              SELECT 1
                FROM unnest(regexp_split_to_array(
@@ -80,10 +81,11 @@ internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscado
         """;
 
     private const string SqlDocentePorId = ConDesignacionReciente + """
-        SELECT p.id, p.nombre, p.apellido, cg.nombre AS cargo
+        SELECT p.id, p.nombre, p.apellido, COALESCE(cg.nombre, 'Externo – ' || se.nombre) AS cargo
           FROM identity.personas p
           JOIN designacion_reciente dr ON dr.persona_id = p.id AND dr.orden = 1
-          JOIN designaciones.cargos cg ON cg.id = dr.cargo_id
+          LEFT JOIN designaciones.cargos cg ON cg.id = dr.cargo_id
+          LEFT JOIN designaciones.sectores_externos se ON se.id = dr.sector_externo_id
          WHERE p.id = @id
         """;
 

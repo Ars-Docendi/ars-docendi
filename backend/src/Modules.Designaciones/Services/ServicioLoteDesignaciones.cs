@@ -76,6 +76,7 @@ internal sealed class ServicioLoteDesignaciones(
         var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
         var materias = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
         var datos = consulta!;
+        var nombresSector = datos.SectoresExternos.ToDictionary(s => s.Codigo, s => s.Nombre);
         // Lo que Decanato aceptó, se haya sincronizado o no. Lo rechazado en la conciliación
         // sale del lote: la rectificación no lo aprobó.
         var pedidosEnLote = datos.PedidosDelPeriodo
@@ -111,7 +112,7 @@ internal sealed class ServicioLoteDesignaciones(
             .Select(d => cambiosPendientes.TryGetValue((d.PersonaId, d.MateriaId), out var cambio)
                 ? MapearPropuestaCambioPendiente(d, cambio, personas, materias)
                 : MapearPropuesta(d, personas, materias, pedidosPorId))
-            .Concat(bajas.Select(p => MapearPropuestaBaja(p, personas, materias)))
+            .Concat(bajas.Select(p => MapearPropuestaBaja(p, personas, materias, nombresSector)))
             .Concat(altasSinDesignacion)
             .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(f => f.PersonaId)
@@ -119,6 +120,8 @@ internal sealed class ServicioLoteDesignaciones(
             .ThenBy(f => f.MateriaId)
             .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal)
             .ToArray();
+        // Un registro por docente: sus materias juntas y las horas sumadas.
+        propuesta = AgrupadorLote.Propuesta(propuesta, materias);
 
         var altas = new List<FilaAltaLote>();
         foreach (var pedido in pedidosEnLote.Where(p => p.Novedad == Novedades.Alta))
@@ -131,12 +134,7 @@ internal sealed class ServicioLoteDesignaciones(
                 pedido.MateriaId,
                 Nombre(persona),
                 persona?.Cuil,
-                CargoDedicacion(
-                    designacion?.Cargo?.Nombre ?? pedido.CargoSolicitado?.Nombre,
-                    designacion?.DedicacionCatalogo?.Nombre
-                        ?? designacion?.Dedicacion
-                        ?? pedido.DedicacionSolicitadaCatalogo?.Nombre
-                        ?? pedido.DedicacionSolicitada),
+                designacion is not null ? CargoDedicacion(designacion) : CargoDedicacion(pedido),
                 persona?.FechaNacimiento,
                 perfil?.Contacto.Mail,
                 persona?.Telefono,
@@ -145,26 +143,28 @@ internal sealed class ServicioLoteDesignaciones(
         }
 
         var bajasExportar = bajas
-            .Select(p => MapearBaja(p, personas, materias))
+            .Select(p => MapearBaja(p, personas, materias, nombresSector))
             .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(f => f.PersonaId)
             .ThenBy(f => f.Materia ?? string.Empty, StringComparer.Ordinal)
             .ThenBy(f => f.MateriaId)
             .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal)
             .ToArray();
+        bajasExportar = AgrupadorLote.Bajas(bajasExportar, materias);
 
         return new ArchivoLoteDesignaciones(
             EscritorXlsxLote.Escribir(
                 datos.Periodo,
                 datos.PeriodoAnterior,
                 propuesta,
-                altas
-                    .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
-                    .ThenBy(f => f.PersonaId)
-                    .ThenBy(f => f.Materia ?? string.Empty, StringComparer.Ordinal)
-                    .ThenBy(f => f.MateriaId)
-                    .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal)
-                    .ToArray(),
+                AgrupadorLote.Altas(
+                    altas
+                        .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
+                        .ThenBy(f => f.PersonaId)
+                        .ThenBy(f => f.Materia ?? string.Empty, StringComparer.Ordinal)
+                        .ThenBy(f => f.MateriaId)
+                        .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal),
+                    materias),
                 bajasExportar,
                 $"INTEGRIDAD · sello {integridad!.Secuencia} · {Convert.ToHexStringLower(integridad.Hash)}"),
             "lote-designaciones.xlsx");
@@ -205,11 +205,12 @@ internal sealed class ServicioLoteDesignaciones(
             Novedades.CambioDeCargoODedicacion => pedido.Snapshot,
             _ => new SnapshotPedido(
                 designacion.Cargo?.Nombre,
-                designacion.DedicacionCatalogo?.Nombre ?? designacion.Dedicacion,
+                designacion.DedicacionCatalogo?.Nombre,
                 designacion.Horas,
                 materia?.Nombre,
                 designacion.HorasInvestigacion,
-                designacion.HorasExternas),
+                designacion.HorasExternas,
+                designacion.SectorExterno?.Codigo),
         };
 
         return new FilaPropuestaLote(
@@ -217,14 +218,13 @@ internal sealed class ServicioLoteDesignaciones(
             designacion.MateriaId,
             Nombre(persona),
             persona?.Cuil,
-            CargoDedicacion(anterior?.Cargo, anterior?.Dedicacion),
-            CargoDedicacion(
-                designacion.Cargo?.Nombre,
-                designacion.DedicacionCatalogo?.Nombre ?? designacion.Dedicacion),
+            CargoDedicacion(anterior),
+            CargoDedicacion(designacion),
             pedido?.Justificacion,
             designacion.Horas,
             materia?.Nombre,
-            pedido?.Numero ?? string.Empty);
+            pedido?.Numero ?? string.Empty,
+            designacion.SectorExterno?.Nombre ?? DepartamentoPropio);
     }
 
     /// <summary>
@@ -244,36 +244,37 @@ internal sealed class ServicioLoteDesignaciones(
             designacion.MateriaId,
             Nombre(persona),
             persona?.Cuil,
-            CargoDedicacion(
-                designacion.Cargo?.Nombre,
-                designacion.DedicacionCatalogo?.Nombre ?? designacion.Dedicacion),
-            CargoDedicacion(
-                pedido.CargoSolicitado?.Nombre,
-                pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada),
+            CargoDedicacion(designacion),
+            CargoDedicacion(pedido),
             pedido.Justificacion,
             pedido.Horas ?? designacion.Horas,
             materia?.Nombre,
-            pedido.Numero);
+            pedido.Numero,
+            pedido.SectorExterno?.Nombre ?? DepartamentoPropio);
     }
 
+    /// <summary>La designación que se da de baja informa su departamento: el propio o el del sector externo.</summary>
     private static FilaPropuestaLote MapearPropuestaBaja(
         Pedido pedido,
         IReadOnlyDictionary<Guid, Persona> personas,
-        IReadOnlyDictionary<Guid, Materia> materias)
+        IReadOnlyDictionary<Guid, Materia> materias,
+        IReadOnlyDictionary<string, string> nombresSector)
     {
         personas.TryGetValue(pedido.PersonaId, out var persona);
         materias.TryGetValue(pedido.MateriaId, out var materia);
+        var sector = pedido.Snapshot?.SectorExterno;
         return new FilaPropuestaLote(
             pedido.PersonaId,
             pedido.MateriaId,
             Nombre(persona),
             persona?.Cuil,
-            CargoDedicacion(pedido.Snapshot?.Cargo, pedido.Snapshot?.Dedicacion),
+            CargoDedicacion(pedido.Snapshot),
             null,
             MotivoBaja(pedido),
             pedido.Snapshot?.Horas,
             pedido.Snapshot?.Materia ?? materia?.Nombre,
-            pedido.Numero);
+            pedido.Numero,
+            sector is null ? DepartamentoPropio : nombresSector.GetValueOrDefault(sector));
     }
 
     private static FilaPropuestaLote MapearPropuestaAlta(
@@ -289,21 +290,21 @@ internal sealed class ServicioLoteDesignaciones(
             Nombre(persona),
             persona?.Cuil,
             null,
-            CargoDedicacion(
-                pedido.CargoSolicitado?.Nombre,
-                pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada),
+            CargoDedicacion(pedido),
             pedido.Justificacion,
             pedido.Horas,
             materia?.Nombre,
-            pedido.Numero);
+            pedido.Numero,
+            pedido.SectorExterno?.Nombre ?? DepartamentoPropio);
     }
 
     private static FilaBajaLote MapearBaja(
         Pedido pedido,
         IReadOnlyDictionary<Guid, Persona> personas,
-        IReadOnlyDictionary<Guid, Materia> materias)
+        IReadOnlyDictionary<Guid, Materia> materias,
+        IReadOnlyDictionary<string, string> nombresSector)
     {
-        var fila = MapearPropuestaBaja(pedido, personas, materias);
+        var fila = MapearPropuestaBaja(pedido, personas, materias, nombresSector);
         return new FilaBajaLote(
             fila.PersonaId,
             fila.MateriaId,
@@ -316,11 +317,25 @@ internal sealed class ServicioLoteDesignaciones(
             fila.NumeroPedido);
     }
 
+    /// <summary>Departamento del sistema: el de toda designación interna en la columna Departamento del lote.</summary>
+    private const string DepartamentoPropio = "Departamento de Ingeniería e Investigaciones Tecnológicas";
+
     private static string? Nombre(Persona? persona) =>
         persona is null ? null : $"{persona.Apellido}, {persona.Nombre}";
 
-    private static string? CargoDedicacion(string? cargo, string? dedicacion)
+    private static string? CargoDedicacion(Designacion d) =>
+        CargoDedicacion(d.Cargo?.Nombre, d.DedicacionCatalogo?.Nombre, d.SectorExterno?.Codigo);
+
+    private static string? CargoDedicacion(Pedido p) =>
+        CargoDedicacion(p.CargoSolicitado?.Nombre, p.DedicacionSolicitadaCatalogo?.Nombre, p.SectorExterno?.Codigo);
+
+    private static string? CargoDedicacion(SnapshotPedido? s) =>
+        CargoDedicacion(s?.Cargo, s?.Dedicacion, s?.SectorExterno);
+
+    /// <summary>Un externo se informa sólo con la sigla de su sector, como en la planilla institucional.</summary>
+    private static string? CargoDedicacion(string? cargo, string? dedicacion, string? sectorExterno)
     {
+        if (!string.IsNullOrWhiteSpace(sectorExterno)) return sectorExterno.Trim();
         var partes = new[] { cargo, dedicacion }
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .Select(p => p!.Trim())
@@ -348,7 +363,9 @@ internal sealed record FilaPropuestaLote(
     string? Observacion,
     int? Horas,
     string? Materia,
-    string NumeroPedido);
+    string NumeroPedido,
+    /// <summary>Departamento que designa al docente: el sector externo o, si es interno, el propio.</summary>
+    string? Departamento = null);
 
 internal sealed record FilaAltaLote(
     Guid PersonaId,
@@ -467,7 +484,7 @@ internal static class EscritorXlsxLote
             PonerTexto(fila, "F", propuesta.Observacion);
             PonerNumero(fila, "G", propuesta.Horas);
             PonerTexto(fila, "H", propuesta.Materia);
-            PonerTexto(fila, "I", null);
+            PonerTexto(fila, "I", propuesta.Departamento);
             PonerTexto(fila, "J", null);
             PonerTexto(fila, "K", null);
         });

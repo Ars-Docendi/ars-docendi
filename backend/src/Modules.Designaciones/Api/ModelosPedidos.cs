@@ -82,7 +82,8 @@ public sealed record PedidoDto(
     IReadOnlyList<string> AccionesPermitidas,
     Guid? DedicacionSolicitadaId = null,
     string? MotivoDevolucion = null,
-    DateTimeOffset? EnviadoEn = null);
+    DateTimeOffset? EnviadoEn = null,
+    OpcionPedidoDto? SectorExterno = null);
 
 /// <param name="CarreraId">
 /// Carrera elegida para el pedido. Una materia dictada en más de una carrera exige elegir una
@@ -104,6 +105,7 @@ public sealed record GuardarPedidoDto(
     string? TipoBajaDetalle,
     IReadOnlyList<GuardarAdjuntoPedidoDto> Adjuntos,
     uint? Version = null,
-    GuardarPersonaPedidoDto? Persona = null);
+    GuardarPersonaPedidoDto? Persona = null,
+    Guid? SectorExternoId = null);
 
 public sealed record AccionPedidoDto(string? Comentario = null);

@@ -285,11 +285,13 @@ internal sealed class ServicioConciliacion(
     {
         if (pedido.Estado == EstadosPedido.Aprobado)
         {
-            return pedido.Novedad == Novedades.Alta || pedido.Snapshot?.Cargo is null
+            // Un externo no tiene cargo en la fotografía: lo que tenía es su sector.
+            var foto = pedido.Snapshot;
+            var cargo = foto?.Cargo ?? (foto?.SectorExterno is { } sigla ? $"Externo – {sigla}" : null);
+            return pedido.Novedad == Novedades.Alta || foto is null || cargo is null
                 ? null
                 : new ValoresDesignacionDto(
-                    pedido.Snapshot.Cargo, pedido.Snapshot.Dedicacion, pedido.Snapshot.Horas,
-                    pedido.Snapshot.HorasInvestigacion, pedido.Snapshot.HorasExternas);
+                    cargo, foto.Dedicacion, foto.Horas, foto.HorasInvestigacion, foto.HorasExternas);
         }
 
         return vigentes.FirstOrDefault(d => d.MateriaId == pedido.MateriaId) is { } vigente
@@ -297,16 +299,20 @@ internal sealed class ServicioConciliacion(
             : null;
     }
 
+    /// <summary>Un externo se muestra por su sector, sin cargo ni dedicación.</summary>
+    private static string? Externo(SectorExterno? sector) =>
+        sector is null ? null : $"Externo – {sector.Nombre} ({sector.Codigo})";
+
     private static ValoresDesignacionDto Solicitado(Pedido pedido) => new(
-        pedido.CargoSolicitado?.Nombre,
-        pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada,
+        pedido.CargoSolicitado?.Nombre ?? Externo(pedido.SectorExterno),
+        pedido.DedicacionSolicitadaCatalogo?.Nombre,
         pedido.Horas,
         pedido.HorasInvestigacion,
         pedido.HorasExternas);
 
     private static ValoresDesignacionDto Vigente(Designacion d) => new(
-        d.Cargo?.Nombre,
-        d.DedicacionCatalogo?.Nombre ?? d.Dedicacion,
+        d.Cargo?.Nombre ?? Externo(d.SectorExterno),
+        d.DedicacionCatalogo?.Nombre,
         d.Horas,
         d.HorasInvestigacion,
         d.HorasExternas);

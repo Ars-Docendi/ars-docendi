@@ -274,13 +274,10 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         Assert.DoesNotContain("Categoría 1", sin.Prefijo, StringComparison.Ordinal);
         Assert.DoesNotContain("designaciones.dedicaciones.codigo", sin.Prefijo, StringComparison.Ordinal);
 
-        Assert.Contains(
-            "- designaciones.dedicaciones.nombre: "
-            + "'Categoría 1', 'Categoría 2', 'Categoría 3', 'Categoría 4', 'Categoría 5', 'Categoría 6'",
-            con.Prefijo, StringComparison.Ordinal);
-        Assert.Contains(
-            "- designaciones.dedicaciones.codigo: '1', '2', '3', '4', '5', '6'",
-            con.Prefijo, StringComparison.Ordinal);
+        // Los valores salen del catálogo persistido: la Categoría 0 que agrega la migración aparece
+        // sin tocar código, por nombre y por el código que el modelo filtra.
+        Assert.Contains("- designaciones.dedicaciones.nombre: 'Categoría 0', ", con.Prefijo, StringComparison.Ordinal);
+        Assert.Contains("- designaciones.dedicaciones.codigo: '0', ", con.Prefijo, StringComparison.Ordinal);
     }
 
     [Fact]

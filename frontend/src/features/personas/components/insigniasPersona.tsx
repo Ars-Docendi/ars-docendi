@@ -33,7 +33,10 @@ export function InsigniasAsignaciones({ persona }: { persona: Persona }) {
       style={BADGE_CHICO}
       title={`${a.materiaNombre} · ${a.horas} h`}
     >
-      {a.materiaCodigo} – {a.cargoAbreviatura || a.cargoNombre}
+      {a.materiaCodigo} –{" "}
+      {a.sectorExternoCodigo
+        ? `Ext. ${a.sectorExternoCodigo}`
+        : a.cargoAbreviatura || a.cargoNombre}
     </span>
   ));
 }

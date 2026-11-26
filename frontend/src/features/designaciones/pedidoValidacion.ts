@@ -12,6 +12,7 @@ export type CampoPedido =
   | "horas"
   | "cargoSolicitado"
   | "dedicacionSolicitada"
+  | "sectorExterno"
   | "tipoBaja"
   | "tipoBajaDetalle"
   | "justificacion"
@@ -103,11 +104,18 @@ export function validarPedido(
 
   // Reglas por novedad.
   if (datos.novedad === "Alta" || datos.novedad === "Cambio de cargo o dedicación") {
-    if (!datos.cargoSolicitado) {
-      errores.cargoSolicitado = "Seleccioná el cargo solicitado.";
-    }
-    if (!datos.dedicacionSolicitada) {
-      errores.dedicacionSolicitada = "Seleccioná la dedicación solicitada.";
+    if (datos.sectorExternoId !== undefined) {
+      // Docente externo: sólo el sector; cargo y dedicación no aplican.
+      if (!datos.sectorExternoId) {
+        errores.sectorExterno = "Seleccioná el sector externo.";
+      }
+    } else {
+      if (!datos.cargoSolicitado) {
+        errores.cargoSolicitado = "Seleccioná el cargo solicitado.";
+      }
+      if (!datos.dedicacionSolicitada) {
+        errores.dedicacionSolicitada = "Seleccioná la dedicación solicitada.";
+      }
     }
   }
 

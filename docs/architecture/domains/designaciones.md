@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprobación/rechazo por Coordinador de Carrera → revisión por Secretaría Académica → aprobación final por Decanato → lote (Excel) → conciliación con la rectificación y sincronización.
+Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra, Administrativo o Secretaría → aprobación/rechazo por Coordinador de Carrera → revisión por Secretaría Académica → aprobación final por Decanato → lote (Excel) → conciliación con la rectificación y sincronización.
 
 ## Roles que interactúan
 
@@ -18,16 +18,17 @@ Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprob
 
 ## Entidades principales
 
-| Entidad           | Descripción                                                                                 | Schema/Tabla                     |
-| ----------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
-| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional              | `designaciones.cargos`           |
-| `Dedicacion`      | Catálogo seleccionable de Categorías 1–6; valores históricos fuera de catálogo sólo se leen | `designaciones.dedicaciones`     |
-| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez                          | `designaciones.periodos`         |
-| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra              | `designaciones.pedidos`          |
-| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                                        | `designaciones.pedido_adjuntos`  |
-| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario                 | `designaciones.pedido_historial` |
-| `Designacion`     | **El estado vigente** `(persona, materia, cargo, dedicación y tres horas)` con vigencia     | `designaciones.designaciones`    |
-| `ComisionGuarani` | Snapshot de sólo lectura de una comisión de Guaraní, con carreras, docentes y bandas        | `comisiones.sga_*`               |
+| Entidad           | Descripción                                                                            | Schema/Tabla                      |
+| ----------------- | -------------------------------------------------------------------------------------- | --------------------------------- |
+| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional         | `designaciones.cargos`            |
+| `Dedicacion`      | Catálogo seleccionable de Categorías 0–6; única forma de dedicación (sin texto libre)  | `designaciones.dedicaciones`      |
+| `SectorExterno`   | Departamento o área que paga a un docente externo; su sigla va al lote                 | `designaciones.sectores_externos` |
+| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez                     | `designaciones.periodos`          |
+| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra         | `designaciones.pedidos`           |
+| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                                   | `designaciones.pedido_adjuntos`   |
+| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario            | `designaciones.pedido_historial`  |
+| `Designacion`     | **El estado vigente** `(persona, materia, cargo y dedicación o sector externo, horas)` | `designaciones.designaciones`     |
+| `ComisionGuarani` | Snapshot de sólo lectura de una comisión de Guaraní, con carreras, docentes y bandas   | `comisiones.sga_*`                |
 
 ### Pedido vs Designación
 
@@ -56,7 +57,7 @@ Continuidad → se conserva la designación vigente y no crea pedido
 
 En esa misma transacción (Designaciones e Identity) la persona conserva sus datos (sin mail si no lo tenía) y, si tiene usuario, recibe o pierde la membresía Docente en esa materia y carrera. Sin usuario, el editor de personas precarga el rol Docente según sus designaciones al crear la cuenta. Un pedido sincronizado no se edita nunca. Los pedidos `en_lote` anteriores a la conciliación (`materializado_en`) ya escribieron su designación al aceptar y se sincronizan sin reescribirla.
 
-`origen_pedido_id` en NULL significa **carga administrativa directa**: la pantalla de administración de docentes escribe esta misma tabla. Son dos caminos de escritura hacia una sola tabla, y esa columna es lo único que permite distinguirlos.
+`origen_pedido_id` en NULL identifica una **carga administrativa histórica** (seed o la antigua edición de asignaciones en administración de docentes). En el flujo vigente las designaciones son de sólo lectura fuera del circuito: se crean, cambian o terminan únicamente al sincronizar un pedido aprobado, así que toda escritura nueva lleva su `origen_pedido_id`.
 
 La cadena completa hacia atrás: designación vigente → `origen_pedido_id` → pedido → `pedido_historial` → `audit.change_log`.
 
@@ -71,9 +72,9 @@ varias se eligen por UUID. El backend no confía en esa anticipación: valida el
 ámbito y exige `(persona_id, materia_id)` vigente para Baja/Cambio. Snapshot,
 horas y datos actuales se toman de esa designación, nunca de la primera del docente.
 
-### Coordinación de administración y circuito
+### Concurrencia del circuito
 
-Administración de docentes y circuito de pedidos escriben las mismas vigencias; el comportamiento exigido está en [persistencia-designaciones](../../../openspec/specs/persistencia-designaciones/spec.md#requirement-mutaciones-de-vigencias-sin-pérdida-concurrente). Decisiones de implementación no obvias:
+La administración de personas ya no escribe designaciones: las muestra en lectura. Las vigencias las escribe sólo el circuito (sincronización de la conciliación), y el comportamiento exigido sigue siendo el de [persistencia-designaciones](../../../openspec/specs/persistencia-designaciones/spec.md#requirement-mutaciones-de-vigencias-sin-pérdida-concurrente). Decisiones de implementación no obvias:
 
 - La exclusión es transaccional en PostgreSQL (por persona y por par persona–materia), no un mutex del proceso, y se toma **antes** de leer el estado que se confirmará.
 - El orden es siempre Identity primero (usuarios, personas) y después vigencias. Evita una inversión cuando administración edita la cuenta del mismo actor que está enviando su propio pedido.
@@ -87,10 +88,10 @@ La grilla trae todas las filas y acciones, con un resumen acotado de eventos y s
 
 | Interfaz                       | Métodos                                                            | Consumido por                                                 |
 | ------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------- |
-| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes                | superficie administrativa del Host                            |
+| `IAdministracionDesignaciones` | listar designaciones vigentes y los catálogos (sólo lectura)       | superficie administrativa del Host                            |
 | `IDesignacionesQueries`        | ubicar trámites por su número legible y obtener su ficha, acotados | adaptadores de vínculos y de fichas del asistente, en el Host |
 
-El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF, repositorios ni el `DesignacionesDbContext`. La administración de docentes puede coordinar persona, rol docente y designaciones sin adquirir una referencia al módulo interno.
+El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF, repositorios ni el `DesignacionesDbContext`. La administración de personas muestra las designaciones vigentes sin adquirir una referencia al módulo interno; cambiarlas exige un pedido.
 
 `IDesignacionesQueries.UbicarPedidosAsync` existe para que **otro módulo no tenga que adivinar quién puede abrir un trámite**. Aplica el mismo criterio que `GET /api/designaciones/pedidos/{id}` —`MaquinaEstadosPedido.AlcanzaAmbito`, la misma función, no una copia— y devuelve **menos** de lo que se le pide: descarta por forma lo que no puede ser un número de trámite antes de consultar la base, y omite lo que existe pero queda fuera del ámbito del actor, sin distinguir un caso del otro.
 
@@ -135,6 +136,6 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 - **Exportación**: el lote es una proyección de sólo lectura ([exportacion-lote-designaciones](../../../openspec/specs/exportacion-lote-designaciones/spec.md)); el correo de las altas sale de `IPortalQueries`.
 - **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`), `ArsDocendi.Storage.Contracts` (adjuntos de pedidos) y `Modules.Notificaciones.Contracts` (`INotificador`).
 - **Avisos**: `ServicioPedidosApi` avisa **después del commit más externo** (la transición idempotente corre dentro de una transacción) y sólo para tres acciones: Aceptar a una etapa con revisor (Secretaría o Decanato; `en_lote` no avisa), Rechazar (a los Jefes de la materia) y Devolver (al rol propietario de la etapa de origen, en el ámbito del pedido). Enviar, Reenviar, Cancelar y las prioridades no avisan. Ver [notificaciones.md](./notificaciones.md).
-- **Hacia afuera**: el Host consume `IAdministracionDesignaciones` para la administración de docentes.
+- **Hacia afuera**: el Host consume `IAdministracionDesignaciones` para mostrar las designaciones en la administración de personas.
 - **Externas**: **API Guaraní** — `ClienteGuarani` (HTTP Basic con `guarani_user` y `guarani_pass`, obligatorias salvo en Development; timeout configurable) consulta períodos lectivos y comisiones por período. Es el único punto que conoce el contrato externo; sólo es alcanzable desde la red de UNLaM, por eso únicamente prod la configura.
 - **Snapshot de Guaraní** (`importar-comisiones-guarani`): las asignaciones reales viven en Guaraní y Ars Docendi no las edita ni escribe allí. El snapshot local (`sga_*`) evita consultar Guaraní en cada visita y tiene límites: sólo lectura, regenerable por período, importación manual que reemplaza el período completo, vínculos derivados en cada importación (nunca manuales) y sin documento de los docentes.
