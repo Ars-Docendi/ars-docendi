@@ -610,3 +610,18 @@ export interface PaginaDeProblemas {
   total: number;
   filas: ProblemaDeCalidad[];
 }
+
+// ============================================================
+// El modelo en reposo (asistente-modelo-en-reposo).
+// Ver docs/architecture/api-contracts.md §GET /api/asistente/modelo/disponibilidad.
+// ============================================================
+
+/** Si el modelo propio está cargado. Sólo `en_reposo` y `activando` se muestran. */
+export type EstadoDeDisponibilidad =
+  "no_aplica" | "listo" | "en_reposo" | "activando" | "desconocido";
+
+export interface DisponibilidadDelModelo {
+  estado: EstadoDeDisponibilidad;
+  /** El último intento de cargarlo no llegó a buen término. */
+  ultimaActivacionFallida: boolean;
+}

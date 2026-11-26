@@ -213,6 +213,10 @@ function TablaConAcciones({
   }, [exportar, onExportarDisponible]);
 
   const anuncioDeOrden = textoDelAnuncioDeOrden(orden, columnas);
+  // Sólo si hay al menos un nombre que de verdad lleva a un perfil: sin vínculo no hay sugerencia.
+  const hayPersonasVinculadas = Array.from(porCelda.values()).some(
+    (v) => v.tipo === "persona" && destinoDe(v.tipo) !== undefined,
+  );
 
   return (
     <div className="adoc-asistente-tabla" ref={raizRef} hidden={oculta}>
@@ -232,6 +236,10 @@ function TablaConAcciones({
           confirmación de exportar, sin abrir una región propia. El foco no se
           mueve — sigue en el encabezado que se activó. */}
       {anuncioDeOrden && <p className="adoc-asistente-orden-anuncio">{anuncioDeOrden}</p>}
+
+      {hayPersonasVinculadas && (
+        <p className="adoc-asistente-sugerencia-vinculos">Tocá un nombre para ver su perfil</p>
+      )}
 
       {haySensibles && (
         // Dice qué es personal, no por dónde viajó: el enmascaramiento y el

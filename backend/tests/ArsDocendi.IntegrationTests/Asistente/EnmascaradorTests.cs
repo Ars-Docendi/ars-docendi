@@ -257,6 +257,24 @@ public sealed class EnmascaradorTests
         Assert.DoesNotContain(Documento, Texto(implicitMode), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_suppressed_free_text_column_is_announced_without_its_name_or_value()
+    {
+        var masked = Enmascarador.Enmascarar(
+            Resultado(
+                ["dia", "motivo_cancelacion"],
+                [Publica, TextoLibre],
+                [["2026-03-23", "texto escrito por otro usuario"]]));
+
+        var prompt = RedactorDeRespuesta.ArmarMensaje(
+            "¿Con qué motivo se cancelaron?", masked, alcanzaTodo: true, hayTextoLibreOculto: true);
+
+        Assert.Contains("está en la tabla", prompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("motivo_cancelacion", prompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("texto escrito", prompt, StringComparison.Ordinal);
+        Assert.DoesNotContain("está en la tabla", Texto(masked), StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static ResultadoDeConsulta Resultado(

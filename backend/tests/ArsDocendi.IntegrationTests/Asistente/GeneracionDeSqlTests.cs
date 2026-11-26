@@ -348,6 +348,32 @@ public sealed class GeneracionDeSqlTests
             GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy, []));
     }
 
+    [Theory]
+    [InlineData("¿Qué docentes tengo a cargo?")]
+    [InlineData("¿Quiénes son mis profesores?")]
+    [InlineData("¿Qué solicitudes hay de mi cátedra?")]
+    [InlineData("¿Quiénes tienen nombramiento abierto en la asignatura que dirijo?")]
+    public void A_question_about_the_askers_own_scope_carries_the_no_filter_note(string pregunta)
+    {
+        // Found end to end with Qwen3-8B: the prefix rule alone did not stop it from filtering
+        // «tengo a cargo» through identity.user_roles, which returns nothing.
+        Assert.Contains(
+            "La base ya devuelve sólo eso",
+            GeneradorDeSql.ArmarMensaje(pregunta, [], Hoy),
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("¿Cuántas comisiones tiene a cargo cada docente?")]
+    [InlineData("¿Cuántos docentes hay en cada cargo?")]
+    public void A_question_without_the_askers_scope_does_not_carry_the_note(string pregunta)
+    {
+        Assert.DoesNotContain(
+            "La base ya devuelve sólo eso",
+            GeneradorDeSql.ArmarMensaje(pregunta, [], Hoy),
+            StringComparison.Ordinal);
+    }
+
     // --------------------------------------------------------- menciones (D11)
 
     [Fact]

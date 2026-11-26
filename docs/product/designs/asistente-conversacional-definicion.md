@@ -1,7 +1,7 @@
 ---
 status: review # draft | review | approved
 owner: ""
-feature: "" # link al spec en openspec/specs/<capability>/spec.md cuando exista el change
+feature: "../../../openspec/specs/asistente-conversacion/spec.md"
 last_updated: 2026-08-23
 ---
 

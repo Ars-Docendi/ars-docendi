@@ -48,7 +48,7 @@ public sealed class VinculosDeDesignacionesTests
         using var alcance = host.Services.CreateScope();
         var resolutor = alcance.ServiceProvider.GetRequiredService<IResolutorDeVinculos>();
 
-        Assert.IsType<VinculosDeDesignaciones>(resolutor);
+        Assert.IsType<VinculosCompuestos>(resolutor);
     }
 
     [Fact]

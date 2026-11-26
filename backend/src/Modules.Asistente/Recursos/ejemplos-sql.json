@@ -13,6 +13,11 @@
       "sql": "SELECT count(*) AS cantidad FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.carreras ca ON ca.id = d.carrera_id WHERE c.codigo = 'titular' AND ca.name = 'Ingeniería en Informática' AND d.vigente_hasta IS NULL"
     },
     {
+      "pregunta": "¿Cuáles son los docentes a mi cargo y en qué materia están?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, m.name AS materia, p.id AS persona_id FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE d.vigente_hasta IS NULL ORDER BY m.name, p.apellido, p.nombre"
+    },
+    {
       "pregunta": "¿Qué materias no tienen ningún docente designado?",
       "categoria": "cruce_de_tablas",
       "sql": "SELECT DISTINCT ca.name AS carrera, m.name AS materia FROM identity.materias m JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo JOIN identity.carreras ca ON ca.id = pl.carrera_id WHERE m.is_active AND NOT EXISTS (SELECT 1 FROM designaciones.designaciones d WHERE d.materia_id = m.id AND d.carrera_id = ca.id AND d.vigente_hasta IS NULL) ORDER BY ca.name, m.name"
@@ -101,6 +106,61 @@
       "pregunta": "¿Dónde trabajó cada docente que cargó su experiencia?",
       "categoria": "cruce_de_tablas",
       "sql": "SELECT p.apellido, p.nombre, x.puesto, x.organizacion, x.desde FROM portal.experiencias x JOIN portal.perfiles pf ON pf.id = x.perfil_id JOIN identity.personas p ON p.id = pf.persona_id ORDER BY p.apellido, x.desde DESC"
+    },
+    {
+      "pregunta": "¿Quiénes saben Cálculo, Análisis matemático o Ecuaciones diferenciales?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT DISTINCT p.apellido, p.nombre, h.termino FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE dh.tipo = 'habilidad' AND h.termino_norm ILIKE ANY (ARRAY['%CÁLCULO%', '%ANÁLISIS MATEM%', '%ECUACIONES DIFERENCIALES%']) ORDER BY p.apellido, p.nombre, h.termino"
+    },
+    {
+      "pregunta": "¿Qué docentes tienen una maestría o un doctorado terminado en Ingeniería de Software?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, e.nivel, e.institucion FROM portal.educaciones e JOIN portal.perfiles pf ON pf.id = e.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE e.nivel IN ('Maestría', 'Doctorado') AND e.hasta IS NOT NULL AND e.carrera ILIKE '%Software%' ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "pregunta": "¿Qué proyectos declaró cada docente, con su rol y su DOI?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, x.nombre AS proyecto, x.rol, x.desde, x.hasta, x.doi FROM portal.proyectos x JOIN portal.perfiles pf ON pf.id = x.perfil_id JOIN identity.personas p ON p.id = pf.persona_id ORDER BY p.apellido, x.desde DESC"
+    },
+    {
+      "pregunta": "¿Quiénes dictan Paradigmas de Programación?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT DISTINCT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE m.name = 'Paradigmas de Programación' AND d.vigente_hasta IS NULL ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "pregunta": "¿En qué comisiones, días y aulas figura el docente Cabrera?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre, h.dia, h.desde, h.hasta, h.aula FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE d.nombre ILIKE 'Cabrera%' ORDER BY c.anio_academico DESC, c.periodo_lectivo_nombre, c.materia_nombre, h.dia, h.desde"
+    },
+    {
+      "pregunta": "¿Quiénes integran la comisión 02 de Paradigmas de Programación y con qué responsabilidad?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT c.periodo_lectivo_nombre, d.nombre AS docente, d.responsabilidad FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_docentes d ON d.comision_guarani_id = c.comision_guarani_id WHERE c.nombre = '02' AND c.materia_nombre ILIKE '%Paradigmas de Programación%' ORDER BY c.anio_academico DESC, c.periodo_lectivo_nombre, d.orden"
+    },
+    {
+      "pregunta": "¿Qué cursadas arrancan a la noche o se dictan en fin de semana?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT DISTINCT c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre, h.dia, h.desde, h.hasta FROM comisiones.sga_comisiones c JOIN comisiones.sga_comision_horarios h ON h.comision_guarani_id = c.comision_guarani_id WHERE h.desde >= TIME '18:00' OR h.dia >= 6 ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, c.nombre, h.dia"
+    },
+    {
+      "pregunta": "¿Qué docentes figuran en una comisión de Guaraní de una materia donde no tienen designación vigente?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT DISTINCT d.nombre AS docente, c.materia_nombre, c.nombre AS comision, c.periodo_lectivo_nombre FROM comisiones.sga_comision_docentes d JOIN comisiones.sga_comisiones c ON c.comision_guarani_id = d.comision_guarani_id WHERE d.persona_id IS NOT NULL AND c.materia_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM designaciones.designaciones x WHERE x.persona_id = d.persona_id AND x.materia_id = c.materia_id AND x.vigente_hasta IS NULL) ORDER BY c.periodo_lectivo_nombre, c.materia_nombre, d.nombre"
+    },
+    {
+      "pregunta": "¿Qué aulas se asignaron a las reservas aprobadas de Sistemas Operativos?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT s.dia, s.horario_desde, s.horario_hasta, s.aula_asignada FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE m.name = 'Sistemas Operativos' AND s.estado = 'aprobada' ORDER BY s.dia, s.horario_desde"
+    },
+    {
+      "pregunta": "¿Qué reservas de aula se rechazaron y por qué motivo?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT s.dia, m.name AS materia, s.comision, s.motivo_rechazo FROM aulas.solicitudes_reserva s JOIN identity.materias m ON m.id = s.materia_id WHERE s.estado = 'rechazada' ORDER BY s.dia, m.name"
+    },
+    {
+      "pregunta": "¿Qué docentes hicieron más pedidos de reserva y cuántos?",
+      "categoria": "agregacion",
+      "sql": "SELECT p.apellido, p.nombre, count(*) AS cantidad FROM aulas.solicitudes_reserva s JOIN identity.personas p ON p.id = s.docente_id GROUP BY p.apellido, p.nombre ORDER BY cantidad DESC, p.apellido, p.nombre"
     }
   ]
 }

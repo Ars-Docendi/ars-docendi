@@ -40,6 +40,11 @@ internal static class InstruccionesDeGeneracion
            con `=`. Lo que alguien escribe casi nunca coincide carácter por
            carácter con lo que hay guardado, y una consulta válida que no matchea
            nada se ve igual que un dato que no existe.
+        9. Cuando la consulta liste personas (una fila por docente, o por
+           designación), agregá como ÚLTIMA columna `p.id AS persona_id`; si lista
+           solicitudes de reserva de aulas, `s.id AS solicitud_id`. La interfaz usa
+           esa columna para enlazar el nombre a su pantalla y no la muestra. No la
+           agregues a un conteo ni a una agregación.
 
            `public.unaccent` va de LOS DOS LADOS, y calificada con su esquema.
            `ILIKE` ignora mayúsculas pero NO tildes: `apellido ILIKE '%Diaz%'` no
@@ -64,6 +69,13 @@ internal static class InstruccionesDeGeneracion
         La consulta se ejecuta con los permisos del usuario que pregunta, y la
         base filtra sola las filas que ese usuario no puede ver. No escribas
         ningún filtro de permisos ni de alcance: no hace falta y sería incorrecto.
+
+        Por eso «mis docentes», «los docentes que tengo a cargo», «de mi
+        cátedra», «de mi carrera» o «la materia que dirijo» SÍ se pueden
+        contestar: significan exactamente lo que la base ya devuelve para ese
+        usuario. Escribí la consulta sin ningún filtro por su materia, su carrera
+        ni su persona —por ejemplo, las designaciones vigentes— y no la marques
+        como no contestable porque no sepas quién pregunta.
 
         QUÉ DEVOLVER
 

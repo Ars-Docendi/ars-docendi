@@ -22,13 +22,15 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
     private readonly string _modelo;
     private readonly int _contexto;
     private readonly ILogger<ProveedorOllama> _log;
+    private readonly Action<string>? _alResponder;
 
     public ProveedorOllama(
         HttpClient transporte,
         OpcionesInferencia servicio,
         string modelo,
         int contexto,
-        ILogger<ProveedorOllama> log)
+        ILogger<ProveedorOllama> log,
+        Action<string>? alResponder = null)
     {
         ArgumentNullException.ThrowIfNull(transporte);
         ArgumentNullException.ThrowIfNull(servicio);
@@ -45,6 +47,7 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
         _modelo = modelo;
         _contexto = contexto;
         _log = log;
+        _alResponder = alResponder;
     }
 
     /// <summary>
@@ -95,6 +98,10 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
             {
                 throw Rechazo(respuesta.StatusCode, await respuesta.Content.ReadAsStringAsync(ct));
             }
+
+            // Que el servidor haya contestado prueba que el modelo está cargado: alimenta la lectura
+            // de disponibilidad sin gastar un GET /api/ps (asistente-modelo-en-reposo, D2).
+            _alResponder?.Invoke(_modelo);
 
             return enFlujo
                 ? await LeerFlujoAsync(respuesta, solicitud, ct)

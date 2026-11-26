@@ -90,6 +90,54 @@
       "origen": "cap-014",
       "clase": "coloquial",
       "pregunta": "necesito saber cuántas bajas se pidieron"
+    },
+    {
+      "id": "rob-016",
+      "origen": "cap-044",
+      "clase": "sin_tildes",
+      "pregunta": "Que comisiones se dictan los sabados?"
+    },
+    {
+      "id": "rob-017",
+      "origen": "cap-043",
+      "clase": "coloquial",
+      "pregunta": "che, ¿qué comisiones son de noche?"
+    },
+    {
+      "id": "rob-018",
+      "origen": "cap-040",
+      "clase": "parcial",
+      "pregunta": "dias y horarios de Ledesma"
+    },
+    {
+      "id": "rob-019",
+      "origen": "cap-051",
+      "clase": "coloquial",
+      "pregunta": "che, ¿qué pedidos de aula siguen sin respuesta?"
+    },
+    {
+      "id": "rob-020",
+      "origen": "cap-053",
+      "clase": "sin_tildes",
+      "pregunta": "Cuantas solicitudes de aula se rechazaron por materia?"
+    },
+    {
+      "id": "rob-021",
+      "origen": "cap-057",
+      "clase": "sinonimo",
+      "pregunta": "¿Quiénes figuran con la competencia de Cálculo o de Análisis matemático, y cuál?"
+    },
+    {
+      "id": "rob-022",
+      "origen": "cap-059",
+      "clase": "coloquial",
+      "pregunta": "che, ¿qué proyectos con publicación cargó la gente de mi cátedra?"
+    },
+    {
+      "id": "rob-023",
+      "origen": "cap-062",
+      "clase": "coloquial",
+      "pregunta": "che, ¿a qué profes tengo a cargo?"
     }
   ]
 }
