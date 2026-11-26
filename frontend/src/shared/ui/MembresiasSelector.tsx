@@ -144,7 +144,7 @@ export function MembresiasSelector({
                   aria-label={`Quitar membresía ${i + 1}`}
                   style={{
                     border: "1px solid var(--color-border-default)",
-                    background: "#fff",
+                    background: "var(--color-bg-raised)",
                     borderRadius: "var(--radius-xs)",
                     width: "28px",
                     height: "36px",
