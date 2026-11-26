@@ -1,4 +1,4 @@
--- 20261107013257_PermisoGestionarPedidosDepartamentoIdentity (Identity).
+-- 20261126134531_PermisoGestionarPedidosDepartamentoIdentity (Identity).
 -- No editar después de publicar: crear otra migración incremental.
 --
 -- identity.rol_permisos

@@ -1,4 +1,4 @@
--- 20261107020000_DedicacionCatalogoYExternosDesignaciones (Designaciones).
+-- 20261126134543_DedicacionCatalogoYExternosDesignaciones (Designaciones).
 -- La dedicación se elige sólo del catálogo (con Categoría 0) y se incorporan los docentes externos:
 -- una designación o pedido es interno (cargo + dedicación) o externo (sector externo), nunca ambos.
 -- No editar después de publicar: crear otra migración incremental.

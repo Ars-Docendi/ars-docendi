@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Modules.Designaciones.Infrastructure.Migrations;
 
 [DbContext(typeof(DesignacionesDbContext))]
-[Migration("20261107020000_DedicacionCatalogoYExternosDesignaciones")]
-[RecursosMigracionSql("designaciones/20261107020000_DedicacionCatalogoYExternosDesignaciones.sql")]
+[Migration("20261126134543_DedicacionCatalogoYExternosDesignaciones")]
+[RecursosMigracionSql("designaciones/20261126134543_DedicacionCatalogoYExternosDesignaciones.sql")]
 public sealed class DedicacionCatalogoYExternosDesignaciones : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>

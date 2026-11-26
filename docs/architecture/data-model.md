@@ -132,7 +132,7 @@ dedicación: `pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id`
 lo referencian por FK. Las columnas de texto `dedicacion` y
 `dedicacion_solicitada` quedan sin uso: los triggers rechazan cualquier texto
 nuevo y el backend no las lee
-(`20261107020000_DedicacionCatalogoYExternosDesignaciones`). Nuevas
+(`20261126134543_DedicacionCatalogoYExternosDesignaciones`). Nuevas
 designaciones y solicitudes Alta/Cambio internas requieren una referencia
 activa; una actualización sin cambio de dedicación conserva la referencia,
 incluso si su categoría fue desactivada. Los snapshots ya congelados conservan

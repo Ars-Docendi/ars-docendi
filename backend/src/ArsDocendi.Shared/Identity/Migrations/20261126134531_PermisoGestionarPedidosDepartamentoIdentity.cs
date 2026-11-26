@@ -5,8 +5,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ArsDocendi.Shared.Identity.Migrations;
 
 [DbContext(typeof(IdentityDbContext))]
-[Migration("20261107013257_PermisoGestionarPedidosDepartamentoIdentity")]
-[RecursosMigracionSql("identity/20261107013257_PermisoGestionarPedidosDepartamentoIdentity.sql")]
+[Migration("20261126134531_PermisoGestionarPedidosDepartamentoIdentity")]
+[RecursosMigracionSql("identity/20261126134531_PermisoGestionarPedidosDepartamentoIdentity.sql")]
 public sealed class PermisoGestionarPedidosDepartamentoIdentity : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>
