@@ -90,8 +90,9 @@ el teléfono y el mail personales que el docente carga acá no son consultables 
 asistente, y el contacto institucional ya sale de `identity`.
 
 Quién puede consultar el perfil de otra persona lo decide `portal.ver_trayectoria_ajena`,
-un permiso que **nace concedido a nadie**. Mientras siga así, cada actor ve
-únicamente su propio perfil.
+un permiso que desde 2026-11-07 tiene **sólo el rol `jefe_catedra`**, acotado a los docentes
+designados en sus materias (decisión del equipo). Cualquier otro rol ve únicamente su propio
+perfil. `proyectos` se lee sin su `descripcion`.
 
 Estas policies **no protegen la API REST de este módulo**: la defensa de los
 dieciocho endpoints sigue siendo `ServicioPortal.PersonaActualAsync` más el filtro

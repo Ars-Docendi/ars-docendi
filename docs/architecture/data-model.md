@@ -210,6 +210,15 @@ libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
 
+**Lectura por el asistente.** `solicitudes_reserva` es legible por los dos roles de
+lectura del asistente: `GRANT SELECT` en todas sus columnas
+(`database/asistente/001_asistente_grants.sql` y `011_asistente_grants_dominios.sql`, listado en `manifiesto-privilegios.json`)
+y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT` cuyo predicado espeja la
+pantalla: `aulas.aprobar` ve todas; `aulas.solicitar` sólo las propias
+(`docente_id = identity.asistente_persona()`). El dueño (la aplicación) queda exento.
+La policy y los `COMMENT ON` viven en las migraciones `RlsAsistenteSolicitudesAulas` y
+`ComentariosAsistenteSolicitudesAulas`. `aulas.__EFMigrationsHistory` no se concede.
+
 `solicitudes_reserva` suma, desde la migración `20261102030524_MotivoCancelacionYRolSolicitanteAulas`:
 
 - `motivo_cancelacion TEXT NULL`: motivo con que un Administrativo cancela una reserva ya aprobada
@@ -263,6 +272,17 @@ son FKs nullable `ON DELETE SET NULL`: `NULL` = "no existe en el sistema" y el
 snapshot nunca bloquea una operación sobre personas o catálogos. Un índice único
 parcial sobre `sga_importaciones(periodo_lectivo_guarani_id) WHERE estado =
 'en_curso'` impide dos importaciones simultáneas del mismo período.
+
+**Lectura por el asistente.** Las cuatro tablas de datos (no `sga_importaciones`) son
+legibles por los dos roles de lectura del asistente: `GRANT SELECT` por columna
+(`database/asistente/001_asistente_grants.sql` y `011_asistente_grants_dominios.sql`, listado en
+`manifiesto-privilegios.json`) y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT`
+por tabla cuyo predicado es `identity.asistente_tiene_permiso('comisiones.ver')`, sin
+ámbito. El dueño (la aplicación y el importador) queda exento. Las policies y los
+`COMMENT ON` viven en las migraciones `RlsAsistenteComisionesDesignaciones` y
+`ComentariosAsistenteComisionesDesignaciones`. No se concede `sga_importaciones`
+(nombra al usuario que importó), `importacion_id`, `periodo_lectivo_guarani_id`,
+`modalidad_codigo`, `created_at` ni `asignacion_guarani_id`.
 
 **Excepción de auditoría**: `sga_comisiones` y sus hijas no llevan
 `audit.attach`; auditarlas volcaría cientos de filas por importación en
@@ -331,8 +351,9 @@ persona con perfil cargado tiene que fallar y que alguien lo mire.
 
 #### Lo que el asistente ve de portal, y lo que no
 
-Seis de las diez tablas se le conceden al asistente —`perfiles`, `educaciones`,
-`certificaciones`, `experiencias`, `habilidades` y `docente_habilidades`— con
+Siete de las diez tablas se le conceden al asistente —`perfiles`, `educaciones`,
+`certificaciones`, `experiencias`, `habilidades`, `docente_habilidades` y, desde
+2026-11-07, `proyectos` sin su `descripcion`— con
 `GRANT` por columna y `ENABLE ROW LEVEL SECURITY`. El predicado es una **disyunción**
 y no conjuga el ámbito, porque el portal está archivado por persona y el ámbito no
 dice nada sobre un dato de persona:
@@ -342,19 +363,22 @@ persona_id = identity.asistente_persona()
 OR identity.asistente_tiene_permiso('portal.ver_trayectoria_ajena')
 ```
 
-Ese permiso **nace concedido a nadie**: con el `GRANT` puesto, cada actor ve
-exactamente su propio perfil hasta que Secretaría decida a quién dárselo.
+Ese permiso lo tiene **únicamente el rol `jefe_catedra`** (decisión del equipo,
+2026-11-07; antes no lo tenía nadie), y el predicado efectivo de las policies lo acota
+con `identity.asistente_alcanza_a`: el jefe ve el perfil propio y el de los docentes con
+designación vigente en sus materias. Cualquier otro rol ve exactamente su propio perfil
+hasta que alguien le conceda el permiso desde `/roles`.
 
-Las otras cuatro **no se conceden**. `contactos` guarda el teléfono y el mail
+Las otras tres **no se conceden**. `contactos` guarda el teléfono y el mail
 personales, y el contacto institucional ya sale de `identity.personas.telefono` e
-`identity.users.upn`: es todo el riesgo y ninguna pregunta nueva. `cvs`, `proyectos`
-y `proyecto_documentos` no las pide ninguna pregunta del catálogo, y una tabla
+`identity.users.upn`: es todo el riesgo y ninguna pregunta nueva. `cvs` y
+`proyecto_documentos` no las pide ninguna pregunta del catálogo, y una tabla
 expuesta que nadie consulta es prefijo de prompt que se paga en cada llamada.
 
-Cuatro columnas quedan afuera con motivo escrito en `manifiesto-privilegios.json`:
+Cinco columnas quedan afuera con motivo escrito en `manifiesto-privilegios.json`:
 `habilidades.usos` es un contador agregado sobre todo el padrón que una policy por
 fila no puede acotar; `sugerido` y `canonica_id` son curaduría del vocabulario; y
-`experiencias.descripcion` es texto libre autodeclarado que el enmascarador no puede
+`experiencias.descripcion` y `proyectos.descripcion` son texto libre autodeclarado que el enmascarador no puede
 proteger, porque toda expresión sobre una columna reporta OID 0 y se trata como
 pública.
 
@@ -528,7 +552,7 @@ Tres decisiones de esquema que sostienen la desvinculación, y las tres están e
 
 Retención de 90 días configurable, con purga automática en el proceso (`PurgaDeRegistros` + un servicio hospedado) y test de retención en las dos direcciones. Una retención sin un mecanismo que borre es una frase en un documento.
 
-**Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql`, que ejecuta el migrador del módulo con las tablas ya creadas.
+**Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql` (protegido) y `011_asistente_grants_dominios.sql` (comisiones, aulas, `portal.proyectos`), que ejecuta el migrador del módulo con las tablas ya creadas.
 
 ### El historial propio y la auditoría de soporte
 

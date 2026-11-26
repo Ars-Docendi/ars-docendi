@@ -9,12 +9,50 @@ internal static class PoliticaDeAbstencion
     /// <summary>
     /// Si para este actor, <b>en esta consulta</b>, cero filas significa que no hay filas.
     /// </summary>
-    public static bool AlcanzaTodo(PerfilDelActor perfil, bool laConsultaTocaPortal)
+    /// <remarks>
+    /// Se evalúa por dominio tocado y se exige TODO lo que exige cada uno. Designaciones: ámbito
+    /// global y permiso. Portal: lo anterior más el permiso de trayectoria ajena. Comisiones: sólo
+    /// <c>comisiones.ver</c>, sin ámbito, porque la policy tampoco lo mira: un jefe de cátedra ve
+    /// todas las comisiones y no se le puede decir «fuera de tu alcance» sobre datos que ve. Aulas: sólo <c>aulas.aprobar</c> ve todas las solicitudes; quien sólo solicita ve las suyas y
+    /// nunca se le dice «no hay» como hecho del Departamento. Una
+    /// consulta que sólo toca catálogos de identity conserva la regla de designaciones. Un dominio
+    /// desconocido nunca alcanza todo.
+    /// </remarks>
+    public static bool AlcanzaTodo(PerfilDelActor perfil, DominioConsultado dominios)
     {
         ArgumentNullException.ThrowIfNull(perfil);
 
-        return perfil.AlcanzaDesignaciones
-            && (!laConsultaTocaPortal || perfil.VeTrayectoriaAjena);
+        if (dominios.HasFlag(DominioConsultado.Desconocido))
+        {
+            return false;
+        }
+
+        var alcanza = true;
+
+        if (dominios == DominioConsultado.Ninguno || dominios.HasFlag(DominioConsultado.Designaciones))
+        {
+            alcanza &= perfil.AlcanzaDesignaciones;
+        }
+
+        if (dominios.HasFlag(DominioConsultado.Portal))
+        {
+            alcanza &= perfil.AlcanzaDesignaciones && perfil.VeTrayectoriaAjena;
+        }
+
+        if (dominios.HasFlag(DominioConsultado.Comisiones))
+        {
+            alcanza &= perfil.VeComisiones;
+        }
+
+        if (dominios.HasFlag(DominioConsultado.Aulas))
+        {
+            // Only aulas.aprobar sees every request. aulas.solicitar sees the actor's own, so for that
+            // actor zero rows (or any rows) say nothing about the Departamento: they get the scope
+            // notice, never "no hay" as a fact. Without either permission the policy returns nothing.
+            alcanza &= perfil.VeSolicitudesDeAula;
+        }
+
+        return alcanza;
     }
 
     /// <summary>Si un resultado vacío justifica gastar el reintento de generación.</summary>
@@ -26,7 +64,9 @@ internal static class PoliticaDeAbstencion
 
     /// <summary>Texto de un resultado vacío.</summary>
     public static string TextoDeResultadoVacio(
-        bool alcanzaTodo, CoberturaDeUnDato? cobertura = null)
+        bool alcanzaTodo,
+        CoberturaDeUnDato? cobertura = null,
+        IReadOnlyList<string>? periodosImportados = null)
     {
         var texto = alcanzaTodo
             ? "No encontré ningún registro que responda esa pregunta."
@@ -36,7 +76,31 @@ internal static class PoliticaDeAbstencion
 
         // LA SEGUNDA RAZÓN POR LA QUE UN RESULTADO PUEDE VENIR VACÍO, y hasta acá el sistema sólo
         // contaba la primera.
-        return cobertura is null ? texto : $"{texto} {cobertura.Frase()}";
+        if (cobertura is not null)
+        {
+            texto = $"{texto} {cobertura.Frase()}";
+        }
+
+        var periodos = periodosImportados is null
+            ? string.Empty
+            : FraseDePeriodos(alcanzaTodo, periodosImportados);
+
+        return periodos.Length == 0 ? texto : $"{texto} {periodos}";
+    }
+
+    /// <summary>
+    /// La tercera: en comisiones el cero también puede ser «ese período nunca se importó». Una lista
+    /// vacía de quien no alcanza todo no se declara: la vacía la policy, no la base, y decir que no
+    /// se importó nada sería falso.
+    /// </summary>
+    private static string FraseDePeriodos(bool alcanzaTodo, IReadOnlyList<string> periodos)
+    {
+        if (periodos.Count > 0)
+        {
+            return $"Los períodos importados son: {string.Join("; ", periodos)}.";
+        }
+
+        return alcanzaTodo ? "Todavía no se importó ningún período." : string.Empty;
     }
 
     /// <summary>
@@ -164,7 +228,14 @@ internal static class PoliticaDeAbstencion
                 $"{declarada.Frase()} Es un dato que cada docente carga sobre sí mismo y "
                 + "la mayoría no lo hizo. NO presentes lo que ves como el total del "
                 + "Departamento, y NO afirmes que nadie cumple una condición: decí "
-                + "sobre cuántos se sabe.");
+                + "sobre cuántos se sabe."
+                // The denominator is the whole padrón and the numerator only what the actor reaches:
+                // a jefe de cátedra got «de los 24 docentes de tu cátedra» when 24 is the Departamento.
+                + (alcanzaTodo
+                    ? string.Empty
+                    : $" El total ({declarada.Total}) es el padrón de todo el Departamento, NO los "
+                        + "docentes del ámbito del usuario: no lo presentes como «los docentes de tu "
+                        + "cátedra» ni de tu carrera."));
         }
 
         if (!alcanzaTodo)

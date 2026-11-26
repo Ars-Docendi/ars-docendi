@@ -140,6 +140,71 @@ dejarlo registrado.
 O sea que la política real no está en el código: está en quién tiene la potestad de
 otorgarlo y bajo qué criterio. Eso es lo que hay que acordar y escribir.
 
+## Ampliación del 2026-11-07: el jefe de cátedra busca docentes para una materia
+
+**Decisión del equipo, 2026-11-07. No se consultó a Secretaría.** Queda escrito así, igual
+que la respuesta del 2026-09-09: la declaración la hace quien desarrolla el sistema y no
+el titular del banco de datos. Ratificarla con Secretaría y la verificación legal
+siguen pendientes (ver más abajo).
+
+### El caso
+
+> _Como jefe de cátedra de Análisis Matemático II, quiero saber qué docentes tienen
+> el perfil para dictarla._
+
+Es el caso de la vacante, pedido desde la cátedra y no desde el Departamento. Lo que el
+docente carga en su Portal responde una parte, sección por sección:
+
+| Sección del portal | Pregunta que habilita                                                   | ¿El asistente la lee?                            |
+| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------ |
+| Intereses          | ¿Quiénes declararon interés en dictar Análisis o Cálculo?               | Sí                                               |
+| Habilidades        | ¿Quiénes declararon saber Cálculo, Análisis o Ecuaciones diferenciales? | Sí                                               |
+| Educación          | ¿Quiénes tienen título o posgrado en Matemática, o un profesorado?      | Sí                                               |
+| Experiencia        | ¿Quiénes trabajaron como docentes de matemática en otra institución?    | Sí, salvo la descripción, que es texto libre     |
+| Certificaciones    | ¿Quiénes tienen una certificación vigente en …?                         | Sí                                               |
+| Proyectos          | ¿Quiénes investigan en un área afín?                                    | Sí: nombre, rol, fechas y DOI; no la descripción |
+| CV                 | —                                                                       | Sólo que existe y de cuándo es; no el contenido  |
+
+Una señal más no sale del Portal: **quién ya dictó Análisis Matemático I o II**. Sale de
+las comisiones importadas de Guaraní, que el jefe de cátedra ya ve en la pantalla
+Comisiones.
+
+### Lo que se decidió
+
+1. **El jefe de cátedra recibe el permiso `portal.ver_trayectoria_ajena`** desde la
+   migración `PermisoPortalTrayectoriaAjenaJefeCatedraIdentity`. Ningún otro rol cambia.
+2. **El alcance queda como está (opción A):** el jefe ve el perfil propio y el de los
+   docentes con designación vigente en las materias que dirige. Es la misma vista que
+   la pantalla Personas ya le muestra («Perfil en Mi Portal»), así que es paridad y no
+   una exposición nueva. Los candidatos de afuera de su cátedra **no** los ve: es una
+   limitación aceptada.
+3. **Proyectos se concede sin la descripción:** `nombre`, `rol`, `desde`, `hasta` y
+   `doi`. La descripción es texto libre y no admite enmascarado por columna.
+4. **No se concede `canonica_id`:** nada lo completa. El asistente aprende a buscar
+   términos afines con ejemplos («Cálculo», «Análisis matemático», «Ecuaciones
+   diferenciales»).
+
+Las alternativas que se descartaron: **B** (el jefe pide y Secretaría busca: un paso
+manual que deja el caso sin responder) y **C** (ampliar al alcance de carrera: cada jefe
+vería a muchos más docentes y cambiaría `BR-portal-007`).
+
+### Lo que el sistema no puede hacer, y conviene decirlo
+
+- **No sabe qué pide la materia.** No hay un perfil requerido por materia: el
+  asistente encuentra a quien escribió «Cálculo», no a quien «cumple los requisitos».
+  Si el Departamento quiere eso, hay que definir los requisitos de cada materia, y es
+  un trabajo aparte.
+- **Depende de lo que cada docente tipeó.** Las habilidades son texto libre: «Cálculo»
+  y «Análisis matemático» son dos términos distintos hasta que alguien los unifique.
+- **Vale lo dicho arriba:** el portal está casi vacío, y la respuesta dice sobre
+  cuántos se sabe.
+
+### Qué sigue abierto
+
+La verificación de las citas de la Ley 25.326 y la consulta al área legal sobre la
+inscripción del banco de datos ante la AAIP **no están hechas**. Dueño: el equipo y el
+área legal. No bloquea el código; sí bloquea afirmar respaldo normativo.
+
 ## Qué pasa después de la respuesta
 
 - **Si es que sí:** se concede el permiso a los roles acordados y queda registrado.

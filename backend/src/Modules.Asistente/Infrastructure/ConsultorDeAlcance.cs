@@ -22,6 +22,15 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
     /// <summary>El permiso de leer el perfil profesional de otra persona.</summary>
     private const string PermisoDeTrayectoriaAjena = "portal.ver_trayectoria_ajena";
 
+    /// <summary>
+    /// El permiso que la policy de RLS exige, sin ámbito, sobre las tablas de comisiones.
+    /// </summary>
+    private const string PermisoDeComisiones = "comisiones.ver";
+
+    /// <summary>Permisos que la policy de RLS de las solicitudes de aula conjuga.</summary>
+    private const string PermisoDeAprobarAulas = "aulas.aprobar";
+    private const string PermisoDeSolicitarAulas = "aulas.solicitar";
+
     /// <summary>SQLSTATE con que PostgreSQL reporta un <c>RAISE EXCEPTION</c> de plpgsql.</summary>
     private const string RaiseDeLaFuncion = "P0001";
 
@@ -39,7 +48,7 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
         }
     }
 
-    /// <summary>Los seis valores del perfil, en UNA consulta.</summary>
+    /// <summary>Los valores del perfil, en UNA consulta.</summary>
     private async Task<PerfilDelActor> LeerPerfilAsync(Guid actor, CancellationToken ct)
     {
         const string Consulta = """
@@ -56,7 +65,10 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
                              WHERE ur.user_id = identity.asistente_actor()
                                AND ur.deleted_at IS NULL
                                AND r.is_active
-                             LIMIT 2) roles)                     AS roles_vigentes
+                             LIMIT 2) roles)                     AS roles_vigentes,
+                   identity.asistente_tiene_permiso(@comisiones) AS ve_comisiones,
+                   identity.asistente_tiene_permiso(@aprobarAulas)  AS ve_solicitudes_de_aula,
+                   identity.asistente_tiene_permiso(@solicitarAulas) AS ve_solicitudes_propias
             """;
 
         await using var conexion = await apertura.AbrirAsync(ct);
@@ -71,6 +83,9 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
         comando.Parameters.AddWithValue("consulta", PermisoDeVerLaConsulta);
         comando.Parameters.AddWithValue("dominio", PermisoDeDominio);
         comando.Parameters.AddWithValue("trayectoria", PermisoDeTrayectoriaAjena);
+        comando.Parameters.AddWithValue("comisiones", PermisoDeComisiones);
+        comando.Parameters.AddWithValue("aprobarAulas", PermisoDeAprobarAulas);
+        comando.Parameters.AddWithValue("solicitarAulas", PermisoDeSolicitarAulas);
 
         await using var lector = await LeerOTraducirAsync(comando, actor, ct);
 
@@ -115,7 +130,10 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
             RolUnico(lector.IsDBNull(6) ? null : lector.GetString(6)),
             esGlobal && veDesignaciones,
             lector.GetBoolean(5),
-            veDesignaciones);
+            veDesignaciones,
+            lector.GetBoolean(7),
+            lector.GetBoolean(8),
+            lector.GetBoolean(9));
     }
 
     /// <summary>

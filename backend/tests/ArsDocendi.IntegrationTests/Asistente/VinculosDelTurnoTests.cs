@@ -115,6 +115,27 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_uuid_key_column_read_from_the_database_is_offered_to_the_resolver()
+    {
+        // Regression: Npgsql returns a uuid column as a Guid, not text. Only strings were
+        // candidates, so persona and aula-request links never reached the resolver in a real turn.
+        await SembrarAsync();
+        var resolutor = new ResolutorEspia();
+        var banco = Banco(
+            resolutor,
+            ProveedorGuionado.Generacion(
+                "SELECT numero, id AS pedido_id FROM designaciones.pedidos ORDER BY numero LIMIT 1"),
+            "Encontré un trámite.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿cuál es el primer trámite?", TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.IsType<Guid>(Assert.Single(turno.Filas)[1]);
+        Assert.Contains(resolutor.Pedidos, candidato => Guid.TryParse(candidato, out _));
+    }
+
+    [Fact]
     public async Task Un_turno_sin_filas_no_le_pregunta_nada_al_resolutor()
     {
         // El caso mayoritario —abstenciones, saludos, aclaraciones— no tiene por qué
