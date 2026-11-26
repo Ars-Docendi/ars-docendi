@@ -59,3 +59,10 @@ resultados, "Limpiar filtros", tabla con filas clickeables (Tab + Enter) y "Canc
   UPN, documento, legajo y ámbito se muestran como mensajes accionables.
 - El menú de Configuración muestra "Personas" (icono de personas agrupadas) y "Roles"; cada enlace
   conserva su etiqueta textual y su foco visible en estado expandido y colapsado.
+
+## Teléfono
+
+- Por debajo de 560 px (teléfono) la pantalla usa el patrón compartido del change `experiencia-movil-tablas`; en tablets y escritorio la tabla se mantiene, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.
+- **Tarjetas**: cada persona es una tarjeta; el nombre es el enlace y abre la edición, con una línea mono de datos (documento, legajo), insignias de estado y rol, y un menú «⋯» (44 px) con las mismas acciones que la fila de la tabla.
+- **Filtros**: un único botón «Filtros (n)» abre una hoja inferior con todos los grupos, «Limpiar» y un «Ver N resultados» en vivo. Lo aplicado se ve como chips quitables más «Limpiar filtros». El orden es un selector nativo «Ordenar por»; la búsqueda queda arriba.
+- **Paginación**: 20 tarjetas por página; vuelve a la primera al cambiar filtros, búsqueda u orden. Es la excepción solo de teléfono a «Sin paginación».

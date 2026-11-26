@@ -38,3 +38,7 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* Legajo y DNI no se parten en dos líneas. */
+.adoc-buscador-responsable-resultados td.adoc-mono {
+  white-space: nowrap;
+}

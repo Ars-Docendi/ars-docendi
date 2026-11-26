@@ -219,6 +219,19 @@ Compose project, base y storage únicamente en la VM.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de
   las credenciales de deploy de la aplicación.
+- **Guaraní**: la API sólo responde dentro de la red de UNLaM, así que la sección
+  `Guarani` (`UrlBase`, `RutaPeriodosLectivos`, `RutaComisiones` con
+  `{periodoLectivo}`, `TimeoutSegundos`) sólo se configura en producción y en el
+  entorno local conectado a esa red (`dotnet user-secrets` en local). Las credenciales
+  salen de las variables de entorno `guarani_user` y `guarani_pass`: son obligatorias
+  salvo en Development, y si faltan la importación responde
+  `503 guarani-no-configurado` y el log indica cuáles definir. La URL debe ser HTTPS salvo en
+  Development sin credenciales, y las rutas, relativas a ella; si no, responde el mismo `503`. En prod, los secrets
+  `GUARANI_USER` y `GUARANI_PASS` del Environment `prod` llegan como esas variables;
+  `GUARANI_URL_BASE`, `GUARANI_RUTA_PERIODOS_LECTIVOS` y `GUARANI_RUTA_COMISIONES` son
+  repository variables que `compose.base.yml` mapea a `Guarani__*`. Staging, previews y CI
+  dejan la integración vacía: el backend arranca igual y la pantalla de Comisiones
+  muestra el dataset sintético.
 - **Clave maestra del asistente** (`asistente-modelo-en-caliente`): `Asistente__ClaveMaestra`
   (32 bytes en base64) cifra con AES-GCM las claves de API por empresa que un
   administrador guarda desde la pantalla; `Asistente__ClaveMaestraAnterior`

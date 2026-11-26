@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Actualiza un ambiente persistente: preflight/preview, backup, migraciones y smoke.
-# Nunca reset/drop/purge en deploy ordinario; prod nunca recibe seed.
+# Nunca reset/drop/purge en deploy ordinario; prod y presentacion nunca reciben seed.
 #
 # Uso:
-#   spin-up.sh <ambiente>          # ambiente: prod | staging | pr-<N>
+#   spin-up.sh <ambiente>          # ambiente: prod | staging | presentacion | pr-<N>
 #
 # Variables requeridas (se inyectan en runtime / CI, nunca al repo):
 #   DOMINIO                           dominio público real (reemplaza example.net)
@@ -35,10 +35,15 @@
 #   BACKUP_RETENTION_DAYS             default 7, entero positivo
 #   MICROSOFT_LOGIN_ENABLED MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET
 #                                     ingreso con Microsoft (default apagado; en prod obligatorio)
+#   GUARANI_URL_BASE guarani_user guarani_pass
+#   GUARANI_RUTA_PERIODOS_LECTIVOS GUARANI_RUTA_COMISIONES
+#                                     sólo prod: integración Guaraní (vacía → importación 503)
 #   ADMIN_INICIAL_UPN ADMIN_INICIAL_NOMBRE ADMIN_INICIAL_APELLIDO ADMIN_INICIAL_DOCUMENTO
 #                                     sólo prod: administrador inicial que crea --migrate
 #   SELLADO_CLAVE SELLADO_CLAVE_2     claves HMAC base64 de la cadena de sellos, versiones 1 y 2
 #   SELLADO_VERSION_VIGENTE           versión con la que se sella (default 1; su clave es obligatoria en prod)
+#   WEBPUSH_PUBLIC_KEY WEBPUSH_PRIVATE_KEY WEBPUSH_SUBJECT
+#                                     claves VAPID del Web Push (vacías = push apagado; ver docs/operations/web-push.md)
 #   Estas variables llegan a Compose por el entorno del proceso, no por el .env efímero.
 #   Las contraseñas del asistente y ASISTENTE_CLAVE también: el .env efímero sólo
 #   lleva nombres de rol y el proveedor ya resuelto.
@@ -69,7 +74,7 @@ secret_variable="SEAWEEDFS_APP_SECRET_KEY_${variable_ambiente}"
 seaweedfs_app_access_key="${!access_variable:-${SEAWEEDFS_APP_ACCESS_KEY:-}}"
 seaweedfs_app_secret_key="${!secret_variable:-${SEAWEEDFS_APP_SECRET_KEY:-}}"
 if [[ -z "$seaweedfs_app_access_key" || -z "$seaweedfs_app_secret_key" ]]; then
-  if [[ "$ambiente" == "prod" || "$ambiente" == "staging" ]]; then
+  if [[ "$ambiente" =~ ^(prod|staging|presentacion)$ ]]; then
     seaweedfs_app_access_key="$(seaweedfs_app_access_for "$ambiente")"
     seaweedfs_app_secret_key="$(seaweedfs_app_secret_for "$ambiente" "$SEAWEEDFS_ROOT_SECRET_KEY")"
   else
@@ -240,7 +245,7 @@ fi
 # Mismo test de humo, ahora con las tablas creadas: ninguna migración le dio al
 # asistente un privilegio de mutación.
 "$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
-if [[ "$ambiente" != prod ]]; then
+if [[ "$ambiente" != prod && "$ambiente" != presentacion ]]; then
   SEED_BASE_CREATED="$base_nueva" "$scripts_dir/seed.sh" "$ambiente"
   # Sólo mientras el seed lo marque pendiente: sellar en cada deploy legitimaría cambios
   # hechos por SQL. Un sellado fallido conserva la marca y se reintenta en el próximo deploy.

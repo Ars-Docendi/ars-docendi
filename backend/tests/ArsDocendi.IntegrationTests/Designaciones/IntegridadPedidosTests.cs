@@ -29,6 +29,7 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
     private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
+    private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Decanato = Guid.Parse("a0000000-0000-4000-8000-000000000005");
     private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
     private static readonly Guid PersonaLibre = Guid.Parse("d0000000-0000-4000-8000-000000000004");
@@ -78,7 +79,8 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
     [Fact]
     public void Formato_canonico_del_sello_no_cambia_sin_version_nueva()
     {
-        // Cambiar el formato invalida toda cadena ya sellada: este hash fija la versión v1.
+        // Los hashes fijos protegen las cadenas ya selladas: v1 debe seguir reproduciendo lo que se
+        // selló antes de v2, y cambiar el formato v2 exige una versión nueva, nunca editar este valor.
         var periodo = Guid.Parse("11111111-1111-4111-8111-111111111111");
         var pedido = new Pedido
         {
@@ -108,9 +110,17 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
 
         var estado = CanonicoSellos.HashEstado(pedido);
         var hash = CanonicoSellos.Hash(CanonicoSellos.Genesis(periodo), periodo, 1, evento, estado);
+        var estadoV1 = CanonicoSellos.HashEstado(pedido, CanonicoSellos.V1);
+        var hashV1 = CanonicoSellos.Hash(CanonicoSellos.Genesis(periodo), periodo, 1, evento, estadoV1, CanonicoSellos.V1);
 
-        Assert.Equal("f2d9629738a8361e8f45abf9b03a10223efaf3fadcb937294d3915e9917315e1", Convert.ToHexStringLower(estado));
-        Assert.Equal("05b141d2266baab528b24947e7e35a8497057fe475bd5041625ee8fd4eac43f3", Convert.ToHexStringLower(hash));
+        Assert.Equal("60aaad46b45655cca46486eb6aa708cf780bb13a0e679af231739e9c99814e1c", Convert.ToHexStringLower(estado));
+        Assert.Equal("aa53590b748823dfa97b8353ab0a5aa7e79e1e9d93937c42c6e3152423e4cc42", Convert.ToHexStringLower(hash));
+        Assert.Equal("f2d9629738a8361e8f45abf9b03a10223efaf3fadcb937294d3915e9917315e1", Convert.ToHexStringLower(estadoV1));
+        Assert.Equal("05b141d2266baab528b24947e7e35a8497057fe475bd5041625ee8fd4eac43f3", Convert.ToHexStringLower(hashV1));
+
+        // Un pedido sellado en v1 no tenía sector: agregárselo después tiene que divergir.
+        pedido.SectorExternoId = Guid.Parse("e7000000-0000-4000-8000-000000000003");
+        Assert.NotEqual(estadoV1, CanonicoSellos.HashEstado(pedido, CanonicoSellos.V1));
     }
 
     [Fact]
@@ -243,7 +253,7 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
         await EnviarAsync(identityDb, db, PersonaLibre, ct);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
-        Autenticar(cliente, Decanato, "decanato");
+        Autenticar(cliente, Secretaria, "secretaria");
         var url = $"/api/designaciones/periodos/{Periodo}/lote.xlsx";
 
         using var primera = await cliente.GetAsync(url, ct);
@@ -361,7 +371,6 @@ public sealed class IntegridadPedidosTests(PostgresFixture postgres)
         var core = new ServicioPedidos(
             pedidos,
             designaciones,
-            new MaterializadorDesignaciones(designaciones),
             resolutor,
             identity,
             new UnidadDeTrabajo(db),

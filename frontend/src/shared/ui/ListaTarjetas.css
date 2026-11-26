@@ -1,0 +1,130 @@
+/* Phone card list (see ListaTarjetas.tsx). */
+.adoc-lista-tarjetas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.adoc-tarjeta {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 12px 12px 14px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+.adoc-tarjeta:hover {
+  border-color: var(--color-border-strong);
+}
+.adoc-tarjeta:has(.adoc-fila-enlace:focus-visible) {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.adoc-tarjeta.por-vencer {
+  background: var(--color-status-warning-bg);
+  border-left: 4px solid var(--warning-500);
+}
+.adoc-tarjeta.vencida {
+  background: var(--color-status-danger-bg);
+  border-left: 4px solid var(--danger-500);
+}
+.adoc-tarjeta-cabecera {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.adoc-tarjeta-cabecera .adoc-fila-enlace {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+.adoc-tarjeta-cabecera .adoc-fila-enlace:focus-visible {
+  outline: none;
+}
+/* The title link covers the whole card; the "⋯" button stays above it. */
+.adoc-tarjeta-cabecera .adoc-fila-enlace::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.adoc-tarjeta-abrir {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.adoc-tarjeta .adoc-acciones {
+  position: relative;
+  z-index: 1;
+  margin: -10px -8px -10px 0;
+}
+.adoc-tarjeta .adoc-acciones-trigger {
+  width: 44px;
+  height: 44px;
+  color: var(--color-text-secondary);
+}
+.adoc-tarjeta .adoc-acciones-trigger svg {
+  width: 20px;
+  height: 20px;
+}
+.adoc-tarjeta .adoc-acciones-pop button {
+  min-height: 44px;
+}
+.adoc-tarjeta-titulo {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+.adoc-tarjeta-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.adoc-tarjeta-meta {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.adoc-tarjeta-linea {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.adoc-tarjeta-insignias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.adoc-lista-vacia {
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+/* Pagination with 44 px touch targets. */
+.adoc-lista-paginacion {
+  margin-top: var(--space-4);
+  justify-content: space-between;
+  gap: 4px;
+}
+.adoc-lista-paginacion .pg {
+  min-width: 44px;
+  height: 44px;
+}

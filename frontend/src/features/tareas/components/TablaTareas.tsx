@@ -3,14 +3,18 @@ import { Button, Input, Table } from "@ars-docendi/ui";
 import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
 import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
 import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { EstadoTarea, Prioridad, Proyecto, Tarea } from "../types";
 import { EstadoTareaBadge } from "./EstadoTareaBadge";
-import { estadoSemaforo, muestraSemaforo } from "./semaforoTarea";
+import { nivelAlertaSemaforo } from "./semaforoTarea";
 import { formatearFecha } from "./detalleAdapters";
 import {
   alternarOpcion,
+  ETIQUETA_ESTADO,
+  ETIQUETA_PRIORIDAD,
   aplicarFiltrosColumnas,
   FILTROS_COLUMNAS_INICIALES,
   opcionesColumnasTareas,
@@ -22,6 +26,7 @@ import {
   type ColumnaOrdenableTarea,
   type OrdenTareas,
 } from "./ordenTareas";
+import { ListaTareasMovil } from "./ListaTareasMovil";
 import { OpcionesFiltro } from "./OpcionesFiltro";
 import { estadosDePreset, type PresetEstado } from "./presetEstado";
 import "./tablaTareas.css";
@@ -41,20 +46,6 @@ interface TablaTareasProps {
    */
   proyectos?: Proyecto[];
 }
-
-const ETIQUETA_PRIORIDAD: Record<Prioridad, string> = {
-  alta: "Alta",
-  media: "Media",
-  baja: "Baja",
-};
-
-const ETIQUETA_ESTADO: Record<EstadoTarea, string> = {
-  pendiente: "Pendiente",
-  en_curso: "En curso",
-  pausa: "Pausa",
-  resuelta: "Resuelta",
-  cancelada: "Cancelada",
-};
 
 /** Columnas ordenables y su rótulo, en el orden en que se muestran. */
 const COLUMNAS: { id: ColumnaOrdenableTarea; etiqueta: string }[] = [
@@ -80,6 +71,7 @@ const COLUMNAS: { id: ColumnaOrdenableTarea; etiqueta: string }[] = [
  */
 export function TablaTareas({ tareas, preset, proyectos, prefijoURL }: TablaTareasProps) {
   const abrir = useAbrirDetalle();
+  const telefono = usePantallaTelefono();
   // El filtro Estado arranca con lo que indica el preset; la URL sólo guarda lo que se aparta.
   const porDefecto = useMemo<FiltrosColumnasTareas>(
     () => ({
@@ -112,44 +104,58 @@ export function TablaTareas({ tareas, preset, proyectos, prefijoURL }: TablaTare
   const filtradas = aplicarFiltrosColumnas(tareas, filtros);
   const visibles = ordenarTareas(filtradas, orden);
 
+  if (telefono) {
+    return (
+      <ListaTareasMovil
+        todas={tareas}
+        tareas={visibles}
+        proyectos={proyectos}
+        filtros={filtros}
+        vacios={porDefecto}
+        conEstado={!preset}
+        orden={orden}
+        onFiltrosChange={setFiltros}
+        onOrdenChange={setOrden}
+      />
+    );
+  }
+
   return (
-    <div className="adoc-tabla-scroll">
-      <Table>
-        <Table.Root>
-          <Table.Head>
+    <Table>
+      <ContenedorTabla etiqueta="Tareas">
+        <Table.Head>
+          <Table.Row>
+            {COLUMNAS.map((col) => (
+              <EncabezadoTarea
+                key={col.id}
+                id={col.id}
+                etiqueta={col.etiqueta}
+                orden={orden}
+                onOrden={(columna) => setOrden(siguienteOrden(orden, columna))}
+                filtros={filtros}
+                opciones={opciones}
+                onFiltrosChange={(cambios) => setFiltros({ ...filtros, ...cambios })}
+              />
+            ))}
+            {proyectos && <Table.HeaderCell>Proyecto</Table.HeaderCell>}
+            <Table.HeaderCell>Acciones</Table.HeaderCell>
+          </Table.Row>
+        </Table.Head>
+        <Table.Body>
+          {visibles.length === 0 ? (
             <Table.Row>
-              {COLUMNAS.map((col) => (
-                <EncabezadoTarea
-                  key={col.id}
-                  id={col.id}
-                  etiqueta={col.etiqueta}
-                  orden={orden}
-                  onOrden={(columna) => setOrden(siguienteOrden(orden, columna))}
-                  filtros={filtros}
-                  opciones={opciones}
-                  onFiltrosChange={(cambios) => setFiltros({ ...filtros, ...cambios })}
-                />
-              ))}
-              {proyectos && <Table.HeaderCell>Proyecto</Table.HeaderCell>}
-              <Table.HeaderCell>Acciones</Table.HeaderCell>
+              <Table.Cell colSpan={COLUMNAS.length + (proyectos ? 2 : 1)} className="empty">
+                Sin tareas que cumplan los filtros.
+              </Table.Cell>
             </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {visibles.length === 0 ? (
-              <Table.Row>
-                <Table.Cell colSpan={COLUMNAS.length + (proyectos ? 2 : 1)} className="empty">
-                  Sin tareas que cumplan los filtros.
-                </Table.Cell>
-              </Table.Row>
-            ) : (
-              visibles.map((tarea) => (
-                <FilaTarea key={tarea.id} tarea={tarea} onVer={abrir} proyectos={proyectos} />
-              ))
-            )}
-          </Table.Body>
-        </Table.Root>
-      </Table>
-    </div>
+          ) : (
+            visibles.map((tarea) => (
+              <FilaTarea key={tarea.id} tarea={tarea} onVer={abrir} proyectos={proyectos} />
+            ))
+          )}
+        </Table.Body>
+      </ContenedorTabla>
+    </Table>
   );
 }
 
@@ -165,16 +171,9 @@ function FilaTarea({
   const ruta = `/tareas/${tarea.id}`;
   // Solo amarillo/rojo resaltan la fila (verde es el caso normal, sin
   // urgencia — no necesita destacarse). Resuelta/Cancelada no muestran
-  // semáforo en absoluto (`muestraSemaforo`).
-  const semaforo = muestraSemaforo(tarea.estado)
-    ? estadoSemaforo(tarea.fechaInicio, tarea.fechaFin)
-    : null;
-  const claseSemaforo =
-    semaforo === "red"
-      ? "adoc-tt-row--vencida"
-      : semaforo === "yellow"
-        ? "adoc-tt-row--por-vencer"
-        : undefined;
+  // semáforo en absoluto.
+  const nivel = nivelAlertaSemaforo(tarea.estado, tarea.fechaInicio, tarea.fechaFin);
+  const claseSemaforo = nivel ? `adoc-tt-row--${nivel}` : undefined;
 
   return (
     <Table.Row

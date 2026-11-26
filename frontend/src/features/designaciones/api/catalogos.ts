@@ -1,5 +1,6 @@
 import { apiClient } from "../../../shared/api/client";
-import type { Dedicacion, DocenteExistente, PeriodoDesignacion } from "../types";
+import type { Dedicacion, DocenteExistente, PeriodoDesignacion, SectorExterno } from "../types";
+import { etiquetaSectorExterno } from "../types";
 
 interface MateriaCatalogoDto {
   materiaId: string;
@@ -37,18 +38,41 @@ export interface CatalogosDesignaciones {
       materiaId: string;
       materiaNombre: string;
       carreraId: string;
-      cargoId: string;
-      cargoNombre: string;
+      cargoId: string | null;
+      cargoNombre: string | null;
       dedicacion: string | null;
       horas: number;
       horasInvestigacion: number | null;
       horasExternas: number | null;
+      sectorExternoId?: string | null;
+      sectorExternoCodigo?: string | null;
+      sectorExternoNombre?: string | null;
     }[];
   }[];
   cargos: { id: string; codigo: string; nombre: string; abreviatura: string; orden: number }[];
   dedicaciones: { id: string; codigo: number; nombre: string; orden: number }[];
   tiposBaja: string[];
   novedades: string[];
+  sectoresExternos: SectorExterno[];
+}
+
+type DesignacionVigenteCatalogo =
+  CatalogosDesignacionesDto["personas"][number]["designacionesVigentes"][number];
+
+function sectorDe(d: DesignacionVigenteCatalogo): SectorExterno | null {
+  return d.sectorExternoId && d.sectorExternoCodigo && d.sectorExternoNombre
+    ? { id: d.sectorExternoId, codigo: d.sectorExternoCodigo, nombre: d.sectorExternoNombre }
+    : null;
+}
+
+/** Datos actuales a mostrar: una designación externa se muestra por su sector, sin dedicación. */
+const SIN_DEDICACION_EXTERNO = "Sin dedicación (externo)";
+function cargoVisible(d: DesignacionVigenteCatalogo): string {
+  const sector = sectorDe(d);
+  return sector ? etiquetaSectorExterno(sector) : (d.cargoNombre ?? "");
+}
+function dedicacionVisible(d: DesignacionVigenteCatalogo): string | null {
+  return sectorDe(d) ? SIN_DEDICACION_EXTERNO : d.dedicacion;
 }
 
 /** Con `pedidoId` (edición), la persona de ese pedido sigue en el catálogo aunque su pedido ocupe el cupo. */
@@ -83,15 +107,17 @@ export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): Docent
         nombre: `${persona.apellido}, ${persona.nombre}`,
         legajo: persona.legajo ?? "",
         antiguedad: 0,
-        cargoActual: primera.cargoNombre,
-        dedicacionActual: (primera.dedicacion ?? "") as Dedicacion,
+        cargoActual: cargoVisible(primera),
+        dedicacionActual: (dedicacionVisible(primera) ?? "") as Dedicacion,
+        sectorExternoActual: sectorDe(primera),
         materiasActuales: persona.designacionesVigentes.map((d) => ({
           materiaId: d.materiaId,
           carreraId: d.carreraId,
           materia: d.materiaNombre,
           horas: d.horas,
-          cargoActual: d.cargoNombre,
-          dedicacionActual: d.dedicacion,
+          cargoActual: cargoVisible(d),
+          dedicacionActual: dedicacionVisible(d),
+          sectorExternoActual: sectorDe(d),
           horasInvestigacion: d.horasInvestigacion,
           horasExternas: d.horasExternas,
         })),
@@ -100,6 +126,23 @@ export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): Docent
       },
     ];
   });
+}
+
+/** Persona del sistema elegible para un Alta (sin pedido en curso en el período). */
+export interface PersonaBusqueda {
+  id: string;
+  nombre: string;
+  apellido: string;
+  documento: string;
+  legajo: string | null;
+}
+
+export async function buscarPersonasAlta(texto: string): Promise<PersonaBusqueda[]> {
+  return (
+    await apiClient.get<PersonaBusqueda[]>("/api/designaciones/personas/buscar", {
+      params: { texto },
+    })
+  ).data;
 }
 
 export function formatearDni(dni: string): string {

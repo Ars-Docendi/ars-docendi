@@ -13,21 +13,21 @@ public sealed class CatalogoDeGlosarioTests
     // ------------------------------------------------------------ el archivo
 
     [Fact]
-    public void Aprobado_es_en_lote_y_no_existe_un_estado_aprobado()
+    public void Aprobado_es_en_lote_o_sincronizado()
     {
         var referencia = Assert.Single(Termino("aprobado").Referencias);
 
         Assert.Equal(Estado, referencia.Columna);
-        Assert.Equal(["en_lote"], referencia.Valores);
+        Assert.Equal(["en_lote", "aprobado"], referencia.Valores);
     }
 
     [Fact]
-    public void Finalizado_son_tres_estados_guardados()
+    public void Finalizado_son_los_estados_fuera_del_circuito_de_revision()
     {
         var referencia = Assert.Single(Termino("finalizado").Referencias);
 
         Assert.Equal(Estado, referencia.Columna);
-        Assert.Equal(["en_lote", "rechazado", "cancelado"], referencia.Valores);
+        Assert.Equal(["en_lote", "aprobado", "no_aprobado", "rechazado", "cancelado"], referencia.Valores);
     }
 
     [Fact]

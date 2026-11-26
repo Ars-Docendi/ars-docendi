@@ -1,0 +1,50 @@
+/* Bottom filter sheet: the library Drawer anchored to the bottom edge. */
+.adoc-drawer-stage:has(> .adoc-hoja-filtros) {
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.adoc-drawer.adoc-hoja-filtros {
+  width: 100%;
+  height: auto;
+  max-height: 85%;
+  border-left: 0;
+  border-top: 1.5px solid var(--color-border-ink);
+  border-radius: 8px 8px 0 0;
+}
+.adoc-hoja-filtros header .close {
+  min-width: 44px;
+  min-height: 44px;
+}
+.adoc-hoja-filtros footer {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+.adoc-hoja-filtros footer .adoc-btn {
+  height: 44px;
+}
+.adoc-hoja-filtros footer .v-primary {
+  flex: 1;
+  justify-content: center;
+}
+.adoc-hoja-grupo {
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  border: 0;
+}
+.adoc-hoja-grupo legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-tertiary);
+}
+.adoc-hoja-grupo .adoc-check {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+.adoc-hoja-grupo .adoc-input {
+  width: 100%;
+  height: 44px;
+}

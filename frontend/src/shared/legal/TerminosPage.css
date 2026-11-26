@@ -1,7 +1,7 @@
 /* Términos de uso y privacidad — página pública fuera del shell. */
 
 .terminos-page {
-  min-height: calc(100vh / var(--ui-zoom, 1));
+  min-height: calc(100dvh / var(--ui-zoom, 1));
   background: var(--color-bg-canvas);
   color: var(--color-text-primary);
 }

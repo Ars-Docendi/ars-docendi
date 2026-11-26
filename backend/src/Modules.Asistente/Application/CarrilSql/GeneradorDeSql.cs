@@ -246,6 +246,17 @@ public sealed class GeneradorDeSql(
 
         mensaje.Append(CultureInfo.InvariantCulture, $"\nPregunta del usuario:\n{pregunta}\n");
 
+        // Next to the question, where a small model weighs it: the prefix rule on scope alone did
+        // not stop Qwen3-8B from writing «WHERE carrera_id = (SELECT … FROM identity.user_roles …)»
+        // for «¿Qué docentes tengo a cargo?», which returns nothing (asistente-dominios, 2026-11-07).
+        if (AlcancePropio.Nombra(pregunta))
+        {
+            mensaje.Append(
+                "\nNota: la pregunta habla del alcance de quien pregunta («a cargo», «mis», «mi "
+                + "cátedra»). La base ya devuelve sólo eso: NO filtres por su usuario, su rol, su "
+                + "materia ni su carrera, y no uses identity.user_roles ni identity.users para eso.\n");
+        }
+
         if (preguntasAnteriores is { Count: > 0 })
         {
             mensaje.Append(

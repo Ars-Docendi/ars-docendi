@@ -605,6 +605,11 @@ a.adoc-sidebar-help {
 .adoc-drawer.adoc-nav-drawer .body {
   padding: var(--space-2) 0;
 }
+/* The highlighted item must not touch the panel border. */
+.adoc-nav-drawer .body a,
+.adoc-nav-drawer .body .adoc-sidebar-help {
+  margin-right: var(--space-2);
+}
 /* Centro de ayuda al final del panel, separado como en el pie de la barra. */
 .adoc-nav-drawer-pie {
   margin-top: var(--space-3);

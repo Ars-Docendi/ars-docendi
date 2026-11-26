@@ -52,7 +52,8 @@ export interface Tarea {
   prioridad: Prioridad;
   tipo: TipoTarea;
   estado: EstadoTarea;
-  porcentajeAvance: number; // 0-100, lo completa el Responsable
+  porcentajeAvance: number; // 0-100, lo completa el Responsable salvo con hijas vigentes
+  avanceCalculado: boolean; // true con hijas no canceladas: promedia su avance y no se edita a mano
   solucion?: string | null; // detalle de resolución; obligatorio al pasar a "resuelta"
   responsable: PersonaTarea;
   creadoPor: PersonaTarea;

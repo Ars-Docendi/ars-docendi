@@ -116,7 +116,8 @@ internal sealed partial class ServicioConsultasDesignaciones(
             datos.Periodo,
             datos.Cargo,
             datos.Dedicacion,
-            datos.UltimoMovimiento ?? datos.CreadoEn);
+            datos.UltimoMovimiento ?? datos.CreadoEn,
+            datos.SectorExterno);
     }
 
     /// <summary>
@@ -136,6 +137,8 @@ internal sealed partial class ServicioConsultasDesignaciones(
         EstadosPedido.EnRevisionDecanato => "En Decanato",
         EstadosPedido.Devuelto => "Devuelto",
         EstadosPedido.EnLote => "En lote",
+        EstadosPedido.Aprobado => "Aprobado",
+        EstadosPedido.NoAprobado => "Rechazado en conciliación",
         EstadosPedido.Rechazado => "Rechazado",
         EstadosPedido.Cancelado => "Cancelado",
         _ => estado,

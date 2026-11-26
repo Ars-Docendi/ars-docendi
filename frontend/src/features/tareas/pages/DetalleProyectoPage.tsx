@@ -5,7 +5,9 @@ import { EnlaceVolver } from "../../../shared/navegacion/EnlaceVolver";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
 import { migaDeVolver } from "../../../shared/navegacion/volver";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { TablaTareas } from "../components/TablaTareas";
 import { EstadoProyectoBadge } from "../components/EstadoProyectoBadge";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
@@ -34,7 +36,55 @@ export function DetalleProyectoPage() {
   const [versionEditar, setVersionEditar] = useState(0);
 
   const { puedeGestionarProyectos: puedeCambiar, puedeCrearTarea } = usePermisosTareas();
+  const telefono = usePantallaTelefono();
   const tareasDelProyecto = proyecto ? tareas.filter((t) => t.proyectoId === proyecto.id) : [];
+
+  const acciones = proyecto ? (
+    <>
+      {puedeCrearTarea && proyecto.admiteTareas && (
+        <Button
+          variant="primary"
+          leadingIcon={<IconoPlus />}
+          onClick={() => setModalTareaAbierto(true)}
+        >
+          Nueva Tarea
+        </Button>
+      )}
+      {puedeCambiar && (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setVersionEditar(proyecto.version);
+            setModalEditarAbierto(true);
+          }}
+        >
+          Editar
+        </Button>
+      )}
+      {puedeCambiar &&
+        estados
+          .filter((estado) => estado.codigo !== proyecto.estado)
+          .filter((estado) => !(proyecto.estado === "cancelado" && estado.codigo === "finalizado"))
+          .map((estado) => (
+            <Button
+              key={estado.codigo}
+              variant={estado.admiteTareas ? "secondary" : "destructive"}
+              loading={cambiarEstado.isPending}
+              onClick={() =>
+                cambiarEstado.mutate({
+                  id: proyecto.id,
+                  version: proyecto.version,
+                  estadoDestino: estado.codigo,
+                })
+              }
+            >
+              {estado.verbo}
+            </Button>
+          ))}
+    </>
+  ) : null;
+  const hayAcciones =
+    Boolean(proyecto) && ((puedeCrearTarea && proyecto?.admiteTareas) || puedeCambiar);
 
   return (
     <>
@@ -67,49 +117,7 @@ export function DetalleProyectoPage() {
             actions={
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <EnlaceVolver id="proyecto-volver" destino={volver} />
-                {puedeCrearTarea && proyecto.admiteTareas && (
-                  <Button
-                    variant="primary"
-                    leadingIcon={<IconoPlus />}
-                    onClick={() => setModalTareaAbierto(true)}
-                  >
-                    Nueva Tarea
-                  </Button>
-                )}
-                {puedeCambiar && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setVersionEditar(proyecto.version);
-                      setModalEditarAbierto(true);
-                    }}
-                  >
-                    Editar
-                  </Button>
-                )}
-                {puedeCambiar &&
-                  estados
-                    .filter((estado) => estado.codigo !== proyecto.estado)
-                    .filter(
-                      (estado) =>
-                        !(proyecto.estado === "cancelado" && estado.codigo === "finalizado"),
-                    )
-                    .map((estado) => (
-                      <Button
-                        key={estado.codigo}
-                        variant={estado.admiteTareas ? "secondary" : "destructive"}
-                        loading={cambiarEstado.isPending}
-                        onClick={() =>
-                          cambiarEstado.mutate({
-                            id: proyecto.id,
-                            version: proyecto.version,
-                            estadoDestino: estado.codigo,
-                          })
-                        }
-                      >
-                        {estado.verbo}
-                      </Button>
-                    ))}
+                {!telefono && acciones}
                 <EstadoProyectoBadge estado={proyecto.estado} nombre={proyecto.estadoNombre} />
               </div>
             }
@@ -162,6 +170,8 @@ export function DetalleProyectoPage() {
           </div>
         </>
       )}
+
+      {telefono && hayAcciones && <BarraAccionesFija>{acciones}</BarraAccionesFija>}
 
       {proyecto && (
         <ModalNuevaTarea

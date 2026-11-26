@@ -72,6 +72,11 @@ export const usarElCentroDeAyuda: ArticuloAyuda = {
       respuesta:
         "La ayuda solo muestra los artículos de las pantallas que tu rol puede usar. Revisá también la ortografía o probá con otra palabra relacionada.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de 900 px o menos el menú lateral de la ayuda se oculta: el buscador queda arriba del contenido y se navega de la portada al módulo y de ahí al artículo, con el enlace para volver. Cada artículo muestra un índice desplegable «En esta página» que salta a cada paso.",
+    },
   ],
   relacionados: [
     "primeros-pasos/permisos-y-pantallas-visibles",

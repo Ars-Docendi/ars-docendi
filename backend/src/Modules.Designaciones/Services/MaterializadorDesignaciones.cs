@@ -39,18 +39,18 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
                     throw new ErrorDominioPedido("La vigencia comienza en una fecha posterior a la fecha efectiva del Cambio.");
                 if (vigente.VigenteDesde == hoy)
                 {
-                    var anterior = new { vigente.CargoId, vigente.DedicacionId, vigente.Horas,
+                    var anterior = new { vigente.CargoId, vigente.DedicacionId, vigente.SectorExternoId, vigente.Horas,
                         vigente.HorasInvestigacion, vigente.HorasExternas, vigente.OrigenPedidoId, vigente.VigenteDesde };
-                    vigente.CargoId = pedido.CargoSolicitadoId
-                        ?? throw new ErrorDominioPedido("El Cambio requiere cargo solicitado.");
+                    ExigirCargoOSector(pedido);
+                    vigente.CargoId = pedido.CargoSolicitadoId;
                     vigente.DedicacionId = pedido.DedicacionSolicitadaId;
-                    vigente.Dedicacion = null;
+                    vigente.SectorExternoId = pedido.SectorExternoId;
                     vigente.Horas = pedido.Horas
                         ?? throw new ErrorDominioPedido("El Cambio requiere horas.");
                     vigente.HorasInvestigacion = pedido.HorasInvestigacion;
                     vigente.HorasExternas = pedido.HorasExternas;
                     vigente.OrigenPedidoId = pedido.Id;
-                    var nuevo = new { vigente.CargoId, vigente.DedicacionId, vigente.Horas,
+                    var nuevo = new { vigente.CargoId, vigente.DedicacionId, vigente.SectorExternoId, vigente.Horas,
                         vigente.HorasInvestigacion, vigente.HorasExternas, vigente.OrigenPedidoId, vigente.VigenteDesde };
                     return "Cambio intradía: " + System.Text.Json.JsonSerializer.Serialize(new { anterior, nuevo });
                 }
@@ -73,6 +73,16 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
         return null;
     }
 
+    /// <summary>Un pedido interno necesita cargo; uno externo, sector (la base exige además la exclusión).</summary>
+    private static void ExigirCargoOSector(Pedido pedido)
+    {
+        if (pedido.SectorExternoId is null && pedido.CargoSolicitadoId is null)
+        {
+            throw new ErrorDominioPedido(
+                $"El pedido {pedido.Numero} no tiene cargo ni sector externo: no se puede materializar la designación.");
+        }
+    }
+
     /// <summary>
     /// Abre la designación que el pedido solicita. La constraint EXCLUDE de la base
     /// rechaza el solapamiento, así que un Alta sobre una cátedra donde el docente ya
@@ -80,11 +90,7 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
     /// </summary>
     private void Abrir(Pedido pedido, DateOnly desde)
     {
-        if (pedido.CargoSolicitadoId is null)
-        {
-            throw new ErrorDominioPedido(
-                $"El pedido {pedido.Numero} no tiene cargo solicitado: no se puede abrir la designación.");
-        }
+        ExigirCargoOSector(pedido);
 
         if (pedido.Horas is null)
         {
@@ -97,8 +103,9 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
             PersonaId = pedido.PersonaId,
             MateriaId = pedido.MateriaId,
             CarreraId = pedido.CarreraId,
-            CargoId = pedido.CargoSolicitadoId.Value,
+            CargoId = pedido.CargoSolicitadoId,
             DedicacionId = pedido.DedicacionSolicitadaId,
+            SectorExternoId = pedido.SectorExternoId,
             Horas = pedido.Horas.Value,
             HorasInvestigacion = pedido.HorasInvestigacion,
             HorasExternas = pedido.HorasExternas,

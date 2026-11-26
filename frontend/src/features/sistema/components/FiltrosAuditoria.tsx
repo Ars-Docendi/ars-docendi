@@ -3,7 +3,7 @@ import { Button, Input } from "@ars-docendi/ui";
 
 import type { EstadoFiltrosAuditoria, FiltroAccion } from "../hooks/useFiltrosAuditoria";
 import type { Periodo } from "../utils/zonaHoraria";
-import { MODULOS_AUDITORIA } from "../utils/modulosAuditoria";
+import { ACCIONES_AUDITORIA, MODULOS_AUDITORIA } from "../utils/modulosAuditoria";
 import { IconoListFilter, IconoSearch } from "../../../shared/ui/iconos";
 
 interface FiltrosAuditoriaProps {
@@ -31,11 +31,34 @@ function valoresEscritos(filtros: EstadoFiltrosAuditoria): ValoresEscritos {
   return { desde: filtros.desde, hasta: filtros.hasta, tabla: filtros.tabla, clave: filtros.clave };
 }
 
+/** The period toggle, shared with the phone toolbar (`FiltrosAuditoriaMovil`). */
+export function SelectorPeriodo({
+  periodo,
+  onCambiar,
+}: {
+  periodo: Periodo;
+  onCambiar: (periodo: Periodo) => void;
+}) {
+  return (
+    <div className="auditoria-periodo" role="group" aria-label="Período">
+      {PERIODOS.map((p) => (
+        <button
+          key={p.valor}
+          type="button"
+          aria-pressed={periodo === p.valor}
+          className="auditoria-toggle"
+          onClick={() => onCambiar(p.valor)}
+        >
+          {p.etiqueta}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const ACCIONES: { valor: FiltroAccion; etiqueta: string }[] = [
   { valor: "", etiqueta: "Todas" },
-  { valor: "INSERT", etiqueta: "Altas" },
-  { valor: "UPDATE", etiqueta: "Cambios" },
-  { valor: "DELETE", etiqueta: "Eliminaciones" },
+  ...ACCIONES_AUDITORIA,
 ];
 
 /** Los filtros de la pestaña Auditoría (requisito «Auditoría tab filters and day-grouped list», design D13). */
@@ -107,19 +130,10 @@ export function FiltrosAuditoria({
               onChange={(e) => setBusqueda(e.target.value)}
             />
           </div>
-          <div className="auditoria-periodo" role="group" aria-label="Período">
-            {PERIODOS.map((p) => (
-              <button
-                key={p.valor}
-                type="button"
-                aria-pressed={filtros.periodo === p.valor}
-                className="auditoria-toggle"
-                onClick={() => actualizarFiltros({ periodo: p.valor })}
-              >
-                {p.etiqueta}
-              </button>
-            ))}
-          </div>
+          <SelectorPeriodo
+            periodo={filtros.periodo}
+            onCambiar={(periodo) => actualizarFiltros({ periodo })}
+          />
           <button
             type="button"
             className="auditoria-mas-filtros"

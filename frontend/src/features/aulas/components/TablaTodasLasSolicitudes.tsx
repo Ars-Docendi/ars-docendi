@@ -1,6 +1,7 @@
 import { Input, Table } from "@ars-docendi/ui";
 import type { EstadoSolicitudAula, SolicitudReservaAula } from "../types";
 import { EnlaceFila } from "../../../shared/navegacion/EnlaceFila";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import { rutaDetalleSolicitud } from "../rutas";
 import {
@@ -66,7 +67,7 @@ export function TablaTodasLasSolicitudes({
 
   return (
     <Table className="adoc-aulas-table">
-      <Table.Root aria-label="Todas las solicitudes de reserva de aula">
+      <ContenedorTabla etiqueta="Todas las solicitudes de reserva de aula">
         <Table.Head>
           <Table.Row>
             <Encabezado
@@ -201,7 +202,7 @@ export function TablaTodasLasSolicitudes({
             })
           )}
         </Table.Body>
-      </Table.Root>
+      </ContenedorTabla>
     </Table>
   );
 }

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { InlineAlert } from "@ars-docendi/ui";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
 import { useDestinoVolver } from "../../../shared/navegacion/useDestinoVolver";
 import { PedidoForm } from "../components/PedidoForm";
+import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
   useCrearPedido,
@@ -18,6 +20,7 @@ import { erroresValidacionPedido } from "../api/erroresValidacionPedido";
 import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
+const RUTA_CONCILIACION = "/designaciones/conciliacion";
 
 /** Etiqueta corta del período a partir de su id. */
 function etiquetaPeriodo(periodoId: string, periodos: { id: string; nombre: string }[]): string {
@@ -26,6 +29,10 @@ function etiquetaPeriodo(periodoId: string, periodos: { id: string; nombre: stri
 }
 
 export function PedidoFormPage() {
+  // El Jefe de Cátedra tiene pocas materias: lista. El resto (Administrativo, Secretaría…)
+  // ve todas las del Departamento: buscador.
+  const { user } = useCurrentUser();
+  const buscadorMaterias = user?.roleCode !== "jefe_catedra";
   const { id } = useParams();
   const esEdicion = Boolean(id);
   const navegar = useNavigate();
@@ -45,7 +52,14 @@ export function PedidoFormPage() {
     origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_MIS_PEDIDOS
       ? origen.ruta
       : RUTA_MIS_PEDIDOS;
-  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : rutaMisPedidos;
+  // Editado desde Conciliación, vuelve ahí; desde cualquier otro lado, al detalle.
+  const desdeConciliacion = origen.desdeEstado && origen.ruta.split("?")[0] === RUTA_CONCILIACION;
+  const rutaRetorno =
+    esEdicion && id
+      ? desdeConciliacion
+        ? origen.ruta
+        : `/designaciones/pedidos/${id}`
+      : rutaMisPedidos;
 
   // El formulario avisa si tiene cambios; tras guardar se sale sin preguntar.
   const [sucio, setSucio] = useState(false);
@@ -70,7 +84,8 @@ export function PedidoFormPage() {
             ...datos,
             version: pedidoInicial?.version,
             periodoId: pedidoInicial?.periodoId,
-            personaId: pedidoInicial?.personaId,
+            // La persona se puede cambiar al editar (el backend rearma el snapshot si cambia).
+            personaId: datos.personaId ?? pedidoInicial?.personaId,
           },
         },
         {
@@ -119,7 +134,14 @@ export function PedidoFormPage() {
       <Migas
         items={[
           { label: "Inicio", href: "/" },
-          { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
+          {
+            label: esEdicion
+              ? desdeConciliacion
+                ? "Conciliación"
+                : "Detalle del pedido"
+              : "Mis pedidos",
+            href: rutaRetorno,
+          },
           { label: esEdicion ? "Editar pedido" : "Nuevo pedido" },
         ]}
       />
@@ -159,7 +181,10 @@ export function PedidoFormPage() {
               ))}
             </ul>
           ) : (
-            "Ocurrió un error al guardar. Revisá los datos e intentá de nuevo."
+            mensajeProblema(
+              errorMutacion,
+              "Ocurrió un error al guardar. Revisá los datos e intentá de nuevo.",
+            )
           )}
         </InlineAlert>
       )}
@@ -176,6 +201,8 @@ export function PedidoFormPage() {
           docentes={docentesDesdeCatalogo(catalogos.data)}
           cargos={catalogos.data.cargos.map((c) => c.nombre)}
           dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
+          sectoresExternos={catalogos.data.sectoresExternos}
+          buscadorMaterias={buscadorMaterias}
           tiposBaja={catalogos.data.tiposBaja}
         />
       )}
@@ -198,6 +225,8 @@ export function PedidoFormPage() {
             docentes={docentesDesdeCatalogo(catalogos.data)}
             cargos={catalogos.data.cargos.map((c) => c.nombre)}
             dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
+            sectoresExternos={catalogos.data.sectoresExternos}
+            buscadorMaterias={buscadorMaterias}
             tiposBaja={catalogos.data.tiposBaja}
           />
         )}

@@ -38,7 +38,7 @@
     {
       "nombre": "portal",
       "estado": "expuesto",
-      "motivo": "Seis de las diez tablas se conceden: las que responden el catálogo de preguntas de perfil profesional. `contactos` queda denegada entera y `cvs`, `proyectos` y `proyecto_documentos` no se conceden porque ninguna pregunta las pide. Conceder esto NO abre el padrón: el predicado de RLS es «mi propio perfil OR tengo portal.ver_trayectoria_ajena», y ese permiso está concedido a nadie."
+      "motivo": "Siete de las diez tablas se conceden: las que responden el catálogo de preguntas de perfil profesional, más `proyectos` sin su descripción (decisión del equipo, 2026-11-07). `contactos` queda denegada entera y `cvs` y `proyecto_documentos` no se conceden porque ninguna pregunta las pide. Conceder esto NO abre el padrón: el predicado de RLS es «mi propio perfil OR (tengo portal.ver_trayectoria_ajena Y el ámbito alcanza a la persona)», y ese permiso lo tiene únicamente el rol jefe_catedra, acotado a los docentes con designación vigente en sus materias."
     },
     {
       "nombre": "tareas",
@@ -47,13 +47,18 @@
     },
     {
       "nombre": "aulas",
-      "estado": "denegado",
-      "motivo": "Las solicitudes de reserva de aulas: quién pidió qué aula y por qué, con motivos de cancelación en texto libre que no admite enmascarado por columna. Ninguna pregunta del catálogo lo necesita. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+      "estado": "expuesto",
+      "motivo": "Se concede la única tabla del schema, `solicitudes_reserva`: responde qué solicitudes de aula hay, en qué estado, para qué fecha y materia y con qué aula asignada. No hay catálogo de aulas, así que no responde qué aula está libre ni qué capacidad tiene. Conceder es seguro porque la frontera la sostiene el motor: GRANT por columna contra este manifiesto, RLS con el predicado `aulas.aprobar` (todas) o `aulas.solicitar` y solicitante propio, igual que la pantalla de Aulas, y tests que fallan si cualquiera de las dos se degrada (AGENTS.md, regla 11)."
     },
     {
       "nombre": "notificaciones",
       "estado": "denegado",
       "motivo": "Los avisos in-app de cada usuario: texto armado por los módulos emisores, con nombres y referencias a entidades ajenas, dirigido a una persona concreta. Ninguna pregunta del catálogo lo necesita y leerlo permitiría reconstruir qué le avisaron a quién. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+    },
+    {
+      "nombre": "comisiones",
+      "estado": "expuesto",
+      "motivo": "Cuatro de las cinco tablas se conceden: las que responden qué comisiones tiene un docente, quién dicta una comisión, en qué días, horarios y aulas, y cuántas carga cada uno. `sga_importaciones` queda denegada porque es el registro operativo de cada importación y nombra a quien la hizo. Conceder es seguro porque la frontera la sostiene el motor: GRANT por columna contra este manifiesto, RLS con el predicado `comisiones.ver` (sin ámbito, igual que la pantalla de Comisiones) y tests que fallan si cualquiera de las dos se degrada (AGENTS.md, regla 11)."
     },
     {
       "nombre": "public",
@@ -285,6 +290,17 @@
     },
     {
       "schema": "designaciones",
+      "tabla": "sectores_externos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "codigo", "nombre", "activo", "created_at"],
+        "asistente_ro_pii": ["id", "codigo", "nombre", "activo", "created_at"]
+      },
+      "columnas_denegadas": [],
+      "nota": "Catálogo de departamentos o áreas que pagan a un docente externo. Se concede para que el asistente pueda nombrar el sector de una designación externa (sin cargo ni dedicación)."
+    },
+    {
+      "schema": "designaciones",
       "tabla": "periodos",
       "estado": "concedida",
       "columnas_concedidas": {
@@ -337,7 +353,8 @@
           "tipo_baja_detalle",
           "etapa_retorno",
           "propietario_actual",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ],
         "asistente_ro_pii": [
           "id",
@@ -360,13 +377,18 @@
           "tipo_baja_detalle",
           "etapa_retorno",
           "propietario_actual",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ]
       },
       "columnas_denegadas": [
         {
           "columna": "snapshot",
           "motivo": "JSONB de forma arbitraria, congelado al enviar el pedido. Hoy guarda cargo, dedicación, horas, materia y horas de investigación y externas; su forma puede cambiar sin que nadie revise este manifiesto, y un JSONB no admite GRANT por columna sobre su contenido. Es el mismo defecto estructural que response_body en idempotencia_comandos. Los mismos datos están disponibles en columnas propias."
+        },
+        {
+          "columna": "materializado_en",
+          "motivo": "Marca técnica de la sincronización: indica si el pedido ya se escribió sobre las designaciones vigentes, para no volver a escribirlo. Lo que una pregunta necesita saber está en estado (aprobado = sincronizado) y en las designaciones vigentes."
         }
       ],
       "nota": "justificacion y tipo_baja_detalle son texto libre que puede nombrar a cualquiera. Se conceden porque el trámite no se entiende sin ellas, y se clasifican como sensible-texto en el manifiesto de sensibilidad: no viajan al modelo."
@@ -438,7 +460,8 @@
           "vigente_desde",
           "vigente_hasta",
           "origen_pedido_id",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ],
         "asistente_ro_pii": [
           "id",
@@ -454,7 +477,8 @@
           "vigente_desde",
           "vigente_hasta",
           "origen_pedido_id",
-          "created_at"
+          "created_at",
+          "sector_externo_id"
         ]
       },
       "columnas_denegadas": [],
@@ -465,6 +489,14 @@
       "tabla": "idempotencia_comandos",
       "estado": "denegada-explicita",
       "motivo": "response_body es un JSONB que guarda el cuerpo HTTP completo de cada comando de transición, con los datos de la persona del pedido adentro. Es todo o nada: un JSONB no admite GRANT por columna sobre su contenido, y su forma es la del DTO que devolvió el endpoint ese día, así que agregar un campo a ese DTO ampliaría en silencio lo que el asistente puede leer. Un GRANT ... ON ALL TABLES IN SCHEMA designaciones la habría concedido sola, sin error y sin aviso. Además no tiene ningún valor de consulta: es caché de replay, no dato de dominio.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "aulas",
+      "tabla": "__EFMigrationsHistory",
+      "estado": "denegada-explicita",
+      "motivo": "Historial de migraciones propio del schema. Tabla de control del motor de migraciones. Es fontanería del framework, no dato de dominio: ninguna pregunta del alcance la necesita, y exponerla filtra el estado interno del versionado del esquema. La detectó el test de manifiesto al exponer el schema aulas.",
       "columnas_concedidas": {},
       "columnas_denegadas": []
     },
@@ -640,10 +672,26 @@
     {
       "schema": "portal",
       "tabla": "proyectos",
-      "estado": "denegada-explicita",
-      "motivo": "Ninguna pregunta del catálogo la necesita. El alcance se derivó de las preguntas y no de lo que la base tiene disponible: exponerla costaría prefijo permanente sin comprar ninguna respuesta. Además descripcion es texto libre autodeclarado, con el mismo problema de enmascarado que experiencias.descripcion.",
-      "columnas_concedidas": {},
-      "columnas_denegadas": []
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "perfil_id", "nombre", "rol", "desde", "hasta", "doi", "created_at"],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "nombre",
+          "rol",
+          "desde",
+          "hasta",
+          "doi",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "descripcion",
+          "motivo": "Texto libre donde el docente describe su proyecto: puede nombrar a terceros o contar cualquier cosa. Clasificarla como sensible NO alcanza: el enmascarador identifica la columna por (OID, attnum), y toda expresión —un upper(descripcion), por ejemplo— reporta OID 0, que se trata como pública. O no se concede, o viaja verbatim al proveedor del modelo. Mismo criterio que experiencias.descripcion."
+        }
+      ]
     },
     {
       "schema": "portal",
@@ -675,6 +723,147 @@
       "estado": "denegada-explicita",
       "motivo": "Anclas de la cadena de sellos por período: infraestructura del control de integridad, no dato de dominio. Ninguna pregunta del alcance la necesita.",
       "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comisiones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "comision_guarani_id",
+          "anio_academico",
+          "periodo_lectivo_nombre",
+          "nombre",
+          "materia_codigo",
+          "materia_nombre",
+          "materia_id",
+          "modalidad",
+          "ubicacion"
+        ],
+        "asistente_ro_pii": [
+          "comision_guarani_id",
+          "anio_academico",
+          "periodo_lectivo_nombre",
+          "nombre",
+          "materia_codigo",
+          "materia_nombre",
+          "materia_id",
+          "modalidad",
+          "ubicacion"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "importacion_id",
+          "motivo": "Clave foránea hacia comisiones.sga_importaciones, que no se concede: unir por ella fallaría por falta de privilegio. Es mecánica de importación, no dato del dominio."
+        },
+        {
+          "columna": "periodo_lectivo_guarani_id",
+          "motivo": "Clave opaca del período en Guaraní. El período se identifica por periodo_lectivo_nombre y anio_academico; ninguna pregunta del catálogo necesita la clave."
+        },
+        {
+          "columna": "modalidad_codigo",
+          "motivo": "Código de Guaraní de la modalidad. La columna modalidad trae el valor legible; el código no responde ninguna pregunta."
+        },
+        {
+          "columna": "created_at",
+          "motivo": "Momento en que la importación copió la fila. Es mecánica de importación, no una fecha del dominio: no expresa cuándo empezó a dictarse la comisión."
+        }
+      ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_carreras",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["comision_guarani_id", "carrera_codigo", "carrera_nombre", "carrera_id"],
+        "asistente_ro_pii": [
+          "comision_guarani_id",
+          "carrera_codigo",
+          "carrera_nombre",
+          "carrera_id"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_docentes",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["comision_guarani_id", "orden", "nombre", "responsabilidad", "persona_id"],
+        "asistente_ro_pii": [
+          "comision_guarani_id",
+          "orden",
+          "nombre",
+          "responsabilidad",
+          "persona_id"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_comision_horarios",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["comision_guarani_id", "dia", "desde", "hasta", "aula"],
+        "asistente_ro_pii": ["comision_guarani_id", "dia", "desde", "hasta", "aula"]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "asignacion_guarani_id",
+          "motivo": "Clave opaca de la franja en Guaraní, usada sólo para que el importador reconozca la fila. Ninguna pregunta del catálogo la necesita."
+        }
+      ]
+    },
+    {
+      "schema": "comisiones",
+      "tabla": "sga_importaciones",
+      "estado": "denegada-explicita",
+      "motivo": "Registro operativo de cada importación desde Guaraní: quién la lanzó (usuario_id), cuándo, con qué resultado y causa de falla. Nombra a una persona por su actuación y no responde ninguna pregunta de catálogo; qué períodos hay importados se deduce de sga_comisiones. Denegada entera y no columna por columna, para que reabrirla exija editar esta entrada.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "aulas",
+      "tabla": "solicitudes_reserva",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "docente_id",
+          "dia",
+          "horario_desde",
+          "horario_hasta",
+          "cantidad_alumnos_aprox",
+          "materia_id",
+          "comision",
+          "estado",
+          "aula_asignada",
+          "motivo_rechazo",
+          "created_at",
+          "motivo_cancelacion",
+          "rol_solicitante"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "docente_id",
+          "dia",
+          "horario_desde",
+          "horario_hasta",
+          "cantidad_alumnos_aprox",
+          "materia_id",
+          "comision",
+          "estado",
+          "aula_asignada",
+          "motivo_rechazo",
+          "created_at",
+          "motivo_cancelacion",
+          "rol_solicitante"
+        ]
+      },
       "columnas_denegadas": []
     }
   ]

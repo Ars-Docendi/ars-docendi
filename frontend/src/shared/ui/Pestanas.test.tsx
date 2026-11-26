@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PanelPestana, Pestanas } from "./Pestanas";
 
@@ -31,6 +31,21 @@ function Demo() {
 }
 
 describe("Pestanas", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("con movimiento reducido el clic desplaza sin animación", async () => {
+    vi.stubGlobal("matchMedia", (consulta: string) => ({
+      matches: consulta.includes("prefers-reduced-motion"),
+    }));
+    const desplazar = vi.fn();
+    Element.prototype.scrollIntoView = desplazar;
+    render(<Demo />);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Tres" }));
+
+    expect(desplazar).toHaveBeenCalledWith(expect.objectContaining({ behavior: "auto" }));
+  });
+
   it("Fin e Inicio mueven el foco y activan; las flechas saltean las deshabilitadas", async () => {
     render(<Demo />);
     const uno = screen.getByRole("tab", { name: "Uno" });

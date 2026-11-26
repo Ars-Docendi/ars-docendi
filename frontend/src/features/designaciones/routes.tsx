@@ -18,6 +18,18 @@ export const routes: RouteObject = {
       ],
     },
     {
+      element: <RequirePermission permission="comisiones.ver" />,
+      children: [
+        {
+          path: "comisiones",
+          lazy: () =>
+            import("./pages/ComisionesPage").then(({ ComisionesPage }) => ({
+              Component: ComisionesPage,
+            })),
+        },
+      ],
+    },
+    {
       element: <RequirePermission permission="designaciones.gestionar" />,
       children: [
         {
@@ -51,6 +63,18 @@ export const routes: RouteObject = {
           lazy: () =>
             import("./pages/TableroRevisionPage").then(({ TableroRevisionPage }) => ({
               Component: TableroRevisionPage,
+            })),
+        },
+      ],
+    },
+    {
+      element: <RequirePermission permission="designaciones.conciliar" />,
+      children: [
+        {
+          path: "conciliacion",
+          lazy: () =>
+            import("./pages/ConciliacionPage").then(({ ConciliacionPage }) => ({
+              Component: ConciliacionPage,
             })),
         },
       ],

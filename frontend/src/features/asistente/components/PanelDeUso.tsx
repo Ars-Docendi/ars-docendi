@@ -4,7 +4,10 @@ import type { TabItem } from "@ars-docendi/ui";
 
 import { CeldaDeAcceso } from "./CeldaDeAcceso";
 import { EditorDeCupoEnFila } from "./EditorDeCupoEnFila";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { IconoSearch } from "../../../shared/ui/iconos";
+import { ListaTarjetas, type Tarjeta } from "../../../shared/ui/ListaTarjetas";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { formatearEntero, formatearLatenciaMs, formatearUsd } from "../utils/formatoDeUso";
 import { subtituloDeRoles } from "../utils/etiquetasDeRol";
 import type { CupoDeRolPersistido, UsoAgregado, UsoDelAsistente } from "../types";
@@ -109,6 +112,7 @@ export function PanelDeUso({
   const pestana = pestanaControlada ?? pestanaPropia;
   const [metrica, setMetrica] = useState<Metrica>("turnos");
   const [busqueda, setBusqueda] = useState("");
+  const telefono = usePantallaTelefono();
 
   function cambiarPestana(siguiente: Pestana) {
     setPestanaPropia(siguiente);
@@ -153,6 +157,108 @@ export function PanelDeUso({
   // Un rol sin fila persistida cuenta como habilitado — misma regla que el
   // backend (`ReglaDeAccesoEfectivo`).
   const accesoPorRolMap = new Map(cuposPorRol.map((c) => [c.rol, c.accesoHabilitado]));
+
+  const nombreDe = (fila: UsoAgregado) => fila.nombreParaMostrar ?? fila.clave;
+  const accesoDe = (fila: UsoAgregado) =>
+    esUsuarios ? (fila.accesoEfectivo ?? true) : (accesoPorRolMap.get(fila.clave) ?? true);
+
+  // The cells are shared by the table and the phone cards: same editors, same handlers.
+  function celdaDeMetrica(fila: UsoAgregado) {
+    const valor = valorDeMetrica(fila, metrica);
+    const anchoBarra = fila.turnos === 0 ? 0 : Math.max(2, (valor / maxValor) * 100);
+    return (
+      <div className="adoc-asistente-admin-metrica-celda">
+        <span className="adoc-asistente-admin-metrica-pista" aria-hidden="true">
+          <span
+            className="adoc-asistente-admin-metrica-barra"
+            style={{ width: `${anchoBarra}%` }}
+          />
+        </span>
+        <span className="adoc-asistente-admin-metrica-texto">
+          <span>{textoDeMetrica(fila, metrica)}</span>
+          {notaDeMetrica(fila, metrica) && (
+            <span className="adoc-asistente-admin-metrica-nota">
+              {notaDeMetrica(fila, metrica)}
+            </span>
+          )}
+        </span>
+      </div>
+    );
+  }
+
+  function celdaDeAcceso(fila: UsoAgregado) {
+    const nombre = nombreDe(fila);
+    return (
+      <CeldaDeAcceso
+        nombre={nombre}
+        acceso={accesoDe(fila)}
+        origen={esUsuarios ? (fila.origenDeAcceso ?? "rol") : undefined}
+        onCambiar={async (habilitado) => {
+          if (esUsuarios) {
+            await onCambiarAccesoDeUsuario(fila.clave, habilitado);
+            onGuardado(
+              habilitado
+                ? `Acceso de ${nombre}: restablecido al del rol.`
+                : `Acceso de ${nombre}: quitado.`,
+            );
+          } else {
+            await onCambiarAccesoDeRol(fila.clave, habilitado);
+            onGuardado(`Acceso del rol ${nombre}: ${habilitado ? "habilitado" : "quitado"}.`);
+          }
+        }}
+      />
+    );
+  }
+
+  function celdaDeCupo(fila: UsoAgregado) {
+    const nombre = nombreDe(fila);
+    return (
+      <EditorDeCupoEnFila
+        nombre={nombre}
+        deshabilitado={!accesoDe(fila)}
+        onRestablecer={
+          esUsuarios
+            ? async () => {
+                await onRestablecerCupoDeUsuario(fila.clave);
+                onGuardado(`Cupo diario de ${nombre}: restablecido al del rol.`);
+              }
+            : undefined
+        }
+        cupoConocido={
+          esUsuarios ? (fila.cupoEfectivo ?? undefined) : cuposPorRolMap.get(fila.clave)
+        }
+        origen={esUsuarios ? (fila.origenDeCupo ?? undefined) : "rol"}
+        onGuardar={(cupo) => guardarCupo(fila.clave, cupo)}
+        onGuardado={(cupo) => {
+          // El valor persistido lo vuelve a traer la próxima vez que se invaliden
+          // las queries del panel (el padre lo hace tras un guardado exitoso) — ya
+          // NO hace falta un estado local "guardado en esta sesión" (tarea 12.8 de
+          // sistema-seccion-unificada).
+          onGuardado(`Cupo diario de ${nombre}: ${cupo === 0 ? "sin tope" : `${cupo} turnos`}.`);
+        }}
+      />
+    );
+  }
+
+  const tarjetas: Tarjeta[] = ordenadas.map((fila) => ({
+    id: fila.clave,
+    nombre: nombreDe(fila),
+    titulo: nombreDe(fila),
+    linea: esUsuarios ? subtituloDeRoles(fila.codigosDeRol) : undefined,
+    detalle: (
+      <>
+        {celdaDeMetrica(fila)}
+        <div className="adoc-asistente-admin-uso-tarjeta-control">
+          <span className="adoc-asistente-admin-uso-tarjeta-etiqueta">Acceso</span>
+          {celdaDeAcceso(fila)}
+        </div>
+        <div className="adoc-asistente-admin-uso-tarjeta-control">
+          <span className="adoc-asistente-admin-uso-tarjeta-etiqueta">Cupo diario</span>
+          {celdaDeCupo(fila)}
+        </div>
+      </>
+    ),
+  }));
 
   const tabs: TabItem[] = [
     { id: "usuarios", label: "Por usuario", count: uso.porUsuario.length },
@@ -200,9 +306,16 @@ export function PanelDeUso({
         <p className="adoc-asistente-admin-panel-vacio-texto">
           No hay uso registrado en este período.
         </p>
+      ) : telefono ? (
+        <ListaTarjetas
+          etiqueta={esUsuarios ? "Uso por usuario" : "Uso por rol"}
+          tarjetas={tarjetas}
+          vacio="No hay uso registrado en este período."
+          reinicio={`${pestana}|${metrica}|${textoBuscado}`}
+        />
       ) : (
         <Table className="adoc-asistente-admin-tabla-uso">
-          <Table.Root>
+          <ContenedorTabla etiqueta={esUsuarios ? "Uso por usuario" : "Uso por rol"}>
             <Table.Head>
               <Table.Row>
                 <Table.HeaderCell>{esUsuarios ? "Usuario" : "Rol"}</Table.HeaderCell>
@@ -213,18 +326,12 @@ export function PanelDeUso({
             </Table.Head>
             <Table.Body>
               {ordenadas.map((fila) => {
-                const valor = valorDeMetrica(fila, metrica);
-                const anchoBarra = fila.turnos === 0 ? 0 : Math.max(2, (valor / maxValor) * 100);
                 const subtitulo = esUsuarios ? subtituloDeRoles(fila.codigosDeRol) : undefined;
-                const nombre = fila.nombreParaMostrar ?? fila.clave;
-                const acceso = esUsuarios
-                  ? (fila.accesoEfectivo ?? true)
-                  : (accesoPorRolMap.get(fila.clave) ?? true);
                 return (
                   <Table.Row key={fila.clave}>
                     <Table.Cell>
                       <div className="adoc-asistente-admin-uso-nombre-celda">
-                        <span>{fila.nombreParaMostrar ?? fila.clave}</span>
+                        <span>{nombreDe(fila)}</span>
                         {subtitulo && (
                           <span className="adoc-asistente-admin-uso-nombre-subtitulo">
                             {subtitulo}
@@ -232,83 +339,14 @@ export function PanelDeUso({
                         )}
                       </div>
                     </Table.Cell>
-                    <Table.Cell>
-                      <div className="adoc-asistente-admin-metrica-celda">
-                        <span className="adoc-asistente-admin-metrica-pista" aria-hidden="true">
-                          <span
-                            className="adoc-asistente-admin-metrica-barra"
-                            style={{ width: `${anchoBarra}%` }}
-                          />
-                        </span>
-                        <span className="adoc-asistente-admin-metrica-texto">
-                          <span>{textoDeMetrica(fila, metrica)}</span>
-                          {notaDeMetrica(fila, metrica) && (
-                            <span className="adoc-asistente-admin-metrica-nota">
-                              {notaDeMetrica(fila, metrica)}
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <CeldaDeAcceso
-                        nombre={nombre}
-                        acceso={acceso}
-                        origen={esUsuarios ? (fila.origenDeAcceso ?? "rol") : undefined}
-                        onCambiar={async (habilitado) => {
-                          if (esUsuarios) {
-                            await onCambiarAccesoDeUsuario(fila.clave, habilitado);
-                            onGuardado(
-                              habilitado
-                                ? `Acceso de ${nombre}: restablecido al del rol.`
-                                : `Acceso de ${nombre}: quitado.`,
-                            );
-                          } else {
-                            await onCambiarAccesoDeRol(fila.clave, habilitado);
-                            onGuardado(
-                              `Acceso del rol ${nombre}: ${habilitado ? "habilitado" : "quitado"}.`,
-                            );
-                          }
-                        }}
-                      />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <EditorDeCupoEnFila
-                        nombre={nombre}
-                        deshabilitado={!acceso}
-                        onRestablecer={
-                          esUsuarios
-                            ? async () => {
-                                await onRestablecerCupoDeUsuario(fila.clave);
-                                onGuardado(`Cupo diario de ${nombre}: restablecido al del rol.`);
-                              }
-                            : undefined
-                        }
-                        cupoConocido={
-                          esUsuarios
-                            ? (fila.cupoEfectivo ?? undefined)
-                            : cuposPorRolMap.get(fila.clave)
-                        }
-                        origen={esUsuarios ? (fila.origenDeCupo ?? undefined) : "rol"}
-                        onGuardar={(cupo) => guardarCupo(fila.clave, cupo)}
-                        onGuardado={(cupo) => {
-                          // El valor persistido lo vuelve a traer la próxima vez que se invaliden
-                          // las queries del panel (el padre lo hace tras un guardado exitoso) — ya
-                          // NO hace falta un estado local "guardado en esta sesión" (tarea 12.8 de
-                          // sistema-seccion-unificada).
-                          onGuardado(
-                            `Cupo diario de ${fila.nombreParaMostrar ?? fila.clave}: ${
-                              cupo === 0 ? "sin tope" : `${cupo} turnos`
-                            }.`,
-                          );
-                        }}
-                      />
-                    </Table.Cell>
+                    <Table.Cell>{celdaDeMetrica(fila)}</Table.Cell>
+                    <Table.Cell>{celdaDeAcceso(fila)}</Table.Cell>
+                    <Table.Cell>{celdaDeCupo(fila)}</Table.Cell>
                   </Table.Row>
                 );
               })}
             </Table.Body>
-          </Table.Root>
+          </ContenedorTabla>
         </Table>
       )}
       <p className="adoc-asistente-admin-panel-uso-pie">

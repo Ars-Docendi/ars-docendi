@@ -15,12 +15,13 @@ namespace Modules.Designaciones.Infrastructure;
 /// expresar.
 /// </para>
 /// </summary>
-public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbContext> options) : DbContext(options)
+public sealed partial class DesignacionesDbContext(DbContextOptions<DesignacionesDbContext> options) : DbContext(options)
 {
     public const string Schema = "designaciones";
 
     public DbSet<Dedicacion> Dedicaciones => Set<Dedicacion>();
     public DbSet<Cargo> Cargos => Set<Cargo>();
+    public DbSet<SectorExterno> SectoresExternos => Set<SectorExterno>();
     public DbSet<Periodo> Periodos => Set<Periodo>();
     public DbSet<Pedido> Pedidos => Set<Pedido>();
     public DbSet<PedidoAdjunto> PedidoAdjuntos => Set<PedidoAdjunto>();
@@ -29,6 +30,8 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
     public DbSet<ComandoIdempotente> ComandosIdempotentes => Set<ComandoIdempotente>();
     public DbSet<PedidoSello> PedidoSellos => Set<PedidoSello>();
     public DbSet<PeriodoAncla> PeriodoAnclas => Set<PeriodoAncla>();
+    public DbSet<ImportacionComisiones> ImportacionesComisiones => Set<ImportacionComisiones>();
+    public DbSet<ComisionGuarani> ComisionesGuarani => Set<ComisionGuarani>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +59,18 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Codigo).HasColumnName("codigo");
             e.Property(x => x.Nombre).HasColumnName("nombre");
             e.Property(x => x.Orden).HasColumnName("orden");
+            e.Property(x => x.Activo).HasColumnName("activo");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.HasIndex(x => x.Codigo).IsUnique();
+        });
+
+        modelBuilder.Entity<SectorExterno>(e =>
+        {
+            e.ToTable("sectores_externos", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Codigo).HasColumnName("codigo");
+            e.Property(x => x.Nombre).HasColumnName("nombre");
             e.Property(x => x.Activo).HasColumnName("activo");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.HasIndex(x => x.Codigo).IsUnique();
@@ -93,6 +108,9 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.DedicacionSolicitada).HasColumnName("dedicacion_solicitada");
             e.Property(x => x.DedicacionSolicitadaId).HasColumnName("dedicacion_solicitada_id");
             e.HasOne(x => x.DedicacionSolicitadaCatalogo).WithMany().HasForeignKey(x => x.DedicacionSolicitadaId);
+            e.Property(x => x.SectorExternoId).HasColumnName("sector_externo_id");
+            e.HasOne(x => x.SectorExterno).WithMany().HasForeignKey(x => x.SectorExternoId);
+            e.Ignore(x => x.EsExterno);
             e.Property(x => x.Horas).HasColumnName("horas");
             e.Property(x => x.HorasInvestigacion).HasColumnName("horas_investigacion");
             e.Property(x => x.HorasExternas).HasColumnName("horas_externas");
@@ -101,6 +119,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.TipoBajaDetalle).HasColumnName("tipo_baja_detalle");
             e.Property(x => x.EtapaRetorno).HasColumnName("etapa_retorno");
             e.Property(x => x.PropietarioActual).HasColumnName("propietario_actual");
+            e.Property(x => x.MaterializadoEn).HasColumnName("materializado_en");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.Property(x => x.Version).IsRowVersion();
             e.Ignore(x => x.EsTerminal);
@@ -158,9 +177,11 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.MateriaId).HasColumnName("materia_id");
             e.Property(x => x.CarreraId).HasColumnName("carrera_id");
             e.Property(x => x.CargoId).HasColumnName("cargo_id");
-            e.Property(x => x.Dedicacion).HasColumnName("dedicacion");
             e.Property(x => x.DedicacionId).HasColumnName("dedicacion_id");
             e.HasOne(x => x.DedicacionCatalogo).WithMany().HasForeignKey(x => x.DedicacionId);
+            e.Property(x => x.SectorExternoId).HasColumnName("sector_externo_id");
+            e.HasOne(x => x.SectorExterno).WithMany().HasForeignKey(x => x.SectorExternoId);
+            e.Ignore(x => x.EsExterna);
             e.Property(x => x.Horas).HasColumnName("horas");
             e.Property(x => x.HorasInvestigacion).HasColumnName("horas_investigacion");
             e.Property(x => x.HorasExternas).HasColumnName("horas_externas");
@@ -202,6 +223,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Hash).HasColumnName("hash");
             e.Property(x => x.Firma).HasColumnName("firma");
             e.Property(x => x.VersionClave).HasColumnName("version_clave");
+            e.Property(x => x.VersionPayload).HasColumnName("version_payload");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             // Sin navegación: la relación sólo ordena el INSERT del sello después del evento.
             e.HasOne<PedidoHistorial>().WithMany().HasForeignKey(x => x.HistorialId).OnDelete(DeleteBehavior.Restrict);
@@ -220,6 +242,8 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Motivo).HasColumnName("motivo");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
+
+        MapearComisionesGuarani(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
     }

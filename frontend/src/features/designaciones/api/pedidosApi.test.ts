@@ -90,6 +90,7 @@ const catalogos = {
   dedicaciones: [{ id: "dedicacion-2", codigo: 2, nombre: "Categoría 2", orden: 2 }],
   tiposBaja: ["Renuncia"],
   novedades: ["Alta"],
+  sectoresExternos: [],
 };
 
 beforeEach(() => vi.clearAllMocks());

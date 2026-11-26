@@ -23,12 +23,19 @@ export function puedeEditarCampos(tarea: Tarea, actor: ActorTarea): boolean {
   return esLaAutoridadCreadora(tarea, actor);
 }
 
-/** % de avance y Solución: los completa el Responsable (o la autoridad creadora). */
+/** % de avance y Solución: los completa el Responsable (o la autoridad creadora), salvo que el avance se calcule con las hijas. */
 export function puedeEditarAvance(tarea: Tarea, actor: ActorTarea): boolean {
-  return esElResponsable(tarea, actor) || esLaAutoridadCreadora(tarea, actor);
+  return (
+    !tarea.avanceCalculado && (esElResponsable(tarea, actor) || esLaAutoridadCreadora(tarea, actor))
+  );
 }
 
 const ESTADOS_TERMINALES: readonly EstadoTarea[] = ["resuelta", "cancelada"];
+
+/** Una tarea cerrada conserva su avance: no sigue el promedio de sus hijas hasta reabrirse. */
+export function avanceSigueALasHijas(tarea: Tarea): boolean {
+  return tarea.avanceCalculado && !ESTADOS_TERMINALES.includes(tarea.estado);
+}
 
 function esTerminal(estado: EstadoTarea): boolean {
   return ESTADOS_TERMINALES.includes(estado);

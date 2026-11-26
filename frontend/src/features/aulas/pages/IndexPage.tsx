@@ -2,12 +2,15 @@ import { useMemo, useState } from "react";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { PageHeader } from "../../../shared/ui/PageHeader";
-import { useFiltrosURL, useOrdenURL } from "../../../shared/navegacion/estadoURL";
+import { useFiltrosURL, useOrdenURL, usePestanaURL } from "../../../shared/navegacion/estadoURL";
+import { PanelPestana, Pestanas } from "../../../shared/ui/Pestanas";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { AlertaConReintento } from "../components/AlertaConReintento";
 import { TablaMisSolicitudes } from "../components/TablaMisSolicitudes";
 import { TablaTodasLasSolicitudes } from "../components/TablaTodasLasSolicitudes";
+import { ListaSolicitudesMovil } from "../components/ListaSolicitudesMovil";
 import { ModalNuevaSolicitud } from "../components/ModalNuevaSolicitud";
 import { ModalCancelarSolicitud } from "../components/ModalCancelarSolicitud";
 import { IconoPlus } from "../components/lucide";
@@ -22,18 +25,47 @@ import { rutaDetalleSolicitud } from "../rutas";
 import type { SolicitudReservaAula } from "../types";
 import "./reservaAulas.css";
 
+const SECCIONES = ["mias", "todas"] as const;
+
 export function IndexPage() {
   const { user } = useCurrentUser();
   const puedeSolicitar = Boolean(user?.permissions.includes("aulas.solicitar"));
   const puedeAprobar = Boolean(user?.permissions.includes("aulas.aprobar"));
+  const telefono = usePantallaTelefono();
+  const [seccion, setSeccion] = usePestanaURL(SECCIONES, "mias", {
+    nombre: "seccion",
+    reemplazar: true,
+  });
+  // On phones a user with both roles sees one section at a time, as tabs.
+  const comoPestanas = telefono && puedeSolicitar && puedeAprobar;
 
   return (
     <>
       <Migas items={[{ label: "Inicio", href: "/" }, { label: "Reserva de aulas" }]} />
       <PageHeader title="Reserva de aulas" />
 
-      {puedeSolicitar && <SeccionMisSolicitudes />}
-      {puedeAprobar && <SeccionTodasLasSolicitudes />}
+      {comoPestanas ? (
+        <>
+          <Pestanas
+            prefijo="aulas"
+            aria-label="Solicitudes"
+            items={[
+              { id: "mias", label: "Mis solicitudes" },
+              { id: "todas", label: "Todas las solicitudes" },
+            ]}
+            value={seccion}
+            onChange={(id) => setSeccion(id as (typeof SECCIONES)[number])}
+          />
+          <PanelPestana prefijo="aulas" id={seccion}>
+            {seccion === "mias" ? <SeccionMisSolicitudes /> : <SeccionTodasLasSolicitudes />}
+          </PanelPestana>
+        </>
+      ) : (
+        <>
+          {puedeSolicitar && <SeccionMisSolicitudes />}
+          {puedeAprobar && <SeccionTodasLasSolicitudes />}
+        </>
+      )}
       {!puedeSolicitar && !puedeAprobar && (
         <InlineAlert severity="info" title="Sin acceso">
           Tu rol no tiene permisos para operar en Reserva de Aulas.
@@ -45,6 +77,7 @@ export function IndexPage() {
 
 function SeccionMisSolicitudes() {
   const abrir = useAbrirDetalle();
+  const telefono = usePantallaTelefono();
   const { data: solicitudes, isLoading, isError, refetch } = useMisSolicitudes();
   const cancelar = useCancelarSolicitud();
 
@@ -107,16 +140,29 @@ function SeccionMisSolicitudes() {
               Ninguna solicitud coincide con la búsqueda o el filtro aplicado.
             </InlineAlert>
           )}
-          <TablaMisSolicitudes
-            solicitudes={filtradas}
-            solicitudesParaOpciones={solicitudes}
-            filtros={filtros}
-            orden={orden}
-            onFiltrosChange={setFiltros}
-            onOrdenChange={setOrden}
-            onCancelar={setSolicitudACancelar}
-            onAbrir={(solicitud) => abrir(rutaDetalleSolicitud(solicitud.id))}
-          />
+          {telefono ? (
+            <ListaSolicitudesMovil
+              modo="mias"
+              solicitudes={filtradas}
+              todas={solicitudes ?? []}
+              filtros={filtros}
+              orden={orden}
+              onFiltrosChange={setFiltros}
+              onOrdenChange={setOrden}
+              onCancelar={setSolicitudACancelar}
+            />
+          ) : (
+            <TablaMisSolicitudes
+              solicitudes={filtradas}
+              solicitudesParaOpciones={solicitudes}
+              filtros={filtros}
+              orden={orden}
+              onFiltrosChange={setFiltros}
+              onOrdenChange={setOrden}
+              onCancelar={setSolicitudACancelar}
+              onAbrir={(solicitud) => abrir(rutaDetalleSolicitud(solicitud.id))}
+            />
+          )}
         </>
       )}
 
@@ -137,6 +183,7 @@ function SeccionMisSolicitudes() {
 
 function SeccionTodasLasSolicitudes() {
   const abrir = useAbrirDetalle();
+  const telefono = usePantallaTelefono();
   const { data: solicitudes, isLoading, isError, refetch } = useTodasLasSolicitudes();
 
   const [filtros, setFiltros] = useFiltrosURL(FILTROS_INICIALES, "todas");
@@ -180,15 +227,27 @@ function SeccionTodasLasSolicitudes() {
               Ninguna solicitud coincide con la búsqueda o el filtro aplicado.
             </InlineAlert>
           )}
-          <TablaTodasLasSolicitudes
-            solicitudes={filtradas}
-            solicitudesParaOpciones={solicitudes}
-            filtros={filtros}
-            orden={orden}
-            onFiltrosChange={setFiltros}
-            onOrdenChange={setOrden}
-            onAbrir={(solicitud) => abrir(rutaDetalleSolicitud(solicitud.id))}
-          />
+          {telefono ? (
+            <ListaSolicitudesMovil
+              modo="todas"
+              solicitudes={filtradas}
+              todas={solicitudes ?? []}
+              filtros={filtros}
+              orden={orden}
+              onFiltrosChange={setFiltros}
+              onOrdenChange={setOrden}
+            />
+          ) : (
+            <TablaTodasLasSolicitudes
+              solicitudes={filtradas}
+              solicitudesParaOpciones={solicitudes}
+              filtros={filtros}
+              orden={orden}
+              onFiltrosChange={setFiltros}
+              onOrdenChange={setOrden}
+              onAbrir={(solicitud) => abrir(rutaDetalleSolicitud(solicitud.id))}
+            />
+          )}
         </>
       )}
     </section>

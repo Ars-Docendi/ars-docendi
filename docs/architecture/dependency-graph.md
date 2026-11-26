@@ -103,6 +103,8 @@ El cliente del servicio de inferencia compartido (Ollama en `ia.<DOMINIO>`) vive
 
 `Modules.Asistente` tampoco referencia `ArsDocendi.Migraciones`: su migrador no envuelve un `DbContext` ni historial EF, sino SQL que converge por construcción (ver [data-model.md](data-model.md#migraciones-en-deploy)).
 
+`Modules.Notificaciones` agrega una dependencia de **paquete** (no un edge del grafo): `WebPush` 1.0.13, cliente Web Push con VAPID y cifrado RFC 8291, usado sólo detrás de `IEnviadorPush`.
+
 Dependencias de **paquete** de `ArsDocendi.Shared` (no son aristas del grafo de proyectos y quedan fuera del manifiesto, pero explican por qué Shared ya no es puro):
 
 | Paquete                                    | Razón                                              |
@@ -135,6 +137,7 @@ La disciplina, corolario del invariante #4 enmendado:
 
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
+- Designaciones usa además `BuscarPersonasPorDocumentosAsync` y `ListarCarrerasAsync` para vincular las comisiones importadas desde Guaraní con personas, carreras y materias; sólo lee y no agrega aristas de proyecto.
 
 ## Administración de estado y auditoría
 

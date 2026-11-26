@@ -448,7 +448,6 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         var core = new ServicioPedidos(
             pedidos,
             designaciones,
-            new MaterializadorDesignaciones(designaciones),
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
@@ -461,12 +460,12 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             new RepositorioIdempotencia(db), new UnidadDeTrabajo(db), almacenamiento);
     }
 
-    private static ArchivoDto Archivo(Guid id, string proposito, string nombre) => new(
+    internal static ArchivoDto Archivo(Guid id, string proposito, string nombre) => new(
         id, proposito, nombre, proposito is PropositosArchivo.Cv or PropositosArchivo.Justificativo
             or PropositosArchivo.DocumentoProyecto ? "application/pdf" : "image/png",
         null, 128, null, EstadosArchivo.Disponible, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
-    private sealed class AlmacenamientoFalso(Guid propietario, IReadOnlyList<ArchivoDto> disponibles)
+    internal sealed class AlmacenamientoFalso(Guid propietario, IReadOnlyList<ArchivoDto> disponibles)
         : IAlmacenamientoArchivos, IProteccionArchivos
     {
         private readonly IReadOnlyDictionary<Guid, ArchivoDto> archivos = disponibles.ToDictionary(x => x.Id);

@@ -164,15 +164,16 @@ La consulta administrativa de auditoría pagina hasta 50 filas por defecto y eje
 
 ## Variables y scopes
 
-| Scope                                        | Nombres                                                                                              |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Repository variables                         | `REGISTRO`, `DOMINIO`                                                                                |
-| Repository secrets                           | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY` |
-| Environment `prod` secret                    | `APP_DB_PASSWORD_PROD`, `SELLADO_CLAVE_PROD`, `SELLADO_CLAVE_2_PROD` (sólo al rotar)                 |
-| Environment `prod` var opcional              | `SELLADO_VERSION_VIGENTE` (default `1`)                                                              |
-| Environment `staging` secret                 | `APP_DB_PASSWORD_STAGING`                                                                            |
-| Environment `pr-preview` secret              | `APP_DB_PASSWORD_PREVIEW`                                                                            |
-| Vars opcionales de cada Environment anterior | `BACKUP_VOLUME_PREFIX`, `BACKUP_RETENTION_DAYS`                                                      |
+| Scope                                        | Nombres                                                                                                                     |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Repository variables                         | `REGISTRO`, `DOMINIO`                                                                                                       |
+| Repository secrets                           | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY`                        |
+| Environment `prod` secret                    | `APP_DB_PASSWORD_PROD`, `SELLADO_CLAVE_PROD`, `SELLADO_CLAVE_2_PROD` (sólo al rotar)                                        |
+| Environment `prod` var opcional              | `SELLADO_VERSION_VIGENTE` (default `1`)                                                                                     |
+| Environment `prod`/`staging`/`pr-preview`    | Web Push, opcional: var `WEBPUSH_PUBLIC_KEY`, `WEBPUSH_SUBJECT` y secret `WEBPUSH_PRIVATE_KEY` ([web-push.md](web-push.md)) |
+| Environment `staging` secret                 | `APP_DB_PASSWORD_STAGING`                                                                                                   |
+| Environment `pr-preview` secret              | `APP_DB_PASSWORD_PREVIEW`                                                                                                   |
+| Vars opcionales de cada Environment anterior | `BACKUP_VOLUME_PREFIX`, `BACKUP_RETENTION_DAYS`                                                                             |
 
 `BACKUP_VOLUME_PREFIX=arsdocendi-backups` produce un volumen por ambiente, por
 host: `arsdocendi-backups-prod`, `arsdocendi-backups-staging`,

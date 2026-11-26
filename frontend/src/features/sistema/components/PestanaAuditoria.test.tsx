@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import { PestanaAuditoria } from "./PestanaAuditoria";
 import * as api from "../api/auditoriaApi";
 import type { EventoAuditoria, PaginaAuditoria } from "../api/auditoriaApi";
-import { limiteDesdeParaPeriodo } from "../utils/zonaHoraria";
+import { datetimeLocalAIso, limiteDesdeParaPeriodo } from "../utils/zonaHoraria";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -179,5 +179,71 @@ describe("PestanaAuditoria", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Cerrar detalle" })).not.toBeInTheDocument(),
     );
+  });
+
+  describe("on a phone", () => {
+    beforeEach(() => {
+      // Phone viewport: `(max-width: 559px)` matches.
+      vi.stubGlobal("matchMedia", (consulta: string) => ({
+        matches: consulta.includes("559px"),
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("applies action and a dd/mm/aaaa date from the filter sheet; a new date drops its hour", async () => {
+      const espia = vi.spyOn(api, "listarAuditoria").mockResolvedValue(pagina([evento({})]));
+      const user = userEvent.setup();
+
+      montar("/sistema?desde=2026-02-01T08:30#auditoria");
+      await screen.findByText("Solicitud #1042: Estado pendiente → aprobado");
+
+      await user.click(screen.getByRole("button", { name: /Filtros/ }));
+      const desde = screen.getByRole("textbox", { name: "Desde" });
+      expect(desde).toHaveValue("01/02/2026");
+      await user.clear(desde);
+      await user.type(desde, "15/03/2026");
+      await user.click(screen.getByRole("checkbox", { name: "Eliminaciones" }));
+      await user.click(screen.getByRole("button", { name: "Aplicar filtros" }));
+
+      await waitFor(() =>
+        expect(espia).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            accion: "DELETE",
+            desde: datetimeLocalAIso("2026-03-15T00:00"),
+          }),
+        ),
+      );
+      expect(screen.getByRole("button", { name: "Quitar filtro Eliminaciones" })).toBeVisible();
+    });
+
+    it("keeps the typed search with spaces and queries it once the user pauses", async () => {
+      const espia = vi.spyOn(api, "listarAuditoria").mockResolvedValue(pagina([evento({})]));
+      const user = userEvent.setup();
+
+      montar();
+      await screen.findByText("Solicitud #1042: Estado pendiente → aprobado");
+      await user.type(screen.getByRole("searchbox", { name: "Buscar" }), "Lucía Fer");
+
+      expect(screen.getByRole("searchbox", { name: "Buscar" })).toHaveValue("Lucía Fer");
+      await waitFor(() =>
+        expect(espia).toHaveBeenLastCalledWith(expect.objectContaining({ q: "Lucía Fer" })),
+      );
+    });
+
+    it("opens the event detail right under its row and closing it returns focus to the row", async () => {
+      vi.spyOn(api, "listarAuditoria").mockResolvedValue(pagina([evento({})]));
+      const user = userEvent.setup();
+
+      montar();
+      const fila = await screen.findByRole("button", { name: /Estado pendiente → aprobado/ });
+      await user.click(fila);
+
+      const detalle = await screen.findByRole("complementary", { name: "Detalle del registro" });
+      expect(fila.nextElementSibling).toBe(detalle);
+      await user.click(screen.getByRole("button", { name: "Cerrar detalle" }));
+      await waitFor(() => expect(fila).toHaveFocus());
+    });
   });
 });

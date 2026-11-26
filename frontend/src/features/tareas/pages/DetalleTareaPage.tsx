@@ -10,7 +10,9 @@ import {
   propagarVolver,
   type DestinoVolver,
 } from "../../../shared/navegacion/volver";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { EstadoTareaBadge } from "../components/EstadoTareaBadge";
 import { AccionesEstadoTarea } from "../components/AccionesEstadoTarea";
 import { ComentariosTarea } from "../components/ComentariosTarea";
@@ -19,8 +21,12 @@ import { TareasRelacionadas } from "../components/TareasRelacionadas";
 import { TareasHijas } from "../components/TareasHijas";
 import { IconoBan, IconoSquarePen } from "../components/lucide";
 import { formatearFecha, historialAAuditEntries } from "../components/detalleAdapters";
-import { estadoSemaforo, muestraSemaforo } from "../components/semaforoTarea";
-import { puedeCambiarEstado, puedeEditarCampos } from "../api/maquinaEstadosTarea";
+import { estadoSemaforo, etiquetaSemaforo, muestraSemaforo } from "../components/semaforoTarea";
+import {
+  avanceSigueALasHijas,
+  puedeCambiarEstado,
+  puedeEditarCampos,
+} from "../api/maquinaEstadosTarea";
 import { useActorTareas, usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas, useTarea } from "../hooks/useTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
@@ -197,6 +203,7 @@ function DetalleCargado({
   enviandoRelacion,
 }: DetalleCargadoProps) {
   const resaltada = useResaltado(tarea.id);
+  const telefono = usePantallaTelefono();
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
   const [versionEditar, setVersionEditar] = useState(tarea.version);
   const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
@@ -209,6 +216,32 @@ function DetalleCargado({
   const proyecto = tarea.proyectoId ? proyectos.find((p) => p.id === tarea.proyectoId) : undefined;
   const padre = tarea.tareaPadreId ? todas.find((t) => t.id === tarea.tareaPadreId) : undefined;
 
+  const acciones = (
+    <>
+      {puedeEditar && (
+        <Button
+          variant="secondary"
+          leadingIcon={<IconoSquarePen />}
+          onClick={() => {
+            setVersionEditar(tarea.version);
+            setModalEditarAbierto(true);
+          }}
+        >
+          Editar
+        </Button>
+      )}
+      {puedeCancelar && (
+        <Button
+          variant="destructive"
+          leadingIcon={<IconoBan />}
+          onClick={() => setModalCancelarAbierto(true)}
+        >
+          Cancelar
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <>
       <PageHeader
@@ -217,27 +250,7 @@ function DetalleCargado({
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <EnlaceVolver id="tarea-volver" destino={volver} />
-            {puedeEditar && (
-              <Button
-                variant="secondary"
-                leadingIcon={<IconoSquarePen />}
-                onClick={() => {
-                  setVersionEditar(tarea.version);
-                  setModalEditarAbierto(true);
-                }}
-              >
-                Editar
-              </Button>
-            )}
-            {puedeCancelar && (
-              <Button
-                variant="destructive"
-                leadingIcon={<IconoBan />}
-                onClick={() => setModalCancelarAbierto(true)}
-              >
-                Cancelar
-              </Button>
-            )}
+            {!telefono && acciones}
             <EstadoTareaBadge estado={tarea.estado} />
           </div>
         }
@@ -262,6 +275,7 @@ function DetalleCargado({
               tarea={tarea}
               todas={todas}
               puedeCrear={puedeCrearHija}
+              puedeVincular={puedeCrearHija && puedeEditar}
               onCrearHija={() => setModalHijaAbierto(true)}
             />
 
@@ -287,6 +301,7 @@ function DetalleCargado({
 
           <aside className="adoc-det-tarea-rail">
             <AccionesEstadoTarea
+              key={tarea.id}
               tarea={tarea}
               actor={actor}
               enviando={enviando}
@@ -312,20 +327,22 @@ function DetalleCargado({
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>Fecha de fin</dt>
-                  <dd>
-                    {muestraSemaforo(tarea.estado) ? (
+                  <dd className="adoc-det-tarea-fecha-fin">
+                    {formatearFecha(tarea.fechaFin)}
+                    {muestraSemaforo(tarea.estado) && (
                       <TrafficLight
                         state={estadoSemaforo(tarea.fechaInicio, tarea.fechaFin)}
-                        due={formatearFecha(tarea.fechaFin)}
+                        label={etiquetaSemaforo(tarea.fechaInicio, tarea.fechaFin)}
                       />
-                    ) : (
-                      formatearFecha(tarea.fechaFin)
                     )}
                   </dd>
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>% de avance</dt>
-                  <dd>{tarea.porcentajeAvance}%</dd>
+                  <dd>
+                    {tarea.porcentajeAvance}%
+                    {avanceSigueALasHijas(tarea) && " · según sus tareas hijas"}
+                  </dd>
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>Responsable</dt>
@@ -374,6 +391,10 @@ function DetalleCargado({
           </aside>
         </div>
       </div>
+
+      {telefono && (puedeEditar || puedeCancelar) && (
+        <BarraAccionesFija>{acciones}</BarraAccionesFija>
+      )}
 
       <ModalNuevaTarea
         open={modalEditarAbierto}

@@ -1,6 +1,6 @@
 import { membresiaAGuardar, type MembresiaFila } from "../../shared/ui/membresias";
 import type { CatalogosPersonas, GuardarPersona, Persona } from "./api/personasApi";
-import { filaCompleta, type FilaAsignacion } from "./asignaciones";
+import type { FilaAsignacion } from "./asignaciones";
 
 export interface DatosPersonales {
   nombre: string;
@@ -63,7 +63,26 @@ export function formularioVacio(): FormularioPersona {
   };
 }
 
-export function formularioDesde(p: Persona): FormularioPersona {
+/**
+ * Rol Docente en cada materia y carrera de las designaciones vigentes de una persona sin
+ * cuenta y sin roles: es lo que la conciliación le dejó listo para cuando tenga mail. El
+ * operador puede quitarlo antes de guardar; el backend guarda exactamente la lista enviada.
+ */
+export function membresiasSugeridas(p: Persona, catalogos: CatalogosPersonas): MembresiaFila[] {
+  const docente = catalogos.roles.find((r) => r.codigo === "docente");
+  if (p.tieneCuenta || p.membresias.length > 0 || !docente) return [];
+  const pares = new Map<string, MembresiaFila>();
+  for (const a of p.asignaciones)
+    pares.set(`${a.materiaId}|${a.carreraId}`, {
+      rolId: docente.id,
+      materiaId: a.materiaId,
+      carreraId: a.carreraId,
+    });
+  return [...pares.values()];
+}
+
+export function formularioDesde(p: Persona, catalogos?: CatalogosPersonas): FormularioPersona {
+  const sugeridas = catalogos ? membresiasSugeridas(p, catalogos) : [];
   return {
     datos: {
       nombre: p.nombre,
@@ -81,14 +100,17 @@ export function formularioDesde(p: Persona): FormularioPersona {
           materiaId: m.materiaId ?? "",
           carreraId: m.carreraId ?? "",
         }))
-      : [{ ...MEMBRESIA_VACIA }],
+      : sugeridas.length
+        ? sugeridas
+        : [{ ...MEMBRESIA_VACIA }],
     asignaciones: p.asignaciones.map((a) => ({
       materiaId: a.materiaId,
       carreraId: a.carreraId,
-      cargoId: a.cargoId,
+      cargoId: a.cargoId ?? "",
       dedicacionId: a.dedicacionId ?? "",
-      dedicacionLegada: a.dedicacionId ? null : a.dedicacion,
       horas: String(a.horas),
+      externo: Boolean(a.sectorExternoId),
+      sectorExternoId: a.sectorExternoId ?? "",
     })),
   };
 }
@@ -106,7 +128,6 @@ export function membresiaCompleta(m: MembresiaFila, catalogos: CatalogosPersonas
 export interface ErroresFormulario {
   campos: Partial<Record<keyof DatosPersonales, string>>;
   membresias?: string;
-  asignaciones?: string;
 }
 
 export function validar(f: FormularioPersona, catalogos: CatalogosPersonas): ErroresFormulario {
@@ -114,28 +135,17 @@ export function validar(f: FormularioPersona, catalogos: CatalogosPersonas): Err
   for (const c of CAMPOS)
     if (c.requerido && !f.datos[c.campo].trim()) campos[c.campo] = "Campo obligatorio";
   const membresias = f.membresias.filter((m) => membresiaCompleta(m, catalogos));
-  const requiereAsignaciones = membresias.some((m) =>
-    ["docente", "jefe_catedra"].includes(
-      catalogos.roles.find((r) => r.id === m.rolId)?.codigo ?? "",
-    ),
-  );
   return {
     campos,
     membresias:
       membresias.length === 0 || membresias.length !== f.membresias.length
         ? "Toda persona necesita al menos un rol con su ámbito; completá o quitá los incompletos."
         : undefined,
-    asignaciones:
-      f.asignaciones.some((a) => !filaCompleta(a)) ||
-      (requiereAsignaciones && f.asignaciones.length === 0)
-        ? "Con rol Docente o Jefe de Cátedra hace falta al menos una asignación completa (materia, carrera, cargo, dedicación y horas > 0)."
-        : undefined,
   };
 }
 
 export const hayErroresPersonales = (e: ErroresFormulario) =>
   Object.keys(e.campos).length > 0 || Boolean(e.membresias);
-export const hayErroresDocentes = (e: ErroresFormulario) => Boolean(e.asignaciones);
 
 export function aGuardar(
   f: FormularioPersona,
@@ -152,14 +162,8 @@ export function aGuardar(
     fechaNacimiento: opcional(f.datos.fechaNacimiento),
     telefono: opcional(f.datos.telefono),
     upn: f.datos.upn.trim(),
+    // Las designaciones no se envían: sólo cambian por un pedido aprobado.
     membresias: f.membresias.map((m) => membresiaAGuardar(m, catalogos.roles)),
-    designaciones: f.asignaciones.map((a) => ({
-      materiaId: a.materiaId,
-      carreraId: a.carreraId,
-      cargoId: a.cargoId,
-      dedicacionId: a.dedicacionId || null,
-      horas: Number(a.horas),
-    })),
     version,
   };
 }

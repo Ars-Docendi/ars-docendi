@@ -15,7 +15,7 @@ public sealed class RenderizadoDelGlosarioTests
 
         Assert.Contains("designaciones.pedidos.estado = 'en_revision_decanato'", bloque, StringComparison.Ordinal);
         Assert.Contains(
-            "designaciones.pedidos.estado IN ('en_lote', 'rechazado', 'cancelado')", bloque, StringComparison.Ordinal);
+            "designaciones.pedidos.estado IN ('en_lote', 'aprobado', 'no_aprobado', 'rechazado', 'cancelado')", bloque, StringComparison.Ordinal);
         // La conjunción de «en Cátedra»: las dos igualdades en la misma línea.
         Assert.Contains(
             "designaciones.pedidos.estado = 'devuelto' AND designaciones.pedidos.propietario_actual = 'jefe_catedra'",

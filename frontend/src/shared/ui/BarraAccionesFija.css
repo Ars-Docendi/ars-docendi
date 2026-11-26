@@ -1,0 +1,24 @@
+/* Inline from 560 px; pinned to the bottom of the screen below it. */
+.adoc-barra-acciones-fija {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+@media (max-width: 559px) {
+  .adoc-barra-acciones-fija {
+    position: sticky;
+    /* Cancels the 40 px bottom padding of .adoc-main on phones. */
+    bottom: -40px;
+    z-index: 10;
+    flex-wrap: nowrap;
+    margin: 16px -16px -40px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--color-bg-raised);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .adoc-barra-acciones-fija > .adoc-btn {
+    flex: 1;
+    justify-content: center;
+    height: 44px;
+  }
+}

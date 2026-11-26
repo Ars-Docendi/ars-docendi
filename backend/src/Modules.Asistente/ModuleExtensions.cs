@@ -170,6 +170,13 @@ public static class ModuleExtensions
         services.AddHttpClient<ClienteInferencia>();
         services.AddScoped<TelemetriaDelServidorLocal>();
 
+        // Si el modelo propio está cargado en Ollama y cómo pedir que lo esté
+        // (asistente-modelo-en-reposo, D2/D3): un singleton, porque el single-flight y el
+        // enfriamiento son del ambiente y no de un request. Cliente sin timeout propio: cada
+        // llamada pone el suyo.
+        services.AddHttpClient(CargaDelModelo.Cliente, cliente => cliente.Timeout = Timeout.InfiniteTimeSpan);
+        services.AddSingleton<CargaDelModelo>();
+
         // El primer contrato público del módulo (sistema-seccion-unificada, design.md D1): el Host
         // los resuelve para el feed unificado de auditoría y el estado del sistema, sin SQL directo
         // ni referenciar estos internals.
@@ -413,7 +420,8 @@ public static class ModuleExtensions
                 ? Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo))
                 : modelo,
             valores.ContextoDelModelo,
-            sp.GetRequiredService<ILogger<ProveedorOllama>>());
+            sp.GetRequiredService<ILogger<ProveedorOllama>>(),
+            sp.GetRequiredService<CargaDelModelo>().MarcarListo);
 
     /// <summary>
     /// Arma el adaptador del modelo propio con el cliente HTTP que ya trae el reintento

@@ -4,6 +4,7 @@ using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Modules.Designaciones.Api;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
@@ -41,7 +42,7 @@ public abstract class VigenciasPedidosBase(PostgresFixture postgres)
         var pedidos = new RepositorioPedidos(db);
         var designaciones = new RepositorioDesignaciones(db);
         var unidad = new UnidadDeTrabajo(db);
-        var servicio = new ServicioPedidos(pedidos, designaciones, new MaterializadorDesignaciones(designaciones, new RelojFijo()),
+        var servicio = new ServicioPedidos(pedidos, designaciones,
             resolutor, identity, unidad, SellosPrueba.Sellador(db), NullLogger<ServicioPedidos>.Instance);
         return new ServicioPedidosApi(servicio, pedidos, resolutor, identity, new RepositorioIdempotencia(db), unidad);
     }
@@ -78,7 +79,7 @@ public sealed class VigenciasPedidosTests(PostgresFixture postgres) : VigenciasP
         var anteriores = (anterior.Horas, anterior.HorasInvestigacion, anterior.HorasExternas);
         var origenAnterior = Guid.Parse("d5000000-0000-4000-8000-000000000006");
         anterior.OrigenPedidoId = origenAnterior;
-        pedido.Estado = EstadosPedido.EnRevisionDecanato;
+        pedido.Estado = EstadosPedido.EnLote;
         pedido.CargoSolicitadoId = Guid.Parse("c3000000-0000-4000-8000-000000000002");
         pedido.DedicacionSolicitadaId = Guid.Parse("d6000000-0000-4000-8000-000000000006");
         pedido.Horas = 16;
@@ -91,10 +92,15 @@ public sealed class VigenciasPedidosTests(PostgresFixture postgres) : VigenciasP
         var snapshot = pedido.Snapshot;
         db.ChangeTracker.Clear();
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
-        var api = CrearApi(Decanato, identity, db);
+        // La designación se escribe al sincronizar la conciliación; el reintento con la
+        // misma clave no vuelve a escribirla.
+        var version = (await db.Pedidos.AsNoTracking().SingleAsync(p => p.Id == PedidoId, ct)).Version;
+        var conciliacion = ConciliacionPrueba.Crear(ConciliacionPrueba.Secretaria, identity, db, new RelojFijo());
+        var aceptados = new SincronizarConciliacionDto([new PedidoAceptadoDto(PedidoId, version)]);
         var clave = Guid.NewGuid();
-        await api.AplicarAccionIdempotenteAsync(PedidoId, new AccionPedido.Aceptar(), clave, "aceptar", "", ct);
-        await api.AplicarAccionIdempotenteAsync(PedidoId, new AccionPedido.Aceptar(), clave, "aceptar", "", ct);
+        await conciliacion.SincronizarAsync(aceptados, clave, ct);
+        db.ChangeTracker.Clear();
+        await conciliacion.SincronizarAsync(aceptados, clave, ct);
         db.ChangeTracker.Clear();
         var actual = Assert.Single(await db.Designaciones.Where(d => d.PersonaId == pedido.PersonaId
             && d.MateriaId == pedido.MateriaId && d.VigenteHasta == null).ToListAsync(ct));
@@ -106,7 +112,7 @@ public sealed class VigenciasPedidosTests(PostgresFixture postgres) : VigenciasP
         Assert.Equal(PedidoId, actual.OrigenPedidoId);
         var persistido = await db.Pedidos.Include(p => p.Historial).SingleAsync(p => p.Id == PedidoId, ct);
         Assert.Equal(snapshot, persistido.Snapshot);
-        var aprobacion = Assert.Single(persistido.Historial, h => h.Accion == AccionesHistorial.Aceptar);
+        var aprobacion = Assert.Single(persistido.Historial, h => h.Accion == AccionesHistorial.Sincronizar);
         Assert.NotNull(aprobacion.Comentario);
         const string prefijoCambio = "Cambio intradía: ";
         Assert.StartsWith(prefijoCambio, aprobacion.Comentario);

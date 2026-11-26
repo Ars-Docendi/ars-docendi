@@ -98,24 +98,25 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 
 ## Estados a diseñar
 
-| Estado              | Descripción                                                                                                                                                                                  | Cuándo se muestra                                                              |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Cargando acceso     | No hay lanzador; `/asistente` muestra el panel sin estado inicial hasta que el catálogo responda                                                                                             | Primera carga de la app                                                        |
-| Sin acceso          | No hay lanzador; `/asistente` muestra sólo un `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón                                               | 403 del backend                                                                |
-| Inicial (vacío)     | Título + presentación según el rol + alcance con el conteo de áreas + chips de ejemplos + límites; campo con foco                                                                            | Sin turnos                                                                     |
-| En vuelo            | Pregunta ya en el hilo; «Enviar» deshabilitado; Enter no envía pero se puede escribir; chips deshabilitados; a los 400 ms «Consultando…» + «Dejar de esperar»                                | Entre el envío y la respuesta                                                  |
-| Respondida          | Tarjeta con texto (+ «Entendí:» si aplica), tabla, sugerencias, disclosures, copiar                                                                                                          | `estado = respondida`                                                          |
-| No contestable      | Texto del backend, sin chips (v3)                                                                                                                                                            | `estado = no_contestable`                                                      |
-| Necesita aclaración | `InlineAlert info` «Necesito que precises algo» + opciones que continúan el turno                                                                                                            | `estado = necesita_aclaracion`                                                 |
-| Servicio degradado  | `InlineAlert warning` «El asistente no está disponible ahora» + texto del backend (cupo propio, tope organizacional, turno concurrente, proveedor caído o mantenimiento); nunca rojo         | `estado = servicio_degradado`                                                  |
-| Error de transporte | `InlineAlert danger` «No se pudo consultar» + mensaje en español + **«Reintentar»** (misma clave de idempotencia). Si fue 404, el hilo se reinicia solo                                      | Red, 5xx, 404 — siempre con el request ya terminado                            |
-| Tiempo agotado      | Mismo `InlineAlert danger` con «El asistente tardó demasiado en responder. Probá con una pregunta más acotada.» + «Reintentar»                                                               | El cliente cortó a los 160 s (por encima del presupuesto de 150 s del backend) |
-| Dejó de esperar     | Bajo la pregunta, en texto secundario: «Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.» Sin alerta y **sin «Reintentar»**. El campo se libera y recibe el foco | El usuario pulsó «Dejar de esperar»                                            |
-| Columna sensible    | Candado junto al nombre de la columna + «(dato personal)» sr-only; leyenda bajo la tabla «Las columnas con candado contienen datos personales.»                                              | `columnas[i].sensible = true`                                                  |
-| Truncado            | Bajo la tabla: «Hay más resultados de los que se muestran. Acotá la pregunta para verlos.» Sin números                                                                                       | `truncado = true`                                                              |
-| Cerca del límite    | Contador «1 850 / 2 000» junto al campo, sin región viva                                                                                                                                     | ≥ 1 800 caracteres                                                             |
-| Desplazado          | Botón flotante «Ir al final»                                                                                                                                                                 | El usuario subió y llegó algo nuevo                                            |
-| Copiado             | La etiqueta del botón pasa a «Copiado» 2 s                                                                                                                                                   | Tras copiar                                                                    |
+| Estado              | Descripción                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Cuándo se muestra                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Cargando acceso     | No hay lanzador; `/asistente` muestra el panel sin estado inicial hasta que el catálogo responda                                                                                                                                                                                                                                                                                                                                                                                                  | Primera carga de la app                                                                                        |
+| Sin acceso          | No hay lanzador; `/asistente` muestra sólo un `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón                                                                                                                                                                                                                                                                                                                                                    | 403 del backend                                                                                                |
+| Inicial (vacío)     | Título + presentación según el rol + alcance con el conteo de áreas + chips de ejemplos + límites; campo con foco                                                                                                                                                                                                                                                                                                                                                                                 | Sin turnos                                                                                                     |
+| En vuelo            | Pregunta ya en el hilo; «Enviar» deshabilitado; Enter no envía pero se puede escribir; chips deshabilitados; a los 400 ms «Consultando…» + «Dejar de esperar»                                                                                                                                                                                                                                                                                                                                     | Entre el envío y la respuesta                                                                                  |
+| Respondida          | Tarjeta con texto (+ «Entendí:» si aplica), tabla, sugerencias, disclosures, copiar                                                                                                                                                                                                                                                                                                                                                                                                               | `estado = respondida`                                                                                          |
+| No contestable      | Texto del backend, sin chips (v3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | `estado = no_contestable`                                                                                      |
+| Necesita aclaración | `InlineAlert info` «Necesito que precises algo» + opciones que continúan el turno                                                                                                                                                                                                                                                                                                                                                                                                                 | `estado = necesita_aclaracion`                                                                                 |
+| Servicio degradado  | `InlineAlert warning` «El asistente no está disponible ahora» + texto del backend (cupo propio, tope organizacional, turno concurrente, proveedor caído o mantenimiento); nunca rojo                                                                                                                                                                                                                                                                                                              | `estado = servicio_degradado`                                                                                  |
+| Error de transporte | `InlineAlert danger` «No se pudo consultar» + mensaje en español + **«Reintentar»** (misma clave de idempotencia). Si fue 404, el hilo se reinicia solo                                                                                                                                                                                                                                                                                                                                           | Red, 5xx, 404 — siempre con el request ya terminado                                                            |
+| Tiempo agotado      | Mismo `InlineAlert danger` con «El asistente tardó demasiado en responder. Probá con una pregunta más acotada.» + «Reintentar»                                                                                                                                                                                                                                                                                                                                                                    | El cliente cortó a los 160 s (por encima del presupuesto de 150 s del backend)                                 |
+| Dejó de esperar     | Bajo la pregunta, en texto secundario: «Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.» Sin alerta y **sin «Reintentar»**. El campo se libera y recibe el foco                                                                                                                                                                                                                                                                                                      | El usuario pulsó «Dejar de esperar»                                                                            |
+| Columna sensible    | Candado junto al nombre de la columna + «(dato personal)» sr-only; leyenda bajo la tabla «Las columnas con candado contienen datos personales.»                                                                                                                                                                                                                                                                                                                                                   | `columnas[i].sensible = true`                                                                                  |
+| Truncado            | Bajo la tabla: «Hay más resultados de los que se muestran. Acotá la pregunta para verlos.» Sin números                                                                                                                                                                                                                                                                                                                                                                                            | `truncado = true`                                                                                              |
+| Cerca del límite    | Contador «1 850 / 2 000» junto al campo, sin región viva                                                                                                                                                                                                                                                                                                                                                                                                                                          | ≥ 1 800 caracteres                                                                                             |
+| Desplazado          | Botón flotante «Ir al final»                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | El usuario subió y llegó algo nuevo                                                                            |
+| Copiado             | La etiqueta del botón pasa a «Copiado» 2 s                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Tras copiar                                                                                                    |
+| Modelo en reposo    | Sobre el campo, dentro de una región viva cortés: «El modelo está en reposo. La primera respuesta puede demorar unos segundos.» + «Activar modelo». Al pulsar: «Activando el modelo…», botón deshabilitado y barra de progreso indeterminada (Ollama no informa el avance); luego «El modelo está listo.» unos 4 s; si falla: «No se pudo activar el modelo. Probá de nuevo.» con el botón habilitado. `info` / `success` / `danger` como el resto de las alertas, sin notificaciones del sistema | `capacidades` sin mantenimiento y `disponibilidad` = `en_reposo` o `activando`; se va con la primera respuesta |
 
 No aplica «Awaiting approval».
 
@@ -128,7 +129,7 @@ consulta», «Copiar respuesta», «Copiar tabla», «Copiado», «Reintentar»,
 al final», «Enviar», «Consultando…», «Dejar de esperar», «Dejaste de esperar la respuesta. La
 consulta ya salió y cuenta para tu cupo.», «El asistente tardó demasiado en responder. Probá con
 una pregunta más acotada.», «(dato personal)», «Las columnas con candado contienen datos
-personales.». Ningún texto contiene códigos HTTP, nombres de tablas, valores de `estado` ni
+personales.», «El modelo está en reposo. La primera respuesta puede demorar unos segundos.», «Activar modelo», «Activando el modelo…», «El modelo está listo.», «No se pudo activar el modelo. Probá de nuevo.». Ningún texto contiene códigos HTTP, nombres de tablas, valores de `estado` ni
 `metricas.categoria`.
 
 **La presentación del estado inicial la escribe el backend, una por rol**, y llega en
@@ -251,8 +252,8 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
   a la que se acaba de llegar no tendría sentido. El hilo sobrevive porque vive en el lanzador,
   que sigue montado en la barra mientras la aplicación navega por debajo; al reabrir, la
   conversación está donde estaba.
-- **Móvil**: fuera del alcance de v3 (sólo escritorio). Sin página propia, en un teléfono el
-  asistente queda inalcanzable hasta la épica de mobile (TD-024, ligado a TD-016).
+- **Móvil**: fuera del alcance de v3; lo resuelve `experiencia-movil-tablas` (ver
+  «Teléfono» más abajo).
 - **Copy en voseo rioplatense**, coherente con el backend y la definición, aunque los principios
   generales pidan evitar el «vos» informal en mensajes del sistema: la superficie entera del
   asistente ya habla así y mezclar registros sería peor.
@@ -555,6 +556,18 @@ página «Tipos de respuesta», tarjetas 01–20 (sólo los tipos con destino ex
   (dd/mm/aaaa). Al pie, «Abrir pedido →» con aspecto de botón primario. Tono del estado:
   `en_lote` éxito; `en_revision_*` aviso; `devuelto` y `rechazado` peligro; el resto, neutro
   (`--color-status-*-bg/fg`).
+- **Tarjeta de docente** (principal de tipo `persona`: todas las filas son el mismo docente): misma
+  estructura que la ficha del pedido, con ícono de persona, eyebrow «DOCENTE», título
+  «{apellido}, {nombre}», «Correo institucional» como enlace `mailto:` (si la cuenta lo tiene), la lista «Designaciones vigentes» (materia · cargo · carrera, sólo las
+  del ámbito del actor) y, al pie, «Ver perfil →» a `/personas/:id`. No muestra documento, teléfono ni
+  correo personal: el perfil completo está a un clic.
+- **Lista de docentes**: el apellido de cada fila es un enlace al perfil (nombre accesible «Ver el
+  perfil de {apellido}») y bajo la tabla va la pista «Tocá un nombre para ver su perfil». El
+  identificador interno que habilita el enlace no se muestra. **Sin acceso** (sin
+  `personas.ver`/`personas.ver_ambito`, o docente fuera del ámbito) se ve la misma tabla sin
+  enlaces y sin la pista; nunca un enlace que termine en 403/404. Las solicitudes de reserva de
+  aula enlazan su celda de rótulo a `/aulas/solicitudes/:id` sólo para `aulas.aprobar` o para su
+  dueño con `aulas.solicitar`.
 - **Con ficha** el texto no lleva chips y la tabla de una fila no se muestra debajo: sigue en
   «Ampliar tabla» y «Exportar a CSV» de la barra. Un principal de tipo desconocido se ignora y la
   respuesta se ve como sin ficha.
@@ -646,6 +659,61 @@ CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fue
   referencia mientras el texto de la mención siga presente. La lectura de soporte
   (`SoporteHistorialController`) no recibe este campo: ahí quien lee nunca es el actor cuyo
   alcance decide la visibilidad.
+
+## Teléfono
+
+Por debajo de 560 px (change `experiencia-movil-tablas`). Desde 560 px y en escritorio no cambia
+nada. Todo control tocable mide al menos 44 px.
+
+- **Lanzador**: la pastilla «Preguntar» de la barra superior conserva sus 32 px visibles pero su
+  área táctil llega a 44 px.
+- **Pantalla completa**: el modal ocupa toda la pantalla, sin radio ni margen, y respeta las
+  áreas seguras (muesca arriba, indicador de inicio abajo). Su alto sigue al área visible que deja
+  el teclado en pantalla, así que el campo de la pregunta queda siempre a la vista, pegado al
+  borde inferior; lo único que se desplaza es el hilo.
+- **Conversaciones**: el rail no es una columna. El encabezado suma, a la izquierda del título,
+  un botón «Conversaciones» (ícono de historial) que abre el rail como un cajón desde la
+  izquierda, sobre un velo que lo cierra al tocarlo. El cajón trae «Nueva conversación», «Cerrar
+  conversaciones» (×), la búsqueda y la lista completa; abrir una conversación o empezar una
+  nueva lo cierra. Escape cierra sólo el cajón, no el asistente, y el foco vuelve al botón
+  «Conversaciones». Mientras está abierto, la conversación de atrás no recibe el foco. El aviso
+  de deshacer queda visible por encima del cajón. La preferencia de rail colapsado no aplica.
+- **Inicio**: los ejemplos van en una sola columna.
+- **Tabla de resultado**: es una región desplazable con la primera columna fija y sombra en el
+  borde derecho mientras quedan columnas; la tabla nunca ensancha la pantalla. Los encabezados
+  ordenables y los íconos de la barra de acciones miden 44 px. En la tabla ampliada el título va
+  en su propia línea y «Copiar tabla», «Exportar a CSV» y «Contraer» se acomodan debajo.
+- **Ancho de las columnas**: cada encabezado lleva en su borde derecho un tirador «Ajustar ancho
+  de «columna»» (28 px de ancho, a caballo del borde; en la última columna, 20 px por dentro), con
+  una barra de 3 × 22 px en el tono de borde fuerte que pasa al acento con hover o foco. Arrastrarlo
+  cambia el ancho de esa columna; con el foco, ← y → lo cambian de a 16 px; un doble toque (o
+  doble clic) le devuelve el ancho que tenía. Ninguna columna baja de 64 px. Hasta que se usa un
+  tirador la tabla se ve igual; después las columnas conservan su ancho y los valores largos pasan
+  a otra línea dentro de la celda. Usar el tirador nunca ordena. La primera columna sigue fija y la
+  pantalla no se desplaza de costado. La tabla en línea y la ampliada comparten los anchos mientras
+  la respuesta está en pantalla; no se guardan. Desde 560 px no hay tiradores.
+- **Menciones**: el popover ocupa el ancho del campo; cada opción mide 44 px y lleva la carrera y
+  el código debajo del nombre, para que el nombre no quede recortado. Se oculta la pista de
+  teclado «Enter elige · Esc cierra».
+- **Soporte del historial**: la lista de personas va de a una por fila y se desplaza dentro de su
+  propio alto, para que la razón y «Ver historial» queden cerca; el campo de la razón ocupa el
+  ancho y el botón queda debajo.
+
+### Sistema → Asistente, Modelo y Calidad
+
+- **Encabezado**: período (Hoy / 7 días / 30 días) y «Exportar CSV» a todo el ancho, con 44 px.
+  El banner de mantenimiento lleva el botón debajo del texto.
+- **KPIs**: los indicadores chicos van de a dos; el tope mensual y el servidor del modelo, a todo
+  el ancho.
+- **Uso por usuario / por rol**: en vez de la tabla, una tarjeta por fila, en el mismo orden que
+  la tabla (la métrica elegida): nombre, roles, la barra con el valor y, separados, «Acceso» y
+  «Cupo diario» con los mismos controles que la fila de escritorio (mismo guardado, mismos
+  anuncios). Las tarjetas paginan de a 20. El selector de métrica ocupa el ancho.
+- **Calidad**: «Por modelo» y la vista «Ver como tabla» del gráfico son regiones desplazables con
+  la primera columna fija y el mismo ajuste de ancho de columnas que la tabla de resultado. «Respuestas con problemas» muestra una tarjeta por respuesta (la
+  pregunta, día y modelo, el detalle y el tipo de problema) y conserva la paginación del
+  servidor, con botones de 44 px.
+- **Modelo**: los formularios ya se apilaban en una columna; no cambian.
 
 ## Referencias
 

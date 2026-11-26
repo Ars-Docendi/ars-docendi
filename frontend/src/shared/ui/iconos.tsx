@@ -152,6 +152,12 @@ export const IconoMail = () => (
   </Svg>
 );
 
+export const IconoX = () => (
+  <Svg>
+    <path d="M18 6 6 18M6 6l12 12" />
+  </Svg>
+);
+
 export const IconoDownload = () => (
   <Svg>
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />

@@ -45,7 +45,6 @@ function pedido(
     novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
-    esAgenteExterno: false,
     adjuntos: [],
     estado,
     prioritario: false,
@@ -224,8 +223,11 @@ describe("pedidosDePestania (reparto en las 5 pestañas de la Tabla)", () => {
 describe("pestaniaInicial", () => {
   it("abre en el área propia del actor", () => {
     expect(pestaniaInicial(COORD)).toBe("en-coordinacion");
-    expect(pestaniaInicial({ rol: "Secretaría", nombre: "L. F." })).toBe("en-secretaria");
     expect(pestaniaInicial({ rol: "Decanato", nombre: "R. S." })).toBe("en-decanato");
+  });
+
+  it("Secretaría abre en Finalizados, donde exporta el lote", () => {
+    expect(pestaniaInicial({ rol: "Secretaría", nombre: "L. F." })).toBe("finalizados");
   });
 
   it("Administración no tiene etapa propia: abre en Todos", () => {

@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { puedeCambiarEstado, puedeEditarAvance, puedeEditarCampos } from "./maquinaEstadosTarea";
+import {
+  avanceSigueALasHijas,
+  puedeCambiarEstado,
+  puedeEditarAvance,
+  puedeEditarCampos,
+} from "./maquinaEstadosTarea";
 import type { ActorTarea, Tarea } from "../types";
 
 const SECRETARIA: ActorTarea = { nombre: "Lucía Fernández", rol: "Secretaría Académica" };
@@ -20,6 +25,8 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
     tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
+
+    avanceCalculado: false,
     responsable: { id: "u2", ...RESPONSABLE },
     creadoPor: { id: "u4", ...SECRETARIA },
     comentarios: [],
@@ -46,11 +53,24 @@ describe("Administrador de Sistemas", () => {
   });
 });
 
+describe("avanceSigueALasHijas", () => {
+  it("sólo mientras la tarea está abierta", () => {
+    expect(avanceSigueALasHijas(tarea({ avanceCalculado: true }))).toBe(true);
+    expect(avanceSigueALasHijas(tarea({ avanceCalculado: true, estado: "resuelta" }))).toBe(false);
+    expect(avanceSigueALasHijas(tarea({ avanceCalculado: false }))).toBe(false);
+  });
+});
+
 describe("puedeEditarAvance", () => {
   it("el Responsable o la autoridad creadora", () => {
     expect(puedeEditarAvance(tarea(), RESPONSABLE)).toBe(true);
     expect(puedeEditarAvance(tarea(), SECRETARIA)).toBe(true);
     expect(puedeEditarAvance(tarea(), OTRO)).toBe(false);
+  });
+
+  it("nadie lo edita a mano si se calcula con las tareas hijas", () => {
+    expect(puedeEditarAvance(tarea({ avanceCalculado: true }), RESPONSABLE)).toBe(false);
+    expect(puedeEditarAvance(tarea({ avanceCalculado: true }), SECRETARIA)).toBe(false);
   });
 });
 

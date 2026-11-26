@@ -52,6 +52,8 @@ export const OPCIONES_ESTADO: { value: FiltroEstado; label: string }[] = [
   { value: "en_revision_decanato", label: "En Decanato" },
   { value: "devuelto", label: "Devuelto" },
   { value: "en_lote", label: "En lote" },
+  { value: "no_aprobado", label: "Rechazado en conciliación" },
+  { value: "aprobado", label: "Aprobado" },
   { value: "rechazado", label: "Rechazado" },
   { value: "cancelado", label: "Cancelado" },
 ];

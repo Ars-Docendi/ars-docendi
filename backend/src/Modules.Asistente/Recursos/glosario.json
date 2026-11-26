@@ -38,22 +38,22 @@
     {
       "termino": "aprobado",
       "sinonimos": ["aceptado", "salió"],
-      "explicacion": "pedido aprobado: se guarda como estado en_lote, no existe un estado «aprobado»",
+      "explicacion": "pedido aceptado por Decanato: en_lote mientras espera la conciliación con la rectificación, aprobado una vez sincronizado con las designaciones vigentes",
       "referencias": [
         {
           "columna": "designaciones.pedidos.estado",
-          "valores": ["en_lote"]
+          "valores": ["en_lote", "aprobado"]
         }
       ]
     },
     {
       "termino": "finalizado",
       "sinonimos": ["cerrado", "terminado"],
-      "explicacion": "pedido que ya no sigue en el circuito: aprobado, rechazado o cancelado",
+      "explicacion": "pedido que ya no sigue en el circuito de revisión: en lote, sincronizado, rechazado en la conciliación, rechazado o cancelado",
       "referencias": [
         {
           "columna": "designaciones.pedidos.estado",
-          "valores": ["en_lote", "rechazado", "cancelado"]
+          "valores": ["en_lote", "aprobado", "no_aprobado", "rechazado", "cancelado"]
         }
       ]
     },

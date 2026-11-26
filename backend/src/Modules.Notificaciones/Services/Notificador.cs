@@ -20,10 +20,15 @@ namespace Modules.Notificaciones.Services;
 /// the entity id and the exception type only: never with titles, messages, names or database
 /// error details, which can carry personal data.
 /// </para>
+/// <para>
+/// Web Push is a hand-off: once the rows are stored it only enqueues a job; <c>ProcesadorPush</c>
+/// delivers it in the background, so a slow push service never holds the business request.
+/// </para>
 /// </summary>
 internal sealed class Notificador(
     IServiceScopeFactory scopes,
     ICurrentUser usuarioActual,
+    ColaPush cola,
     ILogger<Notificador> logger) : INotificador
 {
     private static readonly TimeSpan TiempoMaximo = TimeSpan.FromSeconds(10);
@@ -44,7 +49,7 @@ internal sealed class Notificador(
 
             var ahora = DateTimeOffset.UtcNow;
             var contexto = JsonSerializer.Serialize(aviso.Contexto);
-            repositorio.Agregar(destinatarios.Select(usuarioId => new Notificacion
+            var filas = destinatarios.Select(usuarioId => new Notificacion
             {
                 Id = Guid.NewGuid(),
                 DestinatarioUsuarioId = usuarioId,
@@ -56,8 +61,14 @@ internal sealed class Notificador(
                 Mensaje = aviso.Mensaje,
                 Contexto = contexto,
                 CreadaEn = ahora,
-            }));
+            }).ToList();
+            repositorio.Agregar(filas);
             await repositorio.GuardarCambiosAsync(limite.Token);
+
+            // Hand-off only: the worker sends the pushes, so the request never waits for a push service.
+            cola.Encolar(new TrabajoPush(
+                aviso.TipoEvento, aviso.TipoEntidad, aviso.EntidadId, aviso.Titulo, aviso.Mensaje,
+                filas.Select(f => new DestinoPush(f.DestinatarioUsuarioId, f.Id)).ToList()));
         }
         catch (Exception ex)
         {

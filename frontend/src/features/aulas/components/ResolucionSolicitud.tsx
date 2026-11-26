@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, Field, InlineAlert, Input } from "@ars-docendi/ui";
 import { useGuardiaDeCambios } from "../../../shared/navegacion/guardias";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import {
   useAsignarAula,
   useCancelarReserva,
@@ -34,6 +36,7 @@ export function ResolucionSolicitud({ solicitud, puedeAprobar }: ResolucionSolic
   const cancelarReserva = useCancelarReserva();
   const cancelar = useCancelarSolicitud();
   const [modal, setModal] = useState<ModalAbierto>(null);
+  const telefono = usePantallaTelefono();
 
   const resoluble =
     puedeAprobar && (solicitud.estado === "pendiente" || solicitud.estado === "aprobada");
@@ -65,14 +68,16 @@ export function ResolucionSolicitud({ solicitud, puedeAprobar }: ResolucionSolic
       {cancelable && (
         <section className="adoc-aulas-card adoc-aulas-acc" aria-label="Acciones del docente">
           <h2 className="adoc-aulas-acc-title">Tu solicitud</h2>
-          <Button
-            id="detalle-cancelar"
-            variant="destructive"
-            className="adoc-aulas-bloque"
-            onClick={() => setModal("cancelar")}
-          >
-            Cancelar solicitud
-          </Button>
+          <ZonaAcciones telefono={telefono}>
+            <Button
+              id="detalle-cancelar"
+              variant="destructive"
+              className={telefono ? undefined : "adoc-aulas-bloque"}
+              onClick={() => setModal("cancelar")}
+            >
+              Cancelar solicitud
+            </Button>
+          </ZonaAcciones>
         </section>
       )}
 
@@ -127,6 +132,8 @@ function PanelResolver({ solicitud, alRechazar, alCancelarReserva }: PanelResolv
   const asignar = useAsignarAula();
   const [aula, setAula] = useState(solicitud.aulaAsignada ?? "");
   const [faltaAula, setFaltaAula] = useState(false);
+  const telefono = usePantallaTelefono();
+  const claseBoton = telefono ? undefined : "adoc-aulas-bloque";
   const textos = TEXTOS_ASIGNAR[solicitud.estado === "pendiente" ? "asignar" : "actualizar"];
   // El aula escrita y sin confirmar se pierde al salir de la página: se avisa.
   useGuardiaDeCambios(aula.trim() !== (solicitud.aulaAsignada ?? ""));
@@ -159,36 +166,43 @@ function PanelResolver({ solicitud, alRechazar, alCancelarReserva }: PanelResolv
           onChange={(e) => setAula(e.target.value)}
         />
       </Field>
-      <Button
-        id="resolver-confirmar"
-        variant="primary"
-        className="adoc-aulas-bloque"
-        loading={asignar.isPending}
-        onClick={enviarAula}
-      >
-        {textos.boton}
-      </Button>
-      {solicitud.estado === "pendiente" ? (
+      <ZonaAcciones telefono={telefono}>
         <Button
-          id="resolver-rechazar"
-          variant="destructive"
-          className="adoc-aulas-bloque"
-          disabled={asignar.isPending}
-          onClick={alRechazar}
+          id="resolver-confirmar"
+          variant="primary"
+          className={claseBoton}
+          loading={asignar.isPending}
+          onClick={enviarAula}
         >
-          Rechazar solicitud
+          {textos.boton}
         </Button>
-      ) : (
-        <Button
-          id="resolver-cancelar-reserva"
-          variant="destructive"
-          className="adoc-aulas-bloque"
-          disabled={asignar.isPending}
-          onClick={alCancelarReserva}
-        >
-          Cancelar reserva
-        </Button>
-      )}
+        {solicitud.estado === "pendiente" ? (
+          <Button
+            id="resolver-rechazar"
+            variant="destructive"
+            className={claseBoton}
+            disabled={asignar.isPending}
+            onClick={alRechazar}
+          >
+            Rechazar solicitud
+          </Button>
+        ) : (
+          <Button
+            id="resolver-cancelar-reserva"
+            variant="destructive"
+            className={claseBoton}
+            disabled={asignar.isPending}
+            onClick={alCancelarReserva}
+          >
+            Cancelar reserva
+          </Button>
+        )}
+      </ZonaAcciones>
     </section>
   );
+}
+
+/** Primary actions: pinned to the bottom of the screen on phones, inline in the card otherwise. */
+function ZonaAcciones({ telefono, children }: { telefono: boolean; children: ReactNode }) {
+  return telefono ? <BarraAccionesFija>{children}</BarraAccionesFija> : <>{children}</>;
 }

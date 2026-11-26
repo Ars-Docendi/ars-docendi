@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { arrowRightIcon, fileTextIcon } from "../../../app/shell/icons";
 import { destinoDe, tipoConFicha } from "../utils/destinos";
+import { TarjetaDeDocente } from "./TarjetaDeDocente";
 import type { PrincipalDeLaRespuesta } from "../types";
 
 type Tono = "exito" | "aviso" | "peligro" | "neutro";
@@ -11,7 +12,9 @@ type Tono = "exito" | "aviso" | "peligro" | "neutro";
  * cambio, la pone Designaciones (D2). Un código que no se conoce queda neutro.
  */
 const TONO_POR_ESTADO: Record<string, Tono> = {
-  en_lote: "exito",
+  en_lote: "aviso",
+  aprobado: "exito",
+  no_aprobado: "peligro",
   en_revision_coordinador: "aviso",
   en_revision_secretaria: "aviso",
   en_revision_decanato: "aviso",
@@ -54,6 +57,8 @@ interface FichaDelElementoProps {
  * clave y el botón que lo abre (asistente-respuestas-con-vinculos, D2/D3/D8).
  */
 export function FichaDelElemento({ principal }: FichaDelElementoProps) {
+  if (principal.tipo === "persona") return <TarjetaDeDocente principal={principal} />;
+
   const destino = destinoDe(principal.tipo);
   if (!destino || !tipoConFicha(principal.tipo)) return null;
 

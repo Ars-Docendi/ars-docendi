@@ -13,13 +13,12 @@ namespace Modules.Designaciones.Services;
 /// <summary>
 /// Orquesta el ciclo de vida de los pedidos de designación: resuelve el ámbito del
 /// actor, delega los guards a <see cref="MaquinaEstadosPedido"/>, persiste la
-/// transición con su evento de historial y dispara la materialización cuando el
-/// pedido termina de recorrer el circuito.
+/// transición con su evento de historial. Las designaciones vigentes se escriben al
+/// sincronizar la conciliación (<see cref="ServicioConciliacion"/>), no acá.
 /// </summary>
 internal sealed partial class ServicioPedidos(
     RepositorioPedidos pedidos,
     RepositorioDesignaciones designaciones,
-    MaterializadorDesignaciones materializador,
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
     UnidadDeTrabajo unidadDeTrabajo,
@@ -50,10 +49,11 @@ internal sealed partial class ServicioPedidos(
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 
-        if (!actor.Tiene(RolesCircuito.JefeCatedra) || !actor.MateriasACargo.Contains(datos.MateriaId))
+        var alcanceCarga = new AlcancePedido(datos.MateriaId, datos.CarreraId);
+        if (!MaquinaEstadosPedido.PuedeCargar(alcanceCarga, actor))
         {
             throw new ErrorDominioPedido(
-                "Sólo el Jefe de Cátedra de la materia puede cargar un pedido sobre esa cátedra [BR-designaciones-009].");
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden cargar un pedido [BR-designaciones-009].");
         }
 
         var archivos = await ValidarDatosAsync(datos, actor, ct);
@@ -84,7 +84,8 @@ internal sealed partial class ServicioPedidos(
         foreach (var adjunto in ConstruirAdjuntos(pedido.Id, datosResueltos.Adjuntos, archivos, datosResueltos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null)) pedido.Adjuntos.Add(adjunto);
 
         pedidos.Agregar(pedido);
-        await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Crear, RolesCircuito.JefeCatedra, actor, null, ct);
+        await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Crear,
+            MaquinaEstadosPedido.RolCargador(alcanceCarga, actor), actor, null, ct);
 
         await pedidos.GuardarCambiosAsync(ct);
 
@@ -114,7 +115,11 @@ internal sealed partial class ServicioPedidos(
         {
             throw new ErrorDominioPedido("El actor no puede editar este pedido en su estado o ámbito actual.");
         }
-        var archivos = await ValidarDatosAsync(datos, actor, ct);
+        // Lo que ya está adjunto lo subió quien creó el pedido: quien puede editarlo
+        // (Secretaría en la conciliación, por ejemplo) lo conserva sin ser su propietario.
+        var adjuntosPrevios = pedido.Adjuntos
+            .Where(a => a.ArchivoId is not null).Select(a => a.ArchivoId!.Value).ToHashSet();
+        var archivos = await ValidarDatosAsync(datos, actor, ct, adjuntosPrevios);
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
             datos.PeriodoId, personaId, pedidoId, ct))
         {
@@ -128,6 +133,8 @@ internal sealed partial class ServicioPedidos(
                 pedido.PersonaId == personaId ? [] : [personaId], token);
             await sellador.VerificarEstadoPrevioAsync(pedido, token);
             pedidos.EsperarVersion(pedido, datos.Version.Value);
+            var personaPrevia = pedido.PersonaId;
+            var materiaPrevia = pedido.MateriaId;
             pedido.PeriodoId = datos.PeriodoId;
             pedido.PersonaId = personaId;
             pedido.MateriaId = datos.MateriaId;
@@ -135,9 +142,26 @@ internal sealed partial class ServicioPedidos(
             pedido.Novedad = datos.Novedad;
             AplicarDatos(pedido, datos);
             pedidos.ReemplazarAdjuntos(pedido, ConstruirAdjuntos(pedido.Id, datos.Adjuntos, archivos, datos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null));
-            var rol = pedido.Estado == EstadosPedido.Borrador
-                ? RolesCircuito.JefeCatedra
-                : pedido.PropietarioActual ?? RolesCircuito.JefeCatedra;
+            var enConciliacion = EstadosPedido.EnConciliacion.Contains(pedido.Estado);
+            if (enConciliacion)
+            {
+                // Corregido según la rectificación: debe seguir siendo sincronizable, y
+                // un rechazado en la conciliación vuelve a conciliarse.
+                await designaciones.BloquearAsync(pedido.PersonaId, pedido.MateriaId, token);
+                await ValidarCompletitudCircuitoAsync(pedido, token);
+                await ValidarDesignacionVigenteAsync(pedido, token);
+                // La fotografía de "lo que tenía" sólo se rehace si cambió de quién o de
+                // qué cátedra es el pedido: la del primer envío ya no lo describiría.
+                if (pedido.Snapshot is null || personaPrevia != personaId || materiaPrevia != datos.MateriaId)
+                    pedido.Snapshot = await ArmarSnapshotAsync(pedido, token);
+                pedido.Estado = EstadosPedido.EnLote;
+            }
+            var rol = enConciliacion
+                ? MaquinaEstadosPedido.RolActuantePorPermiso(actor)
+                : pedido.Estado == EstadosPedido.Borrador
+                    || (pedido.PropietarioActual is { } propietario && !actor.Tiene(propietario))
+                    ? MaquinaEstadosPedido.RolCargador(alcance, actor)
+                    : pedido.PropietarioActual ?? RolesCircuito.JefeCatedra;
             await RegistrarEnHistorialAsync(pedido, AccionesHistorial.Editar, rol, actor, null, token);
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
@@ -175,16 +199,9 @@ internal sealed partial class ServicioPedidos(
             if (transicion.AccionHistorial == AccionesHistorial.Enviar)
                 pedido.Snapshot = await ArmarSnapshotAsync(pedido, token);
             AplicarTransicion(pedido, transicion);
-            var comentario = transicion.Comentario;
-
-            // Vigencias e historial se confirman en la misma transacción.
-            if (transicion.EstadoResultante == EstadosPedido.EnLote)
-            {
-                var detalle = await materializador.MaterializarAsync(pedido, token);
-                if (detalle is not null)
-                    comentario = string.IsNullOrWhiteSpace(comentario) ? detalle : comentario + "\n" + detalle;
-            }
-            await RegistrarEnHistorialAsync(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, comentario, token);
+            // Aceptar en Decanato deja el pedido en lote sin tocar las designaciones
+            // vigentes: se escriben recién al sincronizar la conciliación.
+            await RegistrarEnHistorialAsync(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, transicion.Comentario, token);
 
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
@@ -209,10 +226,10 @@ internal sealed partial class ServicioPedidos(
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
 
         if (!MaquinaEstadosPedido.PuedeEliminar(pedido, actor)
-            || !actor.MateriasACargo.Contains(pedido.MateriaId))
+            || !MaquinaEstadosPedido.PuedeCargar(new AlcancePedido(pedido.MateriaId, pedido.CarreraId), actor))
         {
             throw new ErrorDominioPedido(
-                "Sólo el Jefe de Cátedra propietario puede eliminar un pedido en borrador.");
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden eliminar un pedido en borrador.");
         }
 
         pedidos.Eliminar(pedido);
@@ -271,7 +288,7 @@ internal sealed partial class ServicioPedidos(
     /// acción lo decide la máquina de estados. El evento se sella en la misma transacción
     /// [BR-designaciones-019], así que se registra con el pedido ya en su estado posterior.
     /// </summary>
-    private async Task RegistrarEnHistorialAsync(
+    internal async Task RegistrarEnHistorialAsync(
         Pedido pedido, string accion, string codigoRol, ActorContexto actor, string? comentario,
         CancellationToken ct)
     {
@@ -314,15 +331,17 @@ internal sealed partial class ServicioPedidos(
 
         return new SnapshotPedido(
             Cargo: vigente?.Cargo?.Nombre,
-            Dedicacion: vigente?.DedicacionCatalogo?.Nombre ?? vigente?.Dedicacion,
+            Dedicacion: vigente?.DedicacionCatalogo?.Nombre,
             Horas: vigente?.Horas,
             Materia: materia.Nombre,
             HorasInvestigacion: vigente?.HorasInvestigacion,
-            HorasExternas: vigente?.HorasExternas);
+            HorasExternas: vigente?.HorasExternas,
+            SectorExterno: vigente?.SectorExterno?.Codigo);
     }
 
     private async Task<IReadOnlyDictionary<Guid, ArchivoDto>> ValidarDatosAsync(
-        DatosPedido datos, ActorContexto actor, CancellationToken ct)
+        DatosPedido datos, ActorContexto actor, CancellationToken ct,
+        IReadOnlySet<Guid>? adjuntosPrevios = null)
     {
         if (!Novedades.Admitidas.Contains(datos.Novedad))
             throw new ErrorDominioPedido($"La novedad no está admitida para nuevos pedidos: \"{datos.Novedad}\".");
@@ -357,6 +376,15 @@ internal sealed partial class ServicioPedidos(
             && !(actor.Tiene(RolesCircuito.CoordinadorCarrera) && actor.CarrerasACargo.Contains(datos.CarreraId))
             && !(actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(datos.MateriaId)))
             throw new ErrorDominioPedido("La materia seleccionada está fuera del ámbito del actor.");
+        if (datos.SectorExternoId is { } sectorId)
+        {
+            if (datos.Novedad is not (Novedades.Alta or Novedades.CambioDeCargoODedicacion))
+                throw new ErrorDominioPedido("Sólo un Alta o un Cambio puede ser de un docente externo.");
+            if (datos.CargoSolicitadoId is not null || datos.DedicacionSolicitadaId is not null)
+                throw new ErrorDominioPedido("Un pedido de docente externo no lleva cargo ni dedicación.");
+            if (!await pedidos.ExisteSectorExternoActivoAsync(sectorId, ct))
+                throw new ErrorDominioPedido("El sector externo no existe o está inactivo.");
+        }
         if (datos.CargoSolicitadoId is { } cargoId
             && !await pedidos.ExisteCargoActivoAsync(cargoId, ct))
             throw new ErrorDominioPedido("El cargo seleccionado no existe o está inactivo.");
@@ -366,7 +394,8 @@ internal sealed partial class ServicioPedidos(
             throw new ErrorDominioPedido("El tipo de baja no es válido.");
         if (datos.TipoBaja == TiposBaja.Otro && string.IsNullOrWhiteSpace(datos.TipoBajaDetalle))
             throw new ErrorDominioPedido("El tipo de baja Otro exige un detalle.");
-        if ((datos.Novedad is Novedades.Alta or Novedades.CambioDeCargoODedicacion && datos.DedicacionSolicitadaId is null)
+        if ((datos.Novedad is Novedades.Alta or Novedades.CambioDeCargoODedicacion
+                && datos.SectorExternoId is null && datos.DedicacionSolicitadaId is null)
             || (datos.DedicacionSolicitadaId is { } dedicacionId
                 && !await pedidos.ExisteDedicacionActivaAsync(dedicacionId, ct)))
             throw new ErrorDominioPedido("La dedicación solicitada no es válida.");
@@ -400,12 +429,18 @@ internal sealed partial class ServicioPedidos(
             throw new ErrorDominioPedido(
                 "La persona no tiene una designación vigente en la materia seleccionada.");
 
-        return await ValidarAdjuntosAsync(datos.Adjuntos, actor.UsuarioId, ct);
+        return await ValidarAdjuntosAsync(
+            datos.Adjuntos, actor.UsuarioId, adjuntosPrevios ?? new HashSet<Guid>(), ct);
     }
 
+    /// <summary>
+    /// Un archivo nuevo tiene que ser del actor; uno que el pedido ya tenía adjunto sólo tiene
+    /// que seguir disponible para el mismo propósito.
+    /// </summary>
     private async Task<IReadOnlyDictionary<Guid, ArchivoDto>> ValidarAdjuntosAsync(
         IReadOnlyList<Modules.Designaciones.Api.GuardarAdjuntoPedidoDto> adjuntos,
         Guid propietarioId,
+        IReadOnlySet<Guid> adjuntosPrevios,
         CancellationToken ct)
     {
         if (almacenamiento is null) return new Dictionary<Guid, ArchivoDto>();
@@ -425,6 +460,14 @@ internal sealed partial class ServicioPedidos(
                 TiposAdjunto.Justificativo => PropositosArchivo.Justificativo,
                 _ => string.Empty,
             };
+            if (adjuntosPrevios.Contains(archivoId))
+            {
+                var previo = await almacenamiento.ObtenerAsync(archivoId, ct);
+                if (previo is null || previo.Estado != EstadosArchivo.Disponible || previo.Proposito != proposito)
+                    throw new ErrorDominioPedido("El archivo no está disponible para ese propósito.");
+                archivos[archivoId] = previo;
+                continue;
+            }
             try
             {
                 archivos[archivoId] = await almacenamiento.RequerirDisponibleDePropietarioAsync(
@@ -466,7 +509,7 @@ internal sealed partial class ServicioPedidos(
     {
         pedido.CargoSolicitadoId = datos.CargoSolicitadoId;
         pedido.DedicacionSolicitadaId = datos.DedicacionSolicitadaId;
-        pedido.DedicacionSolicitada = null;
+        pedido.SectorExternoId = datos.SectorExternoId;
         pedido.Horas = datos.Horas;
         pedido.HorasInvestigacion = datos.HorasInvestigacion;
         pedido.HorasExternas = datos.HorasExternas;

@@ -24,4 +24,13 @@ public enum TipoErrorAplicacion
     NoEncontrado,
     Conflicto,
     ReglaDeNegocio,
+
+    /// <summary>Un servicio externo respondió con error o con datos inutilizables.</summary>
+    ServicioExternoFallido,
+
+    /// <summary>Un servicio externo no respondió dentro del tiempo de espera.</summary>
+    ServicioExternoSinRespuesta,
+
+    /// <summary>La integración con un servicio externo no está configurada en este ambiente.</summary>
+    ServicioExternoNoConfigurado,
 }

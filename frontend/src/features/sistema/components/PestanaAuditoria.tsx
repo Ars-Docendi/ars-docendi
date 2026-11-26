@@ -3,9 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 
 import { listarAuditoria } from "../api/auditoriaApi";
 import type { EventoAuditoria, FiltrosAuditoria as FiltrosAuditoriaApi } from "../api/auditoriaApi";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import { useFiltrosAuditoria } from "../hooks/useFiltrosAuditoria";
 import { limiteDesdeParaPeriodo, datetimeLocalAIso } from "../utils/zonaHoraria";
 import { FiltrosAuditoria } from "./FiltrosAuditoria";
+import { FiltrosAuditoriaMovil } from "./FiltrosAuditoriaMovil";
 import { ListaAuditoria } from "./ListaAuditoria";
 import { PanelDetalleEvento } from "./PanelDetalleEvento";
 
@@ -34,6 +36,7 @@ function filtrosParaApi(
 
 /** La pestaña Auditoría (requisitos «Auditoría tab filters...», «Inline audit event detail panel»). */
 export function PestanaAuditoria() {
+  const telefono = usePantallaTelefono();
   const {
     filtros,
     actualizarFiltros,
@@ -91,16 +94,27 @@ export function PestanaAuditoria() {
 
   return (
     <div className="sistema-pestana-auditoria">
-      <FiltrosAuditoria
-        filtros={filtros}
-        total={consulta.data?.total ?? 0}
-        actualizarFiltros={actualizarFiltros}
-        limpiarFiltros={limpiarFiltros}
-        difiereDelDefault={difiereDelDefault}
-        cantidadFiltrosAvanzados={cantidadFiltrosAvanzados}
-      />
+      {telefono ? (
+        <FiltrosAuditoriaMovil
+          filtros={filtros}
+          total={consulta.data?.total ?? 0}
+          actualizarFiltros={actualizarFiltros}
+        />
+      ) : (
+        <FiltrosAuditoria
+          filtros={filtros}
+          total={consulta.data?.total ?? 0}
+          actualizarFiltros={actualizarFiltros}
+          limpiarFiltros={limpiarFiltros}
+          difiereDelDefault={difiereDelDefault}
+          cantidadFiltrosAvanzados={cantidadFiltrosAvanzados}
+        />
+      )}
 
-      <div className={`auditoria-grid ${eventoAbierto ? "auditoria-grid--con-detalle" : ""}`}>
+      {/* On phones there is no room beside the list: the detail opens right under its row. */}
+      <div
+        className={`auditoria-grid ${eventoAbierto && !telefono ? "auditoria-grid--con-detalle" : ""}`}
+      >
         <ListaAuditoria
           pagina={consulta.data}
           cargando={consulta.isPending}
@@ -109,8 +123,15 @@ export function PestanaAuditoria() {
           onSeleccionarFila={seleccionarFila}
           onCambiarPagina={irAPagina}
           onReintentar={() => void consulta.refetch()}
+          detalleEnLinea={
+            telefono && eventoAbierto ? (
+              <PanelDetalleEvento evento={eventoAbierto} onCerrar={cerrarDetalle} />
+            ) : undefined
+          }
         />
-        {eventoAbierto && <PanelDetalleEvento evento={eventoAbierto} onCerrar={cerrarDetalle} />}
+        {eventoAbierto && !telefono && (
+          <PanelDetalleEvento evento={eventoAbierto} onCerrar={cerrarDetalle} />
+        )}
       </div>
     </div>
   );

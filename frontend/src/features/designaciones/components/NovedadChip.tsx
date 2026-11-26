@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import type { Novedad } from "../types";
 import { etiquetaNovedad } from "./tableroRevisionModelo";
+import "./NovedadChip.css";
 
 /** Clase de color del chip según la novedad (mapea a los tonos del design system). */
 const CLASE_POR_NOVEDAD: Record<Novedad, string> = {
@@ -61,12 +62,16 @@ const ICONO_POR_NOVEDAD: Record<Novedad, ReactElement> = {
   "Cambio de cargo o dedicación": ICONO_REFRESH,
 };
 
-/** Chip de novedad (Alta / Baja / Cambio) con icono Lucide y color de estado. */
-export function NovedadChip({ novedad }: { novedad: Novedad }) {
+/**
+ * Chip de novedad (Alta / Baja / Cambio) con icono Lucide y color de estado. Con `cantidad` > 1
+ * resume varios pedidos de la misma novedad ("Alta 2").
+ */
+export function NovedadChip({ novedad, cantidad }: { novedad: Novedad; cantidad?: number }) {
   return (
     <span className={`adoc-novedad-chip ${CLASE_POR_NOVEDAD[novedad]}`}>
       {ICONO_POR_NOVEDAD[novedad]}
       {etiquetaNovedad(novedad)}
+      {cantidad != null && cantidad > 1 ? ` ${cantidad}` : ""}
     </span>
   );
 }

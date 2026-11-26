@@ -41,7 +41,7 @@ internal sealed class SelladorPedidos(
         var ultimo = await sellos.ObtenerUltimoSelloDePedidoAsync(pedido.Id, ct);
         var diverge = ultimo is null
             ? pedido.Estado != EstadosPedido.Borrador
-            : !CanonicoSellos.HashEstado(pedido).SequenceEqual(ultimo.HashEstado);
+            : !CanonicoSellos.HashEstado(pedido, ultimo.VersionPayload).SequenceEqual(ultimo.HashEstado);
         if (diverge)
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.Conflicto, "pedido-integridad-comprometida",
@@ -115,6 +115,7 @@ internal sealed class SelladorPedidos(
             Hash = hash,
             Firma = claves.Firmar(hash),
             VersionClave = claves.VersionVigente,
+            VersionPayload = CanonicoSellos.VersionVigente,
             CreadoEn = DateTimeOffset.UtcNow,
         };
     }

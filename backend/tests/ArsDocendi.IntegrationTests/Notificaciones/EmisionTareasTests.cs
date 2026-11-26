@@ -42,7 +42,7 @@ public sealed class EmisionTareasTests(PostgresFixture postgres)
         Assert.Equal("TAREA_ASIGNADA", aviso.TipoEvento);
         Assert.Equal("TAREA", aviso.TipoEntidad);
         Assert.Equal(tarea.Id, aviso.EntidadId);
-        Assert.Equal("Tarea asignada", aviso.Titulo);
+        Assert.Equal($"Tarea N° {tarea.Numero} asignada", aviso.Titulo);
         Assert.Equal($"Se te asignó la tarea N° {tarea.Numero}: Tarea de prueba.", aviso.Mensaje);
     }
 
@@ -75,7 +75,7 @@ public sealed class EmisionTareasTests(PostgresFixture postgres)
         var avisos = await NotificacionesAsync();
         Assert.Equal(2, avisos.Count);
         Assert.Equal(Coordinador, avisos[^1].Destinatario);
-        Assert.Equal("Tarea asignada", avisos[^1].Titulo);
+        Assert.Equal($"Tarea N° {tarea.Numero} asignada", avisos[^1].Titulo);
         Assert.Contains("Otro título", avisos[^1].Mensaje);
     }
 
@@ -91,7 +91,7 @@ public sealed class EmisionTareasTests(PostgresFixture postgres)
 
         Assert.Equal(HttpStatusCode.OK, (await jefe.PostVersionadoAsync($"{ruta}/estado", new { estado = "en_curso" }, Ct)).StatusCode);
         var alCreador = (await NotificacionesAsync(Secretaria)).Single();
-        Assert.Equal("Cambio de estado en la tarea", alCreador.Titulo);
+        Assert.Equal($"Tarea N° {tarea.Numero}: cambio de estado", alCreador.Titulo);
         Assert.Equal($"Gustavo Ruiz cambió la tarea N° {tarea.Numero} (Tarea de prueba) de Pendiente a En curso.", alCreador.Mensaje);
         Assert.Null(alCreador.RolDestino);
 
@@ -133,7 +133,7 @@ public sealed class EmisionTareasTests(PostgresFixture postgres)
             (await jefe.PostVersionadoAsync($"/api/tareas/{tarea.Id}/comentarios", new { texto = largo }, Ct)).StatusCode);
 
         var aviso = (await NotificacionesAsync(Secretaria)).Single(a => a.TipoEvento == "TAREA_COMENTADA");
-        Assert.Equal("Nuevo comentario en la tarea", aviso.Titulo);
+        Assert.Equal($"Tarea N° {tarea.Numero}: nuevo comentario", aviso.Titulo);
         Assert.StartsWith($"Gustavo Ruiz comentó en la tarea N° {tarea.Numero} (Tarea de prueba): “", aviso.Mensaje);
         Assert.EndsWith($"{new string('a', 89)}…”", aviso.Mensaje);
         Assert.DoesNotContain(await NotificacionesAsync(Jefe), a => a.TipoEvento == "TAREA_COMENTADA");

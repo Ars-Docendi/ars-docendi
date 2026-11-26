@@ -16,6 +16,23 @@ public static class Permisos
     public const string DesignacionesAprobarDecanato = "designaciones.aprobar_decanato";
     public const string DesignacionesRevisar = "designaciones.revisar";
     public const string DesignacionesVerSeguimiento = "designaciones.ver_seguimiento";
+
+    /// <summary>
+    /// Conciliar el lote con la rectificación: ver los pedidos en lote, rechazarlos y
+    /// sincronizar los aprobados con las designaciones vigentes.
+    /// </summary>
+    public const string DesignacionesConciliar = "designaciones.conciliar";
+
+    /// <summary>
+    /// Editar cualquier campo de un pedido en lote o rechazado en la conciliación,
+    /// antes de sincronizarlo. No cambia la edición de borradores y devueltos.
+    /// </summary>
+    public const string DesignacionesEditar = "designaciones.editar";
+
+    /// <summary>
+    /// Descargar la planilla del lote de designaciones del período activo.
+    /// </summary>
+    public const string DesignacionesExportarLote = "designaciones.exportar_lote";
     public const string AulasVer = "aulas.ver";
     public const string AulasSolicitar = "aulas.solicitar";
     public const string AulasGestionar = "aulas.gestionar";
@@ -27,6 +44,8 @@ public static class Permisos
     public const string PersonasVerAmbito = "personas.ver_ambito";
     public const string PersonasAdministrar = "personas.administrar";
     public const string PortalAdministrar = "portal.administrar";
+    public const string ComisionesVer = "comisiones.ver";
+    public const string ComisionesImportar = "comisiones.importar";
 
     /// <summary>
     /// Admisión al asistente conversacional. Se administra desde la membresía de
@@ -108,6 +127,9 @@ public static class Permisos
         AsistenteAdministrar,
         AsistenteRevisarCalidad,
         DesignacionesVerSeguimiento,
+        DesignacionesConciliar,
+        DesignacionesEditar,
+        DesignacionesExportarLote,
         AulasVer,
         AulasSolicitar,
         AulasGestionar,
@@ -115,5 +137,7 @@ public static class Permisos
         TareasVer,
         TareasGestionar,
         ProyectosGestionar,
+        ComisionesVer,
+        ComisionesImportar,
     ];
 }

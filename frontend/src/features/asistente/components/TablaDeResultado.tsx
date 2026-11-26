@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { Button, Table } from "@ars-docendi/ui";
 import { Link } from "react-router-dom";
 
+import type { AnchosDeColumnas } from "../../../shared/ui/ColumnasAjustables";
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import { MarcaSensible } from "./MarcaSensible";
 import { TablaAmpliada } from "./TablaAmpliada";
 import {
@@ -124,6 +126,8 @@ function TablaConAcciones({
   const [orden, setOrden] = useState<OrdenDeColumna | null>(null);
   const [ampliadoPropio, setAmpliadoPropio] = useState(false);
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
+  // Column widths set on a phone, shared by the inline and the expanded view like the sort order.
+  const [anchos, setAnchos] = useState<AnchosDeColumnas | null>(null);
 
   // CONTROLADA O NO, SEGÚN SI EL LLAMADOR TRAE `onAmpliarChange`: sin él —el único caso hoy—, esta
   // tabla maneja su propio estado y dibuja su propio botón; con él, sigue el valor de afuera y NO
@@ -209,6 +213,10 @@ function TablaConAcciones({
   }, [exportar, onExportarDisponible]);
 
   const anuncioDeOrden = textoDelAnuncioDeOrden(orden, columnas);
+  // Sólo si hay al menos un nombre que de verdad lleva a un perfil: sin vínculo no hay sugerencia.
+  const hayPersonasVinculadas = Array.from(porCelda.values()).some(
+    (v) => v.tipo === "persona" && destinoDe(v.tipo) !== undefined,
+  );
 
   return (
     <div className="adoc-asistente-tabla" ref={raizRef} hidden={oculta}>
@@ -219,6 +227,8 @@ function TablaConAcciones({
         orden={orden}
         onOrdenar={alOrdenar}
         porCelda={porCelda}
+        anchos={anchos}
+        onAnchosChange={setAnchos}
       />
 
       {/* Anunciado por la región viva ancestral (Conversacion.tsx, role="log"
@@ -226,6 +236,10 @@ function TablaConAcciones({
           confirmación de exportar, sin abrir una región propia. El foco no se
           mueve — sigue en el encabezado que se activó. */}
       {anuncioDeOrden && <p className="adoc-asistente-orden-anuncio">{anuncioDeOrden}</p>}
+
+      {hayPersonasVinculadas && (
+        <p className="adoc-asistente-sugerencia-vinculos">Tocá un nombre para ver su perfil</p>
+      )}
 
       {haySensibles && (
         // Dice qué es personal, no por dónde viajó: el enmascaramiento y el
@@ -295,6 +309,8 @@ function TablaConAcciones({
             orden={orden}
             onOrdenar={alOrdenar}
             porCelda={porCelda}
+            anchos={anchos}
+            onAnchosChange={setAnchos}
             truncado={truncado}
             haySensibles={haySensibles}
             hilo={hilo}
@@ -335,6 +351,9 @@ export interface TablaOrdenableProps {
   orden: OrdenDeColumna | null;
   onOrdenar: (indiceDeColumna: number) => void;
   porCelda: Map<string, VinculoDelResultado>;
+  /** Column widths set on a phone; see `ContenedorTabla`. */
+  anchos: AnchosDeColumnas | null;
+  onAnchosChange: (anchos: AnchosDeColumnas) => void;
 }
 
 /**
@@ -349,10 +368,17 @@ export function TablaOrdenable({
   orden,
   onOrdenar,
   porCelda,
+  anchos,
+  onAnchosChange,
 }: TablaOrdenableProps) {
   return (
     <Table className="adoc-asistente-tabla-wrap">
-      <Table.Root>
+      {/* Scroll region with a sticky first column: wide results scroll inside it, never the page. */}
+      <ContenedorTabla
+        etiqueta="Resultado de la consulta"
+        anchos={anchos}
+        onAnchosChange={onAnchosChange}
+      >
         <Table.Head>
           <Table.Row>
             {columnas.map((columna, indiceDeColumna) => (
@@ -380,7 +406,7 @@ export function TablaOrdenable({
             </Table.Row>
           ))}
         </Table.Body>
-      </Table.Root>
+      </ContenedorTabla>
     </Table>
   );
 }

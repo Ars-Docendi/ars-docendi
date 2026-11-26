@@ -53,51 +53,83 @@ mismo en la misma corrida no informaría nada.
 
 ## Las cuatro vigentes
 
-Congeladas reproduciendo los 107 cassettes, así que **no costaron una corrida
-financiada**. Modelo `claude-sonnet-5`.
+Congeladas **en vivo** contra `claude-sonnet-5` el 2026-11-07 (tarde), después de agregar a
+las instrucciones de generación la regla de alcance propio: «mis docentes», «los que tengo a
+cargo» o «de mi cátedra» se contestan sin filtro, porque la base ya devuelve sólo lo de quien
+pregunta. Antes, un jefe de cátedra que preguntaba «¿Qué docentes tengo a cargo?» recibía una
+abstención («no hay forma de saber quién pregunta») o una consulta con filtros de más.
+Capacidad suma `cap-062` y robustez `rob-023`.
 
 | Eje       | Ítems | Aciertos | Normalizado |
 | --------- | ----- | -------- | ----------- |
-| Capacidad | 24    | 23       | 95,8 %      |
-| Robustez  | 15    | 14       | 93,3 %      |
-| Diálogo   | 9     | 8        | 88,9 %      |
+| Capacidad | 62    | 60       | 96,8 %      |
+| Robustez  | 23    | 23       | 100,0 %     |
+| Diálogo   | 11    | 10       | 90,9 %      |
 | Social    | 20    | 20       | 100,0 %     |
 
-El ítem que no acierta en diálogo es `dia-003-pivote-duro#1`, que **se abstiene ante
-algo contestable**. Queda congelado así a propósito: la línea de base registra el
-comportamiento que hay, no el que se querría. Que mejore va a aparecer como «mejora»
-en el gate, que es donde se lo quiere ver.
+Los tres que no aciertan (`cap-013`, `cap-020`, `dia-005-referencia-al-resultado#2`) están
+en `inestables.json`. Las anteriores, en
+[`antes-de-alcance-propio/`](./antes-de-alcance-propio/README.md).
 
-**Ojo con ese ítem si el gate llegara a correr contra el modelo en vivo.** Reproducido
-de cassette es determinista —tres corridas dieron reportes idénticos byte a byte—, pero
-en vivo osciló entre acierto y abstención sin que nada cambiara. Un ítem que oscila
-produce regresiones falsas con lock por ítem. Los cassettes ya no existen (Anthropic dejó
-de ser proveedor de producción), así que el gate corre en vivo: hay que decidir si se lo
-marca como tolerante o se lo reformula.
+En las corridas en vivo previas de la misma tarde aparecieron estas fallas, ya corregidas:
 
-## Las cuatro vigentes son de después de los rechazos dinámicos
+- **«Solicitudes» a secas se iba a las reservas de aula** (`cap-008`, `cap-012`,
+  `cap-023`): el comentario de `aulas.solicitudes_reserva` dice ahora que esa tabla es
+  sólo para preguntas que nombran «aula» o «reserva»; lo demás son pedidos de
+  designación.
+- **«Solicitudes urgentes» dejó de traducirse** (`cap-016`, `rob-012`): una migración
+  nueva agrega «urgente» como sinónimo en el comentario de `designaciones.pedidos.prioritario`.
+- **`cap-032` («¿Qué proyectos de investigación cargó cada docente?») pasó a
+  contestable**: los proyectos del portal ahora se conceden.
+- **Referencias que exigían columnas que la pregunta no pide** (`cap-040`, `cap-051`,
+  `cap-054`, `cap-056`): el comparador exige que la respuesta contenga todas las columnas
+  de la referencia, así que la referencia proyecta sólo lo que la pregunta pide.
+- **«De mi cátedra» admitía dos lecturas** (`cap-057`, `cap-061`, `rob-021`): ¿el propio
+  jefe cuenta? La RLS ya acota a quien pregunta, así que las preguntas no lo dicen.
+- **`cap-046`** se reformuló otra vez («nunca figuraron…»), para no ser un superconjunto
+  de un ejemplo del catálogo.
+- **Una columna de texto libre suprimida se narraba como «no hay datos»** (`cap-056`,
+  motivos de cancelación): la redacción recibe ahora un aviso, sin el nombre ni el valor de
+  la columna, de que ese texto está en la tabla.
 
-Se regeneraron con la corrida financiada que regrabó los cassettes contra el prefijo
-que pide `motivo` y `termino` (ARS-139, unidad B; `7e06fddb…` y sucesores). Capacidad
-suma cap-035..039, un ítem o más por motivo de rechazo. La corrida costó unos
-0,47 USD con `claude-sonnet-5`; las cuatro se congelaron reproduciendo esos cassettes
-y dieron el mismo veredicto ítem por ítem que la corrida en vivo.
+## Ítems que oscilan en vivo
 
-| Eje       | Ítems | Aciertos | Normalizado |
-| --------- | ----- | -------- | ----------- |
-| Capacidad | 39    | 38       | 97,4 %      |
-| Robustez  | 15    | 15       | 100,0 %     |
-| Diálogo   | 11    | 11       | 100,0 %     |
-| Social    | 20    | 20       | 100,0 %     |
+Los cassettes ya no existen (Anthropic dejó de ser proveedor de producción), así que
+el gate corre en vivo. Con lock por ítem, un ítem que oscila da regresiones falsas.
+Cuatro corridas del 2026-11-07, mismo modelo y mismo fixture (la primera, antes de los
+ajustes de arriba), mostraron estos:
 
-El que no acierta en capacidad es `cap-008` («¿Qué solicitudes puedo ver de mi
-carrera?»): el modelo se abstiene creyendo que «de mi carrera» exige filtrar por la
-identidad del usuario, cuando la RLS ya acota las filas. Viene de antes de este cambio.
-`cap-033` y `cap-034` dejaron de exigir `orden_importa`: sus preguntas no piden un
-orden, y `cap-033` fallaba sólo por ordenar por jerarquía del cargo en vez de por
-apellido, con las mismas filas. El acuerdo de motivos —informativo, fuera
-del puntaje— dio 10 de 11: `cap-018` (notas de Guaraní) declaró `no_cubierto` en vez
-de `otro_sistema`.
+| Ítem                                | Aciertos en 4 corridas | Cuando falla                        |
+| ----------------------------------- | ---------------------- | ----------------------------------- |
+| `cap-009`                           | 3                      | se abstiene ante contestable        |
+| `cap-020`                           | 3                      | responde en vez de pedir aclaración |
+| `dia-001-seguimiento#2`             | 2                      | se abstiene ante contestable        |
+| `dia-003-pivote-duro#1`             | 2                      | se abstiene o traduce mal           |
+| `dia-005-referencia-al-resultado#2` | 3                      | se abstiene ante contestable        |
+| `cap-047`                           | 4 de 5                 | no agrupa por período (D10)         |
+| `cap-004`                           | 2 de 3                 | se abstiene ante contestable        |
+| `rob-022`                           | 2 de 3                 | se abstiene ante «mi cátedra»       |
+
+Los tres últimos se observaron en las corridas de la tarde, con aulas y portal en el prefijo. `dia-003-pivote-duro#1` ya oscilaba antes de comisiones.
+
+**Decisión: se marcan como tolerantes** (change `evaluador-items-inestables`). Viven en
+[`inestables.json`](./inestables.json), por eje y con su motivo:
+`{ "capacidad": { "cap-009": "motivo" } }`. En diálogo el id es el de la línea de base,
+por turno (`dia-001-seguimiento#2`).
+
+- Si un ítem listado pasa de acierto a falla, el gate **no devuelve 4**: lo informa como
+  «Oscilaciones conocidas» en la consola, en una sección del reporte del eje y en el
+  resumen final (cuántas se toleraron).
+- Todo lo demás conserva el lock estricto. Una mejora en un ítem listado se informa como
+  cualquier otra.
+- El archivo está **fuera del sello**: no entra en el hash del dataset, así que listar o
+  quitar un ítem no obliga a regenerar las líneas de base.
+- Un id que no está en la línea de base de su eje (o un eje desconocido, o un motivo
+  vacío) corta la corrida con código 64: la lista no se pudre en silencio.
+
+Para **agregar** un ítem, sumá su id y el motivo con la evidencia (cuántas corridas
+oscilaron) en el eje que corresponde. Para **quitarlo**, borrá la entrada: vuelve al lock
+estricto. Un ítem que se reformula o se arregla debe salir de la lista en el mismo diff.
 
 Las de antes de portal están en [`antes-de-portal/`](./antes-de-portal/README.md),
 que explica qué costó ese cambio.

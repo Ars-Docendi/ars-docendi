@@ -29,7 +29,7 @@ export const revisarElTablero: ArticuloAyuda = {
       titulo: "Abrí Revisión",
       etiquetaIndice: "Abrir Revisión",
       cuerpo:
-        "En el menú, grupo Designaciones, elegí Revisión. El título aclara el alcance: «Pedidos en tu ámbito», seguido de tu carrera o del departamento. La pantalla abre en la pestaña de tu propia área (por ejemplo, En Coordinación para el Coordinador) o en Todos si tu rol no tiene un área propia.",
+        "En el menú, grupo Designaciones, elegí Revisión. El título aclara el alcance: «Pedidos en tu ámbito», seguido de tu carrera o del departamento. La pantalla abre en la pestaña de tu propia área (por ejemplo, En Coordinación para el Coordinador); Secretaría Académica abre en Finalizados, donde descarga el lote, y si tu rol no tiene un área propia abre en Todos.",
       captura: {
         src: "/ayuda/designaciones/revisar-el-tablero-paso-1.webp",
         alt: "Revisión de un Coordinador con las pestañas y el contador de cada una.",
@@ -79,6 +79,11 @@ export const revisarElTablero: ArticuloAyuda = {
       pregunta: "¿Por qué no veo los pedidos de períodos anteriores?",
       respuesta:
         "El selector Filtrar por período arranca en el período abierto. Cambialo a otro período o a Todos los períodos para ver los demás.",
+    },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px los pedidos se muestran como tarjetas: el nombre del docente abre el pedido y debajo ves legajo, tipo, fechas y estado. Las áreas son pestañas que se deslizan con el dedo, cada una con su cantidad. El período y los filtros generales (Prioridad, Sin movimiento y, si corresponde, Carrera) quedan arriba de las pestañas. El botón «Filtros (n)» abre una hoja con los filtros de columnas (Estado, Tipo, Legajo, Inicio, Últ. actualización y, en Todos, Área), con «Limpiar» y un «Ver N resultados» que se actualiza al elegir; lo aplicado queda como chips que se quitan de a uno o con «Limpiar filtros». El orden se elige en el selector «Ordenar por». La lista pagina de a 20 tarjetas. En tablets la tabla se mantiene, con la primera columna fija.",
     },
   ],
   relacionados: [

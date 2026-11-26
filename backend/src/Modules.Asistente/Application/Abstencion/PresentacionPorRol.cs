@@ -18,6 +18,26 @@ internal static class PresentacionPorRol
             areas.Add($"los trámites y las designaciones {AmbitoDe(perfil.CodigoDeRol)}");
         }
 
+        // Comisiones se anuncia por el permiso VIVO y no por el GRANT: los dos roles de lectura tienen
+        // el GRANT, así que sin este gate se le ofrecería a quien no lo tiene una pregunta que la
+        // policy contesta con cero filas. No hay aulas libres ni registro de importaciones: el
+        // esquema no los responde.
+        if (perfil.VeComisiones)
+        {
+            areas.Add("las comisiones de cursada, con sus docentes, días, horarios y aulas");
+        }
+
+        // Aulas: who approves sees every request; who only requests sees their own. Announced by the
+        // live permissions, never by the GRANT (common to both read roles).
+        if (perfil.VeSolicitudesDeAula)
+        {
+            areas.Add("las solicitudes de reserva de aula, con su estado y el aula asignada");
+        }
+        else if (perfil.VeSolicitudesPropias)
+        {
+            areas.Add("tus solicitudes de reserva de aula");
+        }
+
         // Los catálogos no llevan permiso propio: se le conceden a los dos roles de
         // lectura y no tienen policy. Cualquiera que use el asistente los alcanza.
         areas.Add("las materias, las carreras y los cargos del sistema");

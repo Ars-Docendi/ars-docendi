@@ -1,3 +1,5 @@
+using ArsDocendi.Shared.Auth;
+
 namespace Modules.Designaciones.Domain;
 
 /// <summary>
@@ -16,7 +18,10 @@ namespace Modules.Designaciones.Domain;
 /// </summary>
 public static class MaquinaEstadosPedido
 {
-    /// <summary>Avance de la cadena al aceptar. <c>en_lote</c> es terminal para el alcance actual.</summary>
+    /// <summary>
+    /// Avance de la cadena al aceptar. Después de <c>en_lote</c> no se acepta: el pedido
+    /// sale del circuito de revisión y se concilia.
+    /// </summary>
     private static readonly IReadOnlyDictionary<string, string> EtapaSiguiente =
         new Dictionary<string, string>
         {
@@ -60,6 +65,15 @@ public static class MaquinaEstadosPedido
                 $"El pedido está en un estado terminal (\"{pedido.Estado}\"): no admite ninguna acción.");
         }
 
+        // En conciliación sólo se sincroniza o se rechaza; el circuito de revisión
+        // (enviar, aceptar, devolver, priorizar…) ya terminó.
+        if (EstadosPedido.EnConciliacion.Contains(pedido.Estado)
+            && accion is not (AccionPedido.Sincronizar or AccionPedido.NoAprobar))
+        {
+            throw new ErrorDominioPedido(
+                $"El pedido está en la conciliación del lote (\"{pedido.Estado}\"): sólo se puede sincronizar, rechazar o editar con permiso.");
+        }
+
         if (pedido.Novedad == Novedades.SinNovedad
             && accion is AccionPedido.Enviar or AccionPedido.Reenviar or AccionPedido.Aceptar)
         {
@@ -77,6 +91,8 @@ public static class MaquinaEstadosPedido
             AccionPedido.Reenviar => Reenviar(pedido, alcance, actor),
             AccionPedido.Priorizar a => Priorizar(pedido, alcance, actor, a.Motivo, true),
             AccionPedido.Despriorizar a => Priorizar(pedido, alcance, actor, a.Comentario, false),
+            AccionPedido.Sincronizar => Sincronizar(pedido, alcance, actor),
+            AccionPedido.NoAprobar a => NoAprobar(pedido, alcance, actor, a.Motivo),
             _ => throw new ErrorDominioPedido($"Acción no soportada: {accion.GetType().Name}"),
         };
     }
@@ -119,8 +135,29 @@ public static class MaquinaEstadosPedido
     }
 
     /// <summary>
-    /// ¿El actor puede editar? Sólo un borrador siendo Jefe de Cátedra, o un devuelto
-    /// del que es propietario actual [BR-designaciones-008].
+    /// Administrativo y Secretaría cargan pedidos de cualquier materia del Departamento, además
+    /// del Jefe de Cátedra sobre las suyas.
+    /// </summary>
+    public static bool EsCargadorDepartamental(ActorContexto actor) =>
+        actor.Tiene(RolesCircuito.Administrativo) || actor.Tiene(RolesCircuito.Secretaria);
+
+    /// <summary>¿El actor puede cargar (crear, enviar, cancelar) un pedido sobre esta materia?</summary>
+    public static bool PuedeCargar(AlcancePedido alcance, ActorContexto actor) =>
+        EsCargadorDepartamental(actor)
+        || (actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(alcance.MateriaId));
+
+    /// <summary>Rol con el que actúa quien carga: Jefe si la materia es suya; si no, Secretaría o Administrativo.</summary>
+    public static string RolCargador(AlcancePedido alcance, ActorContexto actor) =>
+        actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(alcance.MateriaId)
+            ? RolesCircuito.JefeCatedra
+            : actor.Tiene(RolesCircuito.Secretaria) ? RolesCircuito.Secretaria : RolesCircuito.Administrativo;
+
+    /// <summary>
+    /// ¿El actor puede editar? Un borrador, quien puede cargar pedidos; un devuelto, su
+    /// propietario actual, y si volvió al primer nivel también Administrativo o Secretaría
+    /// [BR-designaciones-008]. Además, con <c>designaciones.editar</c>, un pedido en lote o
+    /// rechazado en la conciliación que todavía no se escribió sobre las designaciones. El
+    /// ámbito lo valida <see cref="AlcanzaAmbito"/>.
     /// </summary>
     public static bool PuedeEditar(Pedido pedido, ActorContexto actor)
     {
@@ -129,22 +166,114 @@ public static class MaquinaEstadosPedido
             return false;
         }
 
-        var esBorradorDelJefe =
-            pedido.Estado == EstadosPedido.Borrador && actor.Tiene(RolesCircuito.JefeCatedra);
-        var esDevueltoDelPropietario =
-            pedido.Estado == EstadosPedido.Devuelto
-            && pedido.PropietarioActual is not null
-            && actor.Tiene(pedido.PropietarioActual);
+        if (EstadosPedido.EnConciliacion.Contains(pedido.Estado))
+        {
+            // Un pedido heredado del circuito anterior ya se materializó al aceptar
+            // Decanato: editarlo dejaría al pedido distinto de lo que se escribió.
+            return pedido.MaterializadoEn is null
+                && actor.TienePermiso(Permisos.DesignacionesEditar);
+        }
 
-        return esBorradorDelJefe || esDevueltoDelPropietario;
+        var esBorradorDeCargador =
+            pedido.Estado == EstadosPedido.Borrador
+            && (actor.Tiene(RolesCircuito.JefeCatedra) || EsCargadorDepartamental(actor));
+
+        return esBorradorDeCargador
+            || (pedido.Estado == EstadosPedido.Devuelto && EsPropietarioDelDevuelto(pedido, actor));
     }
 
+    /// <summary>Propietario del devuelto; el primer nivel (Jefe) también lo corrigen Administrativo y Secretaría.</summary>
+    private static bool EsPropietarioDelDevuelto(Pedido pedido, ActorContexto actor) =>
+        pedido.PropietarioActual is not null
+        && (actor.Tiene(pedido.PropietarioActual)
+            || (pedido.PropietarioActual == RolesCircuito.JefeCatedra && EsCargadorDepartamental(actor)));
+
     /// <summary>
-    /// ¿Puede eliminarlo? Sólo un borrador propio del Jefe de Cátedra. Un devuelto NO,
+    /// ¿Puede eliminarlo? Sólo un borrador, y sólo quien puede cargar pedidos. Un devuelto NO,
     /// aunque también sea editable: ya tiene una revisión en su historial.
     /// </summary>
     public static bool PuedeEliminar(Pedido pedido, ActorContexto actor) =>
-        pedido.Estado == EstadosPedido.Borrador && actor.Tiene(RolesCircuito.JefeCatedra);
+        pedido.Estado == EstadosPedido.Borrador
+        && (actor.Tiene(RolesCircuito.JefeCatedra) || EsCargadorDepartamental(actor));
+
+    /// <summary>
+    /// ¿El actor puede conciliar este pedido? Está en lote, el actor tiene
+    /// <c>designaciones.conciliar</c> y alcanza su ámbito.
+    /// </summary>
+    public static bool PuedeConciliar(Pedido pedido, AlcancePedido alcance, ActorContexto actor) =>
+        pedido.Estado == EstadosPedido.EnLote
+        && actor.TienePermiso(Permisos.DesignacionesConciliar)
+        && AlcanzaAmbito(alcance, actor);
+
+    /// <summary>
+    /// Con qué rol se registra en el historial una acción que se autoriza por permiso
+    /// (conciliar o editar después del circuito): el rol de circuito de mayor alcance
+    /// que tenga el actor, porque el historial registra un rol, no un permiso.
+    /// </summary>
+    public static string RolActuantePorPermiso(ActorContexto actor)
+    {
+        string[] enOrdenDeAlcance =
+        [
+            RolesCircuito.Secretaria,
+            RolesCircuito.Administrativo,
+            RolesCircuito.Decanato,
+            RolesCircuito.CoordinadorCarrera,
+            RolesCircuito.JefeCatedra,
+        ];
+
+        return Array.Find(enOrdenDeAlcance, actor.Tiene)
+            ?? throw new ErrorDominioPedido(
+                "El actor no tiene ningún rol de sistema que participe del circuito.");
+    }
+
+    private static TransicionPedido Sincronizar(
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor)
+    {
+        GuardarConciliador(pedido, alcance, actor);
+
+        return new TransicionPedido(
+            EstadosPedido.Aprobado,
+            AccionesHistorial.Sincronizar,
+            RolActuantePorPermiso(actor));
+    }
+
+    private static TransicionPedido NoAprobar(
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor, string motivo)
+    {
+        GuardarConciliador(pedido, alcance, actor);
+        var texto = RequerirTexto(motivo, "El rechazo en la conciliación exige un motivo obligatorio.");
+
+        if (pedido.MaterializadoEn is not null)
+        {
+            throw new ErrorDominioPedido(
+                "El pedido ya se escribió sobre las designaciones al aceptarlo Decanato: no se puede rechazar en la conciliación.");
+        }
+
+        return new TransicionPedido(
+            EstadosPedido.NoAprobado,
+            AccionesHistorial.NoAprobar,
+            RolActuantePorPermiso(actor),
+            Comentario: texto);
+    }
+
+    private static void GuardarConciliador(Pedido pedido, AlcancePedido alcance, ActorContexto actor)
+    {
+        if (pedido.Estado != EstadosPedido.EnLote)
+        {
+            throw new ErrorDominioPedido(
+                $"Sólo se concilia un pedido en lote (estado actual: \"{pedido.Estado}\").");
+        }
+
+        if (!actor.TienePermiso(Permisos.DesignacionesConciliar))
+        {
+            throw new ErrorDominioPedido("Conciliar el lote requiere el permiso designaciones.conciliar.");
+        }
+
+        if (!AlcanzaAmbito(alcance, actor))
+        {
+            throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
+        }
+    }
 
     private static bool EsEtapaDeRevision(string estado) =>
         RolesCircuito.RolPorEtapa.ContainsKey(estado);
@@ -157,21 +286,16 @@ public static class MaquinaEstadosPedido
                 $"Sólo se puede enviar a revisión un pedido en borrador (estado actual: \"{pedido.Estado}\").");
         }
 
-        if (!actor.Tiene(RolesCircuito.JefeCatedra))
-        {
-            throw new ErrorDominioPedido("Sólo el Jefe de Cátedra puede enviar el pedido a revisión.");
-        }
-
-        if (!actor.MateriasACargo.Contains(alcance.MateriaId))
+        if (!PuedeCargar(alcance, actor))
         {
             throw new ErrorDominioPedido(
-                "El pedido pertenece a una cátedra que el actor no tiene a cargo [BR-designaciones-009].");
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden enviar el pedido [BR-designaciones-009].");
         }
 
         return new TransicionPedido(
             EstadosPedido.EnRevisionCoordinador,
             AccionesHistorial.Enviar,
-            RolesCircuito.JefeCatedra);
+            RolCargador(alcance, actor));
     }
 
     private static TransicionPedido Cancelar(
@@ -183,20 +307,16 @@ public static class MaquinaEstadosPedido
                 $"Sólo se puede cancelar un pedido en borrador (estado actual: \"{pedido.Estado}\").");
         }
 
-        if (!actor.Tiene(RolesCircuito.JefeCatedra))
+        if (!PuedeCargar(alcance, actor))
         {
-            throw new ErrorDominioPedido("Sólo el Jefe de Cátedra puede cancelar el pedido.");
-        }
-
-        if (!AlcanzaAmbito(alcance, actor))
-        {
-            throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
+            throw new ErrorDominioPedido(
+                "Sólo el Jefe de Cátedra de la materia, un Administrativo o Secretaría pueden cancelar el pedido [BR-designaciones-009].");
         }
 
         return new TransicionPedido(
             EstadosPedido.Cancelado,
             AccionesHistorial.Cancelar,
-            RolesCircuito.JefeCatedra);
+            RolCargador(alcance, actor));
     }
 
     /// <summary>
@@ -298,7 +418,7 @@ public static class MaquinaEstadosPedido
                 $"Sólo se puede reenviar un pedido devuelto (estado actual: \"{pedido.Estado}\").");
         }
 
-        if (pedido.PropietarioActual is null || !actor.Tiene(pedido.PropietarioActual))
+        if (!EsPropietarioDelDevuelto(pedido, actor))
         {
             throw new ErrorDominioPedido(
                 "Sólo el propietario del pedido devuelto puede reenviarlo [BR-designaciones-014].");
@@ -317,7 +437,7 @@ public static class MaquinaEstadosPedido
         return new TransicionPedido(
             pedido.EtapaRetorno,
             AccionesHistorial.Reenviar,
-            pedido.PropietarioActual,
+            actor.Tiene(pedido.PropietarioActual!) ? pedido.PropietarioActual! : RolCargador(alcance, actor),
             EtapaRetorno: null,
             PropietarioActual: null);
     }

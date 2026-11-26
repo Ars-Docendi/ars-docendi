@@ -20,7 +20,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  height: calc(100vh / var(--ui-zoom, 1) - 56px);
+  height: calc(100dvh / var(--ui-zoom, 1) - 56px);
   overflow-y: auto;
   padding: var(--space-4);
   background: var(--color-bg-raised);
@@ -488,18 +488,79 @@
   outline: none;
 }
 
-/* ---------- Pantallas angostas: la sidebar se apila sobre el contenido ---------- */
+/* ---------- Pantallas angostas: sin sidebar (LayoutAyuda no la renderiza) ---------- */
 @media (max-width: 900px) {
   .ayuda-layout {
     grid-template-columns: minmax(0, 1fr);
   }
-  .ayuda-sidebar {
-    position: static;
-    height: auto;
-    max-height: 60vh;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border-default);
+  .ayuda-buscador-superior {
+    margin-bottom: var(--space-4);
   }
+  .ayuda-buscador-campo input {
+    min-height: 44px;
+    font-size: 16px;
+    /* Room for the 44 px clear button so it never covers the query. */
+    padding-right: 50px;
+  }
+  .ayuda-buscador-limpiar {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .ayuda-indice-movil {
+    margin-top: var(--space-4);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-raised);
+  }
+  .ayuda-indice-movil summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 var(--space-4);
+    font-weight: var(--weight-semibold);
+    cursor: pointer;
+  }
+  .ayuda-indice-movil ol {
+    margin: 0;
+    padding: 0 var(--space-4) var(--space-3) var(--space-8);
+  }
+  .ayuda-indice-movil a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* El padding de `.adoc-main` baja a 16 px: el layout cancela solo eso, no los 28 de escritorio. */
+@media (max-width: 767px) {
+  .ayuda-layout {
+    margin: -16px -16px -40px;
+    min-height: calc(100% + 56px);
+  }
+  .ayuda-contenido {
+    padding: 16px 16px 40px;
+  }
+}
+
+/* Palabras, imágenes, código y tablas largas no ensanchan la página. */
+.ayuda-pagina {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ayuda-pagina :is(img, video, svg) {
+  max-width: 100%;
+  height: auto;
+}
+.ayuda-pagina :is(pre, code) {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+}
+.ayuda-pagina table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

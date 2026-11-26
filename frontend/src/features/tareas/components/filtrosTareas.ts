@@ -21,6 +21,20 @@ export interface FiltrosColumnasTareas {
   estado: EstadoTarea[];
 }
 
+export const ETIQUETA_PRIORIDAD: Record<Prioridad, string> = {
+  alta: "Alta",
+  media: "Media",
+  baja: "Baja",
+};
+
+export const ETIQUETA_ESTADO: Record<EstadoTarea, string> = {
+  pendiente: "Pendiente",
+  en_curso: "En curso",
+  pausa: "Pausa",
+  resuelta: "Resuelta",
+  cancelada: "Cancelada",
+};
+
 export const FILTROS_COLUMNAS_INICIALES: FiltrosColumnasTareas = {
   numero: "",
   titulo: "",

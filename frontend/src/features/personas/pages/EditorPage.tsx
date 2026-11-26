@@ -11,7 +11,9 @@ import { PanelPestana, Pestanas } from "../../../shared/ui/Pestanas";
 
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { MembresiasSelector } from "../../../shared/ui/MembresiasSelector";
+import { BarraAccionesFija } from "../../../shared/ui/BarraAccionesFija";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 import {
   verificarDocumento,
   type CatalogosPersonas,
@@ -26,8 +28,8 @@ import {
   aGuardar,
   formularioDesde,
   formularioVacio,
-  hayErroresDocentes,
   hayErroresPersonales,
+  membresiasSugeridas,
   validar,
   type FormularioPersona,
 } from "../formularioPersona";
@@ -72,12 +74,17 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   const navegar = useNavigate();
   const { administrar, administrarPortal } = usePermisosPersonas();
   const guardar = useGuardarPersona(personaId);
+  const telefono = usePantallaTelefono();
   // Las dos pestañas son vistas de un mismo formulario: cambiar de una a otra reemplaza la
   // entrada del historial, así Atrás sale del formulario en lugar de recorrer pestañas.
   const [pestana, setPestana] = usePestanaURL(PESTANAS, "personales", { reemplazar: true });
   const volver = useDestinoVolver("persona");
   const [form, setForm] = useState<FormularioPersona>(() =>
-    personaActual ? formularioDesde(personaActual) : formularioVacio(),
+    personaActual ? formularioDesde(personaActual, cat) : formularioVacio(),
+  );
+  // Rol Docente precargado desde las designaciones de una persona sin cuenta.
+  const [conSugeridas] = useState(
+    () => personaActual !== null && membresiasSugeridas(personaActual, cat).length > 0,
   );
   // Versión con la que se abrió el formulario: si otro la cambió mientras tanto, el guardado
   // falla por concurrencia en lugar de pisar ese cambio.
@@ -118,14 +125,14 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
     ? `Ya existe una persona con este DNI: ${duplicado.nombre}${duplicado.legajo ? ` (legajo ${duplicado.legajo})` : ""}${estadoDuplicado(duplicado.activo)}`
     : undefined;
   const marcaPersonales = (enviado && hayErroresPersonales(errores)) || Boolean(errorDni);
-  const marcaDocentes = enviado && hayErroresDocentes(errores);
-  const otraConError = pestana === "personales" ? marcaDocentes : marcaPersonales;
+  // La pestaña de datos docentes es de sólo lectura: no puede tener errores.
+  const otraConError = pestana === "personales" ? false : marcaPersonales;
   const setDatos = (campo: keyof FormularioPersona["datos"], valor: string) =>
     setForm({ ...form, datos: { ...form.datos, [campo]: valor } });
 
   function enviar() {
     setEnviado(true);
-    if (hayErroresPersonales(errores) || hayErroresDocentes(errores) || errorDni) return;
+    if (hayErroresPersonales(errores) || errorDni) return;
     guardar.mutate(aGuardar(form, cat, versionInicial), {
       onSuccess: (p) => {
         permitirSalida();
@@ -144,6 +151,17 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
     visible ? (
       <span className="adoc-personas-marca-error" aria-label="con datos incompletos" />
     ) : null;
+
+  const botonesPie = (
+    <>
+      <Button variant="secondary" onClick={() => navegar(volver.ruta)}>
+        Cancelar
+      </Button>
+      <Button variant="primary" loading={guardar.isPending} onClick={enviar}>
+        {personaId ? "Guardar cambios" : "Crear persona"}
+      </Button>
+    </>
+  );
 
   return (
     <div className="adoc-personas">
@@ -181,7 +199,7 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
         onChange={(id) => setPestana(id as Pestana)}
         items={[
           { id: "personales", label: <>Datos personales{marca(marcaPersonales)}</> },
-          { id: "docentes", label: <>Datos docentes{marca(marcaDocentes)}</> },
+          { id: "docentes", label: "Datos docentes" },
         ]}
       />
       {otraConError && (
@@ -226,6 +244,12 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
           </section>
           <section className="adoc-personas-tarjeta">
             <h2>Roles y ámbitos</h2>
+            {conSugeridas && !soloLectura && (
+              <InlineAlert severity="info" title="Rol Docente precargado">
+                Se asigna al crear la cuenta, según sus designaciones. Podés quitarlo antes de
+                guardar.
+              </InlineAlert>
+            )}
             <MembresiasSelector
               filas={form.membresias}
               onChange={(membresias) => setForm({ ...form, membresias })}
@@ -247,16 +271,8 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
           style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}
         >
           <section className="adoc-personas-tarjeta">
-            <h2>Asignaciones</h2>
-            <AsignacionesPersona
-              filas={form.asignaciones}
-              onChange={(asignaciones) => setForm({ ...form, asignaciones })}
-              catalogos={cat}
-              soloLectura={soloLectura}
-            />
-            {enviado && errores.asignaciones && (
-              <span className="adoc-personas-error">{errores.asignaciones}</span>
-            )}
+            <h2>Designaciones vigentes</h2>
+            <AsignacionesPersona filas={form.asignaciones} catalogos={cat} />
           </section>
           <section className="adoc-personas-tarjeta">
             <h2>Perfil en Mi Portal</h2>
@@ -271,18 +287,11 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
         </PanelPestana>
       )}
 
-      <div className="adoc-personas-pie">
-        {soloLectura ? null : (
-          <>
-            <Button variant="secondary" onClick={() => navegar(volver.ruta)}>
-              Cancelar
-            </Button>
-            <Button variant="primary" loading={guardar.isPending} onClick={enviar}>
-              {personaId ? "Guardar cambios" : "Crear persona"}
-            </Button>
-          </>
-        )}
-      </div>
+      {soloLectura ? null : telefono ? (
+        <BarraAccionesFija>{botonesPie}</BarraAccionesFija>
+      ) : (
+        <div className="adoc-personas-pie">{botonesPie}</div>
+      )}
     </div>
   );
 }

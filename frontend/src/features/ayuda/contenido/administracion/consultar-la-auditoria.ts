@@ -91,6 +91,11 @@ export const consultarLaAuditoria: ArticuloAyuda = {
       respuesta:
         "La lista no se actualiza sola: pulsá Actualizar. Si usás filtros de fecha, revisá que Hasta incluya el momento del cambio.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px la búsqueda queda arriba y se aplica al hacer una pausa; debajo están «Filtros (n)» y el período (Hoy, 7 días, 30 días, Todo). «Filtros (n)» abre una hoja con Acción, Módulo, Desde y Hasta (dd/mm/aaaa), Tabla y Clave de fila, que se aplican con «Aplicar filtros»; los aplicados quedan como chips que podés quitar de a uno. Cada evento ocupa dos líneas y, al tocarlo, el detalle se abre justo debajo. La consulta sigue paginando de a 50.",
+    },
   ],
   relacionados: [
     "administracion/leer-el-dashboard-del-sistema",

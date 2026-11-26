@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Auth;
 using Modules.Designaciones.Domain;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
@@ -104,11 +105,14 @@ public sealed class MaquinaEstadosPedidoTests
 
     [Theory]
     [InlineData(EstadosPedido.Rechazado)]
-    [InlineData(EstadosPedido.EnLote)]
     [InlineData(EstadosPedido.Cancelado)]
-    public void Estado_terminal_no_admite_ninguna_accion_de_ningun_rol(string estado)
+    [InlineData(EstadosPedido.Aprobado)]
+    [InlineData(EstadosPedido.EnLote)]
+    [InlineData(EstadosPedido.NoAprobado)]
+    public void Fuera_del_circuito_no_se_admite_ninguna_accion_de_revision(string estado)
     {
         // [BR-designaciones-011] El rechazo (y el resto de los terminales) no se reabre.
+        // En lote y rechazado en la conciliación ya salieron del circuito de revisión.
         AccionPedido[] acciones =
         [
             new AccionPedido.Enviar(), new AccionPedido.Cancelar(), new AccionPedido.Aceptar(),
@@ -187,6 +191,115 @@ public sealed class MaquinaEstadosPedidoTests
         Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
             devuelto, new AlcancePedido(Materia, Guid.NewGuid()), new AccionPedido.Reenviar(), fueraDeAmbito));
     }
+
+    [Fact]
+    public void Sincronizar_un_pedido_en_lote_lo_aprueba_con_el_rol_de_mayor_alcance()
+    {
+        var actor = ConPermisos(RolesCircuito.Secretaria, Permisos.DesignacionesConciliar);
+
+        var transicion = MaquinaEstadosPedido.AplicarAccion(
+            PedidoEn(EstadosPedido.EnLote), new AlcancePedido(Materia, Carrera), new AccionPedido.Sincronizar(), actor);
+
+        Assert.Equal(EstadosPedido.Aprobado, transicion.EstadoResultante);
+        Assert.Equal(AccionesHistorial.Sincronizar, transicion.AccionHistorial);
+        Assert.Equal(RolesCircuito.Secretaria, transicion.CodigoRolActuante);
+    }
+
+    [Fact]
+    public void Conciliar_exige_el_permiso_aunque_el_rol_sea_departamental()
+    {
+        // La conciliación se decide por permiso, nunca por código de rol.
+        var sinPermiso = ConPermisos(RolesCircuito.Secretaria);
+
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            PedidoEn(EstadosPedido.EnLote), new AlcancePedido(Materia, Carrera), new AccionPedido.Sincronizar(), sinPermiso));
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            PedidoEn(EstadosPedido.EnLote), new AlcancePedido(Materia, Carrera), new AccionPedido.NoAprobar("No salió"), sinPermiso));
+    }
+
+    [Fact]
+    public void Conciliar_exige_el_ambito_del_pedido()
+    {
+        // Un Coordinador con el permiso sólo concilia su carrera [BR-designaciones-009].
+        var coordinador = new ActorContexto(
+            Guid.NewGuid(),
+            new HashSet<string> { RolesCircuito.CoordinadorCarrera },
+            new HashSet<Guid>(),
+            new HashSet<Guid> { Guid.NewGuid() })
+        {
+            Permisos = new HashSet<string> { Permisos.DesignacionesConciliar },
+        };
+
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            PedidoEn(EstadosPedido.EnLote), new AlcancePedido(Materia, Carrera), new AccionPedido.Sincronizar(), coordinador));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Rechazar_en_la_conciliacion_exige_motivo(string motivo)
+    {
+        var actor = ConPermisos(RolesCircuito.Administrativo, Permisos.DesignacionesConciliar);
+
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            PedidoEn(EstadosPedido.EnLote), new AlcancePedido(Materia, Carrera), new AccionPedido.NoAprobar(motivo), actor));
+    }
+
+    [Fact]
+    public void Rechazar_en_la_conciliacion_con_motivo_pasa_a_no_aprobado()
+    {
+        var actor = ConPermisos(RolesCircuito.Administrativo, Permisos.DesignacionesConciliar);
+
+        var transicion = MaquinaEstadosPedido.AplicarAccion(
+            PedidoEn(EstadosPedido.EnLote), new AlcancePedido(Materia, Carrera),
+            new AccionPedido.NoAprobar("La rectificación no lo aprobó"), actor);
+
+        Assert.Equal(EstadosPedido.NoAprobado, transicion.EstadoResultante);
+        Assert.Equal(AccionesHistorial.NoAprobar, transicion.AccionHistorial);
+        Assert.Equal("La rectificación no lo aprobó", transicion.Comentario);
+    }
+
+    [Fact]
+    public void Un_pedido_heredado_ya_materializado_no_se_rechaza_ni_se_edita_en_la_conciliacion()
+    {
+        // Se escribió sobre las designaciones al aceptar Decanato, antes de la conciliación.
+        var heredado = PedidoEn(EstadosPedido.EnLote);
+        heredado.MaterializadoEn = DateTimeOffset.UtcNow;
+        var actor = ConPermisos(
+            RolesCircuito.Secretaria, Permisos.DesignacionesConciliar, Permisos.DesignacionesEditar);
+
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            heredado, new AlcancePedido(Materia, Carrera), new AccionPedido.NoAprobar("No salió"), actor));
+        Assert.False(MaquinaEstadosPedido.PuedeEditar(heredado, actor));
+    }
+
+    [Theory]
+    [InlineData(EstadosPedido.NoAprobado)]
+    [InlineData(EstadosPedido.Aprobado)]
+    public void Solo_se_concilia_un_pedido_en_lote(string estado)
+    {
+        var actor = ConPermisos(RolesCircuito.Secretaria, Permisos.DesignacionesConciliar);
+
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            PedidoEn(estado), new AlcancePedido(Materia, Carrera), new AccionPedido.Sincronizar(), actor));
+    }
+
+    [Theory]
+    [InlineData(EstadosPedido.EnLote, true)]
+    [InlineData(EstadosPedido.NoAprobado, true)]
+    [InlineData(EstadosPedido.Aprobado, false)]
+    [InlineData(EstadosPedido.Rechazado, false)]
+    public void Con_designaciones_editar_se_edita_en_lote_o_rechazado_en_la_conciliacion(string estado, bool editable)
+    {
+        var conPermiso = ConPermisos(RolesCircuito.Administrativo, Permisos.DesignacionesEditar);
+        var sinPermiso = ConPermisos(RolesCircuito.Administrativo);
+
+        Assert.Equal(editable, MaquinaEstadosPedido.PuedeEditar(PedidoEn(estado), conPermiso));
+        Assert.False(MaquinaEstadosPedido.PuedeEditar(PedidoEn(estado), sinPermiso));
+    }
+
+    private static ActorContexto ConPermisos(string rol, params string[] permisos) =>
+        Actor(rol) with { Permisos = permisos.ToHashSet() };
 
     private static Pedido PedidoEn(string estado) => new()
     {

@@ -44,6 +44,11 @@ const CONFIGURACION: Record<TipoVolver, ConfiguracionVolver> = {
         permisos: ["designaciones.revisar"],
       },
       {
+        patron: "/designaciones/conciliacion",
+        etiqueta: "Conciliación",
+        permisos: ["designaciones.conciliar"],
+      },
+      {
         patron: "/designaciones/mis-pedidos",
         etiqueta: "Mis pedidos",
         permisos: ["designaciones.gestionar"],

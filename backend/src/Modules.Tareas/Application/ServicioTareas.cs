@@ -28,7 +28,8 @@ public sealed class ServicioTareas(
         var personas = await directorio.CargarAsync(tareas.SelectMany(t => new[] { t.ResponsableId, t.CreadoPorId }).Distinct().ToArray(), ct);
         var relaciones = Vecinos(await repositorio.ListarRelacionesDeAsync(tareas.Select(t => t.Id).ToArray(), ct));
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        return tareas.Select(t => Mapear(t, catalogos, personas, relaciones.GetValueOrDefault(t.Id) ?? [], detalle: false)).ToList();
+        var conHijas = (await repositorio.TareasConHijasVigentesAsync(Cancelada(catalogos), ct)).ToHashSet();
+        return tareas.Select(t => Mapear(t, catalogos, personas, relaciones.GetValueOrDefault(t.Id) ?? [], conHijas.Contains(t.Id), detalle: false)).ToList();
     }
 
     public async Task<TareaDto> ObtenerAsync(Guid id, CancellationToken ct)
@@ -93,6 +94,7 @@ public sealed class ServicioTareas(
 
         repositorio.Agregar(tarea);
         await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(tarea.TareaPadreId, actor, catalogos, ct);
         await transaccion.CommitAsync(ct);
         await AvisarAsignacionAsync(tarea);
         return await MapearDetalleAsync(tarea, ct);
@@ -164,6 +166,8 @@ public sealed class ServicioTareas(
 
         MaquinaEstadosTarea.CambiarEstado(tarea, actor, actual, destino, datos.Comentario, datos.Solucion);
         await repositorio.GuardarAsync(ct);
+        // Desde la propia tarea: al reabrirse vuelve a tomar el promedio de sus hijas.
+        await RecalcularAvanceAsync(tarea.Id, actor, catalogos, ct);
         await transaccion.CommitAsync(ct);
         await AvisarAAmbosAsync(tarea, actor.UsuarioId, TiposEventoNotificacion.TareaEstadoCambiado,
             nombreActor => AvisosTarea.EstadoCambiado(tarea, nombreActor, actual.Nombre, destino.Nombre));
@@ -177,11 +181,85 @@ public sealed class ServicioTareas(
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
         RequerirVersion(tarea.Version, datos.Version);
-        MaquinaEstadosTarea.EditarAvance(tarea, actor, datos.PorcentajeAvance);
+        var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
+        var hijas = await repositorio.AvancesDeHijasVigentesAsync(id, Cancelada(catalogos), ct);
+        MaquinaEstadosTarea.EditarAvance(tarea, actor, datos.PorcentajeAvance, hijas.Count > 0);
         await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(tarea.TareaPadreId, actor, catalogos, ct);
         await transaccion.CommitAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
+
+    /// <summary>
+    /// Vuelve hija a una tarea existente: la decide la autoridad creadora del padre. La tarea y sus
+    /// descendientes toman el Proyecto del padre, como una hija creada desde cero.
+    /// </summary>
+    public async Task<TareaDto> VincularHijaAsync(Guid id, VincularHijaRequest datos, CancellationToken ct)
+    {
+        if (id == datos.TareaId) throw ReglaDeJerarquia("Una tarea no puede ser hija de sí misma.");
+
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareasAsync([id, datos.TareaId], ct);
+        var actor = await directorio.ResolverActorAsync(ct);
+        var padre = await RequerirAsync(id, actor, ct);
+        MaquinaEstadosTarea.RequerirPuedeEditarCampos(padre, actor);
+        var hija = await RequerirAsync(datos.TareaId, actor, ct);
+        RequerirVersion(hija.Version, datos.Version);
+        var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
+
+        if (hija.TareaPadreId is not null)
+            throw ReglaDeJerarquia("La tarea ya es hija de otra. Desvinculala primero.");
+        if (hija.EstadoId == Cancelada(catalogos))
+            throw ReglaDeJerarquia("Una tarea cancelada no se puede vincular.");
+        var descendientes = await repositorio.DescendientesAsync(hija.Id, ct);
+        if (descendientes.Any(d => d.Id == padre.Id))
+            throw ReglaDeJerarquia("Una tarea no puede ser hija de una de sus propias hijas.");
+
+        var ahora = DateTimeOffset.UtcNow;
+        if (hija.ProyectoId != padre.ProyectoId)
+        {
+            await RequerirProyectoQueAdmiteTareasAsync(padre.ProyectoId, catalogos, ct);
+            hija.ProyectoId = padre.ProyectoId;
+            foreach (var descendiente in descendientes)
+            {
+                descendiente.ProyectoId = padre.ProyectoId;
+                MaquinaEstadosTarea.Registrar(descendiente, actor, AccionesHistorial.Editar, null, ahora);
+            }
+        }
+
+        hija.TareaPadreId = padre.Id;
+        MaquinaEstadosTarea.Registrar(hija, actor, AccionesHistorial.Editar, $"Vinculada como hija de la tarea N° {padre.Numero}", ahora);
+        MaquinaEstadosTarea.Registrar(padre, actor, AccionesHistorial.Editar, $"Vinculó como hija la tarea N° {hija.Numero}", ahora);
+        await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(padre.Id, actor, catalogos, ct);
+        await transaccion.CommitAsync(ct);
+        return await MapearDetalleAsync(padre, ct);
+    }
+
+    /// <summary>La tarea queda sin padre y conserva su Proyecto; el avance del padre se recalcula sin ella.</summary>
+    public async Task<TareaDto> DesvincularHijaAsync(Guid id, Guid hijaId, uint? version, CancellationToken ct)
+    {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareasAsync([id, hijaId], ct);
+        var actor = await directorio.ResolverActorAsync(ct);
+        var padre = await RequerirAsync(id, actor, ct);
+        MaquinaEstadosTarea.RequerirPuedeEditarCampos(padre, actor);
+        var hija = await RequerirAsync(hijaId, actor, ct);
+        if (hija.TareaPadreId != id) throw NoEncontrada("La tarea no es hija de esta tarea.");
+        RequerirVersion(hija.Version, version);
+
+        var ahora = DateTimeOffset.UtcNow;
+        hija.TareaPadreId = null;
+        MaquinaEstadosTarea.Registrar(hija, actor, AccionesHistorial.Editar, $"Desvinculada de la tarea N° {padre.Numero}", ahora);
+        MaquinaEstadosTarea.Registrar(padre, actor, AccionesHistorial.Editar, $"Desvinculó la tarea N° {hija.Numero}", ahora);
+        await repositorio.GuardarAsync(ct);
+        await RecalcularAvanceAsync(padre.Id, actor, await repositorio.ObtenerCatalogosAsync(ct), ct);
+        await transaccion.CommitAsync(ct);
+        return await MapearDetalleAsync(padre, ct);
+    }
+
+    private static ExcepcionAplicacion ReglaDeJerarquia(string mensaje) =>
+        new(TipoErrorAplicacion.ReglaDeNegocio, "tarea-regla-invalida", mensaje);
 
     public async Task<TareaDto> ComentarAsync(Guid id, ComentarTareaRequest datos, CancellationToken ct)
     {
@@ -321,6 +399,32 @@ public sealed class ServicioTareas(
         return (prioridadElegida, tipoElegido);
     }
 
+    private static short Cancelada(CatalogosTareas catalogos) =>
+        catalogos.EstadoTarea(EstadosTarea.Cancelada)?.Id
+            ?? throw new InvalidOperationException("Falta el estado Cancelada en el catálogo.");
+
+    /// <summary>
+    /// Sube por los ancestros actualizando el promedio de cada uno. Corre bajo el bloqueo de la
+    /// raíz que ya tomó el comando y guarda en cada nivel para que el siguiente lea el valor nuevo.
+    /// Una tarea cerrada conserva su avance, pero su padre igual se recalcula.
+    /// </summary>
+    private async Task RecalcularAvanceAsync(Guid? desdeId, ActorTareas actor, CatalogosTareas catalogos, CancellationToken ct)
+    {
+        var cancelada = Cancelada(catalogos);
+        for (var id = desdeId; id is { } actual;)
+        {
+            var tarea = await repositorio.ObtenerAsync(actual, ct)
+                ?? throw NoEncontrada("La tarea no existe.");
+            if (!EstadosTarea.EsTerminal(catalogos.EstadoTarea(tarea.EstadoId)?.Codigo ?? string.Empty))
+            {
+                var hijas = await repositorio.AvancesDeHijasVigentesAsync(actual, cancelada, ct);
+                MaquinaEstadosTarea.AplicarAvanceDeHijas(tarea, actor, hijas);
+                await repositorio.GuardarAsync(ct);
+            }
+            id = tarea.TareaPadreId;
+        }
+    }
+
     private async Task<TareaDto> MapearDetalleAsync(Tarea tarea, CancellationToken ct)
     {
         var ids = tarea.Comentarios.Select(c => c.AutorId).Concat(tarea.Historial.Select(h => h.ActorId))
@@ -328,7 +432,8 @@ public sealed class ServicioTareas(
         var personas = await directorio.CargarAsync(ids, ct);
         var vecinos = Vecinos(await repositorio.ListarRelacionesDeAsync(tarea.Id, ct));
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        return Mapear(tarea, catalogos, personas, vecinos.GetValueOrDefault(tarea.Id) ?? [], detalle: true);
+        var hijas = await repositorio.AvancesDeHijasVigentesAsync(tarea.Id, Cancelada(catalogos), ct);
+        return Mapear(tarea, catalogos, personas, vecinos.GetValueOrDefault(tarea.Id) ?? [], hijas.Count > 0, detalle: true);
     }
 
     private static TareaDto Mapear(
@@ -336,6 +441,7 @@ public sealed class ServicioTareas(
         CatalogosTareas catalogos,
         IReadOnlyDictionary<Guid, PersonaResuelta> personas,
         IReadOnlyList<Guid> relacionadas,
+        bool avanceCalculado,
         bool detalle) =>
         new(
             t.Id, t.Numero, t.Titulo, t.Descripcion, t.FechaInicio, t.FechaFin,
@@ -355,7 +461,7 @@ public sealed class ServicioTareas(
                     .Select(e => new EventoTareaDto(e.Id, e.Accion, e.ActorRol, Persona(personas, e.ActorId).Nombre, catalogos.EstadoTarea(e.EstadoId)?.Codigo ?? string.Empty, e.Detalle, e.CreadoEn))
                     .ToList()
                 : [],
-            t.ProyectoId, t.TareaPadreId, relacionadas, t.Version);
+            t.ProyectoId, t.TareaPadreId, relacionadas, t.Version, avanceCalculado);
 
     internal static PersonaTareaDto Persona(IReadOnlyDictionary<Guid, PersonaResuelta> personas, Guid id) =>
         personas.TryGetValue(id, out var p)

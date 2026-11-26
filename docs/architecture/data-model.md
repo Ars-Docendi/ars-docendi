@@ -7,11 +7,11 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 **Entity Framework Core 10** con migraciones por módulo. Cada módulo tiene su propio `DbContext` apuntando a su schema:
 
 - `IdentityDbContext` → schemas `identity` y `audit` (vive en `ArsDocendi.Shared`, ver más abajo)
-- `DesignacionesDbContext` → schema `designaciones`
+- `DesignacionesDbContext` → schemas `designaciones` y `comisiones` (snapshot de Guaraní; historial de migraciones en `designaciones`)
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
 - `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial` y los catálogos `estados_proyecto`, `estados_tarea`, `prioridades` y `tipos_tarea`); DDL versionado en `database/tareas/`. Estados, prioridades y tipos se referencian por IDs numéricos; los números visibles de proyectos/tareas usan secuencias. Las cinco tablas de negocio tienen triggers `audit.attach`; sus snapshots nuevos usan la allowlist por tabla de `audit.safe_snapshot` y excluyen título, descripción, solución, texto y detalle libres.
-- `NotificacionesDbContext` → schema `notificaciones` (`notificaciones`); DDL versionado en `database/notificaciones/`. **Sin** `audit.attach`: la única mutación posterior al alta es el instante de lectura (una fila de auditoría por clic), el evento de origen ya queda auditado en el módulo emisor y los textos copian nombres.
+- `NotificacionesDbContext` → schema `notificaciones` (`notificaciones`, `suscripciones_push`, `preferencias_push`); DDL versionado en `database/notificaciones/`. **Sin** `audit.attach`: la única mutación posterior al alta es el instante de lectura (una fila de auditoría por clic), el evento de origen ya queda auditado en el módulo emisor y los textos copian nombres.
 - `AlmacenamientoDbContext` → schema `storage`
 
 ### Dueño de `identity` y `audit`
@@ -126,15 +126,27 @@ Microsoft (`azure_oid` y `azure_tid`) en el primer ingreso, sin crear personas n
 
 ### Designaciones (`schema: designaciones`)
 
-El baseline incluye el catálogo auditado
-`dedicaciones`: UUID, código único 1–6, nombre, orden único, activo y `created_at`.
-`pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id` lo referencian
-mediante FK nullable. Los textos históricos Categoría 0 y los snapshots se
-conservan como parte del modelo, sin backfills de alpha en instalaciones nuevas.
-Los triggers de selección impiden insertar texto libre
-o cambiar los textos legados. Nuevas designaciones y solicitudes Alta/Cambio
-requieren una referencia activa; una actualización sin cambio de dedicación
-conserva el valor histórico, incluso si su categoría fue desactivada.
+El catálogo auditado `dedicaciones` tiene UUID, código único 0–6 (Categoría 0
+a 6), nombre, orden único, activo y `created_at`. Es la **única** forma de
+dedicación: `pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id`
+lo referencian por FK. Las columnas de texto `dedicacion` y
+`dedicacion_solicitada` quedan sin uso: los triggers rechazan cualquier texto
+nuevo y el backend no las lee
+(`20261126134543_DedicacionCatalogoYExternosDesignaciones`). Nuevas
+designaciones y solicitudes Alta/Cambio internas requieren una referencia
+activa; una actualización sin cambio de dedicación conserva la referencia,
+incluso si su categoría fue desactivada. Los snapshots ya congelados conservan
+el texto que fotografiaron.
+
+**Docentes externos.** `sectores_externos` (UUID, `codigo` único con la sigla
+de la propuesta y del lote, nombre, activo) cataloga los departamentos o áreas
+que pagan a un docente externo. `designaciones.sector_externo_id` y
+`pedidos.sector_externo_id` lo referencian. Una designación es interna (cargo
+y dedicación, sin sector) o externa (sector, sin cargo ni dedicación):
+`designaciones_interna_o_externa` lo exige, por eso `cargo_id` es nullable. En
+`pedidos`, `pedidos_interno_o_externo` prohíbe mezclar y
+`pedidos_completitud_circuito` acepta cargo y dedicación, o sector. Los
+triggers validan que el sector elegido exista y esté activo.
 
 `pedidos` conserva por separado las horas solicitadas de materia,
 investigación y externas, además del `snapshot` congelado al enviar. En
@@ -161,17 +173,18 @@ Una persona tiene a lo sumo una
 designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` sobre
 `(persona_id, materia_id)`).
 
-| Tabla              | Descripción                                                                                                                     | PII |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --- |
-| `cargos`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                  | No  |
-| `periodos`         | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                                | No  |
-| `dedicaciones`     | Catálogo activo de Categorías 1–6; conserva referencias históricas si una categoría se desactiva                                | No  |
-| `pedidos`          | **El trámite.** Cubre exactamente una materia; dedicación y las tres horas solicitadas; `snapshot` congela al enviar            | No  |
-| `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                            | No  |
-| `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
-| `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
-| `pedido_sellos`    | Cadena de integridad por período: un sello firmado por evento fuera de borrador. Sólo inserción (ver abajo)                     | No  |
-| `periodo_anclas`   | Cabezas de la cadena publicadas en un lote exportado o registradas por el sellado retroactivo. Sólo inserción                   | No  |
+| Tabla               | Descripción                                                                                                                                       | PII |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `cargos`            | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                                    | No  |
+| `periodos`          | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                                                  | No  |
+| `dedicaciones`      | Catálogo activo de Categorías 0–6; conserva referencias históricas si una categoría se desactiva                                                  | No  |
+| `sectores_externos` | Departamentos o áreas que pagan a un docente externo; `codigo` es la sigla de la propuesta y del lote                                             | No  |
+| `pedidos`           | **El trámite.** Cubre exactamente una materia; dedicación y las tres horas solicitadas; `snapshot` congela al enviar                              | No  |
+| `pedido_adjuntos`   | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                                              | No  |
+| `pedido_historial`  | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                                         | No  |
+| `designaciones`     | **El estado vigente** `(persona, materia, cargo y dedicación o sector externo, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
+| `pedido_sellos`     | Cadena de integridad por período: un sello firmado por evento fuera de borrador. Sólo inserción (ver abajo)                                       | No  |
+| `periodo_anclas`    | Cabezas de la cadena publicadas en un lote exportado o registradas por el sellado retroactivo. Sólo inserción                                     | No  |
 
 Pedido y Designación usan `xmin` como token EF; no requieren agregar una columna
 ordinaria. Administración y circuito comparten exclusión transaccional por persona,
@@ -181,6 +194,17 @@ antes de confirmar estado, vigencias e historial. Un Cambio en su fecha de inici
 conserva ID/inicio y actualiza cargo, dedicación, tres horas y origen; un Cambio
 posterior cierra/abre atómicamente sin retirar EXCLUDE. El criterio de vigente sigue
 siendo `vigente_hasta IS NULL`.
+
+Estados del pedido: `borrador`, `en_revision_coordinador`, `en_revision_secretaria`,
+`en_revision_decanato`, `devuelto`, `en_lote` (aceptado por Decanato, en el Excel y esperando la
+conciliación), `no_aprobado` (rechazado en la conciliación; sale del Excel y se puede editar para
+volver a `en_lote`), `aprobado` (sincronizado; terminal), `rechazado` y `cancelado`. Las acciones
+del historial suman `sincronizar` y `no_aprobar`. La designación se escribe al **sincronizar**,
+no al aceptar en Decanato. `pedidos.materializado_en` marca los pedidos `en_lote` anteriores a la
+conciliación, ya materializados al aceptar: sincronizarlos no vuelve a escribir la designación y
+no se pueden rechazar ni editar. `CHECK pedidos_materializado_coherente` lo admite sólo en
+`en_lote` o `aprobado`. La sincronización escribe además la membresía Docente de la persona en
+`identity.user_roles` (vía `IAdministracionIdentity`, en la misma transacción) si tiene usuario.
 
 Listado y detalle son consultas distintas: grilla sin documentos y con un resumen
 de hasta cuatro eventos reales por pedido (sin comentarios), detalle completo con
@@ -198,6 +222,15 @@ libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
 | Tabla                 | Descripción                                                                                                                                                                                           | PII |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
+
+**Lectura por el asistente.** `solicitudes_reserva` es legible por los dos roles de
+lectura del asistente: `GRANT SELECT` en todas sus columnas
+(`database/asistente/001_asistente_grants.sql` y `011_asistente_grants_dominios.sql`, listado en `manifiesto-privilegios.json`)
+y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT` cuyo predicado espeja la
+pantalla: `aulas.aprobar` ve todas; `aulas.solicitar` sólo las propias
+(`docente_id = identity.asistente_persona()`). El dueño (la aplicación) queda exento.
+La policy y los `COMMENT ON` viven en las migraciones `RlsAsistenteSolicitudesAulas` y
+`ComentariosAsistenteSolicitudesAulas`. `aulas.__EFMigrationsHistory` no se concede.
 
 `solicitudes_reserva` suma, desde la migración `20261102030524_MotivoCancelacionYRolSolicitanteAulas`:
 
@@ -219,6 +252,55 @@ Una fila por usuario destinatario (fan-out al momento del evento): varios Jefes 
 | `notificaciones` | `id`, `destinatario_usuario_id` (FK `identity.users`), `rol_destino` (NULL = cualquier perfil), `tipo_evento`, `tipo_entidad` (`SOLICITUD_AULA`, `PEDIDO_DESIGNACION`, `TAREA`), `entidad_id` (sin FK: apunta a tres módulos), `titulo`, `mensaje` y `contexto jsonb` (snapshots inmutables), `leida_en`, `creada_en` | Sí, indirecta: los textos nombran personas |
 
 Índice `(destinatario_usuario_id, leida_en, creada_en DESC)`: sirve la cuenta de no leídas y las dos listas. CHECK: `tipo_entidad` cerrado, textos no vacíos, `contexto` objeto JSON. `rol_destino` es texto libre (los roles son datos), igual que `aulas.solicitudes_reserva.rol_solicitante`.
+
+**Web Push** (change `notificaciones-push`). Dos tablas más, también sin `audit.attach` (son ajustes de dispositivo e interfaz y las claves de una suscripción no deben copiarse al log de auditoría):
+
+| Tabla                | Descripción                                                                                                                                                                                                                                            | PII                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `suscripciones_push` | `id`, `usuario_id` (FK `identity.users`, `ON DELETE CASCADE`), `endpoint` (único: URL del servicio de push), `p256dh` y `auth` (claves de cifrado de la suscripción), `creada_en`. Una fila por dispositivo                                            | Sí, indirecta: el endpoint identifica un dispositivo |
+| `preferencias_push`  | PK `(usuario_id, modulo)`, `habilitado`, `actualizada_en`. Interruptor del canal push por módulo; una fila ausente significa habilitado. `modulo` con CHECK (`AULAS`, `DESIGNACIONES`, `TAREAS`); el módulo de un aviso se deriva de su `tipo_entidad` | No                                                   |
+
+Un endpoint ya existente se **reasigna** al usuario que lo suscribe (un dispositivo es de quien tiene la sesión). Las filas se borran al dar de baja, cuando el servicio de push responde 404/410 y con el usuario.
+
+### Comisiones (`schema: comisiones`) — dueño: `Modules.Designaciones`
+
+Copia de sólo lectura, regenerable, de las comisiones que informa SIU-Guaraní,
+en un schema propio separado de `designaciones`. El prefijo `sga_` marca datos
+externos que Ars Docendi no edita. El DDL vive en `database/comisiones/` y lo
+aplica la migración de Designaciones, cuyo historial queda en
+`designaciones.__EFMigrationsHistory`.
+
+| Tabla                   | Descripción                                                                                                     | PII              |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `sga_importaciones`     | Cada intento de importación: período, actor, estado, cantidades y causa genérica de falla. Único auditado       | No               |
+| `sga_comisiones`        | Una fila por comisión; PK = id de Guaraní (estable entre reimportaciones); `materia_id` vinculada por código    | No               |
+| `sga_comision_carreras` | Carreras/propuestas de la comisión; `carrera_id` vinculada por código                                           | No               |
+| `sga_comision_docentes` | Docentes con nombre y responsabilidad; `persona_id` vinculada por documento. El documento **no** se persiste    | Parcial — nombre |
+| `sga_comision_horarios` | Bandas por asignación de Guaraní (día 1–7, desde, hasta, aula); una asignación puede repetirse entre comisiones | No               |
+
+Cada importación reemplaza en una transacción sólo las comisiones de su período
+(las hijas caen por cascada) y recalcula todos los vínculos desde Guaraní +
+`identity`, por eso no hay datos manuales que perder. Los vínculos a `identity`
+son FKs nullable `ON DELETE SET NULL`: `NULL` = "no existe en el sistema" y el
+snapshot nunca bloquea una operación sobre personas o catálogos. Un índice único
+parcial sobre `sga_importaciones(periodo_lectivo_guarani_id) WHERE estado =
+'en_curso'` impide dos importaciones simultáneas del mismo período.
+
+**Lectura por el asistente.** Las cuatro tablas de datos (no `sga_importaciones`) son
+legibles por los dos roles de lectura del asistente: `GRANT SELECT` por columna
+(`database/asistente/001_asistente_grants.sql` y `011_asistente_grants_dominios.sql`, listado en
+`manifiesto-privilegios.json`) y RLS `ENABLE` —no `FORCE`— con una policy `FOR SELECT`
+por tabla cuyo predicado es `identity.asistente_tiene_permiso('comisiones.ver')`, sin
+ámbito. El dueño (la aplicación y el importador) queda exento. Las policies y los
+`COMMENT ON` viven en las migraciones `RlsAsistenteComisionesDesignaciones` y
+`ComentariosAsistenteComisionesDesignaciones`. No se concede `sga_importaciones`
+(nombra al usuario que importó), `importacion_id`, `periodo_lectivo_guarani_id`,
+`modalidad_codigo`, `created_at` ni `asignacion_guarani_id`.
+
+**Excepción de auditoría**: `sga_comisiones` y sus hijas no llevan
+`audit.attach`; auditarlas volcaría cientos de filas por importación en
+`audit.change_log` por datos regenerables. La trazabilidad del snapshot la da
+`sga_importaciones`, que sí está auditada.
 
 ### Portal (`schema: portal`)
 
@@ -282,8 +364,9 @@ persona con perfil cargado tiene que fallar y que alguien lo mire.
 
 #### Lo que el asistente ve de portal, y lo que no
 
-Seis de las diez tablas se le conceden al asistente —`perfiles`, `educaciones`,
-`certificaciones`, `experiencias`, `habilidades` y `docente_habilidades`— con
+Siete de las diez tablas se le conceden al asistente —`perfiles`, `educaciones`,
+`certificaciones`, `experiencias`, `habilidades`, `docente_habilidades` y, desde
+2026-11-07, `proyectos` sin su `descripcion`— con
 `GRANT` por columna y `ENABLE ROW LEVEL SECURITY`. El predicado es una **disyunción**
 y no conjuga el ámbito, porque el portal está archivado por persona y el ámbito no
 dice nada sobre un dato de persona:
@@ -293,19 +376,22 @@ persona_id = identity.asistente_persona()
 OR identity.asistente_tiene_permiso('portal.ver_trayectoria_ajena')
 ```
 
-Ese permiso **nace concedido a nadie**: con el `GRANT` puesto, cada actor ve
-exactamente su propio perfil hasta que Secretaría decida a quién dárselo.
+Ese permiso lo tiene **únicamente el rol `jefe_catedra`** (decisión del equipo,
+2026-11-07; antes no lo tenía nadie), y el predicado efectivo de las policies lo acota
+con `identity.asistente_alcanza_a`: el jefe ve el perfil propio y el de los docentes con
+designación vigente en sus materias. Cualquier otro rol ve exactamente su propio perfil
+hasta que alguien le conceda el permiso desde `/roles`.
 
-Las otras cuatro **no se conceden**. `contactos` guarda el teléfono y el mail
+Las otras tres **no se conceden**. `contactos` guarda el teléfono y el mail
 personales, y el contacto institucional ya sale de `identity.personas.telefono` e
-`identity.users.upn`: es todo el riesgo y ninguna pregunta nueva. `cvs`, `proyectos`
-y `proyecto_documentos` no las pide ninguna pregunta del catálogo, y una tabla
+`identity.users.upn`: es todo el riesgo y ninguna pregunta nueva. `cvs` y
+`proyecto_documentos` no las pide ninguna pregunta del catálogo, y una tabla
 expuesta que nadie consulta es prefijo de prompt que se paga en cada llamada.
 
-Cuatro columnas quedan afuera con motivo escrito en `manifiesto-privilegios.json`:
+Cinco columnas quedan afuera con motivo escrito en `manifiesto-privilegios.json`:
 `habilidades.usos` es un contador agregado sobre todo el padrón que una policy por
 fila no puede acotar; `sugerido` y `canonica_id` son curaduría del vocabulario; y
-`experiencias.descripcion` es texto libre autodeclarado que el enmascarador no puede
+`experiencias.descripcion` y `proyectos.descripcion` son texto libre autodeclarado que el enmascarador no puede
 proteger, porque toda expresión sobre una columna reporta OID 0 y se trata como
 pública.
 
@@ -333,6 +419,10 @@ historial y el log. Por eso cada evento fuera de borrador queda sellado en
   del pedido tras el evento; `hash` cubre el evento y `hash_estado`; `firma` es HMAC-SHA256
   con una clave por `version_clave` que vive en los secretos del host, nunca en la base. Un
   sello insertado por SQL directo no puede firmarse.
+- **Formato versionado.** `version_payload` dice con qué formato canónico se calcularon
+  `hash_estado` y `hash` (`v1`: dedicación textual; `v2`: dedicación de catálogo y sector
+  externo). La verificación usa el del sello: cambiar el formato exige una versión nueva, y
+  los sellos anteriores nunca se recalculan ni se vuelven a firmar.
 - **Sólo inserción.** `pedido_sellos` y `periodo_anclas` rechazan UPDATE/DELETE;
   `pedido_historial` rechaza cambiar un evento fuera de borrador y DELETE salvo el de un pedido en
   borrador; `pedidos` rechaza borrar un pedido fuera de borrador.
@@ -479,7 +569,7 @@ Tres decisiones de esquema que sostienen la desvinculación, y las tres están e
 
 Retención de 90 días configurable, con purga automática en el proceso (`PurgaDeRegistros` + un servicio hospedado) y test de retención en las dos direcciones. Una retención sin un mecanismo que borre es una frase en un documento.
 
-**Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql`, que ejecuta el migrador del módulo con las tablas ya creadas.
+**Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql` (protegido) y `011_asistente_grants_dominios.sql` (comisiones, aulas, `portal.proyectos`), que ejecuta el migrador del módulo con las tablas ya creadas.
 
 ### El historial propio y la auditoría de soporte
 
@@ -655,20 +745,21 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 
 ### Excepciones vigentes
 
-| From                             | To                  | Justificación                                                                                                    |
-| -------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `designaciones.pedidos`          | `identity.personas` | Un pedido apuntando a una persona inexistente es un registro legal roto: el costo de la inconsistencia es máximo |
-| `designaciones.pedidos`          | `identity.materias` | La materia canónica determina la cátedra del Jefe de Cátedra                                                     |
-| `designaciones.pedidos`          | `identity.carreras` | La carrera determina el Coordinador competente (BR-designaciones-009)                                            |
-| `designaciones.pedido_historial` | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
-| `designaciones.pedido_historial` | `identity.users`    | Ídem, para el actor                                                                                              |
-| `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
-| `designaciones.designaciones`    | `identity.materias` | FK `ON DELETE RESTRICT` (`20261013170855_IntegridadMateriaDesignaciones.sql`)                                    |
-| `designaciones.designaciones`    | `identity.carreras` | Ídem que pedidos                                                                                                 |
-| `aulas.solicitudes_reserva`      | `identity.personas` | Una solicitud sin docente resoluble es un registro roto — mismo criterio que `designaciones.pedidos`             |
-| `aulas.solicitudes_reserva`      | `identity.materias` | La materia se acota a las asignadas al docente — mismo criterio que `designaciones.pedidos.materia_id`           |
-| `notificaciones.notificaciones`  | `identity.users`    | Un aviso sin destinatario resoluble es una fila rota — mismo criterio que las demás FK hacia `identity`          |
-| `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
+| From                                                       | To                  | Justificación                                                                                                    |
+| ---------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `designaciones.pedidos`                                    | `identity.personas` | Un pedido apuntando a una persona inexistente es un registro legal roto: el costo de la inconsistencia es máximo |
+| `designaciones.pedidos`                                    | `identity.materias` | La materia canónica determina la cátedra del Jefe de Cátedra                                                     |
+| `designaciones.pedidos`                                    | `identity.carreras` | La carrera determina el Coordinador competente (BR-designaciones-009)                                            |
+| `designaciones.pedido_historial`                           | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
+| `designaciones.pedido_historial`                           | `identity.users`    | Ídem, para el actor                                                                                              |
+| `designaciones.designaciones`                              | `identity.personas` | Ídem que pedidos                                                                                                 |
+| `designaciones.designaciones`                              | `identity.materias` | FK `ON DELETE RESTRICT` (`20261013170855_IntegridadMateriaDesignaciones.sql`)                                    |
+| `designaciones.designaciones`                              | `identity.carreras` | Ídem que pedidos                                                                                                 |
+| `aulas.solicitudes_reserva`                                | `identity.personas` | Una solicitud sin docente resoluble es un registro roto — mismo criterio que `designaciones.pedidos`             |
+| `aulas.solicitudes_reserva`                                | `identity.materias` | La materia se acota a las asignadas al docente — mismo criterio que `designaciones.pedidos.materia_id`           |
+| `notificaciones.notificaciones`                            | `identity.users`    | Un aviso sin destinatario resoluble es una fila rota — mismo criterio que las demás FK hacia `identity`          |
+| `notificaciones.suscripciones_push` y `.preferencias_push` | `identity.users`    | `ON DELETE CASCADE`: son ajustes del usuario y no tienen sentido sin él                                          |
+| `audit.change_log`                                         | `identity.users`    | Preexistente                                                                                                     |
 
 Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.
 

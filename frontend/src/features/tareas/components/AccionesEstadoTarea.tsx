@@ -45,6 +45,14 @@ export function AccionesEstadoTarea({
   const [texto, setTexto] = useState("");
   const [avance, setAvance] = useState(String(tarea.porcentajeAvance));
 
+  // El avance puede cambiar por otra vía (Resuelta, hijas): el campo lo sigue, salvo que haya
+  // un valor sin guardar. Se ajusta durante el render para no perder lo que se está escribiendo.
+  const [avancePrevio, setAvancePrevio] = useState(tarea.porcentajeAvance);
+  if (tarea.porcentajeAvance !== avancePrevio) {
+    setAvancePrevio(tarea.porcentajeAvance);
+    if (avance === String(avancePrevio)) setAvance(String(tarea.porcentajeAvance));
+  }
+
   // Motivo/solución a medio escribir o avance modificado sin guardar: se avisa al salir.
   useGuardiaDeCambios(
     (destinoPendiente !== null && texto.trim() !== "") || avance !== String(tarea.porcentajeAvance),

@@ -39,7 +39,7 @@ export const adjuntarDocumentacion: ArticuloAyuda = {
       titulo: "Subí cada archivo",
       etiquetaIndice: "Subir archivos",
       cuerpo:
-        "Arrastrá el archivo a la zona correspondiente o hacé clic para elegirlo. El CV y el justificativo son PDF de hasta 10 MiB. Las fotos del DNI son JPEG o PNG de hasta 5 MiB cada una. Si cargás otro archivo en la misma zona, reemplaza al anterior.",
+        "Arrastrá el archivo a la zona correspondiente o hacé clic para elegirlo. El CV y el justificativo son PDF de hasta 10 MiB. Las fotos del DNI son JPEG o PNG de hasta 5 MiB cada una. Al hacer clic, el explorador muestra sólo los archivos de ese formato; si arrastrás uno de otro formato, la zona no lo toma y lo indica en rojo. Si cargás otro archivo en la misma zona, reemplaza al anterior.",
     },
     {
       titulo: "Quitá un adjunto si te equivocaste",
@@ -51,7 +51,7 @@ export const adjuntarDocumentacion: ArticuloAyuda = {
       titulo: "Guardá y corregí los avisos",
       etiquetaIndice: "Avisos al guardar",
       cuerpo:
-        "Si falta algo, el formulario no guarda y muestra el aviso Faltan adjuntos con la lista (por ejemplo, «Falta adjuntar: DNI (dorso)»); en una Baja el aviso es Falta el justificativo. Si un archivo no es del tipo o del tamaño indicado, el sistema lo rechaza al guardar y no crea el pedido.",
+        "Si falta algo, el formulario no guarda y muestra el aviso Faltan adjuntos con la lista (por ejemplo, «Falta adjuntar: DNI (dorso)»); en una Baja el aviso es Falta el justificativo. Si un archivo supera el tamaño indicado o su contenido no coincide con su formato, el sistema lo rechaza al guardar y no crea el pedido.",
       captura: {
         src: "/ayuda/designaciones/adjuntar-documentacion-paso-4.webp",
         alt: "Aviso «Faltan adjuntos» sobre las zonas de carga de un Alta.",

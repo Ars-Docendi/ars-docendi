@@ -18,7 +18,8 @@ interface ConfigEstado {
   icono: ReactElement;
 }
 
-// Mapeo estado → pill del diseño (etiqueta + icono Lucide + tono). en_lote → "Aprobado".
+// Mapeo estado → pill del diseño (etiqueta + icono Lucide + tono). en_lote espera la
+// conciliación; aprobado es un pedido sincronizado.
 const CONFIG: Record<EstadoPedido, ConfigEstado> = {
   borrador: { etiqueta: "Borrador", tono: "neutro", icono: <IconoFilePen /> },
   en_revision_coordinador: {
@@ -36,7 +37,12 @@ const CONFIG: Record<EstadoPedido, ConfigEstado> = {
     tono: "neutro",
     icono: <IconoClock />,
   },
-  en_lote: { etiqueta: "Aprobado", tono: "exito", icono: <IconoCircleCheck /> },
+  en_lote: { etiqueta: "En lote", tono: "neutro", icono: <IconoClock /> },
+  no_aprobado: {
+    etiqueta: "Rechazado en conciliación",
+    tono: "peligro",
+    icono: <IconoCircleX />,
+  },
   rechazado: { etiqueta: "Rechazado", tono: "peligro", icono: <IconoCircleX /> },
   devuelto: { etiqueta: "Devuelto", tono: "alerta", icono: <IconoCornerUpLeft /> },
   cancelado: { etiqueta: "Cancelado", tono: "neutro", icono: <IconoBan /> },

@@ -7,10 +7,10 @@ Producción vive únicamente en Debian; staging y previews, únicamente en Proxm
 No hay Load Balancing, Worker DNS, replicación ni failover. Una caída de Debian
 hace que producción quede indisponible.
 
-| Host                    | Plantilla versionada   | Hostnames admitidos                                        |
-| ----------------------- | ---------------------- | ---------------------------------------------------------- |
-| PC Debian (principal)   | `config-principal.yml` | `<DOMINIO>`, `ia.<DOMINIO>` (sólo Cloudflare Access)       |
-| VM Proxmox (secundaria) | `config.yml`           | `staging.<DOMINIO>`, `*.<DOMINIO>`; antiguo prod bloqueado |
+| Host                    | Plantilla versionada   | Hostnames admitidos                                                            |
+| ----------------------- | ---------------------- | ------------------------------------------------------------------------------ |
+| PC Debian (principal)   | `config-principal.yml` | `<DOMINIO>`, `presentacion.<DOMINIO>`, `ia.<DOMINIO>` (sólo Cloudflare Access) |
+| VM Proxmox (secundaria) | `config.yml`           | `staging.<DOMINIO>`, `*.<DOMINIO>`; antiguo prod bloqueado                     |
 
 El nombre histórico del cambio `deploy-dual-con-failover-temporal` no describe
 el alcance revisado. **El operador configura Cloudflare y los conectores**;
@@ -62,12 +62,13 @@ No añadir una redirección permanente a la raíz sin autorización adicional.
 
 ## DNS objetivo (operador)
 
-| Registro CNAME con proxy | Destino                              | Función                       |
-| ------------------------ | ------------------------------------ | ----------------------------- |
-| `@`                      | `<UUID_PRINCIPAL>.cfargotunnel.com`  | producción en el dominio raíz |
-| `*`                      | `<UUID_SECUNDARIA>.cfargotunnel.com` | previews en Proxmox           |
-| `staging` (opcional)     | `<UUID_SECUNDARIA>.cfargotunnel.com` | staging explícito en Proxmox  |
-| `ia`                     | `<UUID_PRINCIPAL>.cfargotunnel.com`  | Ollama para staging/pr-N      |
+| Registro CNAME con proxy | Destino                              | Función                                      |
+| ------------------------ | ------------------------------------ | -------------------------------------------- |
+| `@`                      | `<UUID_PRINCIPAL>.cfargotunnel.com`  | producción en el dominio raíz                |
+| `*`                      | `<UUID_SECUNDARIA>.cfargotunnel.com` | previews en Proxmox                          |
+| `staging` (opcional)     | `<UUID_SECUNDARIA>.cfargotunnel.com` | staging explícito en Proxmox                 |
+| `ia`                     | `<UUID_PRINCIPAL>.cfargotunnel.com`  | Ollama para staging/pr-N                     |
+| `presentacion`           | `<UUID_PRINCIPAL>.cfargotunnel.com`  | presentación en Debian (le gana al wildcard) |
 
 Usar el soporte de flattening del apex de Cloudflare; no publicar IP de los
 hosts ni crear balanceadores. Reutilizar el UUID, conector y wildcard actuales

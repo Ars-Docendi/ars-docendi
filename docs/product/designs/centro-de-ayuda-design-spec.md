@@ -56,7 +56,7 @@ Se diseña el **Centro de ayuda** (`/ayuda`): documentación dentro de la app, o
 
 ## Responsive
 
-Por debajo de 900 px la sidebar de documentación se apila sobre el contenido; no se agrega menú hamburguesa.
+Hasta 900 px la sidebar de documentación se oculta (ver _Teléfono_); no se agrega menú hamburguesa.
 
 ## Decisiones de diseño
 
@@ -69,6 +69,12 @@ Por debajo de 900 px la sidebar de documentación se apila sobre el contenido; n
 - Botón "Ayuda" fuera del pie del menú lateral: en escritorio no hay barra superior y en el teléfono la barra fina sólo tiene el botón ☰ y la marca (`barra-superior`).
 - Mostrar o buscar artículos que la sesión no puede ver.
 - Capturas con PII o datos reales: sólo datos sintéticos.
+
+## Teléfono
+
+- Hasta 900 px la barra lateral se oculta; el buscador pasa arriba del contenido a 44 px / 16 px y la navegación es portada, módulo, artículo, con el enlace para volver.
+- Los artículos muestran un índice desplegable «En esta página» con enlaces a los pasos, en lugar del árbol de pasos; las capturas siguen abriéndose en el visor.
+- No hay desborde horizontal a 360 y 390 px: palabras largas, imágenes y código se ajustan al ancho.
 
 ## Referencias
 

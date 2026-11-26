@@ -45,7 +45,7 @@ export const abrirUnaTarea: ArticuloAyuda = {
       titulo: "Mirá los Datos de la tarea",
       etiquetaIndice: "Datos",
       cuerpo:
-        "A la derecha, el panel Datos muestra Tipo, Fecha de inicio, Fecha de fin (con el semáforo si la tarea sigue abierta), % de avance, Responsable, Autor y Proyecto. Si la tarea pertenece a un proyecto, su nombre es un enlace al detalle del proyecto; si es una hija, aparece también Tarea padre.",
+        "A la derecha, el panel Datos muestra Tipo, Fecha de inicio, Fecha de fin (seguida del semáforo si la tarea sigue abierta: A tiempo, Próximo a vencer o, recién cuando la fecha ya pasó, Vencido), % de avance, Responsable, Autor y Proyecto. Si la tarea pertenece a un proyecto, su nombre es un enlace al detalle del proyecto; si es una hija, aparece también Tarea padre.",
       captura: {
         src: "/ayuda/tareas/abrir-una-tarea-paso-3.webp",
         alt: "Panel Datos con proyecto y semáforo.",
@@ -55,7 +55,7 @@ export const abrirUnaTarea: ArticuloAyuda = {
       titulo: "Seguí las tareas hijas",
       etiquetaIndice: "Tareas hijas",
       cuerpo:
-        "Una tarea compleja se puede descomponer en tareas hijas. Cada hija tiene su propio responsable, fechas, estado y avance: el avance del padre no se calcula a partir de las hijas. Si tu rol crea tareas, el botón Nueva tarea hija abre el formulario con el proyecto ya heredado del padre.",
+        "Una tarea compleja se puede descomponer en tareas hijas. Cada hija tiene su propio responsable, fechas, estado y avance. El avance del padre es el promedio de sus hijas no canceladas, se actualiza solo y no se edita a mano; su estado sigue siendo independiente. Si tu rol crea tareas, el botón Nueva tarea hija abre el formulario con el proyecto ya heredado del padre. Si creaste la tarea, también podés buscar una tarea existente para vincularla como hija, o desvincular una: la tarea vinculada y sus hijas pasan al proyecto del padre, y el sistema te lo avisa antes si cambia. No se ofrecen tareas canceladas ni las que ya tienen otro padre.",
     },
     {
       titulo: "Relacioná tareas",

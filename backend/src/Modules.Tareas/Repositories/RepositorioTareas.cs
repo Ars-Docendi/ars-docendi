@@ -110,5 +110,18 @@ public sealed class RepositorioTareas(TareasDbContext db)
             ) SELECT t.*, t.xmin FROM tareas.tareas t JOIN descendientes d ON t.id = d.id
             """).ToListAsync(ct);
 
+    public Task<List<short>> AvancesDeHijasVigentesAsync(Guid padreId, short canceladaId, CancellationToken ct) =>
+        db.Tareas.AsNoTracking()
+            .Where(t => t.TareaPadreId == padreId && t.EstadoId != canceladaId)
+            .Select(t => t.PorcentajeAvance)
+            .ToListAsync(ct);
+
+    public Task<List<Guid>> TareasConHijasVigentesAsync(short canceladaId, CancellationToken ct) =>
+        db.Tareas.AsNoTracking()
+            .Where(t => t.TareaPadreId != null && t.EstadoId != canceladaId)
+            .Select(t => t.TareaPadreId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
     public Task GuardarAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

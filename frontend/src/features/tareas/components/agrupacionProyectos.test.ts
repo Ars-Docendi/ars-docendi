@@ -15,6 +15,8 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
     tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
+
+    avanceCalculado: false,
     responsable: { id: "u-G. Ruiz", nombre: "G. Ruiz", rol: "Jefe de Cátedra" },
     creadoPor: { id: "u-L. Fernández", nombre: "L. Fernández", rol: "Secretaría Académica" },
     comentarios: [],

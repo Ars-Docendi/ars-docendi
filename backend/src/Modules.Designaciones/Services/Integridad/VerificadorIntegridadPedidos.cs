@@ -51,7 +51,8 @@ public sealed class VerificadorIntegridadPedidos(RepositorioSellos sellos, Clave
             if (sello.Secuencia != esperada || !sello.HashAnterior.SequenceEqual(anterior))
                 hallazgos.Add(new(CategoriasIntegridad.SelloSecuenciaRota, sello.HistorialId));
             if (!eventos.TryGetValue(sello.HistorialId, out var evento)
-                || !CanonicoSellos.Hash(sello.HashAnterior, sello.PeriodoId, sello.Secuencia, evento, sello.HashEstado)
+                || !CanonicoSellos.Hash(
+                    sello.HashAnterior, sello.PeriodoId, sello.Secuencia, evento, sello.HashEstado, sello.VersionPayload)
                     .SequenceEqual(sello.Hash))
                 hallazgos.Add(new(CategoriasIntegridad.SelloHashInvalido, sello.HistorialId));
             if (claves.Firmar(sello.VersionClave, sello.Hash) is not { } firma || !firma.SequenceEqual(sello.Firma))
@@ -77,7 +78,7 @@ public sealed class VerificadorIntegridadPedidos(RepositorioSellos sellos, Clave
                 : null;
             var diverge = ultimoSello is null
                 ? pedido.Estado != EstadosPedido.Borrador
-                : !CanonicoSellos.HashEstado(pedido).SequenceEqual(ultimoSello.HashEstado);
+                : !CanonicoSellos.HashEstado(pedido, ultimoSello.VersionPayload).SequenceEqual(ultimoSello.HashEstado);
             if (diverge) hallazgos.Add(new(CategoriasIntegridad.PedidoEstadoDivergente, pedido.Id));
         }
 

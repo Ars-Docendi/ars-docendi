@@ -4,6 +4,7 @@ import { InlineAlert } from "@ars-docendi/ui";
 import { Conversacion } from "./Conversacion";
 import { EncabezadoDeConversacion } from "./EncabezadoDeConversacion";
 import { EntradaDePregunta } from "./EntradaDePregunta";
+import { AvisoDeModeloEnReposo } from "./AvisoDeModeloEnReposo";
 import { EstadoInicial } from "./EstadoInicial";
 import { FranjaDeEstado } from "./FranjaDeEstado";
 import { IrAlFinal } from "./IrAlFinal";
@@ -11,12 +12,14 @@ import { RailDeConversaciones } from "./RailDeConversaciones";
 import { MENSAJE_SIN_ACCESO } from "../errores";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAnclaAlFinal } from "../hooks/useAnclaAlFinal";
+import { useDisponibilidadDelModelo } from "../hooks/useDisponibilidadDelModelo";
 import { usePreferenciaDelRail } from "../hooks/usePreferenciaDelRail";
 import type { Asistente } from "../hooks/useAsistente";
 import type { HistorialAsistente } from "../hooks/useHistorialAsistente";
 import type { MencionEnPregunta } from "../types";
 import { developmentAuthEnabled } from "../../../shared/auth/developmentAuth";
 import { obtenerSesionDesarrollo } from "../../../shared/auth/dev/session";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
 
 interface PanelAsistenteProps {
   /**
@@ -60,11 +63,35 @@ export function PanelAsistente({
   const entrada = useRef<HTMLTextAreaElement>(null);
   const sinTurnos = turnos.length === 0;
 
+  // El aviso del modelo en reposo no aplica con mantenimiento (el backend sigue contestando). Una
+  // respuesta de ESTE hilo prueba que el modelo está cargado; las restauradas del historial no.
+  const modelo = useDisponibilidadDelModelo({
+    habilitado: tieneAcceso === true && !capacidades?.mantenimiento.activo,
+    modeloProbado: turnos.some((t) => !t.historico && t.respuesta?.estado === "respondida"),
+  });
+
   // NO ES UN HOOK A PROPÓSITO: la sesión de desarrollo es una lectura síncrona de `localStorage`, y
   // pasar por `useCurrentUser` traería su propia consulta de React Query a CADA test que monta este
   // panel —que son casi todos— sin que la preferencia del rail necesite nada de eso.
   const usuarioId = developmentAuthEnabled ? obtenerSesionDesarrollo()?.usuarioId : undefined;
   const rail = usePreferenciaDelRail(usuarioId);
+
+  // Phones: no room for a rail column, so the rail is a drawer opened from the header.
+  const telefono = usePantallaTelefono();
+  const [cajonAbierto, setCajonAbierto] = useState(false);
+  const botonConversaciones = useRef<HTMLButtonElement>(null);
+  const devolverFoco = useRef(false);
+  function cerrarCajon() {
+    devolverFoco.current = true;
+    setCajonAbierto(false);
+  }
+  // After the commit: while the drawer is open the header is `inert` and cannot take focus.
+  useEffect(() => {
+    if (cajonAbierto || !devolverFoco.current) return;
+    devolverFoco.current = false;
+    botonConversaciones.current?.focus();
+  }, [cajonAbierto]);
+  const conCajon = telefono && cajonAbierto;
 
   // El foco vuelve al campo cuando el turno termina —también cuando se lo dejó de
   // esperar— y cuando la conversación se vacía: quien está usando un lector de
@@ -111,10 +138,25 @@ export function PanelAsistente({
           historial={historial}
           colapsado={rail.colapsado}
           onAlternar={rail.alternar}
+          cajon={telefono ? { abierto: cajonAbierto, onCerrar: cerrarCajon } : undefined}
         />
 
-        <div className="adoc-asistente-columna">
-          <EncabezadoDeConversacion titulo={tituloDelEncabezado} onCerrar={onCerrar} />
+        {conCajon && (
+          <div className="adoc-asistente-cajon-fondo" aria-hidden="true" onClick={cerrarCajon} />
+        )}
+
+        {/* `inert` while the drawer covers it: Tab stays inside the drawer. */}
+        <div className="adoc-asistente-columna" inert={conCajon || undefined}>
+          <EncabezadoDeConversacion
+            titulo={tituloDelEncabezado}
+            onCerrar={onCerrar}
+            conversaciones={
+              telefono
+                ? { abiertas: cajonAbierto, onAbrir: () => setCajonAbierto(true) }
+                : undefined
+            }
+            refConversaciones={botonConversaciones}
+          />
 
           {/* EL ENCABEZADO LLEGA AL BORDE DEL MODAL SIN RELLENO PROPIO; ESTO NO. El
               relleno alrededor del banner, el hilo, la franja y la entrada vive
@@ -182,6 +224,8 @@ export function PanelAsistente({
                 columna angosta de 684 px, más chica que la del hilo. */}
             <div className="adoc-asistente-compositor">
               <div className="adoc-asistente-compositor-marco">
+                <AvisoDeModeloEnReposo aviso={modelo.aviso} onActivar={modelo.activar} />
+
                 <EntradaDePregunta
                   ref={entrada}
                   valor={borrador}

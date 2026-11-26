@@ -537,3 +537,59 @@ describe("Accesibilidad del rail (tasks.md §14)", () => {
     );
   });
 });
+
+describe("On a phone the rail is a drawer", () => {
+  beforeEach(() => {
+    // Phone viewport: `(max-width: 559px)` matches.
+    vi.stubGlobal("matchMedia", (consulta: string) => ({
+      matches: consulta.includes("559px"),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("opens from the header, closes on choosing a conversation and leaves the input reachable", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA, OTRA]);
+    const reanudar = vi.mocked(historialApi.reanudarConversacion);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+
+    const abrir = await screen.findByRole("button", { name: "Conversaciones" });
+    expect(screen.queryByRole("navigation", { name: "Conversaciones" })).toBeNull();
+
+    await user.click(abrir);
+    const cajon = screen.getByRole("navigation", { name: "Conversaciones" });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Cerrar conversaciones" })).toHaveFocus(),
+    );
+
+    await user.click(await screen.findByRole("button", { name: OTRA.titulo }));
+
+    expect(reanudar).toHaveBeenCalledWith(OTRA.id);
+    expect(cajon).not.toBeVisible();
+    await waitFor(() => expect(abrir).toHaveFocus());
+    await user.type(screen.getByLabelText("Tu pregunta"), "otra pregunta");
+    expect(screen.getByLabelText("Tu pregunta")).toHaveValue("otra pregunta");
+  });
+
+  it("Escape closes only the drawer, not the modal around it", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    // The library modal closes on any Escape that reaches `window`.
+    const escapeDelModal = vi.fn();
+    window.addEventListener("keydown", escapeDelModal);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba onCerrar={() => {}} />);
+    await user.click(await screen.findByRole("button", { name: "Conversaciones" }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Cerrar conversaciones" })).toHaveFocus(),
+    );
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("navigation", { name: "Conversaciones" })).toBeNull();
+    expect(escapeDelModal).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", escapeDelModal);
+  });
+});

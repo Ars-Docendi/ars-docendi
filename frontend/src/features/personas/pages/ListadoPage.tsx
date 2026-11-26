@@ -20,6 +20,8 @@ import {
 } from "../filtrosPersonas";
 import { usePermisosPersonas, usePersonas } from "../hooks/usePersonas";
 import { Modal } from "../../../shared/ui/Modal";
+import { usePantallaTelefono } from "../../../shared/ui/usePantallaTelefono";
+import { ListaPersonasMovil } from "../components/ListaPersonasMovil";
 
 export function ListadoPage() {
   const navegar = useNavigate();
@@ -29,6 +31,7 @@ export function ListadoPage() {
   const { consulta, cambiarEstado } = usePersonas();
   const [filtros, setFiltros] = useFiltrosURL(FILTROS_VACIOS);
   const [orden, setOrden] = useOrdenURL(COLUMNAS_ORDEN_PERSONAS);
+  const telefono = usePantallaTelefono();
   const [aConfirmar, setAConfirmar] = useState<Persona | null>(null);
 
   const personas = useMemo(() => consulta.data ?? [], [consulta.data]);
@@ -71,6 +74,19 @@ export function ListadoPage() {
       )}
       {consulta.isLoading ? (
         <p role="status">Cargando personas…</p>
+      ) : telefono ? (
+        <ListaPersonasMovil
+          todas={personas}
+          personas={visibles}
+          opcionesRol={opcionesRol(personas)}
+          filtros={filtros}
+          orden={orden}
+          onFiltrosChange={setFiltros}
+          onOrdenChange={setOrden}
+          onAbrir={(p) => abrir(`/personas/${p.personaId}`)}
+          onCambiarEstado={administrar ? setAConfirmar : undefined}
+          textoAbrir={administrar ? "Editar" : "Ver"}
+        />
       ) : (
         <TablaPersonas
           personas={visibles}

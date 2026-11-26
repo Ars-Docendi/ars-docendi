@@ -5,6 +5,7 @@ import { Modal } from "@ars-docendi/ui";
 import { PanelAsistente } from "./PanelAsistente";
 import { VolverALaConversacion } from "./VolverALaConversacion";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
+import { useAltoVisible } from "../hooks/useAltoVisible";
 import { useAsistente } from "../hooks/useAsistente";
 import { useHistorialAsistente } from "../hooks/useHistorialAsistente";
 import { sparkIcon } from "../../../app/shell/icons";
@@ -23,6 +24,7 @@ export function LanzadorAsistente({ colapsado = false }: { colapsado?: boolean }
   // vale la pena pedir la lista (tasks.md 1.3).
   const historial = useHistorialAsistente(asistente, abierto);
   const lanzador = useRef<HTMLButtonElement>(null);
+  useAltoVisible(abierto);
   const { pathname } = useLocation();
   const [rutaVista, setRutaVista] = useState(pathname);
   // Hubo un clic en un vínculo de una respuesta con el modal abierto, y la ruta

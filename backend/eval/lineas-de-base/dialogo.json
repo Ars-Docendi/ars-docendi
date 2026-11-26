@@ -1,9 +1,9 @@
 {
   "Eje": "di\u00E1logo",
   "Sello": {
-    "Prefijo": "1d2ba01c2e54f28676ea5e959a5d3aef32792626af4053e17c4219fd0f383091",
-    "Dataset": "de884bd890ac071ac3fe83756762fe2ae1d0cc33527f31fe16c6147628460bc6",
-    "Fixture": "98de10e72a62fdcf3598e983a92d0de094e742ddf0c7a9cc9e50bc1dd013aaf2"
+    "Prefijo": "9e00a3aa65e418f5fd2433b4bc6afd8eb616047d74d12c6e5ad8f449264cfc57",
+    "Dataset": "812204e9c6eb8f16659294ef24ea07b4b7d7ed39ecfd2d9bc0728b6fc3ab44dc",
+    "Fixture": "6b1f31774c5b0c0163d7b561bacebea092566820e12852f142d0948157abd420"
   },
   "Items": {
     "dia-001-seguimiento#1": "traduccion_correcta",
@@ -16,6 +16,6 @@
     "dia-004-pivote-y-vuelta#2": "traduccion_correcta",
     "dia-004-pivote-y-vuelta#3": "traduccion_correcta",
     "dia-005-referencia-al-resultado#1": "traduccion_correcta",
-    "dia-005-referencia-al-resultado#2": "traduccion_correcta"
+    "dia-005-referencia-al-resultado#2": "traduccion_incorrecta"
   }
 }

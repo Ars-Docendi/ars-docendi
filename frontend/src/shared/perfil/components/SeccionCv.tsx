@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, FileUpload, InlineAlert } from "@ars-docendi/ui";
 
+import { acceptDe, mimeAdmitido } from "../../api/archivosApi";
 import type { ArchivoCv } from "../types";
 import { SeccionPerfil } from "./SeccionPerfil";
 import { useModoPerfil } from "./ModoPerfil";
@@ -9,10 +10,6 @@ interface SeccionCvProps {
   cv: ArchivoCv | null;
   onCargar: (archivo: File) => void;
   onEliminar: () => void;
-}
-
-function esPdf(archivo: File): boolean {
-  return archivo.type === "application/pdf" || archivo.name.toLowerCase().endsWith(".pdf");
 }
 
 /**
@@ -29,7 +26,7 @@ export function SeccionCv({ cv, onCargar, onEliminar }: SeccionCvProps) {
   function recibir(archivos: FileList) {
     const archivo = archivos[0];
     if (!archivo) return;
-    if (!esPdf(archivo)) {
+    if (!mimeAdmitido("cv", archivo)) {
       setError("El CV tiene que ser un archivo PDF.");
       return;
     }
@@ -77,7 +74,7 @@ export function SeccionCv({ cv, onCargar, onEliminar }: SeccionCvProps) {
           </InlineAlert>
         )}
         <FileUpload
-          accept="application/pdf,.pdf"
+          accept={acceptDe("cv")}
           error={Boolean(error)}
           title="Arrastrá tu CV en PDF o hacé clic para subirlo"
           files={

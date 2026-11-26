@@ -27,8 +27,11 @@ import {
   type Seleccion,
 } from "../seleccion";
 import type { EstadoLectura, Notificacion } from "../types";
-import { IconoCerrar, IconoListaCheck } from "./iconos";
+import { useDispositivoPush } from "../push/useDispositivoPush";
+import { IconoAjustes, IconoCerrar, IconoListaCheck, IconoVolver } from "./iconos";
 import { ListaNotificaciones } from "./ListaNotificaciones";
+import { PreferenciasNotificaciones } from "./PreferenciasNotificaciones";
+import { SugerenciaPush } from "./SugerenciaPush";
 import "./notificaciones.css";
 
 const PESTANIAS: { id: EstadoLectura; etiqueta: string }[] = [
@@ -44,6 +47,8 @@ interface PanelNotificacionesProps {
   desplazamiento: number;
   /** Active role code: part of every query key. */
   rol: string;
+  /** Permissions of the active role: they decide which push groups are offered. Unknown shows all. */
+  permisos?: readonly string[];
   /** Ruta de la página: si cambia mientras el panel está abierto, la navegación se llevó el foco. */
   rutaActual?: string;
   onNavegar: (notificacion: Notificacion) => void;
@@ -79,9 +84,15 @@ function PanelAbierto({
   triggerRef,
   desplazamiento,
   rol,
+  permisos,
   rutaActual,
   onNavegar,
 }: PanelNotificacionesProps) {
+  const [vista, setVista] = useState<"lista" | "preferencias">("lista");
+  const dispositivo = useDispositivoPush();
+  const ajustesRef = useRef<HTMLButtonElement>(null);
+  const volverRef = useRef<HTMLButtonElement>(null);
+  const vistaPrevia = useRef(vista);
   const [pestania, setPestania] = useState<EstadoLectura>("NO_LEIDAS");
   const [seleccion, setSeleccion] = useState<Seleccion>(SELECCION_INICIAL);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -149,6 +160,14 @@ function PanelAbierto({
     };
   }, [triggerRef]);
 
+  // Changing view moves the focus to the control that undoes it (never on the first render, where
+  // the focus goes to the close button).
+  useEffect(() => {
+    if (vistaPrevia.current === vista) return;
+    vistaPrevia.current = vista;
+    (vista === "preferencias" ? volverRef : ajustesRef).current?.focus();
+  }, [vista]);
+
   // An outside press closes it. The bell toggles by itself, so it does not count as outside.
   useEffect(() => {
     function alPresionar(evento: MouseEvent) {
@@ -200,80 +219,115 @@ function PanelAbierto({
         tabIndex={-1}
       >
         <div className="adoc-notif-cab">
-          <h2 id={idTitulo}>Notificaciones</h2>
+          {vista === "preferencias" && (
+            <button
+              ref={volverRef}
+              type="button"
+              id="notif-prefs-volver"
+              className="adoc-notif-icono"
+              aria-label="Volver a las notificaciones"
+              onClick={() => setVista("lista")}
+            >
+              <IconoVolver />
+            </button>
+          )}
+          <h2 id={idTitulo}>
+            {vista === "lista" ? "Notificaciones" : "Preferencias de notificaciones"}
+          </h2>
+          {vista === "lista" && (
+            <button
+              ref={ajustesRef}
+              type="button"
+              id="notif-ajustes"
+              className="adoc-notif-icono"
+              aria-label="Preferencias de notificaciones"
+              onClick={() => setVista("preferencias")}
+            >
+              <IconoAjustes />
+            </button>
+          )}
           <button
             ref={cerrarRef}
             type="button"
             id="notif-cerrar"
-            className="adoc-notif-cerrar"
+            className="adoc-notif-icono"
             aria-label="Cerrar notificaciones"
             onClick={cerrar}
           >
             <IconoCerrar />
           </button>
         </div>
-        <div className="adoc-notif-cuerpo">
-          <div className="adoc-notif-barra">
-            <div className="adoc-notif-tabs" role="tablist" aria-label="Estado de lectura">
-              {PESTANIAS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  role="tab"
-                  id={`notif-tab-${p.id}`}
-                  className="adoc-notif-tab"
-                  aria-selected={pestania === p.id}
-                  aria-controls="notif-panel-lista"
-                  tabIndex={pestania === p.id ? 0 : -1}
-                  onClick={() => cambiarPestania(p.id)}
-                  onKeyDown={teclasPestania(p.id, cambiarPestania)}
-                >
-                  {p.etiqueta}
-                </button>
-              ))}
+        {vista === "preferencias" ? (
+          <div className="adoc-notif-cuerpo adoc-notif-cuerpo-prefs">
+            <PreferenciasNotificaciones dispositivo={dispositivo} permisos={permisos} />
+          </div>
+        ) : (
+          <div className="adoc-notif-cuerpo">
+            {dispositivo.estado === "desactivado" && (
+              <SugerenciaPush onActivar={() => setVista("preferencias")} />
+            )}
+            <div className="adoc-notif-barra">
+              <div className="adoc-notif-tabs" role="tablist" aria-label="Estado de lectura">
+                {PESTANIAS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="tab"
+                    id={`notif-tab-${p.id}`}
+                    className="adoc-notif-tab"
+                    aria-selected={pestania === p.id}
+                    aria-controls="notif-panel-lista"
+                    tabIndex={pestania === p.id ? 0 : -1}
+                    onClick={() => cambiarPestania(p.id)}
+                    onKeyDown={teclasPestania(p.id, cambiarPestania)}
+                  >
+                    {p.etiqueta}
+                  </button>
+                ))}
+              </div>
+              {puedeSeleccionar &&
+                (seleccionActiva ? (
+                  <button
+                    type="button"
+                    id="notif-seleccion-cancelar"
+                    className="adoc-notif-accion peligro"
+                    onClick={() => setSeleccion(SELECCION_INICIAL)}
+                  >
+                    Cancelar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    id="notif-seleccion-iniciar"
+                    className="adoc-notif-accion"
+                    onClick={() => setSeleccion(iniciarSeleccion())}
+                  >
+                    <IconoListaCheck />
+                    Marcar como leídas
+                  </button>
+                ))}
             </div>
-            {puedeSeleccionar &&
-              (seleccionActiva ? (
-                <button
-                  type="button"
-                  id="notif-seleccion-cancelar"
-                  className="adoc-notif-accion peligro"
-                  onClick={() => setSeleccion(SELECCION_INICIAL)}
-                >
-                  Cancelar
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  id="notif-seleccion-iniciar"
-                  className="adoc-notif-accion"
-                  onClick={() => setSeleccion(iniciarSeleccion())}
-                >
-                  <IconoListaCheck />
-                  Marcar como leídas
-                </button>
-              ))}
+            <div
+              ref={scrollRef}
+              id="notif-panel-lista"
+              role="tabpanel"
+              aria-labelledby={`notif-tab-${pestania}`}
+              className="adoc-notif-lista-scroll"
+            >
+              <ListaNotificaciones
+                key={pestania}
+                estado={pestania}
+                consulta={pestania === "NO_LEIDAS" ? noLeidas : leidas}
+                raizScroll={scrollRef}
+                modoSeleccion={seleccionActiva && pestania === "NO_LEIDAS"}
+                seleccion={seleccion}
+                onAbrir={abrir}
+                onAlternar={(id) => setSeleccion((actual) => alternar(actual, id, idsCargadas))}
+              />
+            </div>
           </div>
-          <div
-            ref={scrollRef}
-            id="notif-panel-lista"
-            role="tabpanel"
-            aria-labelledby={`notif-tab-${pestania}`}
-            className="adoc-notif-lista-scroll"
-          >
-            <ListaNotificaciones
-              key={pestania}
-              estado={pestania}
-              consulta={pestania === "NO_LEIDAS" ? noLeidas : leidas}
-              raizScroll={scrollRef}
-              modoSeleccion={seleccionActiva && pestania === "NO_LEIDAS"}
-              seleccion={seleccion}
-              onAbrir={abrir}
-              onAlternar={(id) => setSeleccion((actual) => alternar(actual, id, idsCargadas))}
-            />
-          </div>
-        </div>
-        {seleccionActiva && (
+        )}
+        {vista === "lista" && seleccionActiva && (
           <div className="adoc-notif-pie">
             <Button
               id="notif-seleccion-confirmar"

@@ -49,7 +49,7 @@ public sealed class EmisionAulasTests(PostgresFixture postgres)
         Assert.Equal("AULA_ASIGNADA", aviso.TipoEvento);
         Assert.Equal("SOLICITUD_AULA", aviso.TipoEntidad);
         Assert.Equal(solicitud.Id, aviso.EntidadId);
-        Assert.Equal("Aula asignada", aviso.Titulo);
+        Assert.Equal("Aula asignada: Aula 204", aviso.Titulo);
         Assert.StartsWith("Se te asignó Aula 204 para tu solicitud del 01/10/2026 (", aviso.Mensaje);
         Assert.EndsWith(", K3001).", aviso.Mensaje);
         Assert.Equal("Aula 204", ContextoDe(aviso).GetProperty("aula").GetString());
@@ -72,7 +72,7 @@ public sealed class EmisionAulasTests(PostgresFixture postgres)
         var avisos = await NotificacionesAsync();
         Assert.Equal(2, avisos.Count);
         var actualizada = avisos.Single(a => a.TipoEvento == "AULA_ACTUALIZADA");
-        Assert.Equal("Aula actualizada", actualizada.Titulo);
+        Assert.Equal("Aula actualizada: Aula 305", actualizada.Titulo);
         Assert.Contains("cambió de Aula 204 a Aula 305.", actualizada.Mensaje);
     }
 
@@ -88,7 +88,7 @@ public sealed class EmisionAulasTests(PostgresFixture postgres)
         await admin.PostAsJsonAsync($"/api/aulas/solicitudes/{solicitud.Id}/rechazar", new { motivo = "No hay cupo" }, Ct);
 
         var aviso = Assert.Single(await NotificacionesAsync());
-        Assert.Equal("Solicitud rechazada", aviso.Titulo);
+        Assert.Equal("Solicitud de aula rechazada", aviso.Titulo);
         Assert.Equal(Docente, aviso.Destinatario);
         Assert.EndsWith("K3001). Motivo: No hay cupo", aviso.Mensaje);
     }
@@ -106,7 +106,7 @@ public sealed class EmisionAulasTests(PostgresFixture postgres)
         await admin.PostAsJsonAsync($"/api/aulas/solicitudes/{solicitud.Id}/cancelar-reserva", new { motivo = "Mantenimiento" }, Ct);
 
         var aviso = (await NotificacionesAsync()).Single(a => a.TipoEvento == "RESERVA_CANCELADA");
-        Assert.Equal("Reserva cancelada", aviso.Titulo);
+        Assert.Equal("Reserva de aula cancelada", aviso.Titulo);
         Assert.Contains("; Aula 204 quedó liberada. Motivo: Mantenimiento", aviso.Mensaje);
         Assert.Equal("Aula 204", ContextoDe(aviso).GetProperty("aulaLiberada").GetString());
     }
@@ -131,7 +131,7 @@ public sealed class EmisionAulasTests(PostgresFixture postgres)
         var aSecretaria = avisos.Single(a => a.Destinatario == Secretaria);
         Assert.Equal("administrativo", aAdministrativo.RolDestino);
         Assert.Equal("secretaria", aSecretaria.RolDestino);
-        Assert.Equal("Solicitud cancelada por el docente", aSecretaria.Titulo);
+        Assert.Equal("Solicitud de aula cancelada", aSecretaria.Titulo);
         Assert.StartsWith("López, Carla canceló su solicitud del 01/10/2026 (", aSecretaria.Mensaje);
         Assert.EndsWith("Si ya pediste un aula a Secretaría Académica, hay que liberarla.", aSecretaria.Mensaje);
         Assert.DoesNotContain(avisos, a => a.Destinatario == Docente);

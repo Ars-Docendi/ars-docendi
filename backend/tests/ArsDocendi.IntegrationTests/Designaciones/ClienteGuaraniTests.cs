@@ -1,0 +1,214 @@
+using System.Net;
+using ArsDocendi.IntegrationTests.Designaciones.Guarani;
+using Modules.Designaciones.Domain;
+using Modules.Designaciones.Infrastructure.Guarani;
+using Modules.Designaciones.Services;
+
+namespace ArsDocendi.IntegrationTests.Designaciones;
+
+public sealed class ClienteGuaraniTests
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Periodos_toman_el_anio_de_su_campo_aunque_el_nombre_lo_incluya()
+    {
+        var periodos = await GuaraniDePrueba.ConFixtures().Cliente().ListarPeriodosLectivosAsync(Ct);
+
+        Assert.Equal(3, periodos.Count);
+        Assert.Contains(new PeriodoLectivoGuarani("152", "2do Cuatrimestre", 2026), periodos);
+        Assert.Contains(new PeriodoLectivoGuarani("151", "1er Cuatrimestre 2026", 2026), periodos);
+    }
+
+    [Fact]
+    public async Task Comisiones_mapean_alias_numeros_y_nulls_de_left_join()
+    {
+        var guarani = GuaraniDePrueba.ConFixtures();
+        var filas = await guarani.Cliente().ListarComisionesAsync("152", Ct);
+
+        Assert.Equal(10, filas.Count);
+        var primera = filas[0];
+        Assert.Equal("9001", primera.Comision);
+        Assert.Equal("501", primera.Asignacion);
+        Assert.Equal("03500", primera.ElementoCodigo);
+        Assert.Equal("Presencial", primera.ModalidadDescripcion);
+        Assert.Contains(filas, f => f.Comision == "9002" && f.DocenteNombre is null && f.DocenteDocumento is null);
+        Assert.Contains(filas, f => f.Comision == "9003" && f.Asignacion is null && f.DiaSemana is null);
+
+        var solicitud = Assert.Single(guarani.Solicitudes);
+        Assert.Equal("Basic", solicitud.Headers.Authorization!.Scheme);
+        Assert.Equal("/api/comisiones?periodo_lectivo=152", solicitud.RequestUri!.PathAndQuery);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, CausasImportacion.Autenticacion)]
+    [InlineData(HttpStatusCode.Forbidden, CausasImportacion.Autenticacion)]
+    [InlineData(HttpStatusCode.InternalServerError, CausasImportacion.NoDisponible)]
+    public async Task Status_de_error_se_traduce_a_causa_generica(HttpStatusCode status, string causa)
+    {
+        var guarani = new GuaraniDePrueba().Responder(GuaraniDePrueba.RutaPeriodos, "[]", status);
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(() => guarani.Cliente().ListarPeriodosLectivosAsync(Ct));
+
+        Assert.Equal(causa, error.Causa);
+    }
+
+    [Theory]
+    [InlineData("no es json")]
+    [InlineData("{\"comision\": 1}")]
+    [InlineData("[1, 2]")]
+    [InlineData("[{\"comision\": {\"anidado\": true}}]")]
+    public async Task Respuesta_inutilizable_es_respuesta_invalida(string cuerpo)
+    {
+        var guarani = new GuaraniDePrueba().Responder(GuaraniDePrueba.Comisiones("152"), cuerpo);
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(() => guarani.Cliente().ListarComisionesAsync("152", Ct));
+
+        Assert.Equal(CausasImportacion.RespuestaInvalida, error.Causa);
+    }
+
+    [Fact]
+    public async Task Sin_respuesta_a_tiempo_es_timeout()
+    {
+        var guarani = new GuaraniDePrueba().Fallar(GuaraniDePrueba.RutaPeriodos,
+            () => throw new TaskCanceledException("timeout", new TimeoutException()));
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(() => guarani.Cliente().ListarPeriodosLectivosAsync(Ct));
+
+        Assert.Equal(CausasImportacion.Timeout, error.Causa);
+    }
+
+    [Fact]
+    public async Task Cuerpo_que_se_detiene_tras_los_encabezados_es_timeout()
+    {
+        var guarani = new GuaraniDePrueba().Fallar(GuaraniDePrueba.RutaPeriodos,
+            () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new FlujoQueFalla(null)) });
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(
+            () => guarani.Cliente(GuaraniDePrueba.Opciones(timeoutSegundos: 1)).ListarPeriodosLectivosAsync(Ct));
+
+        Assert.Equal(CausasImportacion.Timeout, error.Causa);
+    }
+
+    [Fact]
+    public async Task Conexion_cortada_durante_la_lectura_es_no_disponible()
+    {
+        var guarani = new GuaraniDePrueba().Fallar(GuaraniDePrueba.RutaPeriodos,
+            () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new FlujoQueFalla(new IOException("corte"))) });
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(() => guarani.Cliente().ListarPeriodosLectivosAsync(Ct));
+
+        Assert.Equal(CausasImportacion.NoDisponible, error.Causa);
+    }
+
+    /// <summary>Cuerpo que falla con <paramref name="error"/> o, sin error, espera hasta que lo cancelen.</summary>
+    private sealed class FlujoQueFalla(Exception? error) : MemoryStream
+    {
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (error is not null) throw error;
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+    }
+
+    [Fact]
+    public async Task Red_caida_es_no_disponible()
+    {
+        var guarani = new GuaraniDePrueba().Fallar(GuaraniDePrueba.RutaPeriodos,
+            () => throw new HttpRequestException("sin ruta"));
+
+        var error = await Assert.ThrowsAsync<ExcepcionGuarani>(() => guarani.Cliente().ListarPeriodosLectivosAsync(Ct));
+
+        Assert.Equal(CausasImportacion.NoDisponible, error.Causa);
+    }
+
+    [Fact]
+    public async Task Logs_no_contienen_credenciales_ni_documentos()
+    {
+        var logger = new LoggerCapturado<ClienteGuarani>();
+        var guarani = new GuaraniDePrueba()
+            .Responder(GuaraniDePrueba.RutaPeriodos, "[]", HttpStatusCode.Unauthorized)
+            .Responder(GuaraniDePrueba.Comisiones("152"), GuaraniDePrueba.ComisionesJson.Replace("[", "{", StringComparison.Ordinal));
+        var cliente = guarani.Cliente(logger: logger);
+
+        await Assert.ThrowsAsync<ExcepcionGuarani>(() => cliente.ListarPeriodosLectivosAsync(Ct));
+        await Assert.ThrowsAsync<ExcepcionGuarani>(() => cliente.ListarComisionesAsync("152", Ct));
+
+        Assert.NotEmpty(logger.Mensajes);
+        var opciones = GuaraniDePrueba.Opciones();
+        Assert.All(logger.Mensajes, m =>
+        {
+            Assert.DoesNotContain(opciones.Contrasena, m, StringComparison.Ordinal);
+            Assert.DoesNotContain(opciones.Usuario, m, StringComparison.Ordinal);
+            Assert.DoesNotContain("28.341.567", m, StringComparison.Ordinal);
+            Assert.DoesNotContain("LOPEZ", m, StringComparison.Ordinal);
+        });
+    }
+
+    [Theory]
+    [InlineData("", "u", "c", true, false)]
+    [InlineData("https://g.invalid/", "", "c", true, false)]
+    [InlineData("https://g.invalid/", "u", "", true, false)]
+    [InlineData("https://g.invalid/", "u", "c", true, true)]
+    [InlineData("https://g.invalid/", "", "", false, true)]
+    [InlineData("", "", "", false, false)]
+    [InlineData("http://g.invalid/", "", "", false, true)]
+    [InlineData("http://g.invalid/", "u", "c", false, false)]
+    [InlineData("http://g.invalid/", "u", "c", true, false)]
+    public void Configuracion_incompleta_deshabilita_la_integracion(
+        string url, string usuario, string contrasena, bool exigeCredenciales, bool esperada)
+    {
+        var opciones = GuaraniDePrueba.Opciones();
+        opciones.UrlBase = url;
+        opciones.Usuario = usuario;
+        opciones.Contrasena = contrasena;
+        opciones.ExigeCredenciales = exigeCredenciales;
+
+        Assert.Equal(esperada, opciones.EstaConfigurada);
+    }
+
+    [Fact]
+    public async Task Sin_credenciales_no_envia_autenticacion_y_con_credenciales_usa_basic()
+    {
+        var sinCredenciales = GuaraniDePrueba.ConFixtures();
+        var opciones = GuaraniDePrueba.Opciones();
+        opciones.Usuario = string.Empty;
+        opciones.Contrasena = string.Empty;
+        opciones.ExigeCredenciales = false;
+        await sinCredenciales.Cliente(opciones).ListarPeriodosLectivosAsync(Ct);
+        Assert.Null(Assert.Single(sinCredenciales.Solicitudes).Headers.Authorization);
+
+        var conCredenciales = GuaraniDePrueba.ConFixtures();
+        await conCredenciales.Cliente().ListarPeriodosLectivosAsync(Ct);
+        Assert.Equal("Basic", Assert.Single(conCredenciales.Solicitudes).Headers.Authorization?.Scheme);
+    }
+
+    [Theory]
+    [InlineData("https://otro.invalid/periodos")]
+    [InlineData("//otro.invalid/periodos")]
+    [InlineData("/api/periodos")]
+    [InlineData("\\\\otro.invalid\\periodos")]
+    public void Ruta_que_no_es_relativa_al_origen_no_esta_configurada(string ruta)
+    {
+        var periodos = GuaraniDePrueba.Opciones();
+        periodos.RutaPeriodosLectivos = ruta;
+        var comisiones = GuaraniDePrueba.Opciones();
+        comisiones.RutaComisiones = ruta + OpcionesGuarani.MarcadorPeriodo;
+
+        Assert.False(periodos.EstaConfigurada);
+        Assert.False(comisiones.EstaConfigurada);
+    }
+
+    [Fact]
+    public void Ruta_de_comisiones_sin_marcador_de_periodo_no_esta_configurada()
+    {
+        var opciones = GuaraniDePrueba.Opciones();
+        opciones.RutaComisiones = "api/comisiones";
+
+        Assert.False(opciones.EstaConfigurada);
+    }
+}

@@ -100,10 +100,26 @@ builder.Services
 // asistente registra una implementación que no resuelve nada —no conoce a ningún
 // otro módulo— y ésta la reemplaza. Es el único proyecto que ve a los dos, así que
 // es el único que puede componerlos sin agregar una arista entre módulos.
-builder.Services.AddScoped<IResolutorDeVinculos, VinculosDeDesignaciones>();
+// Con tres autoridades —designaciones, personas y aulas— el puerto se compone: cada una
+// contesta sólo por lo suyo y con su propio criterio de autorización.
+builder.Services.AddScoped<VinculosDeDesignaciones>();
+builder.Services.AddScoped<VinculosDePersonas>();
+builder.Services.AddScoped<VinculosDeAulas>();
+builder.Services.AddScoped<IResolutorDeVinculos>(sp => new VinculosCompuestos(
+[
+    sp.GetRequiredService<VinculosDeDesignaciones>(),
+    sp.GetRequiredService<VinculosDePersonas>(),
+    sp.GetRequiredService<VinculosDeAulas>(),
+]));
 
 // Las fichas, igual: el módulo registra `SinFichas` y ésta lo reemplaza.
-builder.Services.AddScoped<IProveedorDeFichas, FichasDeDesignaciones>();
+builder.Services.AddScoped<FichasDeDesignaciones>();
+builder.Services.AddScoped<FichasDePersonas>();
+builder.Services.AddScoped<IProveedorDeFichas>(sp => new FichasCompuestas(
+[
+    sp.GetRequiredService<FichasDeDesignaciones>(),
+    sp.GetRequiredService<FichasDePersonas>(),
+]));
 
 var app = builder.Build();
 

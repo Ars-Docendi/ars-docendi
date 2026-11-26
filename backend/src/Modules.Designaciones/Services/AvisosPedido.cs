@@ -41,14 +41,14 @@ internal static class AvisosPedido
                 // Entering en_lote has no reviewer role: nobody to tell.
                 if (!RolesCircuito.RolPorEtapa.TryGetValue(pedido.Estado, out var rolDestino)) return null;
                 return new Aviso(
-                    Nuevo(TiposEventoNotificacion.PedidoParaRevisar, pedido, rolDestino, "Pedido para revisar",
+                    Nuevo(TiposEventoNotificacion.PedidoParaRevisar, pedido, rolDestino, $"Pedido {pedido.Numero} para revisar",
                         $"Pasó a {EtiquetaRol[rolDestino]} {sujeto}. Esperando tu revisión.",
                         new() { ["numero"] = pedido.Numero, ["estado"] = pedido.Estado, ["etapaDestino"] = rolDestino }),
                     new DestinoNotificacion.RolEnAmbito(rolDestino));
 
             case AccionPedido.Rechazar rechazar:
                 return new Aviso(
-                    Nuevo(TiposEventoNotificacion.PedidoRechazado, pedido, RolesCircuito.JefeCatedra, "Pedido rechazado",
+                    Nuevo(TiposEventoNotificacion.PedidoRechazado, pedido, RolesCircuito.JefeCatedra, $"Pedido {pedido.Numero} rechazado",
                         $"Se rechazó {sujeto}. Justificativo: {rechazar.Justificativo}",
                         new() { ["numero"] = pedido.Numero, ["justificativo"] = rechazar.Justificativo }),
                     new DestinoNotificacion.RolEnAmbito(RolesCircuito.JefeCatedra, MateriaId: pedido.MateriaId));
@@ -64,7 +64,7 @@ internal static class AvisosPedido
                 };
                 var etiqueta = EtiquetaRol.TryGetValue(propietario, out var nombre) ? nombre : "el propietario";
                 return new Aviso(
-                    Nuevo(TiposEventoNotificacion.PedidoDevuelto, pedido, propietario, "Pedido devuelto",
+                    Nuevo(TiposEventoNotificacion.PedidoDevuelto, pedido, propietario, $"Pedido {pedido.Numero} devuelto",
                         $"Se devolvió {sujeto} para que lo corrija {etiqueta}. Comentario: {devolver.Comentario}",
                         new() { ["numero"] = pedido.Numero, ["comentario"] = devolver.Comentario, ["propietario"] = propietario }),
                     destino);

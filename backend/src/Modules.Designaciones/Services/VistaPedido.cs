@@ -5,9 +5,11 @@ namespace Modules.Designaciones.Services;
 /// <summary>
 /// Lo que un actor ve del avance de un pedido. Con <c>designaciones.ver_seguimiento</c> ve el
 /// estado real, el historial y a quién se devolvió. Sin él ve un estado simplificado: en
-/// proceso mientras circula, devuelto sólo si volvió a su rol activo (con el motivo), y
-/// aprobado al terminar el circuito del departamento. <c>ultimoMotivo</c> es el comentario de
-/// la última devolución, que el listado lee aparte porque su historial es un resumen.
+/// proceso mientras circula o espera la conciliación del lote, devuelto sólo si volvió a su
+/// rol activo (con el motivo), aprobado una vez sincronizado y rechazado si lo rechazó el
+/// circuito o la conciliación (en este caso, con el motivo de la conciliación).
+/// <c>ultimoMotivo</c> es el comentario de la última devolución, que el listado lee aparte
+/// porque su historial es un resumen.
 /// </summary>
 internal sealed record VistaPedido(
     string Estado,
@@ -35,16 +37,24 @@ internal sealed record VistaPedido(
         var estado = pedido.Estado switch
         {
             EstadosPedido.Borrador or EstadosPedido.Rechazado or EstadosPedido.Cancelado => pedido.Estado,
-            EstadosPedido.EnLote => Aprobado,
+            EstadosPedido.Aprobado => Aprobado,
+            EstadosPedido.NoAprobado => EstadosPedido.Rechazado,
             EstadosPedido.Devuelto when devueltoAlActor => EstadosPedido.Devuelto,
             _ => EnProceso,
         };
+        var motivo = devueltoAlActor
+            ? ultimoMotivo
+            : pedido.Estado == EstadosPedido.NoAprobado
+                ? pedido.Historial
+                    .Where(h => h.Accion == AccionesHistorial.NoAprobar)
+                    .MaxBy(h => h.CreadoEn)?.Comentario
+                : null;
         return new(
             estado,
             EtapaRetorno: null,
             PropietarioActual: devueltoAlActor ? pedido.PropietarioActual : null,
             Historial: [],
-            MotivoDevolucion: devueltoAlActor ? ultimoMotivo : null);
+            MotivoDevolucion: motivo);
     }
 
     public static string? UltimoMotivo(Pedido pedido) =>

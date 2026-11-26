@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -421,5 +421,39 @@ describe("Columna «Acceso» (asistente-acceso-granular)", () => {
     await user.click(interruptor);
 
     await waitFor(() => expect(onCambiarAccesoDeRol).toHaveBeenCalledWith("docente", true));
+  });
+});
+
+describe("On a phone", () => {
+  beforeEach(() => {
+    // Phone viewport: `(max-width: 559px)` matches.
+    vi.stubGlobal("matchMedia", (consulta: string) => ({
+      matches: consulta.includes("559px"),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("shows one card per user, in metric order, and its cupo editor saves like the table row", async () => {
+    const user = userEvent.setup();
+    const { onGuardarCupoDeUsuario } = montar();
+
+    expect(screen.queryByRole("table")).toBeNull();
+    const tarjetas = within(screen.getByRole("list", { name: "Uso por usuario" })).getAllByRole(
+      "listitem",
+    );
+    expect(tarjetas.map((t) => within(t).getByText(/Paz|Díaz/).textContent)).toEqual([
+      "Bruno Paz",
+      "Marina Díaz",
+    ]);
+
+    await user.click(
+      within(tarjetas[1]).getByRole("button", { name: "Editar cupo diario de Marina Díaz" }),
+    );
+    await user.type(screen.getByLabelText("Cupo diario de Marina Díaz (turnos)"), "30");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(onGuardarCupoDeUsuario).toHaveBeenCalledWith("u1", 30));
   });
 });

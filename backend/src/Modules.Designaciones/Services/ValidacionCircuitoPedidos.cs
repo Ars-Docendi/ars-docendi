@@ -10,10 +10,18 @@ internal sealed partial class ServicioPedidos
         var errores = new Dictionary<string, string[]>();
         if (pedido.Novedad is Novedades.Alta or Novedades.CambioDeCargoODedicacion)
         {
-            if (pedido.CargoSolicitadoId is not { } cargo || !await pedidos.ExisteCargoActivoAsync(cargo, ct))
-                errores["cargoSolicitadoId"] = ["Seleccioná un cargo activo."];
-            if (pedido.DedicacionSolicitadaId is not { } dedicacion || !await pedidos.ExisteDedicacionActivaAsync(dedicacion, ct))
-                errores["dedicacionSolicitadaId"] = ["Seleccioná una dedicación activa."];
+            if (pedido.SectorExternoId is { } sector)
+            {
+                if (!await pedidos.ExisteSectorExternoActivoAsync(sector, ct))
+                    errores["sectorExternoId"] = ["Seleccioná un sector externo activo."];
+            }
+            else
+            {
+                if (pedido.CargoSolicitadoId is not { } cargo || !await pedidos.ExisteCargoActivoAsync(cargo, ct))
+                    errores["cargoSolicitadoId"] = ["Seleccioná un cargo activo."];
+                if (pedido.DedicacionSolicitadaId is not { } dedicacion || !await pedidos.ExisteDedicacionActivaAsync(dedicacion, ct))
+                    errores["dedicacionSolicitadaId"] = ["Seleccioná una dedicación activa."];
+            }
             if (pedido.Horas is null or <= 0)
                 errores["horas"] = ["Las horas de materia deben ser mayores a cero."];
         }

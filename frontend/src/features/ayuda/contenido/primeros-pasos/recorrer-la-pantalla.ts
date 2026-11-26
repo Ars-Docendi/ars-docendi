@@ -5,7 +5,7 @@ export const recorrerLaPantalla: ArticuloAyuda = {
   moduloSlug: "primeros-pasos",
   grupo: "Moverte por el sistema",
   titulo: "Cómo recorrer la pantalla",
-  resumen: "Menú lateral, migas de pan y cierre de sesión.",
+  resumen: "Menú lateral, notificaciones, migas de pan y cierre de sesión.",
   introduccion:
     "Todas las pantallas del sistema comparten la misma estructura: un menú a la izquierda y el contenido de la pantalla a la derecha. En el celular el menú se abre desde el botón ☰ de la barra de arriba.",
   permisos: [],
@@ -21,6 +21,8 @@ export const recorrerLaPantalla: ArticuloAyuda = {
     "usuario",
     "rol",
     "cambiar rol",
+    "notificaciones",
+    "campana",
   ],
   pasos: [
     {
@@ -47,6 +49,17 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       captura: {
         src: "/ayuda/primeros-pasos/recorrer-la-pantalla-paso-3.webp",
         alt: "Migas de pan de una pantalla de tres niveles, por ejemplo el detalle de un pedido.",
+      },
+    },
+    {
+      titulo: "Mirá tus notificaciones",
+      etiquetaIndice: "Notificaciones",
+      cuerpo:
+        "La campana está al pie del menú lateral, entre el Centro de ayuda y tu usuario (en el celular, en la barra de arriba), y muestra cuántos avisos tenés sin leer. Al tocarla se abre un panel con las pestañas No leídas y Leídas: tocá un aviso para ir directo a la solicitud, el pedido o la tarea. Con el engranaje del panel elegís de qué módulos querés recibir también notificaciones en el celular.",
+      nota: {
+        tipo: "consejo",
+        cuerpo:
+          "Para recibir los avisos en el celular aunque no tengas el sistema abierto, seguí la guía «Activar las notificaciones en el celular».",
       },
     },
     {
@@ -78,9 +91,15 @@ export const recorrerLaPantalla: ArticuloAyuda = {
       respuesta:
         "Dentro del Centro de ayuda el menú se reduce a íconos para dejar lugar al índice de la documentación. Podés desplegarlo con el botón ☰, y al salir de la ayuda vuelve a mostrarse como lo tenías.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En el celular (menos de 560 px) las listas pasan de tabla a tarjetas, con un único botón «Filtros (n)» que abre una hoja con todos los filtros y un selector «Ordenar por». Las pestañas se deslizan con el dedo y, en las pantallas de detalle, las acciones principales quedan fijas en una barra al pie. En tablets las tablas se mantienen, con la primera columna fija y una sombra en el borde derecho cuando hay más columnas por ver.",
+    },
   ],
   relacionados: [
     "primeros-pasos/permisos-y-pantallas-visibles",
     "primeros-pasos/usar-el-centro-de-ayuda",
+    "primeros-pasos/activar-las-notificaciones-en-el-celular",
   ],
 };

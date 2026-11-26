@@ -24,12 +24,16 @@ export interface Asignacion {
   materiaCodigo: string;
   materiaNombre: string;
   carreraId: string;
-  cargoId: string;
-  cargoNombre: string;
-  cargoAbreviatura: string;
+  cargoId: string | null;
+  cargoNombre: string | null;
+  cargoAbreviatura: string | null;
   dedicacion: string | null;
   dedicacionId: string | null;
   horas: number;
+  /** Con valor, la designación es externa (sin cargo ni dedicación). */
+  sectorExternoId?: string | null;
+  sectorExternoCodigo?: string | null;
+  sectorExternoNombre?: string | null;
 }
 
 export interface Persona {
@@ -67,6 +71,7 @@ export interface CatalogosPersonas {
   carreras: OpcionCatalogo[];
   cargos: { id: string; codigo: string; nombre: string; abreviatura: string; activo: boolean }[];
   dedicaciones: { id: string; nombre: string; activo: boolean }[];
+  sectoresExternos: { id: string; codigo: string; nombre: string; activo: boolean }[];
 }
 
 export interface GuardarPersona {
@@ -79,13 +84,6 @@ export interface GuardarPersona {
   telefono: string | null;
   upn: string;
   membresias: MembresiaGuardar[];
-  designaciones: {
-    materiaId: string;
-    carreraId: string;
-    cargoId: string;
-    dedicacionId: string | null;
-    horas: number;
-  }[];
   version?: number | null;
 }
 

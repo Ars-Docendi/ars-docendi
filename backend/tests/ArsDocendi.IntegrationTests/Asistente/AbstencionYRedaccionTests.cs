@@ -324,23 +324,72 @@ public sealed class AbstencionYRedaccionTests
 
     [Theory]
     // Global con designaciones pero SIN el permiso de portal: es el defecto.
-    [InlineData(true, false, true, false)]
-    [InlineData(true, true, true, true)]
+    [InlineData(true, false, false, "Portal", false)]
+    [InlineData(true, true, false, "Portal", true)]
     // La mitad que no se puede romper al arreglar la otra: el permiso de portal
     // no puede pasar a hacer falta para preguntas que no son de portal.
-    [InlineData(true, false, false, true)]
-    // Un actor no global nunca alcanza todo, toque portal o no.
-    [InlineData(false, true, true, false)]
-    [InlineData(false, true, false, false)]
-    public void El_alcance_total_exige_el_permiso_del_dominio_que_la_consulta_toca(
-        bool esGlobal, bool veTrayectoriaAjena, bool tocaPortal, bool alcanzaTodo)
+    [InlineData(true, false, false, "Designaciones", true)]
+    // Un actor no global nunca alcanza todo en designaciones ni en portal.
+    [InlineData(false, true, false, "Portal", false)]
+    [InlineData(false, true, false, "Designaciones", false)]
+    // Sólo catálogos de identity: conserva la regla de designaciones, no cambia ninguna respuesta.
+    [InlineData(true, false, false, "Ninguno", true)]
+    [InlineData(false, false, false, "Ninguno", false)]
+    // Comisiones depende del permiso y de nada más: un actor acotado con el permiso alcanza todo,
+    // y uno global sin el permiso no.
+    [InlineData(false, false, true, "Comisiones", true)]
+    [InlineData(true, false, false, "Comisiones", false)]
+    // Comisiones más designaciones exige las dos reglas: el permiso no compensa el ámbito.
+    [InlineData(false, false, true, "Comisiones, Designaciones", false)]
+    [InlineData(true, false, true, "Comisiones, Designaciones", true)]
+    [InlineData(true, false, false, "Comisiones, Designaciones", false)]
+    // Un dominio que el sistema no sabe evaluar nunca alcanza todo, ni siquiera al actor global.
+    [InlineData(true, true, true, "Designaciones, Desconocido", false)]
+    public void El_alcance_total_exige_lo_que_exige_cada_dominio_que_la_consulta_toca(
+        bool esGlobal, bool veTrayectoriaAjena, bool veComisiones, string dominios, bool alcanzaTodo)
     {
         var perfil = new PerfilDelActor(
             esGlobal, VeDatosPersonales: esGlobal,
-            AlcanzaDesignaciones: esGlobal, VeTrayectoriaAjena: veTrayectoriaAjena);
+            AlcanzaDesignaciones: esGlobal, VeTrayectoriaAjena: veTrayectoriaAjena,
+            VeComisiones: veComisiones);
 
-        Assert.Equal(alcanzaTodo, PoliticaDeAbstencion.AlcanzaTodo(perfil, tocaPortal));
+        Assert.Equal(
+            alcanzaTodo,
+            PoliticaDeAbstencion.AlcanzaTodo(perfil, Enum.Parse<DominioConsultado>(dominios)));
     }
+
+    [Theory]
+    // Only aulas.aprobar sees every request, whatever the scope.
+    [InlineData(false, true, false, "Aulas", true)]
+    // aulas.solicitar sees the actor's own requests: never "there are none" as a fact.
+    [InlineData(false, false, true, "Aulas", false)]
+    [InlineData(true, false, true, "Aulas", false)]
+    // Neither permission: the policy returns nothing, so zero rows says nothing either.
+    [InlineData(true, false, false, "Aulas", false)]
+    // Aulas plus designaciones needs both rules: the approver permission does not make up for scope.
+    [InlineData(false, true, false, "Aulas, Designaciones", false)]
+    [InlineData(true, true, false, "Aulas, Designaciones", true)]
+    [InlineData(true, false, true, "Aulas, Designaciones", false)]
+    public void El_alcance_total_de_aulas_exige_aprobar_y_quien_solo_solicita_no_lo_alcanza(
+        bool esGlobal, bool veSolicitudesDeAula, bool veSolicitudesPropias, string dominios, bool alcanzaTodo)
+    {
+        var perfil = new PerfilDelActor(
+            esGlobal, VeDatosPersonales: esGlobal, AlcanzaDesignaciones: esGlobal,
+            VeSolicitudesDeAula: veSolicitudesDeAula, VeSolicitudesPropias: veSolicitudesPropias);
+
+        Assert.Equal(
+            alcanzaTodo,
+            PoliticaDeAbstencion.AlcanzaTodo(perfil, Enum.Parse<DominioConsultado>(dominios)));
+    }
+
+    [Theory]
+    [InlineData("SELECT * FROM aulas.solicitudes_reserva", "Aulas")]
+    [InlineData("SELECT 1 FROM identity.materias m -- aulas.solicitudes_reserva", "Ninguno")]
+    [InlineData("SELECT s.id FROM aulas.solicitudes_reserva s JOIN comisiones.sga_comisiones c ON c.nombre = s.comision", "Comisiones, Aulas")]
+    public void El_detector_reconoce_aulas_solo_cuando_la_consulta_toca_la_tabla(string sql, string esperado) =>
+        Assert.Equal(
+            Enum.Parse<DominioConsultado>(esperado),
+            DetectorDeDominios.Detectar(sql).Dominios);
 
     // ------------------------------------------------------------------ apoyo
 

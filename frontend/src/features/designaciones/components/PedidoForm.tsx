@@ -9,9 +9,11 @@ import type {
   NovedadAdmitida,
   PedidoDesignacion,
   MateriaPedido,
+  SectorExterno,
   TipoAdjunto,
   TipoBaja,
 } from "../types";
+import { mensajeFormatoInvalido, mimeAdmitido } from "../../../shared/api/archivosApi";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { asignacionVigenteEnMateria, claveMateria } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
@@ -47,6 +49,9 @@ interface PedidoFormProps {
   materias?: MateriaPedido[];
   cargos: string[];
   dedicaciones: string[];
+  sectoresExternos?: SectorExterno[];
+  /** Muestra un buscador de materias en lugar de la lista (quien no es Jefe de Cátedra). */
+  buscadorMaterias?: boolean;
   tiposBaja: string[];
 }
 
@@ -66,6 +71,7 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
     horasExternas: pedido?.horasExternas ?? 0,
     horasInvestigacion: pedido?.horasInvestigacion ?? 0,
     adjuntos: pedido?.adjuntos ?? [],
+    sectorExternoId: pedido?.sectorExternoId,
     personaId: pedido?.personaId,
     materiaId: pedido?.materiaId,
     carreraId: pedido?.carreraId,
@@ -88,12 +94,15 @@ export function PedidoForm({
   materias = [],
   cargos,
   dedicaciones,
+  sectoresExternos = [],
+  buscadorMaterias = false,
   tiposBaja,
 }: PedidoFormProps) {
   const [datos, setDatos] = useState<DatosEditablesPedido>(() =>
     datosIniciales(catedra, pedidoInicial),
   );
   const [errores, setErrores] = useState<ErroresValidacion>({});
+  const [erroresFormato, setErroresFormato] = useState<Partial<Record<TipoAdjunto, string>>>({});
   const [inicial] = useState(() => JSON.stringify(datos));
   const sucio = JSON.stringify(datos) !== inicial;
   useEffect(() => onSucioChange?.(sucio), [sucio, onSucioChange]);
@@ -281,6 +290,10 @@ export function PedidoForm({
   function agregarAdjunto(tipo: TipoAdjunto, archivos: FileList) {
     const archivo = archivos.item(0);
     if (!archivo) return;
+    // Arrastrar no respeta el `accept` del selector: el formato se valida acá también.
+    const errorFormato = mimeAdmitido(tipo, archivo) ? undefined : mensajeFormatoInvalido(tipo);
+    setErroresFormato((prev) => ({ ...prev, [tipo]: errorFormato }));
+    if (errorFormato) return;
     setDatos((prev) => ({
       ...prev,
       adjuntos: [
@@ -291,6 +304,7 @@ export function PedidoForm({
   }
 
   function quitarAdjunto(tipo: TipoAdjunto) {
+    setErroresFormato((prev) => ({ ...prev, [tipo]: undefined }));
     setDatos((prev) => ({
       ...prev,
       adjuntos: prev.adjuntos.filter((adjunto) => adjunto.tipo !== tipo),
@@ -330,6 +344,15 @@ export function PedidoForm({
   const titulo = esEdicion ? "Editar pedido" : "Nuevo pedido";
   const subtitulo = construirSubtitulo(novedad, esEdicion, pedidoInicial, numero, periodoLabel);
   const devolucion = pedidoInicial?.estado === "devuelto" ? ultimaDevolucion(pedidoInicial) : null;
+  // En conciliación no se envía: el pedido ya pasó el circuito y se sincroniza desde Conciliación.
+  const enConciliacion =
+    pedidoInicial?.estado === "en_lote" || pedidoInicial?.estado === "no_aprobado";
+  // Con seguimiento llega en el historial; sin él, el backend lo manda como motivo.
+  const motivoConciliacion =
+    pedidoInicial?.estado === "no_aprobado"
+      ? ([...pedidoInicial.historial].reverse().find((h) => h.accion === "no_aprobar")
+          ?.comentario ?? pedidoInicial.motivoDevolucion)
+      : undefined;
 
   return (
     <form
@@ -354,6 +377,20 @@ export function PedidoForm({
       {!devolucion && pedidoInicial?.estado === "devuelto" && pedidoInicial.motivoDevolucion && (
         <InlineAlert severity="warning" title="Te devolvieron este pedido">
           «{pedidoInicial.motivoDevolucion}» Corregilo y reenvialo.
+        </InlineAlert>
+      )}
+
+      {pedidoInicial?.estado === "no_aprobado" && (
+        <InlineAlert severity="info" title="Vuelve a conciliarse">
+          {motivoConciliacion ? `Se rechazó: «${motivoConciliacion}». ` : ""}
+          Al guardar, el cambio vuelve a Por conciliar. Ahí vas a poder aceptar al docente y
+          sincronizarlo.
+        </InlineAlert>
+      )}
+      {pedidoInicial?.estado === "en_lote" && (
+        <InlineAlert severity="info" title="Pedido en conciliación">
+          Al guardar, el docente queda sin aceptar en Conciliación: revisalo de nuevo antes de
+          sincronizar.
         </InlineAlert>
       )}
 
@@ -408,6 +445,29 @@ export function PedidoForm({
             horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
             onSeleccionarDocente={seleccionarDocente}
             onCambiarPersona={cambiarPersona}
+            buscadorMaterias={buscadorMaterias}
+            personaExistente={esAlta && Boolean(datos.personaId)}
+            onElegirPersona={(persona) =>
+              setDatos((prev) => ({
+                ...prev,
+                personaId: persona.id,
+                docente: {
+                  dni: persona.documento,
+                  nombre: `${persona.apellido}, ${persona.nombre}`,
+                  nombrePersona: persona.nombre,
+                  apellido: persona.apellido,
+                  legajo: persona.legajo ?? undefined,
+                  antiguedad: 0,
+                },
+              }))
+            }
+            onPersonaNueva={() =>
+              setDatos((prev) => ({
+                ...prev,
+                personaId: undefined,
+                docente: { dni: "", nombre: "", antiguedad: 0 },
+              }))
+            }
             onSeleccionarMateria={seleccionarMateria}
           />
         )}
@@ -428,6 +488,23 @@ export function PedidoForm({
             onHorasExternas={(valor) => actualizar("horasExternas", valor)}
             cargos={cargos}
             dedicaciones={dedicaciones}
+            sectorExternoId={datos.sectorExternoId}
+            sectoresExternos={sectoresExternos}
+            onExterno={(externo) =>
+              setDatos((prev) => ({
+                ...prev,
+                sectorExternoId: externo ? "" : undefined,
+                ...(externo
+                  ? {
+                      cargoSolicitado: undefined,
+                      cargoSolicitadoId: undefined,
+                      dedicacionSolicitada: undefined,
+                      dedicacionSolicitadaId: undefined,
+                    }
+                  : {}),
+              }))
+            }
+            onSectorExterno={(id) => actualizar("sectorExternoId", id)}
           />
         )}
 
@@ -487,6 +564,7 @@ export function PedidoForm({
           <SeccionAdjuntosPedido
             novedad={novedad}
             errorAdjuntos={errores.adjuntos}
+            erroresFormato={erroresFormato}
             adjuntoComoUploaded={adjuntoComoUploaded}
             onAgregar={agregarAdjunto}
             onQuitar={quitarAdjunto}
@@ -497,17 +575,23 @@ export function PedidoForm({
           <Button type="button" variant="secondary" onClick={onCancelar}>
             Cancelar
           </Button>
-          <Button type="submit" variant="secondary" loading={guardando}>
+          <Button
+            type="submit"
+            variant={enConciliacion ? "primary" : "secondary"}
+            loading={guardando}
+          >
             Guardar pedido
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            loading={guardando}
-            onClick={() => handleGuardar({ enviar: true })}
-          >
-            {pedidoInicial?.estado === "devuelto" ? "Guardar y reenviar" : "Guardar y enviar"}
-          </Button>
+          {!enConciliacion && (
+            <Button
+              type="button"
+              variant="primary"
+              loading={guardando}
+              onClick={() => handleGuardar({ enviar: true })}
+            >
+              {pedidoInicial?.estado === "devuelto" ? "Guardar y reenviar" : "Guardar y enviar"}
+            </Button>
+          )}
         </div>
       </div>
     </form>
@@ -524,6 +608,8 @@ function construirSubtitulo(
 ): string {
   if (esEdicion) {
     const ref = numero || "borrador";
+    if (pedidoInicial?.estado === "en_lote" || pedidoInicial?.estado === "no_aprobado")
+      return `Editás un pedido en conciliación · ${ref}`;
     return pedidoInicial?.estado === "devuelto"
       ? `Editás un pedido devuelto · ${ref}`
       : `Editás un borrador · ${ref}`;

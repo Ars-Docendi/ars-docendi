@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useState } from "react";
 import { InlineAlert } from "@ars-docendi/ui";
+import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { useFiltrosURL } from "../../../shared/navegacion/estadoURL";
 import { Migas } from "../../../shared/navegacion/Migas";
 import { useAbrirDetalle } from "../../../shared/navegacion/useEstadoVolver";
@@ -12,6 +13,7 @@ import {
   type CampoFiltroOpcional,
 } from "../../../shared/ui/FiltrosLista";
 import { esIntegridadComprometida, exportarLote } from "../api/loteApi";
+import { BotonExportarLote } from "../components/BotonExportarLote";
 import { TablaRevision } from "../components/TablaRevision";
 import { CARRERAS, FILTROS_INICIALES } from "../components/filtrosTablero";
 import { useActorContexto } from "../hooks/useActorContexto";
@@ -92,6 +94,7 @@ function filtrosOpcionales(veVariasCarreras: boolean): CampoFiltroOpcional[] {
 export function TableroRevisionPage() {
   const abrir = useAbrirDetalle();
   const actor = useActorContexto();
+  const { user } = useCurrentUser();
   const { data: pedidos, isLoading, isError, refetch } = usePedidosPorAmbito();
   const catalogos = useCatalogosDesignaciones();
   // Período, prioridad, etc. viven en el query: Atrás y recargar los restauran.
@@ -134,13 +137,49 @@ export function TableroRevisionPage() {
 
   const cantidad = pedidos?.length ?? 0;
   const ambito = actor.carrera ?? "Departamento";
-  const puedeExportarLote =
-    actor.rol === "Secretaría" || actor.rol === "Decanato" || actor.rol === "Administración";
+  const puedeExportarLote = user?.permissions.includes("designaciones.exportar_lote") ?? false;
+  const periodoActivo = catalogos.data?.periodoActivo;
+  const meta = (
+    <>
+      Pedidos en tu ámbito · {ambito}
+      {puedeExportarLote && !catalogos.isLoading && (
+        <>
+          {" · "}
+          {periodoActivo ? (
+            `Período: ${periodoActivo.nombre}`
+          ) : (
+            <span id="revision-sin-periodo">
+              Sin período activo: configuralo para descargar el lote.
+            </span>
+          )}
+        </>
+      )}
+    </>
+  );
 
   return (
     <>
       <Migas items={[{ label: "Inicio", href: "/" }, { label: "Revisión" }]} />
-      <PageHeader title="Revisión" meta={`Pedidos en tu ámbito · ${ambito}`} />
+      <PageHeader
+        title="Revisión"
+        meta={meta}
+        actions={
+          puedeExportarLote && (
+            <BotonExportarLote
+              hayPeriodoActivo={Boolean(periodoActivo)}
+              exportando={exportando}
+              onExportar={handleExportar}
+              idAyuda="revision-sin-periodo"
+            />
+          )
+        }
+      />
+
+      {errorExportacion && (
+        <InlineAlert severity="danger" title="No se descargó el lote">
+          {errorExportacion}
+        </InlineAlert>
+      )}
 
       {isLoading && (
         <p style={{ color: "var(--color-text-secondary)" }}>Cargando los pedidos de tu ámbito…</p>
@@ -168,16 +207,12 @@ export function TableroRevisionPage() {
         />
       )}
 
-      {!isLoading && !isError && (cantidad > 0 || puedeExportarLote) && pedidos && (
+      {!isLoading && !isError && cantidad > 0 && pedidos && (
         <TablaRevision
           pedidos={pedidos}
           actor={actor}
           filtros={filtros}
           onSeleccionar={handleSeleccionar}
-          periodoActivo={catalogos.data?.periodoActivo}
-          onExportar={handleExportar}
-          exportando={exportando}
-          errorExportacion={errorExportacion}
         />
       )}
     </>

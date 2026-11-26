@@ -13,6 +13,12 @@ export interface FiltrosPersonas {
   estado: EstadoPersona[];
 }
 
+export const ETIQUETAS_ESTADO: Record<EstadoPersona, string> = {
+  activo: "Activo",
+  inactivo: "Inactivo",
+  sin_cuenta: "Sin cuenta",
+};
+
 export const COLUMNAS_ORDEN_PERSONAS: ColumnaOrden[] = ["nombre", "documento", "legajo", "estado"];
 
 export interface OrdenPersonas {
@@ -46,7 +52,10 @@ const contiene = (texto: string | null | undefined, filtro: string) =>
 
 const textoAsignaciones = (p: Persona) =>
   p.asignaciones
-    .map((a) => `${a.materiaCodigo} ${a.materiaNombre} ${a.cargoNombre} ${a.cargoAbreviatura}`)
+    .map(
+      (a) =>
+        `${a.materiaCodigo} ${a.materiaNombre} ${a.cargoNombre ?? ""} ${a.cargoAbreviatura ?? ""} ${a.sectorExternoNombre ?? ""} ${a.sectorExternoCodigo ?? ""}`,
+    )
     .join(" ");
 
 export function opcionesRol(personas: Persona[]): string[] {

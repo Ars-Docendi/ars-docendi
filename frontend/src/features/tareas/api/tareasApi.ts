@@ -98,6 +98,20 @@ export function agregarComentario(id: string, texto: string): Promise<Tarea> {
   );
 }
 
+export function vincularHija(id: string, hijaId: string, version: number): Promise<Tarea> {
+  return pedir(
+    apiClient.post<Tarea>(`/api/tareas/${id}/hijas`, { tareaId: hijaId, version }),
+    "No se pudo vincular la tarea.",
+  );
+}
+
+export function desvincularHija(id: string, hijaId: string, version: number): Promise<Tarea> {
+  return pedir(
+    apiClient.delete<Tarea>(`/api/tareas/${id}/hijas/${hijaId}`, { params: { version } }),
+    "No se pudo desvincular la tarea.",
+  );
+}
+
 export async function agregarRelacion(id: string, otraTareaId: string): Promise<void> {
   await pedir(
     apiClient.post<void>(`/api/tareas/${id}/relaciones`, { otraTareaId }),

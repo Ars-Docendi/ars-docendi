@@ -56,7 +56,7 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
         tipo: "importante",
         titulo: "Alcance de un rol personalizado",
         cuerpo:
-          "Un rol propio puede agrupar permisos, pero no habilita a aceptar, rechazar ni devolver pedidos en el circuito de aprobación de designaciones: esa facultad es de los roles del circuito.",
+          "Un rol propio puede agrupar permisos, pero no habilita a aceptar, rechazar ni devolver pedidos en el circuito de aprobación de designaciones: esa facultad es de los roles del circuito. Lo mismo pasa con Conciliar y Editar designaciones (por defecto, de Secretaría Académica y Administrativos): se pueden sumar a otro rol del circuito, como Decanato, pero un rol propio con esos permisos no alcanza para conciliar ni editar. Exportar el lote (por defecto, sólo de Secretaría Académica) sí se decide únicamente por el permiso.",
       },
     },
     {
@@ -96,6 +96,11 @@ export const administrarRolesYPermisos: ArticuloAyuda = {
       pregunta: "¿Por qué no puedo cambiar el ámbito de un rol?",
       respuesta:
         "Porque ya hay personas con ese rol asignado. Revisá sus roles en Personas antes de cambiar el ámbito.",
+    },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px la lista de roles se muestra como tarjetas, con el menú «⋯» para las acciones de cada rol. Los filtros se reúnen en el botón «Filtros (n)» (hoja con «Limpiar» y «Ver N resultados») y el orden se elige en «Ordenar por». En tablets la tabla se mantiene.",
     },
   ],
   relacionados: [

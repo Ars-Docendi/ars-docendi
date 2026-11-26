@@ -86,6 +86,11 @@ export const gestionarPeriodos: ArticuloAyuda = {
       respuesta:
         "Indica desde y hasta cuándo rigen las designaciones del período. El lote usa su nombre y su rango para armar los encabezados del libro.",
     },
+    {
+      pregunta: "¿Cómo se ve en el celular?",
+      respuesta:
+        "En pantallas de menos de 560 px los períodos se muestran como tarjetas: tocar una abre la edición y el menú «⋯» ofrece las demás acciones de la fila. Los filtros se reúnen en el botón «Filtros (n)», que abre una hoja con «Limpiar» y «Ver N resultados»; el orden se elige en «Ordenar por». En tablets la tabla se mantiene.",
+    },
   ],
   relacionados: ["designaciones/descargar-el-lote-de-finalizados", "designaciones/crear-un-pedido"],
 };

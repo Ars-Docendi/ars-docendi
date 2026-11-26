@@ -1,5 +1,6 @@
 import { useId } from "react";
 
+import { ContenedorTabla } from "../../../shared/ui/ContenedorTabla";
 import type { ModeloDeCalidad } from "../types";
 import { formatearCantidad, formatearTasa } from "../utils/calidad";
 
@@ -19,7 +20,7 @@ export function TablaPorModelo({ filas }: TablaPorModeloProps) {
         <p className="adoc-asistente-admin-panel-vacio-texto">No hay turnos en este período.</p>
       ) : (
         <div className="adoc-table-wrap">
-          <table className="adoc-table">
+          <ContenedorTabla etiqueta="Calidad por modelo">
             <thead>
               <tr>
                 <th scope="col">Modelo</th>
@@ -48,7 +49,7 @@ export function TablaPorModelo({ filas }: TablaPorModeloProps) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </ContenedorTabla>
         </div>
       )}
     </section>
